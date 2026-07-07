@@ -1,0 +1,15 @@
+# API service — en Railway crea un servicio con este repo y deja la raíz del monorepo.
+# Para el frontend estático, crea un segundo servicio (ver comentario al final).
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "npm ci && npm run build:api"
+
+[deploy]
+startCommand = "npm run start:api"
+healthcheckPath = "/api/version"
+restartPolicyType = "ON_FAILURE"
+
+# Frontend (segundo servicio en Railway):
+#   buildCommand = "npm ci && npm run build:web"
+#   startCommand = "npx serve packages/web/dist -s -l $PORT"

@@ -1,0 +1,21 @@
+{
+  "name": "daily-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=packages/web",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "build": "npm run build --workspaces --if-present",
+    "build:api": "npm run build --workspace=packages/api",
+    "build:web": "npm run build --workspace=packages/web",
+    "start:api": "npm run start --workspace=packages/api",
+    "lint": "npm run lint --workspaces --if-present",
+    "type-check": "npm run type-check --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
