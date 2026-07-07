@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { adminAuth } from '../firebaseAdmin.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { ApiError } from '../errors.js';
 
 export interface AuthUser {
@@ -15,8 +15,7 @@ declare module 'express-serve-static-core' {
 }
 
 /**
- * Lee el Authorization: Bearer <Firebase ID token> y deja `req.user` armado.
- * Tira 401 si falta o es invalido.
+ * Lee Authorization: Bearer <Supabase access token> y deja `req.user` armado.
  */
 export async function requireAuth(
   req: Request,
@@ -31,12 +30,15 @@ export async function requireAuth(
   }
 
   try {
-    const decoded = await adminAuth.verifyIdToken(match[1]);
+    const { data, error } = await getSupabaseAdmin().auth.getUser(match[1]);
+    if (error || !data.user) {
+      throw error ?? new Error('invalid token');
+    }
+    const user = data.user;
     req.user = {
-      uid: decoded.uid,
-      email: decoded.email ?? null,
-      // El claim custom `admin: true` se setea desde un script offline.
-      isAdmin: decoded.admin === true,
+      uid: user.id,
+      email: user.email ?? null,
+      isAdmin: user.app_metadata?.admin === true,
     };
     next();
   } catch (err) {

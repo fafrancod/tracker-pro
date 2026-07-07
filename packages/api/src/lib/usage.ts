@@ -1,27 +1,40 @@
-import { db, FieldValue } from '../firebaseAdmin.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { currentPeriod } from './period.js';
 import type { Plan } from './planLimits.js';
 
-interface UsageDoc {
-  tasksCreated?: number;
-  projectsCreated?: number;
-  updatedAt?: FirebaseFirestore.Timestamp;
+interface UsageRow {
+  tasks_created?: number;
+  projects_created?: number;
+  updated_at?: string;
 }
 
-export async function readUsage(uid: string, period = currentPeriod()): Promise<UsageDoc> {
-  const snap = await db.doc(`users/${uid}/usage/${period}`).get();
-  return (snap.data() as UsageDoc) ?? {};
+export async function readUsage(uid: string, period = currentPeriod()): Promise<UsageRow> {
+  const { data } = await getSupabaseAdmin()
+    .from('usage_counters')
+    .select('tasks_created, projects_created, updated_at')
+    .eq('user_id', uid)
+    .eq('period', period)
+    .maybeSingle();
+  return data ?? {};
 }
 
 export async function readProfilePlan(uid: string): Promise<Plan> {
-  const snap = await db.doc(`users/${uid}/profile/data`).get();
-  const plan = (snap.get('plan') as Plan | undefined) ?? 'free';
+  const { data } = await getSupabaseAdmin()
+    .from('profiles')
+    .select('plan')
+    .eq('id', uid)
+    .maybeSingle();
+  const plan = data?.plan as Plan | undefined;
   return plan === 'pro' ? 'pro' : 'free';
 }
 
 export async function countProjects(uid: string): Promise<number> {
-  const snap = await db.collection(`users/${uid}/projects`).count().get();
-  return snap.data().count;
+  const { count, error } = await getSupabaseAdmin()
+    .from('projects')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', uid);
+  if (error) throw error;
+  return count ?? 0;
 }
 
 interface BumpCounters {
@@ -29,49 +42,51 @@ interface BumpCounters {
   projectsCreated?: number;
 }
 
-/**
- * Actualiza el contador de uso del mes. Idempotente cuando se pasa `eventId`
- * (usado para no doble-contar reintentos del cliente).
- */
 export async function bumpUsage(
   uid: string,
   counters: BumpCounters,
   eventId?: string
 ): Promise<void> {
   const period = currentPeriod();
-  const usageRef = db.doc(`users/${uid}/usage/${period}`);
+  const now = new Date().toISOString();
 
   if (eventId) {
-    const eventRef = db.doc(`users/${uid}/usageEvents/${eventId}`);
-    await db.runTransaction(async tx => {
-      const existing = await tx.get(eventRef);
-      if (existing.exists) return; // ya procesado
-      tx.set(eventRef, {
-        period,
-        counters,
-        createdAt: FieldValue.serverTimestamp(),
-      });
-      tx.set(
-        usageRef,
-        {
-          ...Object.fromEntries(
-            Object.entries(counters).map(([k, v]) => [k, FieldValue.increment(v ?? 0)])
-          ),
-          updatedAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+    const { data: existing } = await getSupabaseAdmin()
+      .from('usage_events')
+      .select('event_id')
+      .eq('user_id', uid)
+      .eq('event_id', eventId)
+      .maybeSingle();
+    if (existing) return;
+
+    const { error: eventError } = await getSupabaseAdmin().from('usage_events').insert({
+      user_id: uid,
+      event_id: eventId,
+      period,
+      counters,
     });
-    return;
+    if (eventError) throw eventError;
   }
 
-  await usageRef.set(
+  const { data: usage } = await getSupabaseAdmin()
+    .from('usage_counters')
+    .select('tasks_created, projects_created')
+    .eq('user_id', uid)
+    .eq('period', period)
+    .maybeSingle();
+
+  const nextTasks = (usage?.tasks_created ?? 0) + (counters.tasksCreated ?? 0);
+  const nextProjects = (usage?.projects_created ?? 0) + (counters.projectsCreated ?? 0);
+
+  const { error } = await getSupabaseAdmin().from('usage_counters').upsert(
     {
-      ...Object.fromEntries(
-        Object.entries(counters).map(([k, v]) => [k, FieldValue.increment(v ?? 0)])
-      ),
-      updatedAt: FieldValue.serverTimestamp(),
+      user_id: uid,
+      period,
+      tasks_created: nextTasks,
+      projects_created: nextProjects,
+      updated_at: now,
     },
-    { merge: true }
+    { onConflict: 'user_id,period' }
   );
+  if (error) throw error;
 }

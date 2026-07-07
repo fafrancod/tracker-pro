@@ -6,7 +6,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { FirebaseConfigGate } from '@/components/FirebaseConfigGate';
+import { SupabaseConfigGate } from '@/components/SupabaseConfigGate';
 import { Layout } from '@/components/Layout';
 import { Placeholder } from '@/pages/Placeholder';
 import { BoardPage } from '@/pages/BoardPage';
@@ -38,7 +38,7 @@ function lazyRoute(El: React.ComponentType): React.ReactNode {
 
 function App() {
   return (
-    <FirebaseConfigGate>
+    <SupabaseConfigGate>
       <BrowserRouter>
         <ToastProvider>
           <AuthProvider>
@@ -105,7 +105,7 @@ function App() {
           </AuthProvider>
         </ToastProvider>
       </BrowserRouter>
-    </FirebaseConfigGate>
+    </SupabaseConfigGate>
   );
 }
 

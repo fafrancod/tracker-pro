@@ -10,7 +10,7 @@ export interface DemoSeed {
 
 let cached: DemoSeed | null = null;
 
-/** Sample data para mostrar la UI sin Firebase ni backend. */
+/** Sample data para mostrar la UI sin Supabase ni backend. */
 export function getDemoSeed(): DemoSeed {
   if (cached) return cached;
 

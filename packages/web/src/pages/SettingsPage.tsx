@@ -11,11 +11,12 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@core/lib/api';
 import { isDemoMode } from '@core/lib/demoMode';
 import { appVersion } from '@/lib/appVersion';
-import { getAppCheckStatus, type AppCheckState } from '@/lib/firebase';
+
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
 import type { Language } from '@core/types';
 import { cn } from '@/lib/utils';
+import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 
 interface BackendVersionInfo {
   service: string;
@@ -23,7 +24,7 @@ interface BackendVersionInfo {
   channel: string;
   buildId: string;
   nodeEnv: string;
-  enforceAppCheck: boolean;
+  database?: string;
 }
 
 type ApiState = 'checking' | 'reachable' | 'unreachable';
@@ -39,8 +40,6 @@ export function SettingsPage() {
 
   const [backendInfo, setBackendInfo] = useState<BackendVersionInfo | null>(null);
   const [apiState, setApiState] = useState<ApiState>('checking');
-  const [appCheckState, setAppCheckState] = useState<AppCheckState>('no-key');
-
   async function refreshStatus() {
     if (demo) {
       setBackendInfo({
@@ -49,10 +48,9 @@ export function SettingsPage() {
         channel: 'demo',
         buildId: new Date().toISOString(),
         nodeEnv: 'demo',
-        enforceAppCheck: false,
+        database: 'supabase',
       });
       setApiState('reachable');
-      setAppCheckState('no-key');
       return;
     }
     setApiState('checking');
@@ -62,11 +60,6 @@ export function SettingsPage() {
       setApiState('reachable');
     } catch {
       setApiState('unreachable');
-    }
-    try {
-      setAppCheckState(await getAppCheckStatus());
-    } catch {
-      setAppCheckState('token-error');
     }
   }
 
@@ -107,16 +100,16 @@ export function SettingsPage() {
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('settings_account')}</h2>
             <div className="flex items-center gap-3">
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt="" className="h-10 w-10 rounded-full" />
+              {userAvatarUrl(user) ? (
+                <img src={userAvatarUrl(user)!} alt="" className="h-10 w-10 rounded-full" />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-teal/20 text-sm font-semibold text-accent-teal">
-                  {(user?.displayName ?? user?.email ?? '?').slice(0, 1).toUpperCase()}
+                  {userDisplayName(user).slice(0, 1).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-text-primary">
-                  {user?.displayName ?? '—'}
+                  {userDisplayName(user)}
                 </p>
                 <p className="truncate text-xs text-text-muted">{user?.email}</p>
               </div>
@@ -246,11 +239,6 @@ export function SettingsPage() {
                 {apiState === 'checking' && <Badge variant="secondary">{t('status_checking')}</Badge>}
               </dd>
 
-              <dt className="text-text-muted">App Check</dt>
-              <dd className="text-right">
-                <AppCheckBadge state={appCheckState} />
-              </dd>
-
               <dt className="text-text-muted">Frontend</dt>
               <dd className="text-right text-text-primary">
                 {appVersion.version} · {appVersion.channel}
@@ -261,19 +249,17 @@ export function SettingsPage() {
                   ? `${backendInfo.version} · ${backendInfo.channel}`
                   : 'desconectado'}
               </dd>
-              {backendInfo && (
+              {backendInfo?.database && (
                 <>
-                  <dt className="text-text-muted">App Check (server)</dt>
-                  <dd className="text-right text-text-primary">
-                    {backendInfo.enforceAppCheck ? 'enforced' : 'permisivo'}
-                  </dd>
+                  <dt className="text-text-muted">Base de datos</dt>
+                  <dd className="text-right text-text-primary">{backendInfo.database}</dd>
                 </>
               )}
             </dl>
             {demo && (
               <p className="mt-3 rounded border border-accent-pink/30 bg-accent-pink/5 p-2 text-[11px] text-text-muted">
                 Estás en demo. Los cambios se guardan en este navegador (localStorage) hasta que cierres
-                sesión. No se llama a Firebase ni a la API.
+                sesión. No se llama a Supabase ni a la API.
               </p>
             )}
           </section>
@@ -294,20 +280,6 @@ export function SettingsPage() {
       </div>
     </Layout>
   );
-}
-
-function AppCheckBadge({ state }: { state: AppCheckState }) {
-  switch (state) {
-    case 'token-ok':
-      return <Badge variant="green">Token activo</Badge>;
-    case 'initialized':
-      return <Badge variant="teal">Inicializado</Badge>;
-    case 'token-error':
-      return <Badge variant="red">Error de token</Badge>;
-    case 'no-key':
-    default:
-      return <Badge variant="secondary">Sin configurar</Badge>;
-  }
 }
 
 function SettingRow({

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, FieldValue } from '../firebaseAdmin.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { ApiError } from '../errors.js';
@@ -46,12 +46,15 @@ projectsRouter.post('/', async (req, res, next) => {
     }
 
     const projectId = generateId();
-    const data = {
-      ...body,
+    const { error } = await getSupabaseAdmin().from('projects').insert({
+      id: projectId,
+      user_id: uid,
+      name: body.name,
+      color: body.color,
+      icon: body.icon,
       order: existing,
-      createdAt: FieldValue.serverTimestamp(),
-    };
-    await db.doc(`users/${uid}/projects/${projectId}`).set(data);
+    });
+    if (error) throw error;
 
     res.status(201).json({ id: projectId, ...body, order: existing });
   } catch (err) {
@@ -65,11 +68,22 @@ projectsRouter.patch('/:projectId', async (req, res, next) => {
     const { projectId } = req.params;
     const patch = updateSchema.parse(req.body);
 
-    const ref = db.doc(`users/${uid}/projects/${projectId}`);
-    const snap = await ref.get();
-    if (!snap.exists) throw ApiError.notFound('Project not found');
+    const { data: existing, error: fetchError } = await getSupabaseAdmin()
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('user_id', uid)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing) throw ApiError.notFound('Project not found');
 
-    await ref.update({ ...patch, updatedAt: FieldValue.serverTimestamp() });
+    const { error } = await getSupabaseAdmin()
+      .from('projects')
+      .update(patch)
+      .eq('id', projectId)
+      .eq('user_id', uid);
+    if (error) throw error;
+
     res.json({ id: projectId, ...patch });
   } catch (err) {
     next(err);
@@ -80,10 +94,23 @@ projectsRouter.delete('/:projectId', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
     const { projectId } = req.params;
-    const ref = db.doc(`users/${uid}/projects/${projectId}`);
-    const snap = await ref.get();
-    if (!snap.exists) throw ApiError.notFound('Project not found');
-    await ref.delete();
+
+    const { data: existing, error: fetchError } = await getSupabaseAdmin()
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('user_id', uid)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing) throw ApiError.notFound('Project not found');
+
+    const { error } = await getSupabaseAdmin()
+      .from('projects')
+      .delete()
+      .eq('id', projectId)
+      .eq('user_id', uid);
+    if (error) throw error;
+
     res.status(204).end();
   } catch (err) {
     next(err);

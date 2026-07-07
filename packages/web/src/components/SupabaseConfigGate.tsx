@@ -1,21 +1,16 @@
 import { useState, type ReactNode } from 'react';
 import { ListChecks, Play, Settings as SettingsIcon } from 'lucide-react';
-import { isFirebaseReady } from '@core/firebase';
 import { isDemoMode } from '@core/lib/demoMode';
-import { enableDemo } from '@/lib/firebase';
+import { enableDemo, isSupabaseReady } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
-import { FirebaseConfigForm } from './FirebaseConfigForm';
+import { SupabaseConfigForm } from './SupabaseConfigForm';
 
-/**
- * Bloquea el render si las VITE_FIREBASE_* no están seteadas.
- * Permite saltarla activando demo mode (datos in-memory).
- */
 type Mode = 'menu' | 'configure';
 
-export function FirebaseConfigGate({ children }: { children: ReactNode }) {
+export function SupabaseConfigGate({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<Mode>('menu');
 
-  if (isFirebaseReady() || isDemoMode()) return <>{children}</>;
+  if (isSupabaseReady() || isDemoMode()) return <>{children}</>;
 
   function handleDemo() {
     enableDemo();
@@ -23,7 +18,6 @@ export function FirebaseConfigGate({ children }: { children: ReactNode }) {
   }
 
   function handleConfigSaved() {
-    // El form ya guardó en localStorage; recargar arranca el flow con Firebase real.
     window.location.reload();
   }
 
@@ -39,11 +33,10 @@ export function FirebaseConfigGate({ children }: { children: ReactNode }) {
           <>
             <Button onClick={() => setMode('configure')} className="mb-3 w-full gap-2">
               <SettingsIcon className="h-4 w-4" />
-              Conectar a Firebase
+              Conectar a Supabase
             </Button>
             <p className="mb-5 text-[11px] text-text-muted">
-              Pegá los datos de tu proyecto Firebase (Auth + Firestore). Se guarda en este
-              navegador, no en archivos.
+              Necesitas la URL del proyecto y la anon key. Se guarda en este navegador.
             </p>
 
             <Button onClick={handleDemo} variant="outline" className="mb-3 w-full gap-2">
@@ -58,15 +51,16 @@ export function FirebaseConfigGate({ children }: { children: ReactNode }) {
               <summary className="cursor-pointer">¿Usar archivo `.env.local` en su lugar?</summary>
               <ol className="mt-2 space-y-1 pl-3">
                 <li>
-                  1. Copiá{' '}
+                  1. Copia{' '}
                   <code className="rounded bg-background px-1 text-text-primary">packages/web/.env.example</code> a{' '}
                   <code className="rounded bg-background px-1 text-text-primary">packages/web/.env.local</code>.
                 </li>
                 <li>
-                  2. Llená los{' '}
-                  <code className="rounded bg-background px-1 text-text-primary">VITE_FIREBASE_*</code>.
+                  2. Rellena{' '}
+                  <code className="rounded bg-background px-1 text-text-primary">VITE_SUPABASE_URL</code> y{' '}
+                  <code className="rounded bg-background px-1 text-text-primary">VITE_SUPABASE_ANON_KEY</code>.
                 </li>
-                <li>3. Reiniciá el dev server.</li>
+                <li>3. Reinicia el dev server.</li>
               </ol>
             </details>
           </>
@@ -79,7 +73,7 @@ export function FirebaseConfigGate({ children }: { children: ReactNode }) {
             >
               ← Volver
             </button>
-            <FirebaseConfigForm onSaved={handleConfigSaved} />
+            <SupabaseConfigForm onSaved={handleConfigSaved} />
           </>
         )}
       </div>

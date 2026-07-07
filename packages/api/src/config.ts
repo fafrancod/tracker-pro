@@ -22,12 +22,9 @@ export const config = {
     .split(',')
     .map(s => s.trim())
     .filter(Boolean),
-  enforceAppCheck:
-    (process.env.ENFORCE_APP_CHECK ?? '').toLowerCase() === 'true',
-  firebase: {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   },
   worker: {
     runEmbedded: (process.env.RUN_EMBEDDED_WORKER ?? 'true').toLowerCase() === 'true',

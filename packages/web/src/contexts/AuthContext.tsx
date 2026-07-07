@@ -1,20 +1,11 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut as fbSignOut,
-  onAuthStateChanged,
-  updateProfile,
-  type User,
-} from 'firebase/auth';
-import { getFirebaseAuth, isFirebaseReady } from '@core/firebase';
+import type { User } from '@supabase/supabase-js';
+import { getSupabase, isSupabaseReady } from '@core/supabase';
 import { bootstrapUserProfile, subscribeUserProfile } from '@core/services/userService';
 import { useStore } from '@core/store';
 import { isDemoMode } from '@core/lib/demoMode';
 import { getDemoSeed } from '@/lib/demoSeed';
-import { disableDemo } from '@/lib/firebase';
+import { disableDemo } from '@/lib/supabase';
 import { loadDemoState, saveDemoState, clearDemoState } from '@/lib/demoPersistence';
 import type { UserProfile } from '@core/types';
 import { useToast } from './ToastContext';
@@ -22,7 +13,6 @@ import { useToast } from './ToastContext';
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
-  /** True si la sesion existe pero el perfil no se pudo cargar/crear. */
   profileError: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -46,14 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setCurrentWeek = useStore(s => s.setCurrentWeek);
 
   useEffect(() => {
-    // --- Demo mode: usuario fake + datos sembrados o hidratados de localStorage.
     if (isDemoMode()) {
       const fakeUser = {
-        uid: 'demo-user',
+        id: 'demo-user',
         email: 'demo@local',
-        displayName: 'Demo',
-        photoURL: null,
-        getIdToken: async () => 'demo-token',
+        user_metadata: { name: 'Demo' },
       } as unknown as User;
       setUser(fakeUser);
       setUid('demo-user');
@@ -63,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const defaultProfile: UserProfile = {
         name: 'Demo',
         email: 'demo@local',
-        plan: 'pro', // Demo desbloquea Pro para mostrar todas las features.
+        plan: 'pro',
         createdAt: new Date().toISOString(),
         settings: {
           autoRollIncomplete: false,
@@ -87,8 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       setAuthLoading(false);
 
-      // Subscribe a cambios del store para persistir en localStorage.
-      // Lo hago con un timeout debounce de 300ms para no escribir en cada keystroke.
       let pending: ReturnType<typeof setTimeout> | null = null;
       const unsubStore = useStore.subscribe(state => {
         if (pending) clearTimeout(pending);
@@ -108,35 +93,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    if (!isFirebaseReady()) {
+    if (!isSupabaseReady()) {
       setLoading(false);
       setAuthLoading(false);
       return;
     }
-    const auth = getFirebaseAuth();
+
+    const supabase = getSupabase();
     let profileUnsub: (() => void) | null = null;
 
-    const unsub = onAuthStateChanged(auth, async fbUser => {
-      setUser(fbUser);
-      setUid(fbUser?.uid ?? null);
+    const handleSession = async (sessionUser: User | null) => {
+      setUser(sessionUser);
+      setUid(sessionUser?.id ?? null);
       setProfileError(false);
 
-      // Limpiar el listener anterior antes de cualquier cambio de usuario.
       if (profileUnsub) {
         profileUnsub();
         profileUnsub = null;
       }
 
-      if (fbUser) {
+      if (sessionUser) {
         try {
-          // 1. Bootstrap via backend: crea perfil + usage si no existen,
-          //    es idempotente, y devuelve el perfil para el primer render.
-          const profile = await bootstrapUserProfile(fbUser.displayName ?? undefined);
+          const profile = await bootstrapUserProfile(
+            (sessionUser.user_metadata?.name as string | undefined) ??
+              sessionUser.user_metadata?.full_name ??
+              undefined
+          );
           setProfile(profile);
-
-          // 2. Listener realtime para que cambios de plan/settings (incluso
-          //    desde otra pestaña) refresquen la UI sin recargar.
-          profileUnsub = subscribeUserProfile(fbUser.uid, p => {
+          profileUnsub = subscribeUserProfile(sessionUser.id, p => {
             if (p) setProfile(p);
           });
         } catch (err) {
@@ -144,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setProfileError(true);
           showToast(
-            'No pudimos cargar tu perfil. Probá recargar; si persiste, escribinos.',
+            'No pudimos cargar tu perfil. Prueba a recargar; si persiste, escríbenos.',
             'error'
           );
         }
@@ -154,27 +138,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setLoading(false);
       setAuthLoading(false);
+    };
+
+    void supabase.auth.getSession().then(({ data }) => {
+      void handleSession(data.session?.user ?? null);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      void handleSession(session?.user ?? null);
     });
 
     return () => {
-      unsub();
+      listener.subscription.unsubscribe();
       if (profileUnsub) profileUnsub();
     };
   }, [setUid, setProfile, setAuthLoading, setProjects, setDayTasks, setCurrentWeek, showToast]);
 
   const signInWithGoogle = useCallback(async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(getFirebaseAuth(), provider);
+    const redirectTo = window.location.origin;
+    const { error } = await getSupabase().auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    if (error) throw error;
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
-    await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+    const { error } = await getSupabase().auth.signInWithPassword({ email, password });
+    if (error) throw error;
   }, []);
 
   const signUpWithEmail = useCallback(
     async (email: string, password: string, displayName: string) => {
-      const cred = await createUserWithEmailAndPassword(getFirebaseAuth(), email, password);
-      if (displayName) await updateProfile(cred.user, { displayName });
+      const { error } = await getSupabase().auth.signUp({
+        email,
+        password,
+        options: { data: { name: displayName } },
+      });
+      if (error) throw error;
     },
     []
   );
@@ -186,7 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.reload();
       return;
     }
-    await fbSignOut(getFirebaseAuth());
+    const { error } = await getSupabase().auth.signOut();
+    if (error) throw error;
   }, []);
 
   return (

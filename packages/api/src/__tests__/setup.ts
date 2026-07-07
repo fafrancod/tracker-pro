@@ -1,65 +1,110 @@
 import { vi, beforeEach } from 'vitest';
 
-// Setear NODE_ENV antes de cargar `./app` para que el logger HTTP se desactive.
 process.env.NODE_ENV = 'test';
 process.env.PORT = '0';
 process.env.ALLOWED_ORIGINS = 'http://localhost:3005';
-process.env.ENFORCE_APP_CHECK = 'false';
+process.env.SUPABASE_URL = 'http://localhost:54321';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
 
-/**
- * Mock global de `firebase-admin`. Los tests sobrescriben metodos puntuales
- * via `vi.mocked(...).mockResolvedValue(...)` cuando lo necesitan.
- */
-vi.mock('../firebaseAdmin', () => {
-  const fakeDoc = {
-    get: vi.fn(async () => ({ exists: false, data: () => ({}), get: () => undefined })),
-    set: vi.fn(async () => undefined),
-    update: vi.fn(async () => undefined),
-    delete: vi.fn(async () => undefined),
-  };
-  const fakeCol = {
-    doc: vi.fn(() => fakeDoc),
-    add: vi.fn(async () => ({ id: 'generated' })),
-    count: vi.fn(() => ({ get: vi.fn(async () => ({ data: () => ({ count: 0 }) })) })),
-  };
-  const db = {
-    doc: vi.fn(() => fakeDoc),
-    collection: vi.fn(() => fakeCol),
-    runTransaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
-      fn({
-        get: fakeDoc.get,
-        set: fakeDoc.set,
-        update: fakeDoc.update,
-        delete: fakeDoc.delete,
-      })
-    ),
-  };
+function chainable(result: unknown = { data: null, error: null, count: 0 }) {
+  const chain: Record<string, unknown> = {};
+  const self = () => chain;
+  chain.select = vi.fn(self);
+  chain.eq = vi.fn(self);
+  chain.maybeSingle = vi.fn(async () => result);
+  chain.single = vi.fn(async () => result);
+  chain.insert = vi.fn(self);
+  chain.update = vi.fn(self);
+  chain.delete = vi.fn(self);
+  chain.upsert = vi.fn(async () => ({ data: null, error: null }));
+  chain.order = vi.fn(self);
+  chain.get = vi.fn(async () => result);
+  return chain;
+}
+
+vi.mock('../supabaseAdmin', () => {
+  const profileChain = chainable({ data: null, error: null });
+  const insertChain = chainable({
+    data: {
+      id: 'test-uid',
+      name: 'Test User',
+      email: 'test@example.com',
+      plan: 'free',
+      settings: {
+        autoRollIncomplete: false,
+        defaultProjectId: null,
+        weekStartsOnMonday: true,
+        language: 'es',
+      },
+      created_at: new Date().toISOString(),
+    },
+    error: null,
+  });
 
   return {
-    adminAuth: {
-      verifyIdToken: vi.fn(async (token: string) => {
-        if (token === 'valid-token') {
-          return { uid: 'test-uid', email: 'test@example.com', admin: false };
+    getSupabaseAdmin: vi.fn(() => ({
+      auth: {
+        getUser: vi.fn(async (token: string) => {
+          if (token === 'valid-token') {
+            return {
+              data: {
+                user: {
+                  id: 'test-uid',
+                  email: 'test@example.com',
+                  app_metadata: {},
+                },
+              },
+              error: null,
+            };
+          }
+          if (token === 'admin-token') {
+            return {
+              data: {
+                user: {
+                  id: 'admin-uid',
+                  email: 'admin@example.com',
+                  app_metadata: { admin: true },
+                },
+              },
+              error: null,
+            };
+          }
+          return { data: { user: null }, error: new Error('invalid token') };
+        }),
+      },
+      from: vi.fn((table: string) => {
+        if (table === 'profiles') {
+          return {
+            ...profileChain,
+            insert: vi.fn(() => insertChain),
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: profileChain.maybeSingle,
+                single: insertChain.single,
+              })),
+            })),
+          };
         }
-        if (token === 'admin-token') {
-          return { uid: 'admin-uid', email: 'admin@example.com', admin: true };
+        if (table === 'usage_counters') {
+          return { upsert: vi.fn(async () => ({ data: null, error: null })) };
         }
-        throw new Error('invalid token');
+        if (table === 'tasks') {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })),
+                })),
+              })),
+            })),
+          };
+        }
+        return chainable();
       }),
-    },
-    adminAppCheck: {
-      verifyToken: vi.fn(async () => ({ token: 'ok' })),
-    },
-    db,
-    FieldValue: {
-      serverTimestamp: () => 'SERVER_TS',
-      increment: (n: number) => ({ __increment: n }),
-    },
-    Timestamp: {},
+    })),
   };
 });
 
-// Silenciar pino para que los tests no impriman ruido.
 vi.mock('../logger', () => ({
   logger: {
     info: vi.fn(),
@@ -70,7 +115,6 @@ vi.mock('../logger', () => ({
   },
 }));
 
-// Stub de errorLogs.logError para no acumular Firestore calls.
 vi.mock('../errorLogs', () => ({
   logError: vi.fn(async () => undefined),
 }));

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { appVersion } from '@/lib/appVersion';
 import { useT } from '@/hooks/useT';
+import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import type { TKey } from '@/lib/i18n';
 
 export interface NavItem {
@@ -75,16 +76,16 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
 
       <div className="border-t border-border p-3">
         <div className="mb-2 flex items-center gap-2">
-          {user?.photoURL ? (
-            <img src={user.photoURL} alt="" className="h-7 w-7 rounded-full" />
+          {userAvatarUrl(user) ? (
+            <img src={userAvatarUrl(user)!} alt="" className="h-7 w-7 rounded-full" />
           ) : (
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-teal/20 text-xs font-semibold text-accent-teal">
-              {(user?.displayName ?? user?.email ?? '?').slice(0, 1).toUpperCase()}
+              {userDisplayName(user).slice(0, 1).toUpperCase()}
             </div>
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-text-primary">
-              {user?.displayName ?? user?.email ?? 'Invitado'}
+              {userDisplayName(user)}
             </p>
             <p className="truncate text-[10px] text-text-muted">{user?.email}</p>
           </div>

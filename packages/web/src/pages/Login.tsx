@@ -10,15 +10,11 @@ type Mode = 'signin' | 'signup';
 
 function describeAuthError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
-  if (msg.includes('auth/invalid-credential') || msg.includes('auth/wrong-password')) {
-    return 'Credenciales inválidas.';
-  }
-  if (msg.includes('auth/email-already-in-use')) return 'Ese email ya está registrado.';
-  if (msg.includes('auth/weak-password')) return 'La contraseña debe tener al menos 6 caracteres.';
-  if (msg.includes('auth/invalid-email')) return 'Email inválido.';
-  if (msg.includes('auth/popup-closed-by-user')) return 'Se cerró el popup antes de terminar.';
-  if (msg.includes('auth/network-request-failed')) return 'Sin conexión con Firebase.';
-  return 'No pude completar el login. Revisá la consola para más detalles.';
+  if (msg.includes('Invalid login credentials')) return 'Credenciales inválidas.';
+  if (msg.includes('User already registered')) return 'Ese email ya está registrado.';
+  if (msg.includes('Password should be at least')) return 'La contraseña debe tener al menos 6 caracteres.';
+  if (msg.includes('Unable to validate email')) return 'Email inválido.';
+  return 'No pude completar el login. Revisa la consola para más detalles.';
 }
 
 export function LoginPage() {

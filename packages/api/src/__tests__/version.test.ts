@@ -13,7 +13,7 @@ describe('GET /api/version', () => {
       channel: expect.any(String),
       version: expect.any(String),
     });
-    expect(typeof res.body.enforceAppCheck).toBe('boolean');
+    expect(res.body.database).toBe('supabase');
   });
 
   it('no requiere Authorization', async () => {

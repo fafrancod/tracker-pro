@@ -1,11 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { bootstrapFirebase } from './lib/firebase';
+import { bootstrapSupabase } from './lib/supabase';
 import { useStore } from '@core/store';
 import './index.css';
 
-bootstrapFirebase();
+bootstrapSupabase();
 
 // Dev-only: expose the Zustand store en window para debugging desde la consola.
 if (import.meta.env.DEV) {

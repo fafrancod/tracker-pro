@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, FieldValue } from '../firebaseAdmin.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { currentPeriod } from '../lib/period.js';
@@ -9,8 +9,6 @@ import { ApiError } from '../errors.js';
 export const authRouter = Router();
 
 authRouter.use(requireAuth);
-// Bootstrap se llama una vez por sesion, pero un cliente con bug podria
-// llamarlo muchas veces. Rate limit suave por usuario:
 authRouter.use(rateLimit({ windowMs: 60_000, max: 20 }));
 
 const bootstrapSchema = z.object({
@@ -24,15 +22,6 @@ const DEFAULT_SETTINGS = {
   language: 'es' as const,
 };
 
-/**
- * Idempotente: si el perfil existe lo devuelve sin tocarlo. Si no existe lo
- * crea con plan=free, settings default, y crea tambien el doc de usage del
- * mes para que los counters arranquen visibles desde el frontend.
- *
- * Es la unica forma "oficial" de crear el doc users/{uid}/profile/data — las
- * rules siguen permitiendo create client-side como fallback, pero esto centraliza
- * la inicializacion (defaults, usage, fecha createdAt confiable).
- */
 authRouter.post('/bootstrap', async (req, res, next) => {
   try {
     const { uid, email } = req.user!;
@@ -41,46 +30,66 @@ authRouter.post('/bootstrap', async (req, res, next) => {
     }
     const { name } = bootstrapSchema.parse(req.body ?? {});
 
-    const profileRef = db.doc(`users/${uid}/profile/data`);
-    const usageRef = db.doc(`users/${uid}/usage/${currentPeriod()}`);
+    const { data: existing } = await getSupabaseAdmin()
+      .from('profiles')
+      .select('*')
+      .eq('id', uid)
+      .maybeSingle();
 
-    const result = await db.runTransaction(async tx => {
-      const profileSnap = await tx.get(profileRef);
-      if (profileSnap.exists) {
-        return { profile: profileSnap.data(), created: false };
-      }
+    if (existing) {
+      res.status(200).json({
+        uid,
+        created: false,
+        profile: mapProfile(existing),
+      });
+      return;
+    }
 
-      const newProfile = {
-        name: name ?? email.split('@')[0],
-        email,
-        plan: 'free' as const,
-        createdAt: FieldValue.serverTimestamp(),
-        settings: DEFAULT_SETTINGS,
-      };
-      tx.set(profileRef, newProfile);
-      tx.set(
-        usageRef,
-        {
-          tasksCreated: 0,
-          projectsCreated: 0,
-          createdAt: FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
-      // El timestamp del server no es legible inline; devolvemos un placeholder
-      // que el cliente reemplaza cuando lee el doc real.
-      return {
-        profile: { ...newProfile, createdAt: new Date().toISOString() },
-        created: true,
-      };
-    });
+    const newProfile = {
+      id: uid,
+      name: name ?? email.split('@')[0],
+      email,
+      plan: 'free' as const,
+      settings: DEFAULT_SETTINGS,
+    };
 
-    res.status(result.created ? 201 : 200).json({
+    const { data: inserted, error: profileError } = await getSupabaseAdmin()
+      .from('profiles')
+      .insert(newProfile)
+      .select()
+      .single();
+    if (profileError) throw profileError;
+
+    const period = currentPeriod();
+    await getSupabaseAdmin().from('usage_counters').upsert(
+      {
+        user_id: uid,
+        period,
+        tasks_created: 0,
+        projects_created: 0,
+      },
+      { onConflict: 'user_id,period' }
+    );
+
+    res.status(201).json({
       uid,
-      created: result.created,
-      profile: result.profile,
+      created: true,
+      profile: mapProfile(inserted),
     });
   } catch (err) {
     next(err);
   }
 });
+
+function mapProfile(row: Record<string, unknown>) {
+  return {
+    name: row.name as string,
+    email: row.email as string,
+    plan: row.plan as string,
+    createdAt:
+      typeof row.created_at === 'string'
+        ? row.created_at
+        : new Date().toISOString(),
+    settings: row.settings as Record<string, unknown>,
+  };
+}

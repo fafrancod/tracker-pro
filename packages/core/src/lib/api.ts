@@ -1,28 +1,17 @@
-import { getFirebaseAuth } from '../firebase';
+import { getSupabase } from '../supabase';
 import { isDemoMode } from './demoMode';
-
-// Cliente API compartido. Configurable desde la capa de cada plataforma
-// (web lee `import.meta.env.VITE_API_BASE_URL`; mobile leeria `EXPO_PUBLIC_*`).
-//
-// Mantener este modulo libre de APIs DOM ni Vite para preservar compatibilidad
-// con React Native.
 
 interface ApiConfig {
   baseUrl: string;
-  appCheckTokenGetter: () => Promise<string | null>;
 }
 
 let config: ApiConfig = {
   baseUrl: 'http://localhost:4000',
-  appCheckTokenGetter: async () => null,
 };
 
 export function configureApi(opts: Partial<ApiConfig>): void {
   if (opts.baseUrl) {
     config = { ...config, baseUrl: opts.baseUrl.replace(/\/$/, '') };
-  }
-  if (opts.appCheckTokenGetter) {
-    config = { ...config, appCheckTokenGetter: opts.appCheckTokenGetter };
   }
 }
 
@@ -51,11 +40,10 @@ interface AuthFetchOptions extends Omit<RequestInit, 'body'> {
   withAuth?: boolean;
 }
 
-async function getIdToken(): Promise<string | null> {
+async function getAccessToken(): Promise<string | null> {
   if (isDemoMode()) return 'demo-token';
-  const user = getFirebaseAuth().currentUser;
-  if (!user) return null;
-  return user.getIdToken();
+  const { data } = await getSupabase().auth.getSession();
+  return data.session?.access_token ?? null;
 }
 
 function randomId(): string {
@@ -66,7 +54,6 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-// Mock para demo mode: nunca toca la red. Resuelve segun el path/method.
 async function demoFetch<T>(path: string, method: string, body: unknown): Promise<T> {
   const json = body as Record<string, unknown> | undefined;
 
@@ -77,7 +64,7 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
       channel: 'demo',
       buildId: nowIso(),
       nodeEnv: 'demo',
-      enforceAppCheck: false,
+      database: 'supabase',
     } as T;
   }
 
@@ -94,6 +81,7 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
           autoRollIncomplete: false,
           defaultProjectId: null,
           weekStartsOnMonday: true,
+          language: 'es',
         },
       },
     } as T;
@@ -126,7 +114,6 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
     } as T;
   }
 
-  // PATCH / DELETE / move → 204 equivalente (devolvemos undefined).
   return undefined as T;
 }
 
@@ -145,11 +132,9 @@ export async function authFetch<T = unknown>(
     finalHeaders.set('Content-Type', 'application/json');
   }
   if (withAuth) {
-    const token = await getIdToken();
+    const token = await getAccessToken();
     if (token) finalHeaders.set('Authorization', `Bearer ${token}`);
   }
-  const appCheck = await config.appCheckTokenGetter();
-  if (appCheck) finalHeaders.set('X-Firebase-AppCheck', appCheck);
 
   const url = path.startsWith('http') ? path : `${config.baseUrl}${path}`;
   const response = await fetch(url, {

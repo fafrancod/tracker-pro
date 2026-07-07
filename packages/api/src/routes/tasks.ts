@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { db, FieldValue } from '../firebaseAdmin.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { ApiError } from '../errors.js';
 import { generateId } from '../lib/ids.js';
 import { isValidDayId, isValidWeekId } from '../lib/period.js';
-import { bumpUsage, readProfilePlan } from '../lib/usage.js';
+import { bumpUsage, readProfilePlan, readUsage } from '../lib/usage.js';
 import { getLimits } from '../lib/planLimits.js';
 
 export const tasksRouter = Router();
@@ -43,10 +43,6 @@ const updateSchema = z
   })
   .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' });
 
-function taskPath(uid: string, weekId: string, dayId: string, taskId: string) {
-  return `users/${uid}/weeks/${weekId}/days/${dayId}/tasks/${taskId}`;
-}
-
 tasksRouter.post('/', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
@@ -56,8 +52,8 @@ tasksRouter.post('/', async (req, res, next) => {
     const plan = await readProfilePlan(uid);
     const limits = getLimits(plan);
     if (Number.isFinite(limits.maxTasksPerMonth)) {
-      const usageSnap = await db.doc(`users/${uid}/usage/${monthFromDay(dayId)}`).get();
-      const tasksThisMonth = (usageSnap.get('tasksCreated') as number | undefined) ?? 0;
+      const usage = await readUsage(uid, monthFromDay(dayId));
+      const tasksThisMonth = usage.tasks_created ?? 0;
       if (tasksThisMonth >= limits.maxTasksPerMonth) {
         throw ApiError.planLimit(
           `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
@@ -66,28 +62,54 @@ tasksRouter.post('/', async (req, res, next) => {
       }
     }
 
-    const taskId = generateId();
-    const colRef = db.collection(`users/${uid}/weeks/${weekId}/days/${dayId}/tasks`);
-    const orderSnap = await colRef.count().get();
+    const { count } = await getSupabaseAdmin()
+      .from('tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', uid)
+      .eq('week_id', weekId)
+      .eq('day_id', dayId);
 
+    const taskId = generateId();
+    const now = new Date().toISOString();
     const taskDoc = {
+      id: taskId,
+      user_id: uid,
+      week_id: weekId,
+      day_id: dayId,
       title,
       completed: false,
-      completedAt: null,
-      projectId: projectId ?? null,
+      completed_at: null,
+      project_id: projectId ?? null,
       priority: priority ?? 'medium',
       notes: notes ?? '',
-      order: orderSnap.data().count,
+      order: count ?? 0,
       tags: tags ?? [],
-      movedFrom: null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      moved_from: null,
+      created_at: now,
+      updated_at: now,
     };
 
-    await colRef.doc(taskId).set(taskDoc);
+    const { error } = await getSupabaseAdmin().from('tasks').insert(taskDoc);
+    if (error) throw error;
+
     await bumpUsage(uid, { tasksCreated: 1 }, eventId);
 
-    res.status(201).json({ id: taskId, weekId, dayId, ...taskDoc, createdAt: null, updatedAt: null });
+    res.status(201).json({
+      id: taskId,
+      weekId,
+      dayId,
+      title: taskDoc.title,
+      completed: taskDoc.completed,
+      completedAt: taskDoc.completed_at,
+      projectId: taskDoc.project_id,
+      priority: taskDoc.priority,
+      notes: taskDoc.notes,
+      order: taskDoc.order,
+      tags: taskDoc.tags,
+      movedFrom: taskDoc.moved_from,
+      createdAt: now,
+      updatedAt: now,
+    });
   } catch (err) {
     next(err);
   }
@@ -101,22 +123,40 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       throw ApiError.badRequest('weekId/dayId con formato invalido');
     }
     const patch = updateSchema.parse(req.body);
+    const now = new Date().toISOString();
 
-    const ref = db.doc(taskPath(uid, weekId, dayId, taskId));
-    const snap = await ref.get();
-    if (!snap.exists) throw ApiError.notFound('Task not found');
+    const { data: existing, error: fetchError } = await getSupabaseAdmin()
+      .from('tasks')
+      .select('id')
+      .eq('id', taskId)
+      .eq('user_id', uid)
+      .eq('week_id', weekId)
+      .eq('day_id', dayId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing) throw ApiError.notFound('Task not found');
 
     const update: Record<string, unknown> = {
-      ...patch,
-      updatedAt: FieldValue.serverTimestamp(),
+      updated_at: now,
     };
-    if (patch.completed === true) {
-      update.completedAt = FieldValue.serverTimestamp();
-    } else if (patch.completed === false) {
-      update.completedAt = null;
-    }
+    if (patch.title !== undefined) update.title = patch.title;
+    if (patch.completed !== undefined) update.completed = patch.completed;
+    if (patch.projectId !== undefined) update.project_id = patch.projectId;
+    if (patch.priority !== undefined) update.priority = patch.priority;
+    if (patch.notes !== undefined) update.notes = patch.notes;
+    if (patch.tags !== undefined) update.tags = patch.tags;
+    if (patch.order !== undefined) update.order = patch.order;
+    if (patch.movedFrom !== undefined) update.moved_from = patch.movedFrom;
+    if (patch.completed === true) update.completed_at = now;
+    if (patch.completed === false) update.completed_at = null;
 
-    await ref.update(update);
+    const { error } = await getSupabaseAdmin()
+      .from('tasks')
+      .update(update)
+      .eq('id', taskId)
+      .eq('user_id', uid);
+    if (error) throw error;
+
     res.json({ id: taskId, weekId, dayId, ...patch });
   } catch (err) {
     next(err);
@@ -130,10 +170,25 @@ tasksRouter.delete('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (!isValidWeekId(weekId) || !isValidDayId(dayId)) {
       throw ApiError.badRequest('weekId/dayId con formato invalido');
     }
-    const ref = db.doc(taskPath(uid, weekId, dayId, taskId));
-    const snap = await ref.get();
-    if (!snap.exists) throw ApiError.notFound('Task not found');
-    await ref.delete();
+
+    const { data: existing, error: fetchError } = await getSupabaseAdmin()
+      .from('tasks')
+      .select('id')
+      .eq('id', taskId)
+      .eq('user_id', uid)
+      .eq('week_id', weekId)
+      .eq('day_id', dayId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing) throw ApiError.notFound('Task not found');
+
+    const { error } = await getSupabaseAdmin()
+      .from('tasks')
+      .delete()
+      .eq('id', taskId)
+      .eq('user_id', uid);
+    if (error) throw error;
+
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -154,20 +209,35 @@ tasksRouter.post('/:weekId/:dayId/:taskId/move', async (req, res, next) => {
     }
     const { toWeekId, toDayId } = moveSchema.parse(req.body);
 
-    const fromRef = db.doc(taskPath(uid, weekId, dayId, taskId));
-    const snap = await fromRef.get();
-    if (!snap.exists) throw ApiError.notFound('Task not found');
+    const { data: fromTask, error: fetchError } = await getSupabaseAdmin()
+      .from('tasks')
+      .select('*')
+      .eq('id', taskId)
+      .eq('user_id', uid)
+      .eq('week_id', weekId)
+      .eq('day_id', dayId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!fromTask) throw ApiError.notFound('Task not found');
 
-    const data = snap.data()!;
-    const toRef = db.doc(taskPath(uid, toWeekId, toDayId, taskId));
-    await db.runTransaction(async tx => {
-      tx.set(toRef, {
-        ...data,
-        movedFrom: dayId,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-      tx.delete(fromRef);
+    const now = new Date().toISOString();
+    const { error: insertError } = await getSupabaseAdmin().from('tasks').insert({
+      ...fromTask,
+      week_id: toWeekId,
+      day_id: toDayId,
+      moved_from: dayId,
+      updated_at: now,
     });
+    if (insertError) throw insertError;
+
+    const { error: deleteError } = await getSupabaseAdmin()
+      .from('tasks')
+      .delete()
+      .eq('id', taskId)
+      .eq('user_id', uid)
+      .eq('week_id', weekId)
+      .eq('day_id', dayId);
+    if (deleteError) throw deleteError;
 
     res.json({ id: taskId, weekId: toWeekId, dayId: toDayId, movedFrom: dayId });
   } catch (err) {
@@ -176,6 +246,5 @@ tasksRouter.post('/:weekId/:dayId/:taskId/move', async (req, res, next) => {
 });
 
 function monthFromDay(dayId: string): string {
-  // dayId: YYYY-MM-DD → YYYY-MM
   return dayId.slice(0, 7);
 }

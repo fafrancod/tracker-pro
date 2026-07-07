@@ -1,6 +1,6 @@
 export * from './types';
 export * from './theme';
-export * from './firebase';
+export * from './supabase';
 export * from './store';
 export * from './hooks/useTasks';
 export * from './hooks/useProjects';

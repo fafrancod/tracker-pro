@@ -1,0 +1,100 @@
+import { initSupabase, isSupabaseReady, type SupabaseConfig } from '@core/supabase';
+import { configureApi } from '@core/lib/api';
+import { setDemoMode } from '@core/lib/demoMode';
+
+const SUPABASE_LS_KEY = 'daily-tracker:supabase-config:v1';
+
+export interface RuntimeSupabaseConfig extends SupabaseConfig {}
+
+function loadRuntimeConfig(): RuntimeSupabaseConfig | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(SUPABASE_LS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<RuntimeSupabaseConfig>;
+    if (!parsed.url || !parsed.anonKey) return null;
+    return parsed as RuntimeSupabaseConfig;
+  } catch {
+    return null;
+  }
+}
+
+export function saveRuntimeConfig(cfg: RuntimeSupabaseConfig): void {
+  try {
+    window.localStorage.setItem(SUPABASE_LS_KEY, JSON.stringify(cfg));
+  } catch {
+    // noop
+  }
+}
+
+export function clearRuntimeConfig(): void {
+  try {
+    window.localStorage.removeItem(SUPABASE_LS_KEY);
+  } catch {
+    // noop
+  }
+}
+
+export function hasRuntimeConfig(): boolean {
+  return loadRuntimeConfig() !== null;
+}
+
+function readConfig(): SupabaseConfig {
+  const runtime = loadRuntimeConfig();
+  if (runtime) return runtime;
+
+  return {
+    url: import.meta.env.VITE_SUPABASE_URL ?? '',
+    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
+  };
+}
+
+const DEMO_LS_KEY = 'daily-tracker:demo-mode';
+
+export function isDemoActive(): boolean {
+  if (typeof window === 'undefined') return false;
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('demo') === '1') return true;
+  try {
+    return window.localStorage.getItem(DEMO_LS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function enableDemo(): void {
+  try {
+    window.localStorage.setItem(DEMO_LS_KEY, '1');
+  } catch {
+    // sin localStorage no podemos persistir; el query param sigue funcionando.
+  }
+}
+
+export function disableDemo(): void {
+  try {
+    window.localStorage.removeItem(DEMO_LS_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
+export function bootstrapSupabase(): void {
+  if (isDemoActive()) {
+    setDemoMode(true);
+    configureApi({
+      baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+    });
+    return;
+  }
+
+  const cfg = readConfig();
+  if (cfg.url && cfg.anonKey) {
+    initSupabase(cfg);
+  }
+
+  configureApi({
+    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+  });
+}
+
+export { isSupabaseReady };

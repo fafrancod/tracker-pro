@@ -1,16 +1,10 @@
-import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  onSnapshot,
-  type Unsubscribe,
-} from 'firebase/firestore';
-import { getDb } from '../firebase';
+import { getSupabase } from '../supabase';
 import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
 import type { Task, CreateTaskPayload, UpdateTaskPayload } from '../types';
 import { getISOWeek, format } from 'date-fns';
+
+export type TasksUnsubscribe = () => void;
 
 export function getWeekId(date: Date): string {
   const year = date.getFullYear();
@@ -22,15 +16,16 @@ export function getDayId(date: Date): string {
   return format(date, 'yyyy-MM-dd');
 }
 
-function tasksCol(uid: string, weekId: string, dayId: string) {
-  return collection(getDb(), 'users', uid, 'weeks', weekId, 'days', dayId, 'tasks');
-}
-
-// Lecturas: el cliente las hace contra Firestore (las rules permiten owner reads).
 export async function fetchTasks(uid: string, weekId: string, dayId: string): Promise<Task[]> {
-  const q = query(tasksCol(uid, weekId, dayId), orderBy('order', 'asc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => normalizeTask(d.id, d.data()));
+  const { data, error } = await getSupabase()
+    .from('tasks')
+    .select('*')
+    .eq('user_id', uid)
+    .eq('week_id', weekId)
+    .eq('day_id', dayId)
+    .order('order', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(row => mapTask(row.id as string, row));
 }
 
 export function subscribeTasks(
@@ -38,23 +33,32 @@ export function subscribeTasks(
   weekId: string,
   dayId: string,
   cb: (tasks: Task[]) => void
-): Unsubscribe {
-  if (isDemoMode()) {
-    // En demo no hay Firestore; los datos viven en el store y se mantienen
-    // por las actualizaciones optimistas de los hooks.
-    return () => undefined;
-  }
-  const q = query(tasksCol(uid, weekId, dayId), orderBy('order', 'asc'));
-  return onSnapshot(q, snap => {
-    cb(snap.docs.map(d => normalizeTask(d.id, d.data())));
-  });
-}
+): TasksUnsubscribe {
+  if (isDemoMode()) return () => undefined;
 
-// Escrituras: backend-only (Firestore rules bloquean writes directos).
-//
-// El parametro `eventId` permite que reintentos del cliente (mismo eventId) no
-// dupliquen el contador en `users/{uid}/usage/{period}`. El backend lo audita
-// en `users/{uid}/usageEvents/{eventId}` antes de incrementar.
+  const supabase = getSupabase();
+  void fetchTasks(uid, weekId, dayId).then(cb);
+
+  const channel = supabase
+    .channel(`tasks:${uid}:${weekId}:${dayId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'tasks',
+        filter: `user_id=eq.${uid}`,
+      },
+      async () => {
+        cb(await fetchTasks(uid, weekId, dayId));
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
 
 interface CreateTaskResponse {
   id: string;
@@ -87,7 +91,7 @@ export async function createTask(
     tags: payload.tags ?? [],
     eventId,
   });
-  return normalizeTask(res.id, res as unknown as Record<string, unknown>);
+  return mapTask(res.id, res as unknown as Record<string, unknown>);
 }
 
 export async function updateTask(
@@ -125,38 +129,19 @@ export async function moveTask(
   );
 }
 
-// --- Helpers internos -------------------------------------------------------
-
-function normalizeTask(id: string, raw: Record<string, unknown>): Task {
+function mapTask(id: string, raw: Record<string, unknown>): Task {
   return {
     id,
     title: (raw.title as string) ?? '',
     completed: (raw.completed as boolean) ?? false,
-    completedAt: toIsoString(raw.completedAt),
-    projectId: (raw.projectId as string | null) ?? null,
+    completedAt: (raw.completed_at as string | null) ?? (raw.completedAt as string | null) ?? null,
+    projectId: (raw.project_id as string | null) ?? (raw.projectId as string | null) ?? null,
     priority: (raw.priority as Task['priority']) ?? 'medium',
     notes: (raw.notes as string) ?? '',
     order: typeof raw.order === 'number' ? raw.order : 0,
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
-    movedFrom: (raw.movedFrom as string | null) ?? null,
-    createdAt: toIsoString(raw.createdAt) ?? new Date(0).toISOString(),
-    updatedAt: toIsoString(raw.updatedAt) ?? new Date(0).toISOString(),
+    movedFrom: (raw.moved_from as string | null) ?? (raw.movedFrom as string | null) ?? null,
+    createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
+    updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
 }
-
-// Convierte Firestore Timestamp, Date o string a ISO string (o null).
-function toIsoString(value: unknown): string | null {
-  if (value == null) return null;
-  if (typeof value === 'string') return value;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'object' && value !== null && 'toDate' in value) {
-    try {
-      const ts = (value as { toDate: () => Date }).toDate();
-      return ts.toISOString();
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-

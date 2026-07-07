@@ -1,4 +1,4 @@
-import { db, FieldValue } from './firebaseAdmin.js';
+import { getSupabaseAdmin } from './supabaseAdmin.js';
 import { config } from './config.js';
 import { logger } from './logger.js';
 import type { ErrorSeverity } from './errors.js';
@@ -14,20 +14,22 @@ export interface ErrorLogPayload {
   ip?: string | null;
 }
 
-/**
- * Escribe a errorLogs/{logId} para que el panel Admin pueda triagear fallos.
- * No tira si falla: el logging propio nunca debe romper la response.
- */
 export async function logError(payload: ErrorLogPayload): Promise<void> {
   try {
-    await db.collection('errorLogs').add({
-      ...payload,
+    await getSupabaseAdmin().from('error_logs').insert({
+      uid: payload.uid ?? null,
+      severity: payload.severity,
+      operation: payload.operation,
+      message: payload.message,
+      stack: payload.stack ?? null,
+      meta: payload.meta ?? null,
+      user_agent: payload.userAgent ?? null,
+      ip: payload.ip ?? null,
       version: config.version,
       channel: config.channel,
-      buildId: config.buildId,
-      createdAt: FieldValue.serverTimestamp(),
+      build_id: config.buildId,
     });
   } catch (err) {
-    logger.warn({ err }, 'failed to write errorLogs');
+    logger.warn({ err }, 'failed to write error_logs');
   }
 }

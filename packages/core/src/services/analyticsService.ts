@@ -1,29 +1,56 @@
-import { doc, getDoc, onSnapshot, type Unsubscribe } from 'firebase/firestore';
-import { getDb } from '../firebase';
+import { getSupabase } from '../supabase';
 import { isDemoMode } from '../lib/demoMode';
 import type { AnalyticsData } from '../types';
 
-function analyticsDoc(uid: string, weekId: string) {
-  return doc(getDb(), 'users', uid, 'analytics', weekId);
-}
+export type AnalyticsUnsubscribe = () => void;
 
 export async function fetchAnalytics(uid: string, weekId: string): Promise<AnalyticsData | null> {
-  const snap = await getDoc(analyticsDoc(uid, weekId));
-  if (!snap.exists()) return null;
-  return { weekId, ...snap.data() } as AnalyticsData;
+  const { data, error } = await getSupabase()
+    .from('analytics')
+    .select('*')
+    .eq('user_id', uid)
+    .eq('week_id', weekId)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? mapAnalytics(weekId, data) : null;
 }
 
 export function subscribeAnalytics(
   uid: string,
   weekId: string,
   cb: (data: AnalyticsData | null) => void
-): Unsubscribe {
+): AnalyticsUnsubscribe {
   if (isDemoMode()) return () => undefined;
-  return onSnapshot(analyticsDoc(uid, weekId), snap => {
-    if (!snap.exists()) {
-      cb(null);
-    } else {
-      cb({ weekId, ...snap.data() } as AnalyticsData);
-    }
-  });
+
+  const supabase = getSupabase();
+  void fetchAnalytics(uid, weekId).then(cb);
+
+  const channel = supabase
+    .channel(`analytics:${uid}:${weekId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'analytics',
+        filter: `user_id=eq.${uid}`,
+      },
+      async () => {
+        cb(await fetchAnalytics(uid, weekId));
+      }
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
+
+function mapAnalytics(weekId: string, row: Record<string, unknown>): AnalyticsData {
+  return {
+    weekId,
+    completionsByDay: (row.completions_by_day as Record<string, number>) ?? {},
+    completionsByProject: (row.completions_by_project as Record<string, number>) ?? {},
+    streakCount: (row.streak_count as number) ?? 0,
+  };
 }
