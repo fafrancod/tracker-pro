@@ -48,6 +48,11 @@ export interface Task {
   /** Serie de repetición; null si es tarea única. */
   seriesId: string | null;
   recurrence: Recurrence;
+  /**
+   * Inclusive end day (YYYY-MM-DD). Always present; equals the start day for
+   * single-day tasks. Location in the store uses the start day bucket.
+   */
+  endDayId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +80,8 @@ export interface CreateTaskPayload {
   priority?: Priority;
   notes?: string;
   tags?: string[];
+  /** Inclusive end day; defaults to start day when omitted. */
+  endDayId?: string;
   recurrenceFrequency?: RecurrenceFrequency;
   recurrenceInterval?: number;
 }
@@ -88,6 +95,8 @@ export interface UpdateTaskPayload {
   tags?: string[];
   order?: number;
   movedFrom?: string | null;
+  /** Inclusive end day (must be >= start day). */
+  endDayId?: string;
   recurrenceFrequency?: RecurrenceFrequency;
   recurrenceInterval?: number;
 }

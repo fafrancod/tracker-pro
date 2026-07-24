@@ -33,6 +33,8 @@ create table if not exists public.tasks (
   user_id uuid not null references public.profiles (id) on delete cascade,
   week_id text not null,
   day_id text not null,
+  -- Inclusive end of multi-day span; equals day_id for single-day tasks.
+  end_day_id text not null,
   title text not null,
   completed boolean not null default false,
   completed_at timestamptz,
@@ -47,17 +49,37 @@ create table if not exists public.tasks (
     check (recurrence_frequency in ('none', 'daily', 'weekly', 'monthly')),
   recurrence_interval int not null default 1 check (recurrence_interval >= 1 and recurrence_interval <= 365),
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  check (end_day_id >= day_id)
 );
 
 create index if not exists tasks_user_week_day_idx on public.tasks (user_id, week_id, day_id, "order");
 create index if not exists tasks_user_day_range_idx on public.tasks (user_id, day_id);
 create index if not exists tasks_user_series_idx on public.tasks (user_id, series_id);
+create index if not exists tasks_user_span_idx on public.tasks (user_id, day_id, end_day_id);
 
 -- Migración idempotente si la tabla ya existía sin columnas de recurrencia
 alter table public.tasks add column if not exists series_id text;
 alter table public.tasks add column if not exists recurrence_frequency text not null default 'none';
 alter table public.tasks add column if not exists recurrence_interval int not null default 1;
+
+-- Migración idempotente: multi-day span (end_day_id)
+alter table public.tasks add column if not exists end_day_id text;
+update public.tasks set end_day_id = day_id where end_day_id is null;
+alter table public.tasks alter column end_day_id set not null;
+-- check constraint may already exist on fresh creates; use DO block for idempotency
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_end_day_id_gte_day_id'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_end_day_id_gte_day_id check (end_day_id >= day_id);
+  end if;
+end $$;
+create index if not exists tasks_user_span_idx on public.tasks (user_id, day_id, end_day_id);
 
 create table if not exists public.usage_counters (
   user_id uuid not null references public.profiles (id) on delete cascade,

@@ -6,6 +6,11 @@ export const DEFAULT_RECURRENCE: Recurrence = {
   interval: 1,
 };
 
+export interface OccurrenceRange {
+  dayId: string;
+  endDayId: string;
+}
+
 export function normalizeRecurrence(
   frequency?: RecurrenceFrequency | null,
   interval?: number | null
@@ -34,6 +39,74 @@ export function recurrenceHorizon(frequency: RecurrenceFrequency): number {
     default:
       return 1;
   }
+}
+
+/**
+ * Clamp day-of-month into a calendar month.
+ * @param year full year
+ * @param monthIndex 0-based month (0 = January)
+ * @param dayOfMonth desired day of month (1–31)
+ */
+export function clampToMonth(year: number, monthIndex: number, dayOfMonth: number): string {
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const d = Math.min(Math.max(1, dayOfMonth), daysInMonth);
+  return format(new Date(year, monthIndex, d), 'yyyy-MM-dd');
+}
+
+/** Offset in days from start to end (inclusive span length − 1). */
+export function inclusiveDurationDays(startDayId: string, endDayId: string): number {
+  const start = parseISO(startDayId);
+  const end = parseISO(endDayId);
+  const ms = end.getTime() - start.getTime();
+  return Math.max(0, Math.round(ms / 86400000));
+}
+
+export function addDaysToDayId(dayId: string, days: number): string {
+  return format(addDays(parseISO(dayId), days), 'yyyy-MM-dd');
+}
+
+/**
+ * Materializa pares {dayId, endDayId} para una serie.
+ * Dual-port mirror of packages/api/src/lib/recurrence.ts.
+ */
+export function materializeOccurrenceRanges(
+  startDayId: string,
+  endDayId: string,
+  frequency: RecurrenceFrequency,
+  interval: number
+): OccurrenceRange[] {
+  const rec = normalizeRecurrence(frequency, interval);
+  const end = endDayId || startDayId;
+  const isMultiDay = end > startDayId;
+
+  if (rec.frequency === 'none') {
+    return [{ dayId: startDayId, endDayId: end }];
+  }
+
+  if (isMultiDay && rec.frequency === 'monthly') {
+    const start = parseISO(startDayId);
+    const endDate = parseISO(end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(endDate.getTime())) {
+      return [{ dayId: startDayId, endDayId: end }];
+    }
+    const startDOM = start.getDate();
+    const endDOM = endDate.getDate();
+    const max = recurrenceHorizon('monthly');
+    const ranges: OccurrenceRange[] = [];
+    for (let i = 0; i < max; i++) {
+      const base = new Date(start.getFullYear(), start.getMonth() + i * rec.interval, 1);
+      const y = base.getFullYear();
+      const m = base.getMonth();
+      const occStart = clampToMonth(y, m, startDOM);
+      let occEnd = clampToMonth(y, m, endDOM);
+      if (occEnd < occStart) occEnd = occStart;
+      ranges.push({ dayId: occStart, endDayId: occEnd });
+    }
+    return ranges;
+  }
+
+  const dayIds = materializeOccurrenceDayIds(startDayId, rec.frequency, rec.interval);
+  return dayIds.map(dayId => ({ dayId, endDayId: dayId }));
 }
 
 /**

@@ -1,5 +1,10 @@
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
 
+export interface OccurrenceRange {
+  dayId: string;
+  endDayId: string;
+}
+
 export function normalizeRecurrence(
   frequency?: RecurrenceFrequency | null,
   interval?: number | null
@@ -52,6 +57,80 @@ function recurrenceHorizon(frequency: RecurrenceFrequency): number {
     default:
       return 1;
   }
+}
+
+/**
+ * Clamp day-of-month into a calendar month.
+ * @param year full year
+ * @param monthIndex 0-based month (0 = January)
+ * @param dayOfMonth desired day of month (1–31)
+ */
+export function clampToMonth(year: number, monthIndex: number, dayOfMonth: number): string {
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const d = Math.min(Math.max(1, dayOfMonth), daysInMonth);
+  return formatDay(new Date(year, monthIndex, d));
+}
+
+/** Offset in days from start to end (inclusive span length − 1). */
+export function inclusiveDurationDays(startDayId: string, endDayId: string): number {
+  const start = parseDay(startDayId);
+  const end = parseDay(endDayId);
+  const ms = end.getTime() - start.getTime();
+  return Math.max(0, Math.round(ms / 86400000));
+}
+
+export function addDaysToDayId(dayId: string, days: number): string {
+  const d = parseDay(dayId);
+  d.setDate(d.getDate() + days);
+  return formatDay(d);
+}
+
+/**
+ * Materializa pares {dayId, endDayId} para una serie.
+ * - none: un solo par
+ * - multi-day + monthly: anclas DOM + clamp por mes, horizonte 24
+ * - single-day + daily/weekly/monthly: lista de starts con end = start
+ */
+export function materializeOccurrenceRanges(
+  startDayId: string,
+  endDayId: string,
+  frequency: RecurrenceFrequency,
+  interval: number
+): OccurrenceRange[] {
+  const rec = normalizeRecurrence(frequency, interval);
+  const end = endDayId || startDayId;
+  const isMultiDay = end > startDayId;
+
+  if (rec.frequency === 'none') {
+    return [{ dayId: startDayId, endDayId: end }];
+  }
+
+  // Multi-day monthly: day-of-month anchors + month-length clamp
+  if (isMultiDay && rec.frequency === 'monthly') {
+    const start = parseDay(startDayId);
+    const endDate = parseDay(end);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(endDate.getTime())) {
+      return [{ dayId: startDayId, endDayId: end }];
+    }
+    const startDOM = start.getDate();
+    const endDOM = endDate.getDate();
+    const max = recurrenceHorizon('monthly');
+    const ranges: OccurrenceRange[] = [];
+    for (let i = 0; i < max; i++) {
+      const base = new Date(start.getFullYear(), start.getMonth() + i * rec.interval, 1);
+      const y = base.getFullYear();
+      const m = base.getMonth();
+      const occStart = clampToMonth(y, m, startDOM);
+      let occEnd = clampToMonth(y, m, endDOM);
+      if (occEnd < occStart) occEnd = occStart;
+      ranges.push({ dayId: occStart, endDayId: occEnd });
+    }
+    return ranges;
+  }
+
+  // Single-day (or multi-day daily/weekly — rejected at route) → end = start each occurrence
+  const dayIds = materializeOccurrenceDayIds(startDayId, rec.frequency, rec.interval);
+  return dayIds.map(dayId => ({ dayId, endDayId: dayId }));
 }
 
 export function materializeOccurrenceDayIds(

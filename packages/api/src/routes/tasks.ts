@@ -9,8 +9,10 @@ import { isValidDayId, isValidWeekId } from '../lib/period.js';
 import { bumpUsage, readProfilePlan, readUsage } from '../lib/usage.js';
 import { getLimits } from '../lib/planLimits.js';
 import {
+  addDaysToDayId,
   getWeekIdFromDayId,
-  materializeOccurrenceDayIds,
+  inclusiveDurationDays,
+  materializeOccurrenceRanges,
   normalizeRecurrence,
   type RecurrenceFrequency,
 } from '../lib/recurrence.js';
@@ -35,6 +37,7 @@ const createSchema = taskLocation.extend({
   notes: z.string().max(4000).optional(),
   tags: z.array(z.string().min(1).max(40)).max(20).optional(),
   eventId: z.string().min(1).max(80).optional(),
+  endDayId: z.string().refine(isValidDayId, 'endDayId formato YYYY-MM-DD').optional(),
   recurrenceFrequency: recurrenceFrequencySchema.optional(),
   recurrenceInterval: z.number().int().min(1).max(365).optional(),
 });
@@ -49,6 +52,7 @@ const updateSchema = z
     tags: z.array(z.string().min(1).max(40)).max(20).optional(),
     order: z.number().int().nonnegative().optional(),
     movedFrom: z.string().nullable().optional(),
+    endDayId: z.string().refine(isValidDayId, 'endDayId formato YYYY-MM-DD').optional(),
     recurrenceFrequency: recurrenceFrequencySchema.optional(),
     recurrenceInterval: z.number().int().min(1).max(365).optional(),
   })
@@ -60,10 +64,16 @@ function toClientTask(
 ) {
   const frequency = (row.recurrence_frequency as RecurrenceFrequency | undefined) ?? 'none';
   const interval = typeof row.recurrence_interval === 'number' ? row.recurrence_interval : 1;
+  const dayId = overrides?.dayId ?? (row.day_id as string);
+  const endDayId =
+    (row.end_day_id as string | undefined) ??
+    (row.endDayId as string | undefined) ??
+    dayId;
   return {
     id: row.id as string,
     weekId: overrides?.weekId ?? (row.week_id as string),
-    dayId: overrides?.dayId ?? (row.day_id as string),
+    dayId,
+    endDayId,
     title: row.title as string,
     completed: Boolean(row.completed),
     completedAt: (row.completed_at as string | null) ?? null,
@@ -92,13 +102,27 @@ tasksRouter.post('/', async (req, res, next) => {
       notes,
       tags,
       eventId,
+      endDayId: rawEndDayId,
       recurrenceFrequency,
       recurrenceInterval,
     } = createSchema.parse(req.body);
 
+    const endDayId = rawEndDayId ?? dayId;
+    if (endDayId < dayId) {
+      throw ApiError.badRequest('endDayId debe ser >= dayId');
+    }
+
     const recurrence = normalizeRecurrence(recurrenceFrequency, recurrenceInterval);
-    const occurrenceDays = materializeOccurrenceDayIds(
+    const isMultiDay = endDayId > dayId;
+    if (isMultiDay && recurrence.frequency !== 'none' && recurrence.frequency !== 'monthly') {
+      throw ApiError.badRequest(
+        'Las tareas de varios días solo admiten repetición none o monthly'
+      );
+    }
+
+    const occurrenceRanges = materializeOccurrenceRanges(
       dayId,
+      endDayId,
       recurrence.frequency,
       recurrence.interval
     );
@@ -108,14 +132,14 @@ tasksRouter.post('/', async (req, res, next) => {
     if (Number.isFinite(limits.maxTasksPerMonth)) {
       const usage = await readUsage(uid, monthFromDay(dayId));
       const tasksThisMonth = usage.tasks_created ?? 0;
-      if (tasksThisMonth + occurrenceDays.length > limits.maxTasksPerMonth) {
+      if (tasksThisMonth + occurrenceRanges.length > limits.maxTasksPerMonth) {
         throw ApiError.planLimit(
           `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
           {
             plan,
             limit: limits.maxTasksPerMonth,
             current: tasksThisMonth,
-            requested: occurrenceDays.length,
+            requested: occurrenceRanges.length,
           }
         );
       }
@@ -127,26 +151,27 @@ tasksRouter.post('/', async (req, res, next) => {
 
     // order por día: contamos tareas existentes en cada día de la serie
     const orderByDay = new Map<string, number>();
-    for (const occDayId of occurrenceDays) {
-      if (orderByDay.has(occDayId)) continue;
+    for (const range of occurrenceRanges) {
+      if (orderByDay.has(range.dayId)) continue;
       const { count } = await getSupabaseAdmin()
         .from('tasks')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', uid)
-        .eq('day_id', occDayId);
-      orderByDay.set(occDayId, count ?? 0);
+        .eq('day_id', range.dayId);
+      orderByDay.set(range.dayId, count ?? 0);
     }
 
-    for (const occDayId of occurrenceDays) {
-      const occWeekId = occDayId === dayId ? weekId : getWeekIdFromDayId(occDayId);
-      const order = orderByDay.get(occDayId) ?? 0;
-      orderByDay.set(occDayId, order + 1);
+    for (const range of occurrenceRanges) {
+      const occWeekId = range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId);
+      const order = orderByDay.get(range.dayId) ?? 0;
+      orderByDay.set(range.dayId, order + 1);
       const taskId = generateId();
       rows.push({
         id: taskId,
         user_id: uid,
         week_id: occWeekId,
-        day_id: occDayId,
+        day_id: range.dayId,
+        end_day_id: range.endDayId,
         title,
         completed: false,
         completed_at: null,
@@ -202,6 +227,26 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (fetchError) throw fetchError;
     if (!existing) throw ApiError.notFound('Task not found');
 
+    if (patch.endDayId !== undefined) {
+      const startDay = (existing.day_id as string) ?? dayId;
+      if (patch.endDayId < startDay) {
+        throw ApiError.badRequest('endDayId debe ser >= dayId');
+      }
+      const existingEnd =
+        (existing.end_day_id as string | undefined) ?? startDay;
+      const willBeMulti = patch.endDayId > startDay;
+      const frequency =
+        (patch.recurrenceFrequency as RecurrenceFrequency | undefined) ??
+        ((existing.recurrence_frequency as RecurrenceFrequency | undefined) ?? 'none');
+      if (willBeMulti && frequency !== 'none' && frequency !== 'monthly') {
+        throw ApiError.badRequest(
+          'Las tareas de varios días solo admiten repetición none o monthly'
+        );
+      }
+      // no-op guard for type use of existingEnd
+      void existingEnd;
+    }
+
     const update: Record<string, unknown> = {
       updated_at: now,
     };
@@ -213,6 +258,7 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.tags !== undefined) update.tags = patch.tags;
     if (patch.order !== undefined) update.order = patch.order;
     if (patch.movedFrom !== undefined) update.moved_from = patch.movedFrom;
+    if (patch.endDayId !== undefined) update.end_day_id = patch.endDayId;
     if (patch.recurrenceFrequency !== undefined) {
       update.recurrence_frequency = patch.recurrenceFrequency;
     }
@@ -292,11 +338,17 @@ tasksRouter.post('/:weekId/:dayId/:taskId/move', async (req, res, next) => {
     if (fetchError) throw fetchError;
     if (!fromTask) throw ApiError.notFound('Task not found');
 
+    const oldStart = (fromTask.day_id as string) ?? dayId;
+    const oldEnd = (fromTask.end_day_id as string | undefined) ?? oldStart;
+    const duration = inclusiveDurationDays(oldStart, oldEnd);
+    const newEndDayId = addDaysToDayId(toDayId, duration);
+
     const now = new Date().toISOString();
     const { error: insertError } = await getSupabaseAdmin().from('tasks').insert({
       ...fromTask,
       week_id: toWeekId,
       day_id: toDayId,
+      end_day_id: newEndDayId,
       moved_from: dayId,
       updated_at: now,
     });
@@ -311,7 +363,13 @@ tasksRouter.post('/:weekId/:dayId/:taskId/move', async (req, res, next) => {
       .eq('day_id', dayId);
     if (deleteError) throw deleteError;
 
-    res.json({ id: taskId, weekId: toWeekId, dayId: toDayId, movedFrom: dayId });
+    res.json({
+      id: taskId,
+      weekId: toWeekId,
+      dayId: toDayId,
+      endDayId: newEndDayId,
+      movedFrom: dayId,
+    });
   } catch (err) {
     next(err);
   }
