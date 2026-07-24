@@ -15,7 +15,7 @@
     "build:api": "npm run build --workspace=packages/api",
     "build:web": "npm run build --workspace=packages/web",
     "build:prod": "npm run build:web && npm run build:api",
-    "start:api": "npm run start --workspace=packages/api",
+    "start:api": "node packages/api/dist/server.js",
     "lint": "npm run lint --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present"
   },

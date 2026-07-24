@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -12,17 +13,27 @@ import { tasksRouter } from './routes/tasks.js';
 import { projectsRouter } from './routes/projects.js';
 import { authRouter } from './routes/auth.js';
 
-/** Directorio del build de Vite (packages/web/dist). Configurable para monorepo. */
+/**
+ * Busca packages/web/dist de forma robusta (cwd de Railway/npm workspace varía).
+ * El bundle vive en packages/api/dist/server.js → ../../web/dist
+ */
 function resolveWebDist(): string | null {
+  const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
     process.env.WEB_DIST_DIR,
+    path.resolve(here, '../../web/dist'),
+    path.resolve(here, '../../../packages/web/dist'),
     path.resolve(process.cwd(), 'packages/web/dist'),
     path.resolve(process.cwd(), '../web/dist'),
     path.resolve(process.cwd(), 'web/dist'),
   ].filter((p): p is string => Boolean(p));
 
   for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, 'index.html'))) return dir;
+    try {
+      if (fs.existsSync(path.join(dir, 'index.html'))) return dir;
+    } catch {
+      /* ignore */
+    }
   }
   return null;
 }
@@ -37,7 +48,6 @@ export function buildApp(): Express {
 
   app.use(
     helmet({
-      // SPA Vite: CSP estricto de helmet rompe assets; lo relajamos en monorepo.
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,
     })
@@ -45,12 +55,17 @@ export function buildApp(): Express {
   app.use(
     cors({
       origin(origin, callback) {
-        if (!origin || config.allowedOrigins.includes(origin)) {
+        // Sin Origin (healthchecks, same-origin navegación simple) → OK
+        if (!origin) {
           callback(null, true);
           return;
         }
-        // Same-origin SPA no manda Origin en algunos casos; si lo manda y es la propia URL, ok
-        callback(new Error(`Origin ${origin} not allowed`));
+        if (config.allowedOrigins.includes(origin) || config.allowedOrigins.includes('*')) {
+          callback(null, true);
+          return;
+        }
+        // No tirar Error (rompe el request con 500); denegar limpio
+        callback(null, false);
       },
       credentials: true,
     })
@@ -60,18 +75,17 @@ export function buildApp(): Express {
     app.use(pinoHttp({ logger }));
   }
 
-  // API siempre bajo /api/*
   app.use('/api/version', versionRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/tasks', tasksRouter);
   app.use('/api/projects', projectsRouter);
 
-  // Health de API en /api (sin chocar con la SPA en /)
   app.get('/api', (_req, res) => {
     res.json({
       service: 'daily-tracker-api',
       status: 'ok',
       spa: serveSpa,
+      webDist: serveSpa ? webDist : null,
       docs: 'https://github.com/fafrancod/tracker-pro',
       endpoints: ['/api/version', '/api/auth/bootstrap', '/api/tasks', '/api/projects'],
     });
@@ -85,23 +99,20 @@ export function buildApp(): Express {
         maxAge: config.nodeEnv === 'production' ? '1h' : 0,
       })
     );
-    // React Router: cualquier ruta no-API devuelve index.html
-    app.get('*', (req, res, next) => {
-      if (req.path.startsWith('/api')) {
-        next();
-        return;
-      }
-      res.sendFile(path.join(webDist, 'index.html'), err => {
-        if (err) next(err);
-      });
+    app.get(/^(?!\/api).*/, (_req, res) => {
+      res.sendFile(path.join(webDist, 'index.html'));
     });
   } else {
+    logger.warn(
+      { cwd: process.cwd() },
+      'SPA dist not found — serving API-only. Run build:web or set WEB_DIST_DIR.'
+    );
     app.get('/', (_req, res) => {
       res.json({
         service: 'daily-tracker-api',
         status: 'ok',
         spa: false,
-        hint: 'Frontend no empaquetado. Build con npm run build:web o define WEB_DIST_DIR.',
+        hint: 'Frontend no empaquetado. Build con npm run build:prod.',
         docs: 'https://github.com/fafrancod/tracker-pro',
         endpoints: ['/api/version', '/api/auth/bootstrap', '/api/tasks', '/api/projects'],
       });

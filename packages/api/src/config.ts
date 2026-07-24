@@ -12,8 +12,15 @@ function readPackageVersion(): string {
   }
 }
 
+function parsePort(): number {
+  const raw = process.env.PORT;
+  if (raw === undefined || raw === '') return 4000;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 4000;
+}
+
 export const config = {
-  port: Number(process.env.PORT ?? 4000),
+  port: parsePort(),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   channel: process.env.APP_CHANNEL ?? 'dev',
   version: readPackageVersion(),

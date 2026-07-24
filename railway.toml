@@ -1,19 +1,22 @@
-# Un solo servicio: API Express + SPA React (packages/web/dist).
+# Un solo servicio: API + SPA en la misma URL pública.
 #
-# En Railway (mismo servicio):
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (build de la web)
-#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-#   ALLOWED_ORIGINS=https://tracker-pro-production.up.railway.app
+# NO definas PORT — Railway lo inyecta.
+#
+# Variables mínimas:
 #   NIXPACKS_NODE_VERSION=22
 #   NPM_CONFIG_PRODUCTION=false
-#
-# Opcional: VITE_API_BASE_URL vacío o la misma URL pública (same-origin).
+#   VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY   (build)
+#   SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY      (runtime)
+#   ALLOWED_ORIGINS=https://tracker-pro-production.up.railway.app
+#   NODE_ENV=production
 
 [build]
 builder = "NIXPACKS"
 buildCommand = "npm run build:prod"
 
 [deploy]
-startCommand = "npm run start:api"
+# Arranque directo (cwd = raíz monorepo). Evita fallos de npm workspaces en runtime.
+startCommand = "node packages/api/dist/server.js"
 healthcheckPath = "/api/version"
+healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
