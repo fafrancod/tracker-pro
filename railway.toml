@@ -1,5 +1,6 @@
 # API service — monorepo root.
-# Node 22 se fuerza vía nixpacks.toml + engines en package.json.
+# Node 22: engines + .nvmrc + NIXPACKS_NODE_VERSION (nixpacks.toml).
+# No uses nixPkgs = ["nodejs_22"] — el pin de nixpkgs de Railway no lo tiene.
 #
 # Si el build sigue fallando con EBUSY en node_modules/.cache:
 #   Variables del servicio → quita cualquier volume montado en /app/node_modules
