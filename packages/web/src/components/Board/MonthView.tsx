@@ -14,10 +14,10 @@ import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useStore } from '@core/store';
 import {
   getDayId,
-  getWeekId,
   fetchTasksInRange,
   updateTask,
 } from '@core/services/taskService';
+import { collectTasksCovering, type LocatedTask } from '@core/lib/taskPresence';
 import { isDemoMode } from '@core/lib/demoMode';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -31,13 +31,109 @@ interface MonthViewProps {
   onPickDay: (date: Date) => void;
 }
 
+const MAX_LANES = 3;
+
+interface BarSegment {
+  task: Task;
+  startDayId: string;
+  startWeekId: string;
+  colStart: number;
+  colSpan: number;
+  continuesLeft: boolean;
+  continuesRight: boolean;
+  lane: number;
+}
+
+function collectAllLocated(
+  tasksByDay: Record<string, Record<string, Task[]>>
+): LocatedTask[] {
+  const result: LocatedTask[] = [];
+  const seen = new Set<string>();
+  for (const [weekId, days] of Object.entries(tasksByDay)) {
+    for (const [startDayId, tasks] of Object.entries(days)) {
+      for (const task of tasks) {
+        if (seen.has(task.id)) continue;
+        seen.add(task.id);
+        result.push({ ...task, weekId, startDayId });
+      }
+    }
+  }
+  return result;
+}
+
+function buildBarsForWeek(
+  weekDates: Date[],
+  located: LocatedTask[]
+): { bars: BarSegment[]; overflowByCol: number[] } {
+  const weekStart = getDayId(weekDates[0]);
+  const weekEnd = getDayId(weekDates[6]);
+  const dayIndex = new Map(weekDates.map((d, i) => [getDayId(d), i]));
+
+  // Multi-day tasks intersecting this week
+  type RawSeg = Omit<BarSegment, 'lane'>;
+  const raw: RawSeg[] = [];
+
+  for (const loc of located) {
+    const end = loc.endDayId || loc.startDayId;
+    if (end <= loc.startDayId) continue; // single-day handled as chips
+    // overlap with week: start <= weekEnd && end >= weekStart
+    if (loc.startDayId > weekEnd || end < weekStart) continue;
+
+    const clipStart = loc.startDayId < weekStart ? weekStart : loc.startDayId;
+    const clipEnd = end > weekEnd ? weekEnd : end;
+    const colStart = dayIndex.get(clipStart);
+    const colEnd = dayIndex.get(clipEnd);
+    if (colStart === undefined || colEnd === undefined) continue;
+
+    raw.push({
+      task: loc,
+      startDayId: loc.startDayId,
+      startWeekId: loc.weekId,
+      colStart,
+      colSpan: colEnd - colStart + 1,
+      continuesLeft: loc.startDayId < weekStart,
+      continuesRight: end > weekEnd,
+    });
+  }
+
+  // Sort by start then longer first
+  raw.sort((a, b) => {
+    if (a.colStart !== b.colStart) return a.colStart - b.colStart;
+    return b.colSpan - a.colSpan;
+  });
+
+  // Greedy lane assign
+  const laneEnds: number[] = []; // exclusive end col per lane
+  const bars: BarSegment[] = [];
+  const overflowByCol = Array.from({ length: 7 }, () => 0);
+
+  for (const seg of raw) {
+    let lane = laneEnds.findIndex(endCol => endCol <= seg.colStart);
+    if (lane === -1) {
+      if (laneEnds.length < MAX_LANES) {
+        lane = laneEnds.length;
+        laneEnds.push(0);
+      } else {
+        for (let c = seg.colStart; c < seg.colStart + seg.colSpan; c++) {
+          overflowByCol[c] += 1;
+        }
+        continue;
+      }
+    }
+    laneEnds[lane] = seg.colStart + seg.colSpan;
+    bars.push({ ...seg, lane });
+  }
+
+  return { bars, overflowByCol };
+}
+
 export function MonthView({ onPickDay }: MonthViewProps) {
   const { locale, t } = useT();
   const { settings } = useSettings();
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const uid = useStore(s => s.uid);
   const setDayTasks = useStore(s => s.setDayTasks);
-  const updateTaskOptimistic = useStore(s => s.updateTaskOptimistic);
+  const updateTaskById = useStore(s => s.updateTaskById);
 
   const today = new Date();
   const [cursor, setCursor] = useState<Date>(startOfMonth(today));
@@ -58,13 +154,21 @@ export function MonthView({ onPickDay }: MonthViewProps) {
     return result;
   }, [gridStart.getTime(), gridEnd.getTime()]);
 
+  const weekRows = useMemo(() => {
+    const rows: Date[][] = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      rows.push(cells.slice(i, i + 7));
+    }
+    return rows;
+  }, [cells]);
+
   const dayHeaders = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) =>
       capitalize(format(addDays(gridStart, i), 'EEE', { locale }))
     );
   }, [gridStart.getTime(), locale]);
 
-  // Cargar tareas del mes visible (modo real); en demo ya viven en el store.
+  // Cargar tareas del mes visible (overlap range); en demo ya viven en el store.
   useEffect(() => {
     if (!uid || isDemoMode()) return;
     let cancelled = false;
@@ -99,29 +203,35 @@ export function MonthView({ onPickDay }: MonthViewProps) {
 
   const tasksByDay = useStore(s => s.tasksByDay);
   const allProjects = useStore(s => s.projects);
+  const located = useMemo(() => collectAllLocated(tasksByDay), [tasksByDay]);
 
-  function getDayTasks(date: Date): Task[] {
-    const weekId = getWeekId(date);
+  function getSingleDayChips(date: Date): LocatedTask[] {
     const dayId = getDayId(date);
-    return tasksByDay[weekId]?.[dayId] ?? [];
+    return collectTasksCovering(tasksByDay, dayId).filter(t => {
+      const end = t.endDayId || t.startDayId;
+      return end === t.startDayId;
+    });
   }
 
-  async function handleToggleTask(e: React.MouseEvent, date: Date, task: Task) {
+  async function handleToggleLocated(
+    e: React.MouseEvent | React.KeyboardEvent,
+    loc: { task: Task; startDayId: string; startWeekId: string }
+  ) {
     e.stopPropagation();
     e.preventDefault();
-    const weekId = getWeekId(date);
-    const dayId = getDayId(date);
-    const nextCompleted = !task.completed;
-    updateTaskOptimistic(weekId, dayId, task.id, {
+    const nextCompleted = !loc.task.completed;
+    updateTaskById(loc.task.id, {
       completed: nextCompleted,
       completedAt: nextCompleted ? new Date().toISOString() : null,
     });
     try {
-      await updateTask(weekId, dayId, task.id, { completed: nextCompleted });
+      await updateTask(loc.startWeekId, loc.startDayId, loc.task.id, {
+        completed: nextCompleted,
+      });
     } catch {
-      updateTaskOptimistic(weekId, dayId, task.id, {
-        completed: task.completed,
-        completedAt: task.completedAt,
+      updateTaskById(loc.task.id, {
+        completed: loc.task.completed,
+        completedAt: loc.task.completedAt,
       });
     }
   }
@@ -180,91 +290,168 @@ export function MonthView({ onPickDay }: MonthViewProps) {
           ))}
         </div>
 
-        <div className="grid flex-1 grid-cols-7 gap-1 overflow-y-auto auto-rows-fr">
-          {cells.map(date => {
-            const inMonth = isSameMonth(date, cursor);
-            const isToday = isSameDay(date, today);
-            const list = getDayTasks(date);
-            const completed = list.filter(task => task.completed).length;
-            const visible = list.slice(0, 4);
-            const overflow = list.length - visible.length;
+        <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
+          {weekRows.map((weekDates, rowIdx) => {
+            const { bars, overflowByCol } = buildBarsForWeek(weekDates, located);
+            const laneCount = Math.max(1, ...bars.map(b => b.lane + 1), 1);
 
             return (
-              <button
-                key={date.toISOString()}
-                type="button"
-                onClick={() => onPickDay(date)}
-                className={cn(
-                  'group flex min-h-[96px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
-                  inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
-                  isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30',
-                  'hover:border-accent-teal/40'
-                )}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span
-                    className={cn(
-                      'text-xs font-semibold',
-                      isToday ? 'text-accent-teal' : 'text-text-primary'
-                    )}
-                  >
-                    {format(date, 'd')}
-                  </span>
-                  {list.length > 0 && (
-                    <Badge
-                      variant={completed === list.length ? 'green' : 'secondary'}
-                      className="px-1.5 py-0 text-[10px]"
-                    >
-                      {completed}/{list.length}
-                    </Badge>
-                  )}
-                </div>
+              <div key={rowIdx} className="relative grid min-h-[104px] grid-cols-7 gap-1">
+                {weekDates.map((date, col) => {
+                  const inMonth = isSameMonth(date, cursor);
+                  const isToday = isSameDay(date, today);
+                  const chips = getSingleDayChips(date);
+                  const visible = chips.slice(0, 2);
+                  const chipOverflow = chips.length - visible.length;
+                  const covering = collectTasksCovering(tasksByDay, getDayId(date));
+                  const completed = covering.filter(task => task.completed).length;
+                  const total = covering.length;
+                  const extra = overflowByCol[col] + Math.max(0, chipOverflow);
 
-                <div className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
-                  {visible.map(task => {
-                    const project = task.projectId
-                      ? allProjects.find(p => p.id === task.projectId)
+                  return (
+                    <button
+                      key={date.toISOString()}
+                      type="button"
+                      onClick={() => onPickDay(date)}
+                      className={cn(
+                        'group relative flex min-h-[104px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
+                        inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
+                        isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30',
+                        'hover:border-accent-teal/40'
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span
+                          className={cn(
+                            'text-xs font-semibold',
+                            isToday ? 'text-accent-teal' : 'text-text-primary'
+                          )}
+                        >
+                          {format(date, 'd')}
+                        </span>
+                        {total > 0 && (
+                          <Badge
+                            variant={completed === total ? 'green' : 'secondary'}
+                            className="px-1.5 py-0 text-[10px]"
+                          >
+                            {completed}/{total}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Spacer for multi-day bar lanes */}
+                      <div
+                        className="shrink-0"
+                        style={{ height: `${laneCount * 18}px` }}
+                        aria-hidden
+                      />
+
+                      <div className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                        {visible.map(task => {
+                          const project = task.projectId
+                            ? allProjects.find(p => p.id === task.projectId)
+                            : null;
+                          return (
+                            <span
+                              key={task.id}
+                              role="button"
+                              tabIndex={0}
+                              onClick={e =>
+                                handleToggleLocated(e, {
+                                  task,
+                                  startDayId: task.startDayId,
+                                  startWeekId: task.weekId,
+                                })
+                              }
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  void handleToggleLocated(e, {
+                                    task,
+                                    startDayId: task.startDayId,
+                                    startWeekId: task.weekId,
+                                  });
+                                }
+                              }}
+                              title={
+                                task.completed
+                                  ? t('task_uncomplete_hint')
+                                  : t('task_complete_hint')
+                              }
+                              className={cn(
+                                'block truncate rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
+                                task.completed
+                                  ? 'bg-accent-green/10 text-text-muted line-through'
+                                  : 'bg-background/80 text-text-primary hover:bg-accent-teal/15',
+                                task.recurrence.frequency !== 'none' && 'ring-1 ring-accent-teal/20'
+                              )}
+                              style={
+                                !task.completed && project
+                                  ? { borderLeft: `2px solid ${project.color}` }
+                                  : undefined
+                              }
+                            >
+                              {task.recurrence.frequency !== 'none' ? '↻ ' : ''}
+                              {task.title}
+                            </span>
+                          );
+                        })}
+                        {extra > 0 && (
+                          <span className="px-1 text-[9px] text-text-muted">+{extra}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Continuous multi-day bars overlay */}
+                <div
+                  className="pointer-events-none absolute inset-0 grid grid-cols-7 gap-1"
+                  aria-hidden={false}
+                >
+                  {bars.map(bar => {
+                    const project = bar.task.projectId
+                      ? allProjects.find(p => p.id === bar.task.projectId)
                       : null;
+                    const color = project?.color ?? '#58a6ff';
                     return (
-                      <span
-                        key={task.id}
-                        role="button"
-                        tabIndex={0}
-                        onClick={e => handleToggleTask(e, date, task)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            void handleToggleTask(e as unknown as React.MouseEvent, date, task);
-                          }
-                        }}
+                      <button
+                        key={`${bar.task.id}-${bar.colStart}-${bar.lane}`}
+                        type="button"
+                        onClick={e =>
+                          handleToggleLocated(e, {
+                            task: bar.task,
+                            startDayId: bar.startDayId,
+                            startWeekId: bar.startWeekId,
+                          })
+                        }
                         title={
-                          task.completed
+                          bar.task.completed
                             ? t('task_uncomplete_hint')
                             : t('task_complete_hint')
                         }
                         className={cn(
-                          'block truncate rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
-                          task.completed
-                            ? 'bg-accent-green/10 text-text-muted line-through'
-                            : 'bg-background/80 text-text-primary hover:bg-accent-teal/15',
-                          task.recurrence.frequency !== 'none' && 'ring-1 ring-accent-teal/20'
+                          'pointer-events-auto absolute z-10 truncate rounded px-1.5 text-left text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
+                          bar.task.completed && 'line-through opacity-60',
+                          bar.continuesLeft && 'rounded-l-none',
+                          bar.continuesRight && 'rounded-r-none'
                         )}
-                        style={
-                          !task.completed && project
-                            ? { borderLeft: `2px solid ${project.color}` }
-                            : undefined
-                        }
+                        style={{
+                          top: `${22 + bar.lane * 18}px`,
+                          left: `calc(${(bar.colStart / 7) * 100}% + 2px)`,
+                          width: `calc(${(bar.colSpan / 7) * 100}% - 4px)`,
+                          backgroundColor: bar.task.completed ? `${color}33` : `${color}cc`,
+                          color: bar.task.completed ? undefined : '#0d1117',
+                        }}
                       >
-                        {task.recurrence.frequency !== 'none' ? '↻ ' : ''}
-                        {task.title}
-                      </span>
+                        {bar.continuesLeft ? '‹ ' : ''}
+                        {bar.task.recurrence.frequency !== 'none' ? '↻ ' : ''}
+                        {bar.task.title}
+                        {bar.continuesRight ? ' ›' : ''}
+                      </button>
                     );
                   })}
-                  {overflow > 0 && (
-                    <span className="px-1 text-[9px] text-text-muted">+{overflow}</span>
-                  )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

@@ -5,6 +5,7 @@ import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
 import { useWeek } from '@core/hooks/useWeek';
 import { useStore } from '@core/store';
+import { collectTasksCovering } from '@core/lib/taskPresence';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { ProgressRing } from './ProgressRing';
@@ -24,9 +25,13 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday }: DayColum
   const { tasks, addTask, editTask, removeTask, moveTaskToDay, progress, completedCount } =
     useTasks(weekId, dayId);
   const { projects } = useProjects();
-  const { locale, weekdayFormat, shortDateFormat } = useT();
+  const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });
   const setDetailTask = useStore(s => s.setDetailTask);
+  const tasksByDay = useStore(s => s.tasksByDay);
+  const locatedById = new Map(
+    collectTasksCovering(tasksByDay, dayId).map(loc => [loc.id, loc] as const)
+  );
 
   // Drop zone: identifica el dia en onDragEnd.
   const { setNodeRef: setDropRef, isOver } = useDroppable({
@@ -96,30 +101,50 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday }: DayColum
         )}
       >
         <AnimatePresence initial={false}>
-          {tasks.map(task => (
-            <DraggableTask key={task.id} task={task} weekId={weekId} dayId={dayId}>
-              {({ dragHandleProps, isDragging }) => (
-                <TaskCard
-                  task={task}
-                  projects={projects}
-                  weekDays={days}
-                  nextWeekId={nextWeekId}
-                  onToggle={() => editTask(task.id, { completed: !task.completed })}
-                  onEdit={payload => editTask(task.id, payload)}
-                  onMove={toDate => {
-                    const t = tasks.find(t2 => t2.id === task.id);
-                    if (t) moveTaskToDay(t, toDate);
-                  }}
-                  onMoveNextWeek={() => handleMoveNextWeek(task.id)}
-                  onDuplicate={() => handleDuplicate(task.id)}
-                  onDelete={() => removeTask(task.id)}
-                  onOpenDetail={() => setDetailTask({ weekId, dayId, taskId: task.id })}
-                  dragHandleProps={dragHandleProps}
-                  isDragging={isDragging}
-                />
-              )}
-            </DraggableTask>
-          ))}
+          {tasks.map(task => {
+            const loc = locatedById.get(task.id);
+            const isMidSpan = Boolean(loc && loc.startDayId !== dayId);
+            const dragWeekId = loc?.weekId ?? weekId;
+            const dragDayId = loc?.startDayId ?? dayId;
+            return (
+              <DraggableTask key={task.id} task={task} weekId={dragWeekId} dayId={dragDayId}>
+                {({ dragHandleProps, isDragging }) => (
+                  <div className={cn(isMidSpan && 'opacity-80')}>
+                    {isMidSpan && (
+                      <div className="mb-0.5 px-1 text-[10px] font-medium text-text-muted">
+                        {t('task_continues')}
+                      </div>
+                    )}
+                    <TaskCard
+                      task={task}
+                      projects={projects}
+                      weekDays={days}
+                      nextWeekId={nextWeekId}
+                      startDayId={loc?.startDayId}
+                      onToggle={() => editTask(task.id, { completed: !task.completed })}
+                      onEdit={payload => editTask(task.id, payload)}
+                      onMove={toDate => {
+                        const found = tasks.find(t2 => t2.id === task.id);
+                        if (found) moveTaskToDay(found, toDate);
+                      }}
+                      onMoveNextWeek={() => handleMoveNextWeek(task.id)}
+                      onDuplicate={() => handleDuplicate(task.id)}
+                      onDelete={() => removeTask(task.id)}
+                      onOpenDetail={() =>
+                        setDetailTask({
+                          weekId: dragWeekId,
+                          dayId: dragDayId,
+                          taskId: task.id,
+                        })
+                      }
+                      dragHandleProps={dragHandleProps}
+                      isDragging={isDragging}
+                    />
+                  </div>
+                )}
+              </DraggableTask>
+            );
+          })}
         </AnimatePresence>
       </div>
 

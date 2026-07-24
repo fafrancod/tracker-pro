@@ -24,6 +24,8 @@ interface TaskCardProps {
   projects: Project[];
   weekDays: { date: Date; dayId: string; label: string; dateLabel: string }[];
   nextWeekId: string;
+  /** Start day of the span (for range label). */
+  startDayId?: string;
   onToggle: () => void;
   onEdit: (payload: { title?: string; notes?: string; priority?: Priority; completed?: boolean }) => void;
   onMove: (toDate: Date) => void;
@@ -39,6 +41,7 @@ export function TaskCard({
   task,
   projects,
   weekDays,
+  startDayId,
   onToggle,
   onEdit,
   onMove,
@@ -148,6 +151,13 @@ export function TaskCard({
 
           {/* Meta row */}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {startDayId && task.endDayId && task.endDayId > startDayId && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
+                {format(parseISO(`${startDayId}T00:00:00`), 'd MMM')}
+                {' – '}
+                {format(parseISO(`${task.endDayId}T00:00:00`), 'd MMM')}
+              </span>
+            )}
             {task.recurrence.frequency !== 'none' && (
               <span
                 className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-teal"

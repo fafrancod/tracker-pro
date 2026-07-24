@@ -205,6 +205,12 @@ function TaskDetailInner({
           )}
           {' · '}
           {format(parseISO(`${dayId}T00:00:00`), `EEEE, ${shortDateFormat}`, { locale })}
+          {task.endDayId && task.endDayId > dayId && (
+            <>
+              {' – '}
+              {format(parseISO(`${task.endDayId}T00:00:00`), shortDateFormat, { locale })}
+            </>
+          )}
         </SideSheetDescription>
       </SideSheetHeader>
 
@@ -241,6 +247,34 @@ function TaskDetailInner({
             ✓ Completada {format(parseISO(task.completedAt), `EEE ${shortDateFormat} · HH:mm`, { locale })}
           </p>
         )}
+
+        {/* Date range */}
+        <Field label={t('task_date_range')}>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('task_start_date')}</span>
+              <input
+                type="date"
+                value={dayId}
+                readOnly
+                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary opacity-80"
+              />
+            </label>
+            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('task_end_date')}</span>
+              <input
+                type="date"
+                value={task.endDayId || dayId}
+                min={dayId}
+                onChange={e => {
+                  const next = e.target.value || dayId;
+                  if (next >= dayId) void editTask(task.id, { endDayId: next });
+                }}
+                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+          </div>
+        </Field>
 
         {/* Priority */}
         <Field label="Prioridad">
