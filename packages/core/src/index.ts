@@ -14,3 +14,4 @@ export * from './services/userService';
 export * from './lib/planLimits';
 export * from './lib/api';
 export * from './lib/demoMode';
+export * from './lib/recurrence';

@@ -42,11 +42,22 @@ create table if not exists public.tasks (
   "order" int not null default 0,
   tags text[] not null default '{}',
   moved_from text,
+  series_id text,
+  recurrence_frequency text not null default 'none'
+    check (recurrence_frequency in ('none', 'daily', 'weekly', 'monthly')),
+  recurrence_interval int not null default 1 check (recurrence_interval >= 1 and recurrence_interval <= 365),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 create index if not exists tasks_user_week_day_idx on public.tasks (user_id, week_id, day_id, "order");
+create index if not exists tasks_user_day_range_idx on public.tasks (user_id, day_id);
+create index if not exists tasks_user_series_idx on public.tasks (user_id, series_id);
+
+-- Migración idempotente si la tabla ya existía sin columnas de recurrencia
+alter table public.tasks add column if not exists series_id text;
+alter table public.tasks add column if not exists recurrence_frequency text not null default 'none';
+alter table public.tasks add column if not exists recurrence_interval int not null default 1;
 
 create table if not exists public.usage_counters (
   user_id uuid not null references public.profiles (id) on delete cascade,

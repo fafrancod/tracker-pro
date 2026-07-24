@@ -67,8 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(initialProfile);
       setProjects(seed.projects);
       setCurrentWeek(seed.currentWeekId);
-      for (const [dayId, tasks] of Object.entries(seed.tasksByDay[seed.currentWeekId] ?? {})) {
-        setDayTasks(seed.currentWeekId, dayId, tasks);
+      // Cargar todas las semanas del seed (series recurrentes multi-mes).
+      for (const [weekId, days] of Object.entries(seed.tasksByDay)) {
+        for (const [dayId, tasks] of Object.entries(days)) {
+          setDayTasks(weekId, dayId, tasks);
+        }
       }
 
       setLoading(false);

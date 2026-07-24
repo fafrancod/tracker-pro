@@ -88,6 +88,8 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
   }
 
   if (method === 'POST' && path === '/api/tasks') {
+    const frequency = (json?.recurrenceFrequency as string) ?? 'none';
+    const interval = typeof json?.recurrenceInterval === 'number' ? json.recurrenceInterval : 1;
     return {
       id: randomId(),
       weekId: json?.weekId,
@@ -101,6 +103,8 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
       order: 0,
       tags: json?.tags ?? [],
       movedFrom: null,
+      seriesId: frequency === 'none' ? null : randomId(),
+      recurrence: { frequency, interval },
     } as T;
   }
 

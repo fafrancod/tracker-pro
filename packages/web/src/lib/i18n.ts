@@ -44,6 +44,17 @@ export interface TranslationDict {
   task_move_to: string;
   task_move_next_week: string;
   task_duplicate: string;
+  task_repeat: string;
+  task_repeat_none: string;
+  task_repeat_daily: string;
+  task_repeat_weekly: string;
+  task_repeat_monthly: string;
+  task_repeat_every: string;
+  task_repeat_unit_days: string;
+  task_repeat_unit_weeks: string;
+  task_repeat_unit_months: string;
+  task_complete_hint: string;
+  task_uncomplete_hint: string;
 
   // Settings sections
   settings_account: string;
@@ -117,6 +128,17 @@ const es_dict: TranslationDict = {
   task_move_to: 'Mover a',
   task_move_next_week: 'Semana siguiente →',
   task_duplicate: 'Duplicar',
+  task_repeat: 'Repetición',
+  task_repeat_none: 'Sin repetir',
+  task_repeat_daily: 'Cada día',
+  task_repeat_weekly: 'Cada semana',
+  task_repeat_monthly: 'Cada mes',
+  task_repeat_every: 'Cada',
+  task_repeat_unit_days: 'días',
+  task_repeat_unit_weeks: 'semanas',
+  task_repeat_unit_months: 'meses',
+  task_complete_hint: 'Clic para marcar como completada',
+  task_uncomplete_hint: 'Clic para desmarcar',
 
   settings_account: 'Cuenta',
   settings_plan: 'Plan',
@@ -186,6 +208,17 @@ const en_dict: TranslationDict = {
   task_move_to: 'Move to',
   task_move_next_week: 'Next week →',
   task_duplicate: 'Duplicate',
+  task_repeat: 'Repeat',
+  task_repeat_none: 'Does not repeat',
+  task_repeat_daily: 'Daily',
+  task_repeat_weekly: 'Weekly',
+  task_repeat_monthly: 'Monthly',
+  task_repeat_every: 'Every',
+  task_repeat_unit_days: 'days',
+  task_repeat_unit_weeks: 'weeks',
+  task_repeat_unit_months: 'months',
+  task_complete_hint: 'Click to mark as completed',
+  task_uncomplete_hint: 'Click to unmark',
 
   settings_account: 'Account',
   settings_plan: 'Plan',

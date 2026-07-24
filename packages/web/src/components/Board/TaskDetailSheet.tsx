@@ -159,6 +159,8 @@ function TaskDetailInner({
       priority: task!.priority,
       notes: task!.notes,
       tags: task!.tags,
+      recurrenceFrequency: task!.recurrence.frequency,
+      recurrenceInterval: task!.recurrence.interval,
     });
     showToast('Tarea duplicada.', 'success');
   }

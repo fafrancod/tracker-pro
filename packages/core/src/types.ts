@@ -1,5 +1,12 @@
 export type Plan = 'free' | 'pro';
 export type Priority = 'low' | 'medium' | 'high';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+
+export interface Recurrence {
+  frequency: RecurrenceFrequency;
+  /** Cada N días / semanas / meses (mínimo 1). */
+  interval: number;
+}
 
 export interface UserProfile {
   name: string;
@@ -38,6 +45,9 @@ export interface Task {
   order: number;
   tags: string[];
   movedFrom: string | null;
+  /** Serie de repetición; null si es tarea única. */
+  seriesId: string | null;
+  recurrence: Recurrence;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,6 +75,8 @@ export interface CreateTaskPayload {
   priority?: Priority;
   notes?: string;
   tags?: string[];
+  recurrenceFrequency?: RecurrenceFrequency;
+  recurrenceInterval?: number;
 }
 
 export interface UpdateTaskPayload {
@@ -76,6 +88,8 @@ export interface UpdateTaskPayload {
   tags?: string[];
   order?: number;
   movedFrom?: string | null;
+  recurrenceFrequency?: RecurrenceFrequency;
+  recurrenceInterval?: number;
 }
 
 export interface CreateProjectPayload {

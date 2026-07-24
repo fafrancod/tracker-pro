@@ -43,6 +43,8 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday }: DayColum
       priority: task.priority,
       notes: task.notes,
       tags: task.tags,
+      recurrenceFrequency: task.recurrence.frequency,
+      recurrenceInterval: task.recurrence.interval,
     });
   }
 

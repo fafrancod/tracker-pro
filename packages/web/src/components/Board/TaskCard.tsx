@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { GripVertical, MoreHorizontal, Pencil, Check, ChevronDown, ChevronUp, Maximize2 } from 'lucide-react';
+import { GripVertical, MoreHorizontal, Pencil, Check, ChevronDown, ChevronUp, Maximize2, Repeat } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
@@ -148,6 +148,24 @@ export function TaskCard({
 
           {/* Meta row */}
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {task.recurrence.frequency !== 'none' && (
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-teal"
+                title={
+                  task.recurrence.interval > 1
+                    ? `↻ cada ${task.recurrence.interval}`
+                    : task.recurrence.frequency
+                }
+              >
+                <Repeat className="h-2.5 w-2.5" />
+                {task.recurrence.frequency === 'daily'
+                  ? 'D'
+                  : task.recurrence.frequency === 'weekly'
+                    ? 'S'
+                    : 'M'}
+                {task.recurrence.interval > 1 ? `×${task.recurrence.interval}` : ''}
+              </span>
+            )}
             {project && (
               <span
                 className="inline-flex max-w-full items-center gap-1 truncate whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"

@@ -11,6 +11,14 @@ export interface DemoSnapshot {
   savedAt: string;
 }
 
+function normalizeTask(raw: Task): Task {
+  return {
+    ...raw,
+    seriesId: raw.seriesId ?? null,
+    recurrence: raw.recurrence ?? { frequency: 'none', interval: 1 },
+  };
+}
+
 export function loadDemoState(): DemoSnapshot | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -18,7 +26,14 @@ export function loadDemoState(): DemoSnapshot | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DemoSnapshot;
     if (parsed.v !== 1) return null;
-    return parsed;
+    const tasksByDay: Record<string, Record<string, Task[]>> = {};
+    for (const [weekId, days] of Object.entries(parsed.tasksByDay ?? {})) {
+      tasksByDay[weekId] = {};
+      for (const [dayId, list] of Object.entries(days ?? {})) {
+        tasksByDay[weekId][dayId] = (list ?? []).map(normalizeTask);
+      }
+    }
+    return { ...parsed, tasksByDay };
   } catch {
     return null;
   }

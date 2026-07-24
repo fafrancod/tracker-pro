@@ -8,6 +8,12 @@ import { generateId } from '../lib/ids.js';
 import { isValidDayId, isValidWeekId } from '../lib/period.js';
 import { bumpUsage, readProfilePlan, readUsage } from '../lib/usage.js';
 import { getLimits } from '../lib/planLimits.js';
+import {
+  getWeekIdFromDayId,
+  materializeOccurrenceDayIds,
+  normalizeRecurrence,
+  type RecurrenceFrequency,
+} from '../lib/recurrence.js';
 
 export const tasksRouter = Router();
 
@@ -20,6 +26,7 @@ const taskLocation = z.object({
 });
 
 const prioritySchema = z.enum(['low', 'medium', 'high']);
+const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly']);
 
 const createSchema = taskLocation.extend({
   title: z.string().min(1).max(280).trim(),
@@ -28,6 +35,8 @@ const createSchema = taskLocation.extend({
   notes: z.string().max(4000).optional(),
   tags: z.array(z.string().min(1).max(40)).max(20).optional(),
   eventId: z.string().min(1).max(80).optional(),
+  recurrenceFrequency: recurrenceFrequencySchema.optional(),
+  recurrenceInterval: z.number().int().min(1).max(365).optional(),
 });
 
 const updateSchema = z
@@ -40,75 +49,132 @@ const updateSchema = z
     tags: z.array(z.string().min(1).max(40)).max(20).optional(),
     order: z.number().int().nonnegative().optional(),
     movedFrom: z.string().nullable().optional(),
+    recurrenceFrequency: recurrenceFrequencySchema.optional(),
+    recurrenceInterval: z.number().int().min(1).max(365).optional(),
   })
   .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' });
+
+function toClientTask(
+  row: Record<string, unknown>,
+  overrides?: { weekId?: string; dayId?: string }
+) {
+  const frequency = (row.recurrence_frequency as RecurrenceFrequency | undefined) ?? 'none';
+  const interval = typeof row.recurrence_interval === 'number' ? row.recurrence_interval : 1;
+  return {
+    id: row.id as string,
+    weekId: overrides?.weekId ?? (row.week_id as string),
+    dayId: overrides?.dayId ?? (row.day_id as string),
+    title: row.title as string,
+    completed: Boolean(row.completed),
+    completedAt: (row.completed_at as string | null) ?? null,
+    projectId: (row.project_id as string | null) ?? null,
+    priority: (row.priority as string) ?? 'medium',
+    notes: (row.notes as string) ?? '',
+    order: typeof row.order === 'number' ? row.order : 0,
+    tags: Array.isArray(row.tags) ? row.tags : [],
+    movedFrom: (row.moved_from as string | null) ?? null,
+    seriesId: (row.series_id as string | null) ?? null,
+    recurrence: normalizeRecurrence(frequency, interval),
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
 
 tasksRouter.post('/', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
-    const { weekId, dayId, title, projectId, priority, notes, tags, eventId } =
-      createSchema.parse(req.body);
+    const {
+      weekId,
+      dayId,
+      title,
+      projectId,
+      priority,
+      notes,
+      tags,
+      eventId,
+      recurrenceFrequency,
+      recurrenceInterval,
+    } = createSchema.parse(req.body);
+
+    const recurrence = normalizeRecurrence(recurrenceFrequency, recurrenceInterval);
+    const occurrenceDays = materializeOccurrenceDayIds(
+      dayId,
+      recurrence.frequency,
+      recurrence.interval
+    );
 
     const plan = await readProfilePlan(uid);
     const limits = getLimits(plan);
     if (Number.isFinite(limits.maxTasksPerMonth)) {
       const usage = await readUsage(uid, monthFromDay(dayId));
       const tasksThisMonth = usage.tasks_created ?? 0;
-      if (tasksThisMonth >= limits.maxTasksPerMonth) {
+      if (tasksThisMonth + occurrenceDays.length > limits.maxTasksPerMonth) {
         throw ApiError.planLimit(
           `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
-          { plan, limit: limits.maxTasksPerMonth, current: tasksThisMonth }
+          {
+            plan,
+            limit: limits.maxTasksPerMonth,
+            current: tasksThisMonth,
+            requested: occurrenceDays.length,
+          }
         );
       }
     }
 
-    const { count } = await getSupabaseAdmin()
-      .from('tasks')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', uid)
-      .eq('week_id', weekId)
-      .eq('day_id', dayId);
-
-    const taskId = generateId();
     const now = new Date().toISOString();
-    const taskDoc = {
-      id: taskId,
-      user_id: uid,
-      week_id: weekId,
-      day_id: dayId,
-      title,
-      completed: false,
-      completed_at: null,
-      project_id: projectId ?? null,
-      priority: priority ?? 'medium',
-      notes: notes ?? '',
-      order: count ?? 0,
-      tags: tags ?? [],
-      moved_from: null,
-      created_at: now,
-      updated_at: now,
-    };
+    const seriesId = generateId();
+    const rows: Record<string, unknown>[] = [];
 
-    const { error } = await getSupabaseAdmin().from('tasks').insert(taskDoc);
+    // order por día: contamos tareas existentes en cada día de la serie
+    const orderByDay = new Map<string, number>();
+    for (const occDayId of occurrenceDays) {
+      if (orderByDay.has(occDayId)) continue;
+      const { count } = await getSupabaseAdmin()
+        .from('tasks')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        .eq('day_id', occDayId);
+      orderByDay.set(occDayId, count ?? 0);
+    }
+
+    for (const occDayId of occurrenceDays) {
+      const occWeekId = occDayId === dayId ? weekId : getWeekIdFromDayId(occDayId);
+      const order = orderByDay.get(occDayId) ?? 0;
+      orderByDay.set(occDayId, order + 1);
+      const taskId = generateId();
+      rows.push({
+        id: taskId,
+        user_id: uid,
+        week_id: occWeekId,
+        day_id: occDayId,
+        title,
+        completed: false,
+        completed_at: null,
+        project_id: projectId ?? null,
+        priority: priority ?? 'medium',
+        notes: notes ?? '',
+        order,
+        tags: tags ?? [],
+        moved_from: null,
+        series_id: recurrence.frequency === 'none' ? null : seriesId,
+        recurrence_frequency: recurrence.frequency,
+        recurrence_interval: recurrence.interval,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    const { error } = await getSupabaseAdmin().from('tasks').insert(rows);
     if (error) throw error;
 
-    await bumpUsage(uid, { tasksCreated: 1 }, eventId);
+    await bumpUsage(uid, { tasksCreated: rows.length }, eventId);
+
+    const instances = rows.map(row => toClientTask(row));
+    const first = instances[0];
 
     res.status(201).json({
-      id: taskId,
-      weekId,
-      dayId,
-      title: taskDoc.title,
-      completed: taskDoc.completed,
-      completedAt: taskDoc.completed_at,
-      projectId: taskDoc.project_id,
-      priority: taskDoc.priority,
-      notes: taskDoc.notes,
-      order: taskDoc.order,
-      tags: taskDoc.tags,
-      movedFrom: taskDoc.moved_from,
-      createdAt: now,
-      updatedAt: now,
+      ...first,
+      instances,
     });
   } catch (err) {
     next(err);
@@ -127,7 +193,7 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
 
     const { data: existing, error: fetchError } = await getSupabaseAdmin()
       .from('tasks')
-      .select('id')
+      .select('*')
       .eq('id', taskId)
       .eq('user_id', uid)
       .eq('week_id', weekId)
@@ -147,6 +213,12 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.tags !== undefined) update.tags = patch.tags;
     if (patch.order !== undefined) update.order = patch.order;
     if (patch.movedFrom !== undefined) update.moved_from = patch.movedFrom;
+    if (patch.recurrenceFrequency !== undefined) {
+      update.recurrence_frequency = patch.recurrenceFrequency;
+    }
+    if (patch.recurrenceInterval !== undefined) {
+      update.recurrence_interval = patch.recurrenceInterval;
+    }
     if (patch.completed === true) update.completed_at = now;
     if (patch.completed === false) update.completed_at = null;
 

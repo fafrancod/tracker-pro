@@ -9,6 +9,7 @@ import {
   getWeekId,
   getDayId,
 } from '../services/taskService';
+import { normalizeRecurrence } from '../lib/recurrence';
 import type { CreateTaskPayload, UpdateTaskPayload, Task } from '../types';
 
 export function useTasks(weekId: string, dayId: string) {
@@ -36,6 +37,10 @@ export function useTasks(weekId: string, dayId: string) {
       const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
       const order = tasks.length;
       const now = new Date().toISOString();
+      const recurrence = normalizeRecurrence(
+        payload.recurrenceFrequency,
+        payload.recurrenceInterval
+      );
       const optimisticTask: Task = {
         id: optimisticId,
         title: payload.title,
@@ -47,16 +52,35 @@ export function useTasks(weekId: string, dayId: string) {
         order,
         tags: payload.tags ?? [],
         movedFrom: null,
+        seriesId: recurrence.frequency === 'none' ? null : optimisticId,
+        recurrence,
         createdAt: now,
         updatedAt: now,
       };
       addTaskOptimistic(weekId, dayId, optimisticTask);
       try {
-        // Pasamos `optimisticId` como eventId para que reintentos no doble-cuenten usage.
-        await createTask(weekId, dayId, payload, optimisticId);
+        const result = await createTask(weekId, dayId, payload, optimisticId);
+        // Reemplaza el optimista del día actual y materializa el resto de la serie.
+        removeTaskOptimistic(weekId, dayId, optimisticId);
+        for (const instance of result.instances) {
+          addTaskOptimistic(instance.weekId, instance.dayId, {
+            id: instance.id,
+            title: instance.title,
+            completed: instance.completed,
+            completedAt: instance.completedAt,
+            projectId: instance.projectId,
+            priority: instance.priority,
+            notes: instance.notes,
+            order: instance.order,
+            tags: instance.tags,
+            movedFrom: instance.movedFrom,
+            seriesId: instance.seriesId,
+            recurrence: instance.recurrence,
+            createdAt: instance.createdAt,
+            updatedAt: instance.updatedAt,
+          });
+        }
       } catch (err) {
-        // Rollback optimista: el listener real va a re-sincronizar pero quitamos
-        // ya el placeholder para que el error sea inmediato.
         removeTaskOptimistic(weekId, dayId, optimisticId);
         throw err;
       }
@@ -67,10 +91,29 @@ export function useTasks(weekId: string, dayId: string) {
   const editTask = useCallback(
     async (taskId: string, payload: UpdateTaskPayload) => {
       if (!uid) return;
-      updateTaskOptimistic(weekId, dayId, taskId, payload);
+      const patch: Partial<Task> = {};
+      if (payload.title !== undefined) patch.title = payload.title;
+      if (payload.projectId !== undefined) patch.projectId = payload.projectId;
+      if (payload.priority !== undefined) patch.priority = payload.priority;
+      if (payload.notes !== undefined) patch.notes = payload.notes;
+      if (payload.tags !== undefined) patch.tags = payload.tags;
+      if (payload.order !== undefined) patch.order = payload.order;
+      if (payload.movedFrom !== undefined) patch.movedFrom = payload.movedFrom;
+      if (payload.completed !== undefined) {
+        patch.completed = payload.completed;
+        patch.completedAt = payload.completed ? new Date().toISOString() : null;
+      }
+      if (payload.recurrenceFrequency !== undefined || payload.recurrenceInterval !== undefined) {
+        const current = tasks.find(t => t.id === taskId);
+        patch.recurrence = normalizeRecurrence(
+          payload.recurrenceFrequency ?? current?.recurrence.frequency,
+          payload.recurrenceInterval ?? current?.recurrence.interval
+        );
+      }
+      updateTaskOptimistic(weekId, dayId, taskId, patch);
       await updateTask(weekId, dayId, taskId, payload);
     },
-    [uid, weekId, dayId, updateTaskOptimistic]
+    [uid, weekId, dayId, tasks, updateTaskOptimistic]
   );
 
   const removeTask = useCallback(
@@ -89,11 +132,6 @@ export function useTasks(weekId: string, dayId: string) {
       const toDayId = getDayId(toDate);
       const now = new Date().toISOString();
 
-      // Push optimista al destino con el MISMO id que tiene en origen:
-      // - En real mode el listener Firestore va a re-emitir la lista del
-      //   destino y como el id coincide no hay duplicado.
-      // - En demo mode no hay listener; este push es lo unico que hace
-      //   visible el movimiento.
       removeTaskOptimistic(weekId, dayId, task.id);
       addTaskOptimistic(toWeekId, toDayId, {
         ...task,
@@ -105,7 +143,6 @@ export function useTasks(weekId: string, dayId: string) {
       try {
         await moveTask(weekId, dayId, task.id, toWeekId, toDayId);
       } catch (err) {
-        // Rollback: vuelvo a poner en origen y saco del destino.
         removeTaskOptimistic(toWeekId, toDayId, task.id);
         addTaskOptimistic(weekId, dayId, task);
         throw err;
