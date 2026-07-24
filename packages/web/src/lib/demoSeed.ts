@@ -33,6 +33,7 @@ function pushTask(
     movedFrom: null,
     seriesId: partial.seriesId ?? null,
     recurrence,
+    endDayId: partial.endDayId ?? dayId,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -94,6 +95,16 @@ export function getDemoSeed(): DemoSeed {
   for (const [offset, partial] of sampleTasks) {
     pushTask(tasksByDay, day(offset), partial);
   }
+
+  // Multi-day sample: "Sprint de diseño" mon–fri of current week (complete-once span)
+  pushTask(tasksByDay, day(0), {
+    id: 'demo-task-sprint-diseno',
+    title: 'Sprint de diseño',
+    projectId: 'demo-proj-lanzamiento',
+    priority: 'high',
+    endDayId: getDayId(day(4)),
+    notes: 'Rango multi-día de ejemplo (lunes a viernes).',
+  });
 
   // Serie diaria: "Meditar 10 min" esta semana
   const dailySeries = 'demo-series-meditar';

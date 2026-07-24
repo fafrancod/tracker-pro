@@ -3,7 +3,7 @@ import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
 import { subscribeTable } from '../lib/realtime';
 import {
-  materializeOccurrenceDayIds,
+  materializeOccurrenceRanges,
   normalizeRecurrence,
   getWeekIdFromDayId,
 } from '../lib/recurrence';
@@ -11,6 +11,8 @@ import type { Task, CreateTaskPayload, UpdateTaskPayload, Recurrence } from '../
 import { getISOWeek, format } from 'date-fns';
 
 export type TasksUnsubscribe = () => void;
+
+export type LocatedTaskRow = Task & { weekId: string; dayId: string };
 
 export function getWeekId(date: Date): string {
   const year = date.getFullYear();
@@ -22,6 +24,10 @@ export function getDayId(date: Date): string {
   return format(date, 'yyyy-MM-dd');
 }
 
+/**
+ * Tareas que empiezan en (weekId, dayId) — bucket de start-day.
+ * Prefer overlap helpers for mid-span presence.
+ */
 export async function fetchTasks(uid: string, weekId: string, dayId: string): Promise<Task[]> {
   const { data, error } = await getSupabase()
     .from('tasks')
@@ -34,20 +40,22 @@ export async function fetchTasks(uid: string, weekId: string, dayId: string): Pr
   return (data ?? []).map(row => mapTask(row.id as string, row));
 }
 
-/** Carga tareas en un rango de dayId inclusive (para vista mes). */
-export async function fetchTasksInRange(
+/**
+ * Overlap fetch for a single day: day_id <= dayId AND end_day_id >= dayId.
+ * Returns rows bucketed by **start** day (dayId field = start).
+ */
+export async function fetchTasksCoveringDay(
   uid: string,
-  fromDayId: string,
-  toDayId: string
-): Promise<Array<Task & { weekId: string; dayId: string }>> {
+  dayId: string
+): Promise<LocatedTaskRow[]> {
   if (isDemoMode()) return [];
 
   const { data, error } = await getSupabase()
     .from('tasks')
     .select('*')
     .eq('user_id', uid)
-    .gte('day_id', fromDayId)
-    .lte('day_id', toDayId)
+    .lte('day_id', dayId)
+    .gte('end_day_id', dayId)
     .order('day_id', { ascending: true })
     .order('order', { ascending: true });
   if (error) throw error;
@@ -58,23 +66,57 @@ export async function fetchTasksInRange(
   }));
 }
 
+/**
+ * Overlap range load for month/calendar:
+ * day_id <= to AND end_day_id >= from (includes spans that start before the window).
+ * Rows are keyed by **start** day only.
+ */
+export async function fetchTasksInRange(
+  uid: string,
+  fromDayId: string,
+  toDayId: string
+): Promise<LocatedTaskRow[]> {
+  if (isDemoMode()) return [];
+
+  const { data, error } = await getSupabase()
+    .from('tasks')
+    .select('*')
+    .eq('user_id', uid)
+    .lte('day_id', toDayId)
+    .gte('end_day_id', fromDayId)
+    .order('day_id', { ascending: true })
+    .order('order', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(row => ({
+    ...mapTask(row.id as string, row),
+    weekId: (row.week_id as string) ?? getWeekIdFromDayId(row.day_id as string),
+    dayId: row.day_id as string,
+  }));
+}
+
+/**
+ * Subscribe to tasks covering a day. Callback receives rows located at their **start** day
+ * (not necessarily the subscribed dayId), so the store can merge into start buckets.
+ */
 export function subscribeTasks(
   uid: string,
   weekId: string,
   dayId: string,
-  cb: (tasks: Task[]) => void
+  cb: (rows: LocatedTaskRow[]) => void
 ): TasksUnsubscribe {
   if (isDemoMode()) return () => undefined;
 
-  void fetchTasks(uid, weekId, dayId).then(cb);
+  const load = () => {
+    void fetchTasksCoveringDay(uid, dayId).then(cb);
+  };
+
+  load();
 
   return subscribeTable({
     topic: `tasks:${uid}:${weekId}:${dayId}`,
     table: 'tasks',
     filter: `user_id=eq.${uid}`,
-    onChange: () => {
-      void fetchTasks(uid, weekId, dayId).then(cb);
-    },
+    onChange: load,
   });
 }
 
@@ -87,6 +129,7 @@ interface CreateTaskResponse {
   id: string;
   weekId: string;
   dayId: string;
+  endDayId?: string;
   title: string;
   completed: boolean;
   completedAt: string | null;
@@ -109,9 +152,11 @@ export async function createTask(
   payload: CreateTaskPayload,
   eventId?: string
 ): Promise<CreateTaskResult> {
+  const endDayId = payload.endDayId ?? dayId;
   const res = await api.post<CreateTaskResponse>('/api/tasks', {
     weekId,
     dayId,
+    endDayId,
     title: payload.title,
     projectId: payload.projectId ?? null,
     priority: payload.priority ?? 'medium',
@@ -153,10 +198,16 @@ function materializeDemoCreate(
     payload.recurrenceFrequency,
     payload.recurrenceInterval
   );
-  const dayIds = materializeOccurrenceDayIds(dayId, recurrence.frequency, recurrence.interval);
+  const endDayId = payload.endDayId ?? dayId;
+  const ranges = materializeOccurrenceRanges(
+    dayId,
+    endDayId,
+    recurrence.frequency,
+    recurrence.interval
+  );
   const seriesId = recurrence.frequency === 'none' ? null : firstId;
   const now = new Date().toISOString();
-  const instances = dayIds.map((occDayId, index) => {
+  const instances = ranges.map((range, index) => {
     const id = index === 0 ? firstId : `${firstId}-${index}`;
     const task: Task & { weekId: string; dayId: string } = {
       id,
@@ -171,10 +222,11 @@ function materializeDemoCreate(
       movedFrom: null,
       seriesId,
       recurrence,
+      endDayId: range.endDayId,
       createdAt: now,
       updatedAt: now,
-      weekId: occDayId === dayId ? weekId : getWeekIdFromDayId(occDayId),
-      dayId: occDayId,
+      weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
+      dayId: range.dayId,
     };
     return task;
   });
@@ -226,6 +278,13 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     (raw.recurrence as Recurrence | undefined)?.interval ??
     1;
 
+  const startDayId =
+    (raw.day_id as string | undefined) ?? (raw.dayId as string | undefined) ?? '';
+  const endDayId =
+    (raw.end_day_id as string | undefined) ??
+    (raw.endDayId as string | undefined) ??
+    startDayId;
+
   return {
     id,
     title: (raw.title as string) ?? '',
@@ -239,6 +298,7 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     movedFrom: (raw.moved_from as string | null) ?? (raw.movedFrom as string | null) ?? null,
     seriesId: (raw.series_id as string | null) ?? (raw.seriesId as string | null) ?? null,
     recurrence: normalizeRecurrence(frequency, interval),
+    endDayId: endDayId || startDayId,
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };

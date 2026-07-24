@@ -11,11 +11,12 @@ export interface DemoSnapshot {
   savedAt: string;
 }
 
-function normalizeTask(raw: Task): Task {
+function normalizeTask(raw: Task, startDayId?: string): Task {
   return {
     ...raw,
     seriesId: raw.seriesId ?? null,
     recurrence: raw.recurrence ?? { frequency: 'none', interval: 1 },
+    endDayId: raw.endDayId ?? startDayId ?? '',
   };
 }
 
@@ -30,7 +31,9 @@ export function loadDemoState(): DemoSnapshot | null {
     for (const [weekId, days] of Object.entries(parsed.tasksByDay ?? {})) {
       tasksByDay[weekId] = {};
       for (const [dayId, list] of Object.entries(days ?? {})) {
-        tasksByDay[weekId][dayId] = (list ?? []).map(normalizeTask);
+        tasksByDay[weekId][dayId] = (list ?? []).map(t =>
+          normalizeTask(t, dayId)
+        );
       }
     }
     return { ...parsed, tasksByDay };

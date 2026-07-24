@@ -128,7 +128,7 @@ beforeEach(() => {
       }),
     },
     from: buildFromMock(),
-  } as ReturnType<typeof getSupabaseAdmin>);
+  } as unknown as ReturnType<typeof getSupabaseAdmin>);
 });
 
 const baseBody = {
@@ -288,7 +288,7 @@ describe('POST /api/tasks/:weekId/:dayId/:taskId/move — keep duration', () => 
           }),
         };
       }),
-    } as ReturnType<typeof getSupabaseAdmin>);
+    } as unknown as ReturnType<typeof getSupabaseAdmin>);
 
     const res = await request(app)
       .post('/api/tasks/2026-W11/2026-03-10/task-1/move')

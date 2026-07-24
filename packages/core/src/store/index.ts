@@ -36,6 +36,8 @@ interface Actions {
   setDayTasks: (weekId: string, dayId: string, tasks: Task[]) => void;
   addTaskOptimistic: (weekId: string, dayId: string, task: Task) => void;
   updateTaskOptimistic: (weekId: string, dayId: string, taskId: string, patch: Partial<Task>) => void;
+  /** Scan all start-day buckets and patch the first matching task id. */
+  updateTaskById: (taskId: string, patch: Partial<Task>) => void;
   removeTaskOptimistic: (weekId: string, dayId: string, taskId: string) => void;
   reorderTasks: (weekId: string, dayId: string, tasks: Task[]) => void;
 
@@ -110,6 +112,19 @@ export const useStore = create<AppStore>()(
         if (!tasks) return;
         const idx = tasks.findIndex((t: Task) => t.id === taskId);
         if (idx !== -1) Object.assign(tasks[idx], patch);
+      }),
+
+    updateTaskById: (taskId, patch) =>
+      set(state => {
+        for (const days of Object.values(state.tasksByDay)) {
+          for (const tasks of Object.values(days)) {
+            const idx = tasks.findIndex((t: Task) => t.id === taskId);
+            if (idx !== -1) {
+              Object.assign(tasks[idx], patch);
+              return;
+            }
+          }
+        }
       }),
 
     removeTaskOptimistic: (weekId, dayId, taskId) =>
