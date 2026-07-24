@@ -1,5 +1,6 @@
 import { getSupabase } from '../supabase';
 import { isDemoMode } from '../lib/demoMode';
+import { subscribeTable } from '../lib/realtime';
 import type { AnalyticsData } from '../types';
 
 export type AnalyticsUnsubscribe = () => void;
@@ -22,28 +23,16 @@ export function subscribeAnalytics(
 ): AnalyticsUnsubscribe {
   if (isDemoMode()) return () => undefined;
 
-  const supabase = getSupabase();
   void fetchAnalytics(uid, weekId).then(cb);
 
-  const channel = supabase
-    .channel(`analytics:${uid}:${weekId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'analytics',
-        filter: `user_id=eq.${uid}`,
-      },
-      async () => {
-        cb(await fetchAnalytics(uid, weekId));
-      }
-    )
-    .subscribe();
-
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+  return subscribeTable({
+    topic: `analytics:${uid}:${weekId}`,
+    table: 'analytics',
+    filter: `user_id=eq.${uid}`,
+    onChange: () => {
+      void fetchAnalytics(uid, weekId).then(cb);
+    },
+  });
 }
 
 function mapAnalytics(weekId: string, row: Record<string, unknown>): AnalyticsData {

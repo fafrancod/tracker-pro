@@ -10,7 +10,10 @@ let config: ApiConfig = {
 };
 
 export function configureApi(opts: Partial<ApiConfig>): void {
-  if (opts.baseUrl) {
+  // Nota: '' es un valor válido y significa "same-origin" (SPA servida desde
+  // la propia API). Hay que distinguir undefined (no tocar) de '' (aplicar),
+  // por eso NO se puede usar `if (opts.baseUrl)`: dejaría el default localhost.
+  if (opts.baseUrl !== undefined) {
     config = { ...config, baseUrl: opts.baseUrl.replace(/\/$/, '') };
   }
 }

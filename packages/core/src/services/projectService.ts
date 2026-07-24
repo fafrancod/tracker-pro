@@ -1,6 +1,7 @@
 import { getSupabase } from '../supabase';
 import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
+import { subscribeTable } from '../lib/realtime';
 import type { Project, CreateProjectPayload, UpdateProjectPayload } from '../types';
 
 export type ProjectsUnsubscribe = () => void;
@@ -18,23 +19,16 @@ export async function fetchProjects(uid: string): Promise<Project[]> {
 export function subscribeProjects(uid: string, cb: (projects: Project[]) => void): ProjectsUnsubscribe {
   if (isDemoMode()) return () => undefined;
 
-  const supabase = getSupabase();
   void fetchProjects(uid).then(cb);
 
-  const channel = supabase
-    .channel(`projects:${uid}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'projects', filter: `user_id=eq.${uid}` },
-      async () => {
-        cb(await fetchProjects(uid));
-      }
-    )
-    .subscribe();
-
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+  return subscribeTable({
+    topic: `projects:${uid}`,
+    table: 'projects',
+    filter: `user_id=eq.${uid}`,
+    onChange: () => {
+      void fetchProjects(uid).then(cb);
+    },
+  });
 }
 
 interface CreateProjectResponse {

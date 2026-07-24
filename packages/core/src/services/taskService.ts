@@ -1,6 +1,7 @@
 import { getSupabase } from '../supabase';
 import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
+import { subscribeTable } from '../lib/realtime';
 import {
   materializeOccurrenceDayIds,
   normalizeRecurrence,
@@ -65,28 +66,16 @@ export function subscribeTasks(
 ): TasksUnsubscribe {
   if (isDemoMode()) return () => undefined;
 
-  const supabase = getSupabase();
   void fetchTasks(uid, weekId, dayId).then(cb);
 
-  const channel = supabase
-    .channel(`tasks:${uid}:${weekId}:${dayId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'tasks',
-        filter: `user_id=eq.${uid}`,
-      },
-      async () => {
-        cb(await fetchTasks(uid, weekId, dayId));
-      }
-    )
-    .subscribe();
-
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+  return subscribeTable({
+    topic: `tasks:${uid}:${weekId}:${dayId}`,
+    table: 'tasks',
+    filter: `user_id=eq.${uid}`,
+    onChange: () => {
+      void fetchTasks(uid, weekId, dayId).then(cb);
+    },
+  });
 }
 
 export interface CreateTaskResult {

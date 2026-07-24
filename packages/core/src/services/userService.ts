@@ -1,6 +1,7 @@
 import { getSupabase } from '../supabase';
 import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
+import { subscribeTable } from '../lib/realtime';
 import type { UserProfile, UserSettings } from '../types';
 
 export type ProfileUnsubscribe = () => void;
@@ -21,23 +22,16 @@ export function subscribeUserProfile(
 ): ProfileUnsubscribe {
   if (isDemoMode()) return () => undefined;
 
-  const supabase = getSupabase();
   void fetchUserProfile(uid).then(cb);
 
-  const channel = supabase
-    .channel(`profile:${uid}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${uid}` },
-      async () => {
-        cb(await fetchUserProfile(uid));
-      }
-    )
-    .subscribe();
-
-  return () => {
-    void supabase.removeChannel(channel);
-  };
+  return subscribeTable({
+    topic: `profile:${uid}`,
+    table: 'profiles',
+    filter: `id=eq.${uid}`,
+    onChange: () => {
+      void fetchUserProfile(uid).then(cb);
+    },
+  });
 }
 
 interface BootstrapResponse {
