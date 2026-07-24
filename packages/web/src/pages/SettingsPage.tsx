@@ -14,7 +14,7 @@ import { appVersion } from '@/lib/appVersion';
 
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
-import type { Language } from '@core/types';
+import type { BoardViewMode, Language } from '@core/types';
 import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 
@@ -81,6 +81,15 @@ export function SettingsPage() {
     try {
       await updateSettings({ defaultProjectId: projectId || null });
       showToast('Proyecto por defecto actualizado.', 'success');
+    } catch {
+      showToast('No pudimos guardar las preferencias.', 'error');
+    }
+  }
+
+  async function handleDefaultBoardView(view: BoardViewMode) {
+    try {
+      await updateSettings({ defaultBoardView: view });
+      showToast('Vista por defecto actualizada.', 'success');
     } catch {
       showToast('No pudimos guardar las preferencias.', 'error');
     }
@@ -203,6 +212,24 @@ export function SettingsPage() {
                     {p.icon} {p.name}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-medium text-text-muted">
+                {t('settings_default_board_view')}
+              </label>
+              <p className="mb-1.5 text-[11px] text-text-muted">
+                {t('settings_default_board_view_desc')}
+              </p>
+              <select
+                value={settings.defaultBoardView ?? 'continuous'}
+                onChange={e => handleDefaultBoardView(e.target.value as BoardViewMode)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="week">{t('board_week_view')}</option>
+                <option value="month">{t('board_month_view')}</option>
+                <option value="continuous">{t('board_continuous_view')}</option>
               </select>
             </div>
           </section>

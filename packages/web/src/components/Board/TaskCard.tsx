@@ -11,6 +11,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import {
+  TaskContextMenu,
+  type TaskContextMenuState,
+} from './TaskContextMenu';
 import type { Task, Project, Priority } from '@core/types';
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; variant: 'green' | 'teal' | 'red' }> = {
@@ -26,6 +30,9 @@ interface TaskCardProps {
   nextWeekId: string;
   /** Start day of the span (for range label). */
   startDayId?: string;
+  /** Location for context menu / detail (start bucket). */
+  locationWeekId?: string;
+  locationDayId?: string;
   onToggle: () => void;
   onEdit: (payload: { title?: string; notes?: string; priority?: Priority; completed?: boolean }) => void;
   onMove: (toDate: Date) => void;
@@ -42,6 +49,8 @@ export function TaskCard({
   projects,
   weekDays,
   startDayId,
+  locationWeekId,
+  locationDayId,
   onToggle,
   onEdit,
   onMove,
@@ -57,6 +66,7 @@ export function TaskCard({
   const [notesOpen, setNotesOpen] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(task.notes);
+  const [ctxMenu, setCtxMenu] = useState<TaskContextMenuState | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
 
@@ -89,6 +99,17 @@ export function TaskCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.15 }}
+      onContextMenu={e => {
+        e.preventDefault();
+        e.stopPropagation();
+        setCtxMenu({
+          x: e.clientX,
+          y: e.clientY,
+          task,
+          weekId: locationWeekId ?? '',
+          dayId: locationDayId ?? startDayId ?? '',
+        });
+      }}
       className={cn(
         'group relative rounded-md border border-border bg-surface p-2.5 transition-shadow',
         isDragging && 'shadow-lg ring-1 ring-accent-teal/50',
@@ -137,9 +158,10 @@ export function TaskCard({
               onClick={() => onOpenDetail?.()}
               onDoubleClick={e => {
                 e.stopPropagation();
-                setEditingTitle(true);
+                // Doble clic: abrir ficha de detalle (edición completa).
+                onOpenDetail?.();
               }}
-              title="Click: ver detalle · Doble click: editar inline"
+              title="Clic: ver detalle · Doble clic: editar"
               className={cn(
                 'block cursor-pointer select-none text-sm leading-snug',
                 task.completed ? 'text-text-muted line-through' : 'text-text-primary hover:text-accent-teal'
@@ -300,6 +322,14 @@ export function TaskCard({
           ✓ {format(parseISO(task.completedAt), 'HH:mm')}
         </p>
       )}
+
+      <TaskContextMenu
+        menu={ctxMenu}
+        onClose={() => setCtxMenu(null)}
+        onToggleComplete={() => onToggle()}
+        onEdit={() => onOpenDetail?.()}
+        onDelete={() => onDelete()}
+      />
     </motion.div>
   );
 }

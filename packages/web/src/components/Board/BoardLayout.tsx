@@ -20,7 +20,7 @@ import { TaskCard } from './TaskCard';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { useProjects } from '@core/hooks/useProjects';
-import type { Task } from '@core/types';
+import type { BoardTaskFilters, Task } from '@core/types';
 
 interface DragData {
   task: Task;
@@ -28,7 +28,11 @@ interface DragData {
   dayId: string;
 }
 
-export function BoardLayout() {
+interface BoardLayoutProps {
+  filter?: BoardTaskFilters;
+}
+
+export function BoardLayout({ filter }: BoardLayoutProps) {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { currentWeekId, weekStart, days, isCurrentWeek, goNextWeek, goPrevWeek, goToday, todayDayId } =
     useWeek({ locale, weekdayFormat, shortDateFormat });
@@ -115,6 +119,7 @@ export function BoardLayout() {
               label={day.label}
               dateLabel={day.dateLabel}
               isToday={day.dayId === todayDayId}
+              filter={filter}
             />
           ))}
         </div>

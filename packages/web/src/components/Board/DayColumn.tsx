@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { startOfISOWeek, addDays } from 'date-fns';
 import { AnimatePresence } from 'framer-motion';
 import { useDroppable } from '@dnd-kit/core';
@@ -6,6 +7,7 @@ import { useProjects } from '@core/hooks/useProjects';
 import { useWeek } from '@core/hooks/useWeek';
 import { useStore } from '@core/store';
 import { collectTasksCovering } from '@core/lib/taskPresence';
+import { taskMatchesFilters, type BoardTaskFilters } from '@core/types';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { ProgressRing } from './ProgressRing';
@@ -19,11 +21,18 @@ interface DayColumnProps {
   label: string;
   dateLabel: string;
   isToday: boolean;
+  filter?: BoardTaskFilters;
 }
 
-export function DayColumn({ weekId, dayId, label, dateLabel, isToday }: DayColumnProps) {
-  const { tasks, addTask, editTask, removeTask, moveTaskToDay, progress, completedCount } =
+export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: DayColumnProps) {
+  const { tasks: allTasks, addTask, editTask, removeTask, moveTaskToDay } =
     useTasks(weekId, dayId);
+  const tasks = useMemo(
+    () => (filter ? allTasks.filter(t => taskMatchesFilters(t, filter)) : allTasks),
+    [allTasks, filter]
+  );
+  const completedCount = tasks.filter(t => t.completed).length;
+  const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
   const { projects } = useProjects();
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });
@@ -121,6 +130,8 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday }: DayColum
                       weekDays={days}
                       nextWeekId={nextWeekId}
                       startDayId={loc?.startDayId}
+                      locationWeekId={dragWeekId}
+                      locationDayId={dragDayId}
                       onToggle={() => editTask(task.id, { completed: !task.completed })}
                       onEdit={payload => editTask(task.id, payload)}
                       onMove={toDate => {

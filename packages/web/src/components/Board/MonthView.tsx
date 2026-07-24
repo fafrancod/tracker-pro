@@ -16,19 +16,32 @@ import {
   getDayId,
   fetchTasksInRange,
   updateTask,
+  deleteTask,
 } from '@core/services/taskService';
 import { collectTasksCovering, type LocatedTask } from '@core/lib/taskPresence';
 import { isDemoMode } from '@core/lib/demoMode';
+import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useT } from '@/hooks/useT';
 import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
 import { capitalize } from '@/lib/i18n';
-import type { Task } from '@core/types';
+import {
+  TaskContextMenu,
+  type TaskContextMenuState,
+} from './TaskContextMenu';
 
-interface MonthViewProps {
+export interface MonthViewProps {
   onPickDay: (date: Date) => void;
+  mode?: 'single' | 'continuous';
+  /** When mode is continuous (or embedding), which month to render. */
+  monthDate?: Date;
+  /** Hide month navigation chrome (used inside continuous scroll). */
+  hideChrome?: boolean;
+  filter?: BoardTaskFilters;
+  /** Skip independent range fetch when parent already loaded the range. */
+  skipFetch?: boolean;
 }
 
 const MAX_LANES = 3;
@@ -69,14 +82,12 @@ function buildBarsForWeek(
   const weekEnd = getDayId(weekDates[6]);
   const dayIndex = new Map(weekDates.map((d, i) => [getDayId(d), i]));
 
-  // Multi-day tasks intersecting this week
   type RawSeg = Omit<BarSegment, 'lane'>;
   const raw: RawSeg[] = [];
 
   for (const loc of located) {
     const end = loc.endDayId || loc.startDayId;
-    if (end <= loc.startDayId) continue; // single-day handled as chips
-    // overlap with week: start <= weekEnd && end >= weekStart
+    if (end <= loc.startDayId) continue;
     if (loc.startDayId > weekEnd || end < weekStart) continue;
 
     const clipStart = loc.startDayId < weekStart ? weekStart : loc.startDayId;
@@ -96,14 +107,12 @@ function buildBarsForWeek(
     });
   }
 
-  // Sort by start then longer first
   raw.sort((a, b) => {
     if (a.colStart !== b.colStart) return a.colStart - b.colStart;
     return b.colSpan - a.colSpan;
   });
 
-  // Greedy lane assign
-  const laneEnds: number[] = []; // exclusive end col per lane
+  const laneEnds: number[] = [];
   const bars: BarSegment[] = [];
   const overflowByCol = Array.from({ length: 7 }, () => 0);
 
@@ -127,17 +136,34 @@ function buildBarsForWeek(
   return { bars, overflowByCol };
 }
 
-export function MonthView({ onPickDay }: MonthViewProps) {
+export function MonthView({
+  onPickDay,
+  mode = 'single',
+  monthDate,
+  hideChrome = false,
+  filter,
+  skipFetch = false,
+}: MonthViewProps) {
   const { locale, t } = useT();
   const { settings } = useSettings();
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const uid = useStore(s => s.uid);
   const setDayTasks = useStore(s => s.setDayTasks);
   const updateTaskById = useStore(s => s.updateTaskById);
+  const removeTaskOptimistic = useStore(s => s.removeTaskOptimistic);
+  const setDetailTask = useStore(s => s.setDetailTask);
 
   const today = new Date();
-  const [cursor, setCursor] = useState<Date>(startOfMonth(today));
+  const [cursor, setCursor] = useState<Date>(() =>
+    startOfMonth(monthDate ?? today)
+  );
   const [loadingRange, setLoadingRange] = useState(false);
+  const [ctxMenu, setCtxMenu] = useState<TaskContextMenuState | null>(null);
+
+  // Sync controlled monthDate (continuous embed)
+  useEffect(() => {
+    if (monthDate) setCursor(startOfMonth(monthDate));
+  }, [monthDate?.getTime()]);
 
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
@@ -168,9 +194,8 @@ export function MonthView({ onPickDay }: MonthViewProps) {
     );
   }, [gridStart.getTime(), locale]);
 
-  // Cargar tareas del mes visible (overlap range); en demo ya viven en el store.
   useEffect(() => {
-    if (!uid || isDemoMode()) return;
+    if (skipFetch || !uid || isDemoMode()) return;
     let cancelled = false;
     const fromDayId = getDayId(gridStart);
     const toDayId = getDayId(gridEnd);
@@ -199,26 +224,34 @@ export function MonthView({ onPickDay }: MonthViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [uid, gridStart.getTime(), gridEnd.getTime(), setDayTasks]);
+  }, [uid, gridStart.getTime(), gridEnd.getTime(), setDayTasks, skipFetch]);
 
   const tasksByDay = useStore(s => s.tasksByDay);
   const allProjects = useStore(s => s.projects);
-  const located = useMemo(() => collectAllLocated(tasksByDay), [tasksByDay]);
+  const located = useMemo(() => {
+    const all = collectAllLocated(tasksByDay);
+    if (!filter) return all;
+    return all.filter(t => taskMatchesFilters(t, filter));
+  }, [tasksByDay, filter]);
 
   function getSingleDayChips(date: Date): LocatedTask[] {
     const dayId = getDayId(date);
     return collectTasksCovering(tasksByDay, dayId).filter(t => {
+      if (filter && !taskMatchesFilters(t, filter)) return false;
       const end = t.endDayId || t.startDayId;
       return end === t.startDayId;
     });
   }
 
-  async function handleToggleLocated(
-    e: React.MouseEvent | React.KeyboardEvent,
-    loc: { task: Task; startDayId: string; startWeekId: string }
-  ) {
-    e.stopPropagation();
-    e.preventDefault();
+  function openDetail(weekId: string, dayId: string, taskId: string) {
+    setDetailTask({ weekId, dayId, taskId });
+  }
+
+  async function handleToggleLocated(loc: {
+    task: Task;
+    startDayId: string;
+    startWeekId: string;
+  }) {
     const nextCompleted = !loc.task.completed;
     updateTaskById(loc.task.id, {
       completed: nextCompleted,
@@ -236,52 +269,107 @@ export function MonthView({ onPickDay }: MonthViewProps) {
     }
   }
 
+  async function handleDeleteLocated(loc: {
+    task: Task;
+    startDayId: string;
+    startWeekId: string;
+  }) {
+    removeTaskOptimistic(loc.startWeekId, loc.startDayId, loc.task.id);
+    try {
+      await deleteTask(loc.startWeekId, loc.startDayId, loc.task.id);
+    } catch {
+      // Realtime / refetch will restore if needed
+    }
+  }
+
+  function openCtx(
+    e: React.MouseEvent,
+    task: Task,
+    startWeekId: string,
+    startDayId: string
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({
+      x: e.clientX,
+      y: e.clientY,
+      task,
+      weekId: startWeekId,
+      dayId: startDayId,
+    });
+  }
+
+  const showChrome = !hideChrome && mode === 'single';
+
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCursor(c => addMonths(c, -1))}
-            className="h-8 w-8"
-            aria-label="Mes anterior"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCursor(c => addMonths(c, 1))}
-            className="h-8 w-8"
-            aria-label="Mes siguiente"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+    <div
+      className={cn(
+        'flex flex-col bg-background',
+        mode === 'single' ? 'h-full overflow-hidden' : 'shrink-0'
+      )}
+    >
+      {showChrome && (
+        <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCursor(c => addMonths(c, -1))}
+              className="h-8 w-8"
+              aria-label="Mes anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCursor(c => addMonths(c, 1))}
+              className="h-8 w-8"
+              aria-label="Mes siguiente"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <h2 className="text-sm font-semibold text-text-primary">
+            {capitalize(format(cursor, 'MMMM yyyy', { locale }))}
+          </h2>
+
+          {loadingRange && (
+            <span className="text-[11px] text-text-muted">{t('status_checking')}</span>
+          )}
+
+          {!isSameMonth(cursor, today) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCursor(startOfMonth(today))}
+              className="ml-2 h-7 gap-1.5 text-xs"
+            >
+              <Calendar className="h-3.5 w-3.5" />
+              {t('action_today')}
+            </Button>
+          )}
+        </header>
+      )}
+
+      {!showChrome && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-2 py-2 md:px-4">
+          <h2 className="text-sm font-semibold text-text-primary">
+            {capitalize(format(cursor, 'MMMM yyyy', { locale }))}
+          </h2>
+          {loadingRange && (
+            <span className="text-[11px] text-text-muted">{t('status_checking')}</span>
+          )}
         </div>
+      )}
 
-        <h2 className="text-sm font-semibold text-text-primary">
-          {capitalize(format(cursor, 'MMMM yyyy', { locale }))}
-        </h2>
-
-        {loadingRange && (
-          <span className="text-[11px] text-text-muted">{t('status_checking')}</span>
+      <div
+        className={cn(
+          'flex flex-col p-2 md:p-4',
+          mode === 'single' ? 'flex-1 overflow-hidden' : ''
         )}
-
-        {!isSameMonth(cursor, today) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCursor(startOfMonth(today))}
-            className="ml-2 h-7 gap-1.5 text-xs"
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            {t('action_today')}
-          </Button>
-        )}
-      </header>
-
-      <div className="flex flex-1 flex-col overflow-hidden p-2 md:p-4">
+      >
         <div className="grid grid-cols-7 gap-1 pb-2">
           {dayHeaders.map(h => (
             <div key={h} className="text-center text-[11px] font-medium text-text-muted">
@@ -290,7 +378,12 @@ export function MonthView({ onPickDay }: MonthViewProps) {
           ))}
         </div>
 
-        <div className="flex flex-1 flex-col gap-1 overflow-y-auto">
+        <div
+          className={cn(
+            'flex flex-col gap-1',
+            mode === 'single' ? 'flex-1 overflow-y-auto' : ''
+          )}
+        >
           {weekRows.map((weekDates, rowIdx) => {
             const { bars, overflowByCol } = buildBarsForWeek(weekDates, located);
             const laneCount = Math.max(1, ...bars.map(b => b.lane + 1), 1);
@@ -303,7 +396,9 @@ export function MonthView({ onPickDay }: MonthViewProps) {
                   const chips = getSingleDayChips(date);
                   const visible = chips.slice(0, 2);
                   const chipOverflow = chips.length - visible.length;
-                  const covering = collectTasksCovering(tasksByDay, getDayId(date));
+                  const covering = collectTasksCovering(tasksByDay, getDayId(date)).filter(
+                    t => !filter || taskMatchesFilters(t, filter)
+                  );
                   const completed = covering.filter(task => task.completed).length;
                   const total = covering.length;
                   const extra = overflowByCol[col] + Math.max(0, chipOverflow);
@@ -339,7 +434,6 @@ export function MonthView({ onPickDay }: MonthViewProps) {
                         )}
                       </div>
 
-                      {/* Spacer for multi-day bar lanes */}
                       <div
                         className="shrink-0"
                         style={{ height: `${laneCount * 18}px` }}
@@ -356,27 +450,25 @@ export function MonthView({ onPickDay }: MonthViewProps) {
                               key={task.id}
                               role="button"
                               tabIndex={0}
-                              onClick={e =>
-                                handleToggleLocated(e, {
-                                  task,
-                                  startDayId: task.startDayId,
-                                  startWeekId: task.weekId,
-                                })
+                              onClick={e => {
+                                // Single click on chip: do NOT toggle complete; let day create stay on empty cells.
+                                e.stopPropagation();
+                              }}
+                              onDoubleClick={e => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                openDetail(task.weekId, task.startDayId, task.id);
+                              }}
+                              onContextMenu={e =>
+                                openCtx(e, task, task.weekId, task.startDayId)
                               }
                               onKeyDown={e => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  void handleToggleLocated(e, {
-                                    task,
-                                    startDayId: task.startDayId,
-                                    startWeekId: task.weekId,
-                                  });
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  openDetail(task.weekId, task.startDayId, task.id);
                                 }
                               }}
-                              title={
-                                task.completed
-                                  ? t('task_uncomplete_hint')
-                                  : t('task_complete_hint')
-                              }
+                              title={task.title}
                               className={cn(
                                 'block truncate rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
                                 task.completed
@@ -403,7 +495,6 @@ export function MonthView({ onPickDay }: MonthViewProps) {
                   );
                 })}
 
-                {/* Continuous multi-day bars overlay */}
                 <div
                   className="pointer-events-none absolute inset-0 grid grid-cols-7 gap-1"
                   aria-hidden={false}
@@ -417,18 +508,18 @@ export function MonthView({ onPickDay }: MonthViewProps) {
                       <button
                         key={`${bar.task.id}-${bar.colStart}-${bar.lane}`}
                         type="button"
-                        onClick={e =>
-                          handleToggleLocated(e, {
-                            task: bar.task,
-                            startDayId: bar.startDayId,
-                            startWeekId: bar.startWeekId,
-                          })
+                        onClick={e => {
+                          e.stopPropagation();
+                        }}
+                        onDoubleClick={e => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          openDetail(bar.startWeekId, bar.startDayId, bar.task.id);
+                        }}
+                        onContextMenu={e =>
+                          openCtx(e, bar.task, bar.startWeekId, bar.startDayId)
                         }
-                        title={
-                          bar.task.completed
-                            ? t('task_uncomplete_hint')
-                            : t('task_complete_hint')
-                        }
+                        title={bar.task.title}
                         className={cn(
                           'pointer-events-auto absolute z-10 truncate rounded px-1.5 text-left text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
                           bar.task.completed && 'line-through opacity-60',
@@ -456,6 +547,26 @@ export function MonthView({ onPickDay }: MonthViewProps) {
           })}
         </div>
       </div>
+
+      <TaskContextMenu
+        menu={ctxMenu}
+        onClose={() => setCtxMenu(null)}
+        onToggleComplete={m => {
+          void handleToggleLocated({
+            task: m.task,
+            startDayId: m.dayId,
+            startWeekId: m.weekId,
+          });
+        }}
+        onEdit={m => openDetail(m.weekId, m.dayId, m.task.id)}
+        onDelete={m => {
+          void handleDeleteLocated({
+            task: m.task,
+            startDayId: m.dayId,
+            startWeekId: m.weekId,
+          });
+        }}
+      />
     </div>
   );
 }

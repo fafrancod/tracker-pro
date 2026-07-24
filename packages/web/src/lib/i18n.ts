@@ -15,6 +15,7 @@ export interface TranslationDict {
   nav_activity: string;
   nav_settings: string;
   nav_admin: string;
+  nav_eisenhower: string;
 
   // Acciones generales
   action_add_task: string;
@@ -30,9 +31,20 @@ export interface TranslationDict {
   // Layout / Board
   board_week_view: string;
   board_month_view: string;
+  board_continuous_view: string;
   board_next_week: string;
   board_prev_week: string;
   board_add_task: string;
+  board_filter_project: string;
+  board_filter_urgency: string;
+  board_filter_importance: string;
+  board_filter_all: string;
+
+  // Context menu tareas
+  task_ctx_mark_complete: string;
+  task_ctx_mark_pending: string;
+  task_ctx_edit: string;
+  task_ctx_delete: string;
 
   // Tarea
   task_title_placeholder: string;
@@ -74,7 +86,27 @@ export interface TranslationDict {
   settings_auto_roll: string;
   settings_auto_roll_desc: string;
   settings_default_project: string;
+  settings_default_board_view: string;
+  settings_default_board_view_desc: string;
   settings_none: string;
+
+  // Urgencia / importancia
+  urgency_urgent: string;
+  urgency_not_urgent: string;
+  importance_important: string;
+  importance_not_important: string;
+
+  // Eisenhower
+  eisenhower_title: string;
+  eisenhower_project: string;
+  eisenhower_all_projects: string;
+  eisenhower_do: string;
+  eisenhower_schedule: string;
+  eisenhower_delegate: string;
+  eisenhower_eliminate: string;
+  eisenhower_uncategorized: string;
+  eisenhower_empty: string;
+  eisenhower_hint: string;
 
   // Estados
   status_demo: string;
@@ -107,6 +139,7 @@ const es_dict: TranslationDict = {
   nav_activity: 'Bitácora',
   nav_settings: 'Config',
   nav_admin: 'Admin',
+  nav_eisenhower: 'Eisenhower',
 
   action_add_task: 'Añadir tarea',
   action_new_project: 'Nuevo proyecto',
@@ -120,9 +153,19 @@ const es_dict: TranslationDict = {
 
   board_week_view: 'Semana',
   board_month_view: 'Mes',
+  board_continuous_view: 'Continuo',
   board_next_week: 'Semana siguiente',
   board_prev_week: 'Semana anterior',
   board_add_task: 'Añadir tarea',
+  board_filter_project: 'Proyecto',
+  board_filter_urgency: 'Urgencia',
+  board_filter_importance: 'Importancia',
+  board_filter_all: 'Todos',
+
+  task_ctx_mark_complete: 'Marcar como completada',
+  task_ctx_mark_pending: 'Marcar como pendiente',
+  task_ctx_edit: 'Editar',
+  task_ctx_delete: 'Eliminar',
 
   task_title_placeholder: 'Título de la tarea…',
   task_priority_low: 'Baja',
@@ -162,7 +205,25 @@ const es_dict: TranslationDict = {
   settings_auto_roll: 'Auto-roll de tareas incompletas',
   settings_auto_roll_desc: 'Los domingos a las 23:59 mueve las pendientes al lunes siguiente.',
   settings_default_project: 'Proyecto por defecto',
+  settings_default_board_view: 'Vista del tablero por defecto',
+  settings_default_board_view_desc: 'Cómo se abre el tablero al entrar en Tareas.',
   settings_none: 'Ninguno',
+
+  urgency_urgent: 'Urgente',
+  urgency_not_urgent: 'No urgente',
+  importance_important: 'Importante',
+  importance_not_important: 'No importante',
+
+  eisenhower_title: 'Matriz Eisenhower',
+  eisenhower_project: 'Proyecto',
+  eisenhower_all_projects: 'Todos',
+  eisenhower_do: 'Hacer',
+  eisenhower_schedule: 'Planificar',
+  eisenhower_delegate: 'Delegar',
+  eisenhower_eliminate: 'Eliminar',
+  eisenhower_uncategorized: 'Sin categorizar',
+  eisenhower_empty: 'No hay tareas en este cuadrante.',
+  eisenhower_hint: 'Haz clic en una tarea o mueve a un cuadrante para asignar urgencia e importancia.',
 
   status_demo: 'Demo',
   status_production: 'Producción',
@@ -192,6 +253,7 @@ const en_dict: TranslationDict = {
   nav_activity: 'Activity',
   nav_settings: 'Settings',
   nav_admin: 'Admin',
+  nav_eisenhower: 'Eisenhower',
 
   action_add_task: 'Add task',
   action_new_project: 'New project',
@@ -205,9 +267,19 @@ const en_dict: TranslationDict = {
 
   board_week_view: 'Week',
   board_month_view: 'Month',
+  board_continuous_view: 'Continuous',
   board_next_week: 'Next week',
   board_prev_week: 'Previous week',
   board_add_task: 'Add task',
+  board_filter_project: 'Project',
+  board_filter_urgency: 'Urgency',
+  board_filter_importance: 'Importance',
+  board_filter_all: 'All',
+
+  task_ctx_mark_complete: 'Mark as completed',
+  task_ctx_mark_pending: 'Mark as pending',
+  task_ctx_edit: 'Edit',
+  task_ctx_delete: 'Delete',
 
   task_title_placeholder: 'Task title…',
   task_priority_low: 'Low',
@@ -247,7 +319,25 @@ const en_dict: TranslationDict = {
   settings_auto_roll: 'Auto-roll incomplete tasks',
   settings_auto_roll_desc: 'Sundays 23:59 move pending tasks to the next Monday.',
   settings_default_project: 'Default project',
+  settings_default_board_view: 'Default board view',
+  settings_default_board_view_desc: 'How the board opens when you go to Tasks.',
   settings_none: 'None',
+
+  urgency_urgent: 'Urgent',
+  urgency_not_urgent: 'Not urgent',
+  importance_important: 'Important',
+  importance_not_important: 'Not important',
+
+  eisenhower_title: 'Eisenhower matrix',
+  eisenhower_project: 'Project',
+  eisenhower_all_projects: 'All',
+  eisenhower_do: 'Do',
+  eisenhower_schedule: 'Schedule',
+  eisenhower_delegate: 'Delegate',
+  eisenhower_eliminate: 'Eliminate',
+  eisenhower_uncategorized: 'Uncategorized',
+  eisenhower_empty: 'No tasks in this quadrant.',
+  eisenhower_hint: 'Click a task or move it into a quadrant to set urgency and importance.',
 
   status_demo: 'Demo',
   status_production: 'Production',

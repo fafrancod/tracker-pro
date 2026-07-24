@@ -4,4 +4,6 @@ export { TaskCard } from './TaskCard';
 export { ProgressRing } from './ProgressRing';
 export { AddTaskForm } from './AddTaskForm';
 export { MonthView } from './MonthView';
+export { ContinuousMonthsView } from './ContinuousMonthsView';
 export { TaskDetailSheet } from './TaskDetailSheet';
+export { TaskContextMenu } from './TaskContextMenu';
