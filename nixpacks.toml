@@ -1,10 +1,21 @@
-# No listar nodejs_22 en nixPkgs: el nixpkgs que pincha Railway
-# (p.ej. 5148520…) no define ese atributo y el setup falla.
-# La versión de Node la resuelve el provider de Node de Nixpacks vía:
-#   - engines.node en package.json
-#   - .nvmrc / .node-version
-#   - NIXPACKS_NODE_VERSION (variable de servicio o aquí)
+# Railway / Nixpacks
+# - NO listar nodejs_22 en nixPkgs (pin de nixpkgs no lo tiene).
+# - NO volver a correr npm ci/install en buildCommand: un segundo install
+#   intenta rmdir node_modules/.cache → EBUSY en Railway.
 
 [variables]
 NIXPACKS_NODE_VERSION = "22"
 NPM_CONFIG_PRODUCTION = "false"
+NPM_CONFIG_CACHE = "/tmp/npm-cache"
+
+[phases.install]
+# Install una sola vez. npm install tolera mejor capas/cache residuales
+# que npm ci (que fuerza wipe de node_modules).
+cmds = [
+  "mkdir -p /tmp/npm-cache",
+  "if [ -d node_modules/.cache ]; then rm -rf node_modules/.cache 2>/dev/null || mv node_modules/.cache \"/tmp/nm-cache-$$\" 2>/dev/null || true; fi",
+  "NPM_CONFIG_PRODUCTION=false npm install --include=dev --no-audit --no-fund --cache /tmp/npm-cache"
+]
+
+[phases.build]
+cmds = ["npm run build:api"]
