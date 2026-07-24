@@ -127,6 +127,7 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday }: DayColum
       <div className="p-2 pt-0">
         <AddTaskForm
           projects={projects}
+          startDayId={dayId}
           onAdd={async payload => {
             await addTask(payload);
           }}

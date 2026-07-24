@@ -43,9 +43,10 @@ export function BoardPage() {
   const targetDay = days.find(d => d.dayId === targetDayId);
 
   function handlePickDay(date: Date) {
+    // Empty-day create: prefill start, open FAB sheet, stay on current view.
     setCurrentWeek(getWeekId(date));
     setSelectedDay(getDayId(date));
-    setView('week');
+    setFabOpen(true);
   }
 
   return (
@@ -103,6 +104,7 @@ export function BoardPage() {
           <AddTaskForm
             projects={projects}
             startOpen
+            startDayId={targetDayId}
             onAdd={async payload => {
               await addTask(payload);
               showToast('OK', 'success');

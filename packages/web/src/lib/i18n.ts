@@ -55,6 +55,11 @@ export interface TranslationDict {
   task_repeat_unit_months: string;
   task_complete_hint: string;
   task_uncomplete_hint: string;
+  task_start_date: string;
+  task_end_date: string;
+  task_date_range: string;
+  task_continues: string;
+  task_span_recurrence_hint: string;
 
   // Settings sections
   settings_account: string;
@@ -139,6 +144,11 @@ const es_dict: TranslationDict = {
   task_repeat_unit_months: 'meses',
   task_complete_hint: 'Clic para marcar como completada',
   task_uncomplete_hint: 'Clic para desmarcar',
+  task_start_date: 'Inicio',
+  task_end_date: 'Fin',
+  task_date_range: 'Rango de fechas',
+  task_continues: 'Continúa',
+  task_span_recurrence_hint: 'En rangos de varios días solo puedes repetir cada mes o no repetir.',
 
   settings_account: 'Cuenta',
   settings_plan: 'Plan',
@@ -148,9 +158,9 @@ const es_dict: TranslationDict = {
   settings_language_es: 'Español',
   settings_language_en: 'English',
   settings_week_starts_monday: 'La semana empieza el lunes',
-  settings_week_starts_monday_desc: 'Si lo desactivás, el board empieza el domingo.',
+  settings_week_starts_monday_desc: 'Si lo desactivas, el tablero empieza el domingo.',
   settings_auto_roll: 'Auto-roll de tareas incompletas',
-  settings_auto_roll_desc: 'Domingos 23:59 mueve las pendientes al lunes siguiente.',
+  settings_auto_roll_desc: 'Los domingos a las 23:59 mueve las pendientes al lunes siguiente.',
   settings_default_project: 'Proyecto por defecto',
   settings_none: 'Ninguno',
 
@@ -167,7 +177,7 @@ const es_dict: TranslationDict = {
   dashboard_completed: 'Completadas',
   dashboard_pending: 'Pendientes',
   dashboard_completion_rate: 'Progreso',
-  dashboard_no_tasks_today: 'No tenés tareas para hoy. Disfrutá el día o creá una nueva.',
+  dashboard_no_tasks_today: 'No tienes tareas para hoy. Disfruta el día o crea una nueva.',
   dashboard_jump_to_board: 'Ir al tablero',
 
   empty_no_tasks: 'Aún no hay tareas.',
@@ -219,6 +229,11 @@ const en_dict: TranslationDict = {
   task_repeat_unit_months: 'months',
   task_complete_hint: 'Click to mark as completed',
   task_uncomplete_hint: 'Click to unmark',
+  task_start_date: 'Start',
+  task_end_date: 'End',
+  task_date_range: 'Date range',
+  task_continues: 'Continues',
+  task_span_recurrence_hint: 'Multi-day ranges only support monthly or no recurrence.',
 
   settings_account: 'Account',
   settings_plan: 'Plan',

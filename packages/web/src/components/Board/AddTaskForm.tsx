@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { Plus, X, Repeat } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Plus, X, Repeat, CalendarRange } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -12,10 +12,15 @@ const PRIORITY_OPTIONS: { value: Priority; labelKey: 'task_priority_low' | 'task
   { value: 'high', labelKey: 'task_priority_high', color: 'text-accent-red' },
 ];
 
-const RECURRENCE_OPTIONS: { value: RecurrenceFrequency; labelKey: 'task_repeat_none' | 'task_repeat_daily' | 'task_repeat_weekly' | 'task_repeat_monthly' }[] = [
+const ALL_RECURRENCE: { value: RecurrenceFrequency; labelKey: 'task_repeat_none' | 'task_repeat_daily' | 'task_repeat_weekly' | 'task_repeat_monthly' }[] = [
   { value: 'none', labelKey: 'task_repeat_none' },
   { value: 'daily', labelKey: 'task_repeat_daily' },
   { value: 'weekly', labelKey: 'task_repeat_weekly' },
+  { value: 'monthly', labelKey: 'task_repeat_monthly' },
+];
+
+const SPAN_RECURRENCE: typeof ALL_RECURRENCE = [
+  { value: 'none', labelKey: 'task_repeat_none' },
   { value: 'monthly', labelKey: 'task_repeat_monthly' },
 ];
 
@@ -24,9 +29,16 @@ interface AddTaskFormProps {
   onAdd: (payload: CreateTaskPayload) => Promise<void>;
   /** Si está en true, el formulario arranca expandido y oculta el botón colapsado. */
   startOpen?: boolean;
+  /** Día de inicio (YYYY-MM-DD). Default end = start. */
+  startDayId?: string;
 }
 
-export function AddTaskForm({ projects, onAdd, startOpen = false }: AddTaskFormProps) {
+export function AddTaskForm({
+  projects,
+  onAdd,
+  startOpen = false,
+  startDayId,
+}: AddTaskFormProps) {
   const { t } = useT();
   const [open, setOpen] = useState(startOpen);
   const [title, setTitle] = useState('');
@@ -34,28 +46,57 @@ export function AddTaskForm({ projects, onAdd, startOpen = false }: AddTaskFormP
   const [priority, setPriority] = useState<Priority>('medium');
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('none');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [endDayId, setEndDayId] = useState(startDayId ?? '');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync end default when start day changes (month pick / week switch).
+  useEffect(() => {
+    if (startDayId) setEndDayId(prev => (prev && prev >= startDayId ? prev : startDayId));
+  }, [startDayId]);
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  const isMultiDay = Boolean(startDayId && endDayId && endDayId > startDayId);
+  const recurrenceOptions = useMemo(
+    () => (isMultiDay ? SPAN_RECURRENCE : ALL_RECURRENCE),
+    [isMultiDay]
+  );
+
+  // Gate: when span becomes multi-day, force frequency to none|monthly.
+  useEffect(() => {
+    if (isMultiDay && recurrenceFrequency !== 'none' && recurrenceFrequency !== 'monthly') {
+      setRecurrenceFrequency('none');
+    }
+  }, [isMultiDay, recurrenceFrequency]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = title.trim();
     if (!trimmed) return;
+
+    const safeEnd =
+      startDayId && endDayId && endDayId >= startDayId ? endDayId : startDayId;
+    const frequency =
+      safeEnd && startDayId && safeEnd > startDayId && recurrenceFrequency !== 'monthly'
+        ? 'none'
+        : recurrenceFrequency;
+
     await onAdd({
       title: trimmed,
       projectId,
       priority,
-      recurrenceFrequency,
-      recurrenceInterval: recurrenceFrequency === 'none' ? 1 : recurrenceInterval,
+      endDayId: safeEnd,
+      recurrenceFrequency: frequency,
+      recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
     });
     setTitle('');
     setProjectId(null);
     setPriority('medium');
     setRecurrenceFrequency('none');
     setRecurrenceInterval(1);
+    if (startDayId) setEndDayId(startDayId);
     inputRef.current?.focus();
   }
 
@@ -121,7 +162,35 @@ export function AddTaskForm({ projects, onAdd, startOpen = false }: AddTaskFormP
         </div>
       </div>
 
-      {/* Recurrencia */}
+      {/* Rango de fechas (inicio prefilled, fin opcional) */}
+      {startDayId && (
+        <div className="flex flex-wrap items-center gap-2 rounded border border-border/60 bg-background/50 px-2 py-1.5">
+          <CalendarRange className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden />
+          <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+            <span>{t('task_start_date')}</span>
+            <input
+              type="date"
+              value={startDayId}
+              readOnly
+              className="rounded border border-border bg-background px-1.5 py-0.5 text-xs text-text-primary opacity-80"
+              aria-label={t('task_start_date')}
+            />
+          </label>
+          <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+            <span>{t('task_end_date')}</span>
+            <input
+              type="date"
+              value={endDayId || startDayId}
+              min={startDayId}
+              onChange={e => setEndDayId(e.target.value || startDayId)}
+              className="rounded border border-border bg-background px-1.5 py-0.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              aria-label={t('task_end_date')}
+            />
+          </label>
+        </div>
+      )}
+
+      {/* Recurrencia (gated when multi-day) */}
       <div className="flex flex-wrap items-center gap-2 rounded border border-border/60 bg-background/50 px-2 py-1.5">
         <Repeat className="h-3.5 w-3.5 shrink-0 text-text-muted" aria-hidden />
         <select
@@ -130,7 +199,7 @@ export function AddTaskForm({ projects, onAdd, startOpen = false }: AddTaskFormP
           className="min-w-0 flex-1 rounded border border-border bg-background px-1.5 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
           aria-label={t('task_repeat')}
         >
-          {RECURRENCE_OPTIONS.map(opt => (
+          {recurrenceOptions.map(opt => (
             <option key={opt.value} value={opt.value}>
               {t(opt.labelKey)}
             </option>
@@ -158,6 +227,10 @@ export function AddTaskForm({ projects, onAdd, startOpen = false }: AddTaskFormP
           </label>
         )}
       </div>
+
+      {isMultiDay && (
+        <p className="px-0.5 text-[10px] text-text-muted">{t('task_span_recurrence_hint')}</p>
+      )}
 
       <div className="flex justify-end gap-1">
         <Button type="submit" size="sm" className="h-7 px-2 text-xs" disabled={!title.trim()}>
