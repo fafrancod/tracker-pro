@@ -1,6 +1,5 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import express, { type Express } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -14,18 +13,15 @@ import { projectsRouter } from './routes/projects.js';
 import { authRouter } from './routes/auth.js';
 
 /**
- * Busca packages/web/dist de forma robusta (cwd de Railway/npm workspace varía).
- * El bundle vive en packages/api/dist/server.js → ../../web/dist
+ * Busca packages/web/dist (cwd y ubicación del bundle varían en Docker/Railway).
+ * En el bundle CJS, process.cwd() es /app y la SPA vive en packages/web/dist.
  */
 function resolveWebDist(): string | null {
-  const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
     process.env.WEB_DIST_DIR,
-    path.resolve(here, '../../web/dist'),
-    path.resolve(here, '../../../packages/web/dist'),
     path.resolve(process.cwd(), 'packages/web/dist'),
-    path.resolve(process.cwd(), '../web/dist'),
     path.resolve(process.cwd(), 'web/dist'),
+    path.resolve(process.cwd(), '../web/dist'),
   ].filter((p): p is string => Boolean(p));
 
   for (const dir of candidates) {

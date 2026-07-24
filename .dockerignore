@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.claude
+.cursor
+mcps
+terminals
+docs
+firebase
+*.md
+.env
+.env.*
+coverage
+**/*.tsbuildinfo

@@ -1,4 +1,5 @@
-# Railway / Nixpacks — un servicio (API + SPA)
+# Preferir Dockerfile (railway.toml builder = DOCKERFILE).
+# Este archivo queda solo como fallback si alguien fuerza Nixpacks.
 
 [variables]
 NIXPACKS_NODE_VERSION = "22"
@@ -8,10 +9,11 @@ NPM_CONFIG_CACHE = "/tmp/npm-cache"
 [phases.install]
 cmds = [
   "mkdir -p /tmp/npm-cache",
-  "if [ -d node_modules/.cache ]; then rm -rf node_modules/.cache 2>/dev/null || mv node_modules/.cache \"/tmp/nm-cache-$$\" 2>/dev/null || true; fi",
-  "NPM_CONFIG_PRODUCTION=false npm install --include=dev --no-audit --no-fund --cache /tmp/npm-cache"
+  "NPM_CONFIG_PRODUCTION=false npm ci --include=dev --no-audit --no-fund --cache /tmp/npm-cache"
 ]
 
 [phases.build]
-# Web primero (dist), luego API (Express sirve packages/web/dist en runtime)
 cmds = ["npm run build:prod"]
+
+[start]
+cmd = "node packages/api/dist/server.cjs"
