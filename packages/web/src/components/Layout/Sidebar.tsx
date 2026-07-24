@@ -1,5 +1,14 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, ListChecks, FolderKanban, BarChart3, ScrollText, Settings, Shield } from 'lucide-react';
+import {
+  LayoutDashboard,
+  ListChecks,
+  FolderKanban,
+  BarChart3,
+  ScrollText,
+  Settings,
+  Shield,
+  Grid2x2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { appVersion } from '@/lib/appVersion';
@@ -19,6 +28,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', labelKey: 'nav_summary', icon: LayoutDashboard },
   { to: '/board', labelKey: 'nav_tasks', icon: ListChecks },
+  { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
   { to: '/projects', labelKey: 'nav_projects', icon: FolderKanban },
   { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart3 },
   { to: '/activity', labelKey: 'nav_activity', icon: ScrollText },
