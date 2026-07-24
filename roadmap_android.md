@@ -18,7 +18,7 @@ Cómo hacer la app **usable y publicable en Android**, partiendo de lo que ya ex
 | PWA (`vite-plugin-pwa`) | ✅ | manifest + service worker en build |
 | Manifest `display: standalone` | ✅ | `start_url: /board`, `orientation: portrait` |
 | Iconos PWA | ✅ | PNG 192/512 + maskable + apple-touch (script `npm run icons` en web) |
-| Offline de datos (tareas) | ❌ | SW cachea assets; mutaciones siguen online |
+| Offline de datos (tareas) | ✅ S3 | Cache lectura local + cola create/update/delete/move + banner |
 | Push notifications | ❌ | No implementado |
 | Safe area (notch / gesture bar) | ✅ | FAB, header, bottom sheets usan `env(safe-area-inset-*)` |
 | Touch / long-press menú | ✅ | Long-press + botón ⋮ en mobile; TouchSensor dnd-kit |
@@ -246,8 +246,8 @@ Variables críticas (sin cambios conceptuales):
 
 1. ~~S1+S2 hardering táctil + PNG + install banner~~ **hecho** (ver commit en `main`).  
 2. **Probar install** en un Android real contra el deploy de Railway.  
-3. **Sprint S3**: offline banner + cache lectura + cola de complete.  
-4. Solo después evaluar Capacitor si quieres presencia en Play Store.
+3. ~~Sprint S3 offline~~ **hecho** (banner + cache + cola de mutaciones).  
+4. **S4** Capacitor solo si quieres AAB / Play Store.
 
 ---
 

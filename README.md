@@ -54,6 +54,8 @@ Tras el deploy: abre `https://tu-app.up.railway.app/` → UI. Health: `/api/vers
 Iconos PNG (192/512 + maskable): regenerar con  
 `node packages/web/scripts/generate-pwa-icons.mjs` (requiere `sharp` en web).
 
-Roadmap completo (offline, Capacitor, Play Store): [`roadmap_android.md`](roadmap_android.md).
+**Offline (S3):** sin red se muestra el último board en caché; crear/completar/editar/borrar/mover se encolan y se sincronizan al reconectar (banner arriba + “Sincronizar”).
+
+Roadmap completo (Capacitor, Play Store): [`roadmap_android.md`](roadmap_android.md).
 
 Documentación técnica: [`docs/README.md`](docs/README.md).

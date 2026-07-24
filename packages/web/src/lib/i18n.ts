@@ -34,6 +34,10 @@ export interface TranslationDict {
   pwa_install_title: string;
   pwa_install_desc: string;
   pwa_install_action: string;
+  offline_banner: string;
+  offline_pending: string;
+  offline_sync_now: string;
+  offline_synced: string;
 
   // Layout / Board
   board_week_view: string;
@@ -225,6 +229,10 @@ const es_dict: TranslationDict = {
   pwa_install_title: 'Instalar Daily Tracker',
   pwa_install_desc: 'Ábrela como app desde tu pantalla de inicio.',
   pwa_install_action: 'Instalar',
+  offline_banner: 'Sin conexión. Los cambios se guardan y se envían al volver.',
+  offline_pending: '{n} cambio(s) pendientes de sincronizar',
+  offline_sync_now: 'Sincronizar',
+  offline_synced: 'Sincronizados {n} cambio(s)',
 
   board_week_view: 'Semana',
   board_month_view: 'Mes',
@@ -410,6 +418,10 @@ const en_dict: TranslationDict = {
   pwa_install_title: 'Install Daily Tracker',
   pwa_install_desc: 'Open it like an app from your home screen.',
   pwa_install_action: 'Install',
+  offline_banner: 'You are offline. Changes are saved and will sync when you reconnect.',
+  offline_pending: '{n} change(s) waiting to sync',
+  offline_sync_now: 'Sync now',
+  offline_synced: 'Synced {n} change(s)',
 
   board_week_view: 'Week',
   board_month_view: 'Month',

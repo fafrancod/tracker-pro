@@ -9,6 +9,8 @@ import {
 import { collectTasksCovering } from '../lib/taskPresence';
 import type { CreateTaskPayload, UpdateTaskPayload, Task } from '../types';
 import { taskHistory } from '../history/taskHistory';
+import { hydrateFromTaskCache } from '../offline/bootstrap';
+import { isBrowserOnline } from '../lib/network';
 
 export function useTasks(weekId: string, dayId: string) {
   const uid = useStore(s => s.uid);
@@ -26,8 +28,17 @@ export function useTasks(weekId: string, dayId: string) {
     [tasksByDay, dayId]
   );
 
+  // Hydrate empty buckets from offline snapshot once per uid.
   useEffect(() => {
     if (!uid) return;
+    hydrateFromTaskCache(uid);
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) return;
+    // Offline: keep cache-hydrated state; no live subscription traffic.
+    if (!isBrowserOnline()) return;
+
     const unsub = subscribeTasks(uid, weekId, dayId, (rows: LocatedTaskRow[]) => {
       // Merge covering tasks into their **start** day buckets.
       const byStart = new Map<string, LocatedTaskRow[]>();
@@ -43,7 +54,14 @@ export function useTasks(weekId: string, dayId: string) {
         const byId = new Map(existing.map(t => [t.id, t]));
         for (const row of group) {
           const { weekId: _w, dayId: _d, ...task } = row;
+          // Prefer server row over optimistic only if same id
           byId.set(task.id, task);
+        }
+        // Keep optimistic (offline) rows not yet on server
+        for (const t of existing) {
+          if (t.id.startsWith('optimistic-') && !byId.has(t.id)) {
+            byId.set(t.id, t);
+          }
         }
         setDayTasks(
           w,

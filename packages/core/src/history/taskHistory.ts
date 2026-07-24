@@ -5,7 +5,13 @@ import {
   moveTask,
   updateTask,
 } from '../services/taskService';
-import type { CreateTaskPayload, Task, UpdateTaskPayload } from '../types';
+import type {
+  CreateTaskPayload,
+  Task,
+  TaskApplyTo,
+  UpdateTaskPayload,
+} from '../types';
+import type { OfflineMutationInput } from '../lib/offlineQueue';
 import { useHistoryStore, generateHistoryId } from './historyStore';
 import {
   applyHistoryMutation,
@@ -19,11 +25,27 @@ import {
   addDaysToDayId,
   inclusiveDurationDays,
 } from '../lib/recurrence';
+import { shouldQueueMutation } from '../lib/network';
+import { enqueueOfflineMutation } from '../lib/offlineQueue';
+import { notifyOfflineQueueChanged } from '../offline/bootstrap';
+import { isDemoMode } from '../lib/demoMode';
 
 function truncateTitle(title: string, max = 40): string {
   const t = title.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max - 1)}…`;
+}
+
+function currentUid(): string | null {
+  return useStore.getState().uid;
+}
+
+function queueIfNeeded(uid: string | null, mut: OfflineMutationInput): boolean {
+  if (!uid || isDemoMode()) return false;
+  if (!shouldQueueMutation()) return false;
+  enqueueOfflineMutation(uid, mut);
+  notifyOfflineQueueChanged();
+  return true;
 }
 
 /**
@@ -69,6 +91,34 @@ export const taskHistory = {
       updatedAt: now,
     };
     store.addTaskOptimistic(weekId, dayId, optimisticTask);
+
+    const uid = currentUid();
+    if (queueIfNeeded(uid, {
+      op: 'create',
+      weekId,
+      dayId,
+      payload,
+      clientId: optimisticId,
+    })) {
+      // Offline: keep optimistic row; server create deferred.
+      const entry: HistoryEntry = {
+        id: generateHistoryId(),
+        at: Date.now(),
+        label: label ?? `Creaste «${truncateTitle(payload.title)}» (offline)`,
+        kind: 'create',
+        forward: { op: 'create', weekId, dayId, payload, created: [{ weekId, dayId, id: optimisticId }] },
+        inverse: {
+          op: 'delete',
+          weekId,
+          dayId,
+          taskId: optimisticId,
+          snapshot: snapshotFromTask(weekId, dayId, optimisticTask),
+        },
+      };
+      useHistoryStore.getState().push(entry);
+      multiCreateMap.set(entry.id, [{ weekId, dayId, id: optimisticId }]);
+      return;
+    }
 
     try {
       const result = await createTask(weekId, dayId, payload, optimisticId);
@@ -160,6 +210,39 @@ export const taskHistory = {
       // Monkey-patch: store multi delete list on entry for undo
       multiCreateMap.set(entry.id, created);
     } catch (err) {
+      if (uid && shouldQueueMutation(err)) {
+        enqueueOfflineMutation(uid, {
+          op: 'create',
+          weekId,
+          dayId,
+          payload,
+          clientId: optimisticId,
+        });
+        notifyOfflineQueueChanged();
+        const entry: HistoryEntry = {
+          id: generateHistoryId(),
+          at: Date.now(),
+          label: label ?? `Creaste «${truncateTitle(payload.title)}» (offline)`,
+          kind: 'create',
+          forward: {
+            op: 'create',
+            weekId,
+            dayId,
+            payload,
+            created: [{ weekId, dayId, id: optimisticId }],
+          },
+          inverse: {
+            op: 'delete',
+            weekId,
+            dayId,
+            taskId: optimisticId,
+            snapshot: snapshotFromTask(weekId, dayId, optimisticTask),
+          },
+        };
+        useHistoryStore.getState().push(entry);
+        multiCreateMap.set(entry.id, [{ weekId, dayId, id: optimisticId }]);
+        return;
+      }
       store.removeTaskOptimistic(weekId, dayId, optimisticId);
       throw err;
     }
@@ -182,7 +265,7 @@ export const taskHistory = {
       return;
     }
 
-    const applyTo =
+    const applyTo: TaskApplyTo =
       payload.applyTo === 'series' && before.seriesId ? 'series' : 'instance';
     const { applyTo: _a, ...fields } = payload;
     const patch: UpdateTaskPayload = { ...fields };
@@ -210,40 +293,73 @@ export const taskHistory = {
       store.updateTaskOptimistic(locWeekId, locDayId, taskId, partial);
     }
 
-    await updateTask(locWeekId, locDayId, taskId, { ...patch, applyTo });
+    const uid = currentUid();
+    const serverPatch = { ...patch, applyTo };
 
-    const kind = applyTo === 'series' ? 'update_series' : 'update';
-    const defaultLabel =
-      applyTo === 'series'
-        ? `Editaste la serie «${truncateTitle(before.title)}»`
-        : `Editaste «${truncateTitle(before.title)}»`;
-
-    const forward: HistoryMutation = {
-      op: 'update',
-      weekId: locWeekId,
-      dayId: locDayId,
-      taskId,
-      seriesId: before.seriesId,
-      applyTo,
-      patch: { ...patch, applyTo },
+    const pushHistory = (offline: boolean) => {
+      const kind = applyTo === 'series' ? 'update_series' : 'update';
+      const defaultLabel =
+        applyTo === 'series'
+          ? `Editaste la serie «${truncateTitle(before.title)}»`
+          : `Editaste «${truncateTitle(before.title)}»`;
+      useHistoryStore.getState().push({
+        id: generateHistoryId(),
+        at: Date.now(),
+        label: offline ? `${label ?? defaultLabel} (offline)` : label ?? defaultLabel,
+        kind,
+        forward: {
+          op: 'update',
+          weekId: locWeekId,
+          dayId: locDayId,
+          taskId,
+          seriesId: before.seriesId,
+          applyTo,
+          patch: serverPatch,
+        },
+        inverse: inverseUpdateFromBefore(
+          locWeekId,
+          locDayId,
+          taskId,
+          before.seriesId,
+          applyTo,
+          before
+        ),
+      });
     };
-    const inverse = inverseUpdateFromBefore(
-      locWeekId,
-      locDayId,
-      taskId,
-      before.seriesId,
-      applyTo,
-      before
-    );
 
-    useHistoryStore.getState().push({
-      id: generateHistoryId(),
-      at: Date.now(),
-      label: label ?? defaultLabel,
-      kind,
-      forward,
-      inverse,
-    });
+    if (
+      queueIfNeeded(uid, {
+        op: 'update',
+        weekId: locWeekId,
+        dayId: locDayId,
+        taskId,
+        payload: serverPatch,
+      })
+    ) {
+      pushHistory(true);
+      return;
+    }
+
+    try {
+      await updateTask(locWeekId, locDayId, taskId, serverPatch);
+      pushHistory(false);
+    } catch (err) {
+      if (uid && shouldQueueMutation(err)) {
+        enqueueOfflineMutation(uid, {
+          op: 'update',
+          weekId: locWeekId,
+          dayId: locDayId,
+          taskId,
+          payload: serverPatch,
+        });
+        notifyOfflineQueueChanged();
+        pushHistory(true);
+        return;
+      }
+      // Revert optimistic on hard failure
+      store.updateTaskOptimistic(locWeekId, locDayId, taskId, before);
+      throw err;
+    }
   },
 
   async remove(
@@ -264,7 +380,6 @@ export const taskHistory = {
 
     const snap = snapshotFromTask(locWeekId, locDayId, task);
     store.removeTaskOptimistic(locWeekId, locDayId, taskId);
-    await deleteTask(locWeekId, locDayId, taskId);
 
     const forward: HistoryMutation = {
       op: 'delete',
@@ -295,14 +410,50 @@ export const taskHistory = {
       },
     };
 
-    useHistoryStore.getState().push({
-      id: generateHistoryId(),
-      at: Date.now(),
-      label: label ?? `Eliminaste «${truncateTitle(task.title)}»`,
-      kind: 'delete',
-      forward,
-      inverse,
-    });
+    const pushDelHistory = (offline: boolean) => {
+      useHistoryStore.getState().push({
+        id: generateHistoryId(),
+        at: Date.now(),
+        label:
+          (label ?? `Eliminaste «${truncateTitle(task.title)}»`) +
+          (offline ? ' (offline)' : ''),
+        kind: 'delete',
+        forward,
+        inverse,
+      });
+    };
+
+    const uid = currentUid();
+    if (
+      queueIfNeeded(uid, {
+        op: 'delete',
+        weekId: locWeekId,
+        dayId: locDayId,
+        taskId,
+      })
+    ) {
+      pushDelHistory(true);
+      return;
+    }
+
+    try {
+      await deleteTask(locWeekId, locDayId, taskId);
+      pushDelHistory(false);
+    } catch (err) {
+      if (uid && shouldQueueMutation(err)) {
+        enqueueOfflineMutation(uid, {
+          op: 'delete',
+          weekId: locWeekId,
+          dayId: locDayId,
+          taskId,
+        });
+        notifyOfflineQueueChanged();
+        pushDelHistory(true);
+        return;
+      }
+      store.addTaskOptimistic(locWeekId, locDayId, task);
+      throw err;
+    }
   },
 
   async move(
@@ -328,14 +479,6 @@ export const taskHistory = {
       updatedAt: now,
     });
 
-    try {
-      await moveTask(fromWeekId, fromDayId, task.id, toWeekId, toDayId);
-    } catch (err) {
-      store.removeTaskOptimistic(toWeekId, toDayId, task.id);
-      store.addTaskOptimistic(fromWeekId, fromDayId, before);
-      throw err;
-    }
-
     const forward: HistoryMutation = {
       op: 'move',
       fromWeekId,
@@ -359,14 +502,55 @@ export const taskHistory = {
       },
     };
 
-    useHistoryStore.getState().push({
-      id: generateHistoryId(),
-      at: Date.now(),
-      label: label ?? `Moviste «${truncateTitle(task.title)}»`,
-      kind: 'move',
-      forward,
-      inverse,
-    });
+    const pushMove = (offline: boolean) => {
+      useHistoryStore.getState().push({
+        id: generateHistoryId(),
+        at: Date.now(),
+        label:
+          (label ?? `Moviste «${truncateTitle(task.title)}»`) +
+          (offline ? ' (offline)' : ''),
+        kind: 'move',
+        forward,
+        inverse,
+      });
+    };
+
+    const uid = currentUid();
+    if (
+      queueIfNeeded(uid, {
+        op: 'move',
+        fromWeekId,
+        fromDayId,
+        toWeekId,
+        toDayId,
+        taskId: task.id,
+      })
+    ) {
+      pushMove(true);
+      return;
+    }
+
+    try {
+      await moveTask(fromWeekId, fromDayId, task.id, toWeekId, toDayId);
+      pushMove(false);
+    } catch (err) {
+      if (uid && shouldQueueMutation(err)) {
+        enqueueOfflineMutation(uid, {
+          op: 'move',
+          fromWeekId,
+          fromDayId,
+          toWeekId,
+          toDayId,
+          taskId: task.id,
+        });
+        notifyOfflineQueueChanged();
+        pushMove(true);
+        return;
+      }
+      store.removeTaskOptimistic(toWeekId, toDayId, task.id);
+      store.addTaskOptimistic(fromWeekId, fromDayId, before);
+      throw err;
+    }
   },
 
   async undo(): Promise<boolean> {
