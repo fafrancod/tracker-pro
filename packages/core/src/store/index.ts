@@ -38,6 +38,8 @@ interface Actions {
   updateTaskOptimistic: (weekId: string, dayId: string, taskId: string, patch: Partial<Task>) => void;
   /** Scan all start-day buckets and patch the first matching task id. */
   updateTaskById: (taskId: string, patch: Partial<Task>) => void;
+  /** Patch every task in store that shares seriesId. */
+  patchSeriesOptimistic: (seriesId: string, patch: Partial<Task>) => void;
   removeTaskOptimistic: (weekId: string, dayId: string, taskId: string) => void;
   reorderTasks: (weekId: string, dayId: string, tasks: Task[]) => void;
 
@@ -127,6 +129,19 @@ export const useStore = create<AppStore>()(
         }
       }),
 
+    patchSeriesOptimistic: (seriesId, patch) =>
+      set(state => {
+        for (const days of Object.values(state.tasksByDay)) {
+          for (const tasks of Object.values(days)) {
+            for (const task of tasks) {
+              if (task.seriesId === seriesId) {
+                Object.assign(task, patch);
+              }
+            }
+          }
+        }
+      }),
+
     removeTaskOptimistic: (weekId, dayId, taskId) =>
       set(state => {
         const tasks = state.tasksByDay[weekId]?.[dayId];
@@ -173,3 +188,17 @@ export const useStore = create<AppStore>()(
       set(state => { state.analyticsCache[weekId] = data; }),
   }))
 );
+
+/** Busca la primera coincidencia de taskId en buckets de start-day. */
+export function findTaskLocation(
+  taskId: string
+): { weekId: string; dayId: string; task: Task } | null {
+  const { tasksByDay } = useStore.getState();
+  for (const [weekId, days] of Object.entries(tasksByDay)) {
+    for (const [dayId, tasks] of Object.entries(days)) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) return { weekId, dayId, task };
+    }
+  }
+  return null;
+}

@@ -12,8 +12,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useWeek } from '@core/hooks/useWeek';
-import { useStore } from '@core/store';
-import { moveTask } from '@core/services/taskService';
+import { taskHistory } from '@core/history/taskHistory';
 import { Button } from '@/components/ui/button';
 import { DayColumn } from './DayColumn';
 import { TaskCard } from './TaskCard';
@@ -62,23 +61,15 @@ export function BoardLayout({ filter }: BoardLayoutProps) {
     if (!dst) return;
     if (dst.weekId === data.weekId && dst.dayId === data.dayId) return;
 
-    const state = useStore.getState();
-    const now = new Date().toISOString();
-
-    state.removeTaskOptimistic(data.weekId, data.dayId, data.task.id);
-    state.addTaskOptimistic(dst.weekId, dst.dayId, {
-      ...data.task,
-      movedFrom: `${data.weekId}/${data.dayId}`,
-      order: 0,
-      updatedAt: now,
-    });
-
     try {
-      await moveTask(data.weekId, data.dayId, data.task.id, dst.weekId, dst.dayId);
+      await taskHistory.move(
+        data.weekId,
+        data.dayId,
+        data.task,
+        dst.weekId,
+        dst.dayId
+      );
     } catch (err) {
-      const s = useStore.getState();
-      s.removeTaskOptimistic(dst.weekId, dst.dayId, data.task.id);
-      s.addTaskOptimistic(data.weekId, data.dayId, data.task);
       showToast('No pudimos mover la tarea.', 'error');
       console.error(err);
     }

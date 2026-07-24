@@ -1,5 +1,11 @@
-import { useState } from 'react';
-import { CalendarDays, CalendarRange, GalleryVertical } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  CalendarDays,
+  CalendarRange,
+  GalleryVertical,
+  Redo2,
+  Undo2,
+} from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
   BoardLayout,
@@ -16,6 +22,7 @@ import {
   MobileSheetTitle,
 } from '@/components/ui/mobile-sheet';
 import { useTasks } from '@core/hooks/useTasks';
+import { useTaskHistory } from '@core/hooks/useTaskHistory';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
 import { useWeek } from '@core/hooks/useWeek';
@@ -30,6 +37,13 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  return target.isContentEditable;
+}
 
 export function BoardPage() {
   const [fabOpen, setFabOpen] = useState(false);
@@ -46,6 +60,25 @@ export function BoardPage() {
   const { projects } = useProjects();
   const { showToast } = useToast();
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
+  const { canUndo, canRedo, undo, redo } = useTaskHistory();
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (isEditableTarget(e.target)) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        void undo();
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        void redo();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
 
   const selectedDayId = useStore(s => s.selectedDayId);
   const setCurrentWeek = useStore(s => s.setCurrentWeek);
@@ -116,6 +149,37 @@ export function BoardPage() {
           >
             <GalleryVertical className="h-3.5 w-3.5" />
             {t('board_continuous_view')}
+          </button>
+        </div>
+
+        <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
+          <button
+            type="button"
+            title={`${t('action_undo')} (Ctrl+Z)`}
+            disabled={!canUndo}
+            onClick={() => void undo()}
+            className={cn(
+              'flex h-7 w-7 items-center justify-center rounded text-text-muted transition-colors',
+              canUndo
+                ? 'hover:bg-background hover:text-text-primary'
+                : 'cursor-not-allowed opacity-40'
+            )}
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title={`${t('action_redo')} (Ctrl+Y)`}
+            disabled={!canRedo}
+            onClick={() => void redo()}
+            className={cn(
+              'flex h-7 w-7 items-center justify-center rounded text-text-muted transition-colors',
+              canRedo
+                ? 'hover:bg-background hover:text-text-primary'
+                : 'cursor-not-allowed opacity-40'
+            )}
+          >
+            <Redo2 className="h-3.5 w-3.5" />
           </button>
         </div>
 

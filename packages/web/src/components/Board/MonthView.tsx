@@ -12,12 +12,8 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useStore } from '@core/store';
-import {
-  getDayId,
-  fetchTasksInRange,
-  updateTask,
-  deleteTask,
-} from '@core/services/taskService';
+import { getDayId, fetchTasksInRange } from '@core/services/taskService';
+import { taskHistory } from '@core/history/taskHistory';
 import { collectTasksCovering, type LocatedTask } from '@core/lib/taskPresence';
 import { isDemoMode } from '@core/lib/demoMode';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
@@ -150,7 +146,7 @@ export function MonthView({
   const uid = useStore(s => s.uid);
   const setDayTasks = useStore(s => s.setDayTasks);
   const updateTaskById = useStore(s => s.updateTaskById);
-  const removeTaskOptimistic = useStore(s => s.removeTaskOptimistic);
+
   const setDetailTask = useStore(s => s.setDetailTask);
 
   const today = new Date();
@@ -252,16 +248,13 @@ export function MonthView({
     startDayId: string;
     startWeekId: string;
   }) {
-    const nextCompleted = !loc.task.completed;
-    updateTaskById(loc.task.id, {
-      completed: nextCompleted,
-      completedAt: nextCompleted ? new Date().toISOString() : null,
-    });
     try {
-      await updateTask(loc.startWeekId, loc.startDayId, loc.task.id, {
-        completed: nextCompleted,
+      await taskHistory.update(loc.startWeekId, loc.startDayId, loc.task.id, {
+        completed: !loc.task.completed,
       });
     } catch {
+      // taskHistory already rolled optimistic state on failure only for some paths;
+      // best-effort revert:
       updateTaskById(loc.task.id, {
         completed: loc.task.completed,
         completedAt: loc.task.completedAt,
@@ -274,9 +267,8 @@ export function MonthView({
     startDayId: string;
     startWeekId: string;
   }) {
-    removeTaskOptimistic(loc.startWeekId, loc.startDayId, loc.task.id);
     try {
-      await deleteTask(loc.startWeekId, loc.startDayId, loc.task.id);
+      await taskHistory.remove(loc.startWeekId, loc.startDayId, loc.task.id);
     } catch {
       // Realtime / refetch will restore if needed
     }

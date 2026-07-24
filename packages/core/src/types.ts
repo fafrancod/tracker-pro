@@ -104,6 +104,8 @@ export interface CreateTaskPayload {
   color?: string | null;
 }
 
+export type TaskApplyTo = 'instance' | 'series';
+
 export interface UpdateTaskPayload {
   title?: string;
   completed?: boolean;
@@ -121,7 +123,27 @@ export interface UpdateTaskPayload {
   importance?: Importance | null;
   kind?: TaskKind;
   color?: string | null;
+  /**
+   * instance = solo esta ocurrencia (default).
+   * series = propaga metadata (título, color, …) a toda la serie.
+   * completed / fechas / order nunca se propagan a la serie.
+   */
+  applyTo?: TaskApplyTo;
 }
+
+/** Campos de metadata que sí se propagan con applyTo=series. */
+export type SeriesSharedTaskFields = Pick<
+  Task,
+  | 'title'
+  | 'notes'
+  | 'tags'
+  | 'projectId'
+  | 'priority'
+  | 'urgency'
+  | 'importance'
+  | 'kind'
+  | 'color'
+>;
 
 /** Filtros del tablero (week / month / continuous). */
 export interface BoardTaskFilters {

@@ -23,11 +23,14 @@ export interface TranslationDict {
   action_new_project: string;
   action_save: string;
   action_cancel: string;
+  action_close: string;
   action_delete: string;
   action_edit: string;
   action_today: string;
   action_sign_out: string;
   action_sign_in: string;
+  action_undo: string;
+  action_redo: string;
 
   // Layout / Board
   board_week_view: string;
@@ -82,6 +85,39 @@ export interface TranslationDict {
   task_continues: string;
   task_span_recurrence_hint: string;
   task_create_title: string;
+  task_detail_title: string;
+  task_part_of_series: string;
+  task_save_this: string;
+  task_save_series: string;
+  task_save_scope_hint: string;
+  task_saved_instance: string;
+  task_saved_series: string;
+  task_save_error: string;
+  task_discard_changes: string;
+  task_title_required: string;
+  task_priority_label: string;
+  task_project_label: string;
+  task_tags_placeholder: string;
+  task_notes_placeholder: string;
+  task_duplicated: string;
+  task_deleted: string;
+  task_delete_confirm: string;
+  task_moved: string;
+  task_moved_next_week: string;
+  task_moved_from: string;
+  task_complete: string;
+  task_uncomplete: string;
+  task_completed_at: string;
+  task_last_updated: string;
+
+  // Historial / Bitácora
+  history_title: string;
+  history_session_hint: string;
+  history_empty: string;
+  history_you_are_here: string;
+  history_past: string;
+  history_future: string;
+  history_jump: string;
 
   // Settings sections
   settings_account: string;
@@ -156,11 +192,14 @@ const es_dict: TranslationDict = {
   action_new_project: 'Nuevo proyecto',
   action_save: 'Guardar',
   action_cancel: 'Cancelar',
+  action_close: 'Cerrar',
   action_delete: 'Eliminar',
   action_edit: 'Editar',
   action_today: 'Hoy',
   action_sign_out: 'Cerrar sesión',
   action_sign_in: 'Iniciar sesión',
+  action_undo: 'Deshacer',
+  action_redo: 'Rehacer',
 
   board_week_view: 'Semana',
   board_month_view: 'Mes',
@@ -213,6 +252,39 @@ const es_dict: TranslationDict = {
   task_span_recurrence_hint:
     'En rangos de varios días solo puedes repetir cada mes, cada año o no repetir.',
   task_create_title: 'Nueva entrada',
+  task_detail_title: 'Detalle de tarea',
+  task_part_of_series: 'serie recurrente',
+  task_save_this: 'Guardar solo este',
+  task_save_series: 'Guardar en toda la serie',
+  task_save_scope_hint:
+    'Esta tarea forma parte de una serie. Elige si los cambios aplican solo a este evento o a todos.',
+  task_saved_instance: 'Cambios guardados en este evento.',
+  task_saved_series: 'Cambios aplicados a toda la serie.',
+  task_save_error: 'No pudimos guardar los cambios.',
+  task_discard_changes: 'Descartar cambios',
+  task_title_required: 'El título no puede estar vacío.',
+  task_priority_label: 'Prioridad',
+  task_project_label: 'Proyecto',
+  task_tags_placeholder: 'Enter o , para agregar…',
+  task_notes_placeholder: 'Notas, ideas, links…',
+  task_duplicated: 'Tarea duplicada.',
+  task_deleted: 'Tarea eliminada.',
+  task_delete_confirm: '¿Eliminar',
+  task_moved: 'Tarea movida.',
+  task_moved_next_week: 'Movida a la próxima semana.',
+  task_moved_from: 'Movida desde',
+  task_complete: 'Completar',
+  task_uncomplete: 'Desmarcar',
+  task_completed_at: 'Completada',
+  task_last_updated: 'Última actualización',
+
+  history_title: 'Bitácora',
+  history_session_hint: 'Historial de esta sesión. Se borra al recargar la página.',
+  history_empty: 'Aún no hay acciones en esta sesión.',
+  history_you_are_here: 'Estás aquí',
+  history_past: 'Hecho',
+  history_future: 'Por rehacer',
+  history_jump: 'Ir a este punto',
 
   settings_account: 'Cuenta',
   settings_plan: 'Plan',
@@ -238,10 +310,10 @@ const es_dict: TranslationDict = {
   eisenhower_title: 'Matriz Eisenhower',
   eisenhower_project: 'Proyecto',
   eisenhower_all_projects: 'Todos',
-  eisenhower_do: 'Hacer',
-  eisenhower_schedule: 'Planificar',
-  eisenhower_delegate: 'Delegar',
-  eisenhower_eliminate: 'Eliminar',
+  eisenhower_do: 'Urgente e importante',
+  eisenhower_schedule: 'No urgente e importante',
+  eisenhower_delegate: 'Urgente y no importante',
+  eisenhower_eliminate: 'No urgente y no importante',
   eisenhower_uncategorized: 'Sin categorizar',
   eisenhower_empty: 'No hay tareas en este cuadrante.',
   eisenhower_hint: 'Haz clic en una tarea o mueve a un cuadrante para asignar urgencia e importancia.',
@@ -281,11 +353,14 @@ const en_dict: TranslationDict = {
   action_new_project: 'New project',
   action_save: 'Save',
   action_cancel: 'Cancel',
+  action_close: 'Close',
   action_delete: 'Delete',
   action_edit: 'Edit',
   action_today: 'Today',
   action_sign_out: 'Sign out',
   action_sign_in: 'Sign in',
+  action_undo: 'Undo',
+  action_redo: 'Redo',
 
   board_week_view: 'Week',
   board_month_view: 'Month',
@@ -338,6 +413,39 @@ const en_dict: TranslationDict = {
   task_span_recurrence_hint:
     'Multi-day ranges only support monthly, yearly, or no recurrence.',
   task_create_title: 'New entry',
+  task_detail_title: 'Task detail',
+  task_part_of_series: 'recurring series',
+  task_save_this: 'Save this only',
+  task_save_series: 'Save to entire series',
+  task_save_scope_hint:
+    'This task is part of a series. Choose whether changes apply only to this event or to all.',
+  task_saved_instance: 'Changes saved on this event.',
+  task_saved_series: 'Changes applied to the entire series.',
+  task_save_error: 'We could not save the changes.',
+  task_discard_changes: 'Discard changes',
+  task_title_required: 'Title cannot be empty.',
+  task_priority_label: 'Priority',
+  task_project_label: 'Project',
+  task_tags_placeholder: 'Enter or , to add…',
+  task_notes_placeholder: 'Notes, ideas, links…',
+  task_duplicated: 'Task duplicated.',
+  task_deleted: 'Task deleted.',
+  task_delete_confirm: 'Delete',
+  task_moved: 'Task moved.',
+  task_moved_next_week: 'Moved to next week.',
+  task_moved_from: 'Moved from',
+  task_complete: 'Complete',
+  task_uncomplete: 'Mark incomplete',
+  task_completed_at: 'Completed',
+  task_last_updated: 'Last updated',
+
+  history_title: 'Activity log',
+  history_session_hint: 'Session history only. It clears when you reload the page.',
+  history_empty: 'No actions in this session yet.',
+  history_you_are_here: 'You are here',
+  history_past: 'Done',
+  history_future: 'Redo stack',
+  history_jump: 'Jump to this point',
 
   settings_account: 'Account',
   settings_plan: 'Plan',
@@ -363,10 +471,10 @@ const en_dict: TranslationDict = {
   eisenhower_title: 'Eisenhower matrix',
   eisenhower_project: 'Project',
   eisenhower_all_projects: 'All',
-  eisenhower_do: 'Do',
-  eisenhower_schedule: 'Schedule',
-  eisenhower_delegate: 'Delegate',
-  eisenhower_eliminate: 'Eliminate',
+  eisenhower_do: 'Urgent & important',
+  eisenhower_schedule: 'Not urgent & important',
+  eisenhower_delegate: 'Urgent & not important',
+  eisenhower_eliminate: 'Not urgent & not important',
   eisenhower_uncategorized: 'Uncategorized',
   eisenhower_empty: 'No tasks in this quadrant.',
   eisenhower_hint: 'Click a task or move it into a quadrant to set urgency and importance.',

@@ -342,6 +342,150 @@ describe('PATCH /api/tasks — urgency & importance', () => {
   });
 });
 
+describe('PATCH /api/tasks — applyTo series', () => {
+  const existingWithSeries = {
+    id: 'task-series-1',
+    user_id: 'test-uid',
+    week_id: '2026-W11',
+    day_id: '2026-03-10',
+    end_day_id: '2026-03-10',
+    title: 'Serie original',
+    completed: false,
+    series_id: 'series-abc',
+    urgency: null,
+    importance: null,
+    color: null,
+    kind: 'task',
+  };
+
+  function mockTasksUpdate(opts: {
+    existing: Record<string, unknown>;
+    onUpdate?: (patch: Record<string, unknown>, eqs: Array<{ col: string; val: unknown }>) => void;
+  }) {
+    vi.mocked(getSupabaseAdmin).mockReturnValue({
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: {
+            user: { id: 'test-uid', email: 'test@example.com', app_metadata: {} },
+          },
+          error: null,
+        })),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== 'tasks') return chainEqMaybeSingle({ data: null, error: null });
+        return {
+          select: vi.fn(() => {
+            const c: Record<string, unknown> = {
+              eq: vi.fn(() => c),
+              maybeSingle: vi.fn(async () => ({ data: opts.existing, error: null })),
+            };
+            return c;
+          }),
+          update: vi.fn((patch: Record<string, unknown>, _opts?: { count?: string }) => {
+            const eqs: Array<{ col: string; val: unknown }> = [];
+            const c: Record<string, unknown> = {
+              eq: vi.fn((col: string, val: unknown) => {
+                eqs.push({ col, val });
+                return c;
+              }),
+              then: (resolve: (v: unknown) => void) => {
+                opts.onUpdate?.(patch, eqs);
+                resolve({ data: null, error: null, count: patch.title ? 3 : 1 });
+              },
+            };
+            return c;
+          }),
+        };
+      }),
+    } as unknown as ReturnType<typeof getSupabaseAdmin>);
+  }
+
+  it('applyTo instance (default) actualiza solo por id', async () => {
+    let lastEqs: Array<{ col: string; val: unknown }> = [];
+    mockTasksUpdate({
+      existing: existingWithSeries,
+      onUpdate: (_p, eqs) => {
+        lastEqs = eqs;
+      },
+    });
+
+    const res = await request(app)
+      .patch('/api/tasks/2026-W11/2026-03-10/task-series-1')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ title: 'Solo esta', color: '#58a6ff' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.applyTo).toBe('instance');
+    expect(res.body.updatedCount).toBe(1);
+    expect(lastEqs.some(e => e.col === 'id' && e.val === 'task-series-1')).toBe(true);
+    expect(lastEqs.some(e => e.col === 'series_id')).toBe(false);
+  });
+
+  it('applyTo series actualiza por series_id', async () => {
+    let lastPatch: Record<string, unknown> | null = null;
+    let lastEqs: Array<{ col: string; val: unknown }> = [];
+    mockTasksUpdate({
+      existing: existingWithSeries,
+      onUpdate: (p, eqs) => {
+        lastPatch = p;
+        lastEqs = eqs;
+      },
+    });
+
+    const res = await request(app)
+      .patch('/api/tasks/2026-W11/2026-03-10/task-series-1')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ title: 'Toda la serie', color: '#f85149', applyTo: 'series' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.applyTo).toBe('series');
+    expect(res.body.title).toBe('Toda la serie');
+    expect(lastPatch!.title).toBe('Toda la serie');
+    expect(lastPatch!.color).toBe('#f85149');
+    expect(lastPatch!.completed).toBeUndefined();
+    expect(lastEqs.some(e => e.col === 'series_id' && e.val === 'series-abc')).toBe(true);
+    expect(lastEqs.some(e => e.col === 'user_id' && e.val === 'test-uid')).toBe(true);
+  });
+
+  it('applyTo series sin series_id devuelve 400', async () => {
+    mockTasksUpdate({
+      existing: { ...existingWithSeries, series_id: null },
+    });
+
+    const res = await request(app)
+      .patch('/api/tasks/2026-W11/2026-03-10/task-series-1')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ title: 'Fail', applyTo: 'series' });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('applyTo series no mete completed en el update de serie', async () => {
+    const updates: Array<{ patch: Record<string, unknown>; eqs: Array<{ col: string; val: unknown }> }> =
+      [];
+    mockTasksUpdate({
+      existing: existingWithSeries,
+      onUpdate: (p, eqs) => {
+        updates.push({ patch: p, eqs: [...eqs] });
+      },
+    });
+
+    const res = await request(app)
+      .patch('/api/tasks/2026-W11/2026-03-10/task-series-1')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ title: 'Meta', completed: true, applyTo: 'series' });
+
+    expect(res.status).toBe(200);
+    const seriesUpdate = updates.find(u => u.eqs.some(e => e.col === 'series_id'));
+    expect(seriesUpdate).toBeTruthy();
+    expect(seriesUpdate!.patch.completed).toBeUndefined();
+    expect(seriesUpdate!.patch.title).toBe('Meta');
+    const instanceUpdate = updates.find(u => u.eqs.some(e => e.col === 'id'));
+    expect(instanceUpdate).toBeTruthy();
+    expect(instanceUpdate!.patch.completed).toBe(true);
+  });
+});
+
 describe('POST /api/tasks/:weekId/:dayId/:taskId/move — keep duration', () => {
   it('copia end_day_id desplazado manteniendo duración', async () => {
     // Seed fromTask with multi-day span 10–15 (duration offset 5)

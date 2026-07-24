@@ -2,11 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
-import {
-  fetchAllTasks,
-  updateTask,
-  type LocatedTaskRow,
-} from '@core/services/taskService';
+import { fetchAllTasks, type LocatedTaskRow } from '@core/services/taskService';
+import { taskHistory } from '@core/history/taskHistory';
 import { isDemoMode } from '@core/lib/demoMode';
 import type { Importance, Task, Urgency } from '@core/types';
 import { useT } from '@/hooks/useT';
@@ -104,7 +101,6 @@ export function EisenhowerPage() {
   const uid = useStore(s => s.uid);
   const tasksByDay = useStore(s => s.tasksByDay);
   const setDayTasks = useStore(s => s.setDayTasks);
-  const updateTaskById = useStore(s => s.updateTaskById);
   const setDetailTask = useStore(s => s.setDetailTask);
 
   const [projectFilter, setProjectFilter] = useState<string>('all');
@@ -193,18 +189,8 @@ export function EisenhowerPage() {
   ) {
     // Toda la serie de recurrencia comparte la misma clasificación Eisenhower.
     const matchesSeries = (t: LocatedTaskRow | Task) =>
-      loc.seriesId
-        ? t.seriesId === loc.seriesId
-        : t.id === loc.id;
+      loc.seriesId ? t.seriesId === loc.seriesId : t.id === loc.id;
 
-    const sourceRows =
-      remoteTasks ?? collectFromStore(useStore.getState().tasksByDay);
-    const targets = sourceRows.filter(matchesSeries);
-    const toUpdate = targets.length > 0 ? targets : [loc];
-
-    for (const t of toUpdate) {
-      updateTaskById(t.id, { urgency, importance });
-    }
     setRemoteTasks(prev =>
       prev
         ? prev.map(t => (matchesSeries(t) ? { ...t, urgency, importance } : t))
@@ -212,18 +198,12 @@ export function EisenhowerPage() {
     );
 
     try {
-      await Promise.all(
-        toUpdate.map(t =>
-          updateTask(t.weekId, t.dayId, t.id, { urgency, importance })
-        )
-      );
+      await taskHistory.update(loc.weekId, loc.dayId, loc.id, {
+        urgency,
+        importance,
+        applyTo: loc.seriesId ? 'series' : 'instance',
+      });
     } catch {
-      for (const t of toUpdate) {
-        updateTaskById(t.id, {
-          urgency: loc.urgency,
-          importance: loc.importance,
-        });
-      }
       setRemoteTasks(prev =>
         prev
           ? prev.map(t =>
@@ -336,17 +316,6 @@ export function EisenhowerPage() {
                   <h2 className="text-sm font-semibold text-text-primary">
                     {t(q.titleKey)}
                   </h2>
-                  <p className="text-[11px] text-text-muted">
-                    {t(
-                      q.importance === 'important'
-                        ? 'importance_important'
-                        : 'importance_not_important'
-                    )}
-                    {' · '}
-                    {t(
-                      q.urgency === 'urgent' ? 'urgency_urgent' : 'urgency_not_urgent'
-                    )}
-                  </p>
                 </header>
                 <div className="flex flex-1 flex-col gap-1.5">
                   {buckets[q.key].length === 0 ? (

@@ -20,6 +20,9 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ defa
 const EisenhowerPage = lazy(() =>
   import('@/pages/EisenhowerPage').then(m => ({ default: m.EisenhowerPage }))
 );
+const ActivityPage = lazy(() =>
+  import('@/pages/ActivityPage').then(m => ({ default: m.ActivityPage }))
+);
 
 function PageFallback() {
   return (
@@ -74,19 +77,7 @@ function App() {
                   <Route path="/analytics" element={lazyRoute(AnalyticsPage)} />
                   <Route path="/settings" element={lazyRoute(SettingsPage)} />
 
-                  <Route
-                    path="/activity"
-                    element={
-                      <ProtectedRoute>
-                        <Layout title="Bitácora" showFab={false}>
-                          <Placeholder
-                            title="Bitácora"
-                            description="Log de actividad de tu cuenta. Próxima sesión."
-                          />
-                        </Layout>
-                      </ProtectedRoute>
-                    }
-                  />
+                  <Route path="/activity" element={lazyRoute(ActivityPage)} />
 
                   <Route
                     path="/admin"

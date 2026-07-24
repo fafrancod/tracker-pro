@@ -72,8 +72,13 @@ const updateSchema = z
     importance: importanceSchema.nullable().optional(),
     kind: kindSchema.optional(),
     color: colorSchema,
+    /** instance = solo esta fila; series = metadata en toda la serie. */
+    applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
-  .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' });
+  .refine(
+    p => Object.keys(p).some(k => k !== 'applyTo'),
+    { message: 'patch vacio' }
+  );
 
 function toClientTask(
   row: Record<string, unknown>,
@@ -278,39 +283,107 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       void existingEnd;
     }
 
-    const update: Record<string, unknown> = {
-      updated_at: now,
-    };
-    if (patch.title !== undefined) update.title = patch.title;
-    if (patch.completed !== undefined) update.completed = patch.completed;
-    if (patch.projectId !== undefined) update.project_id = patch.projectId;
-    if (patch.priority !== undefined) update.priority = patch.priority;
-    if (patch.notes !== undefined) update.notes = patch.notes;
-    if (patch.tags !== undefined) update.tags = patch.tags;
-    if (patch.order !== undefined) update.order = patch.order;
-    if (patch.movedFrom !== undefined) update.moved_from = patch.movedFrom;
-    if (patch.endDayId !== undefined) update.end_day_id = patch.endDayId;
+    const applyTo = patch.applyTo ?? 'instance';
+    const seriesId = (existing.series_id as string | null | undefined) ?? null;
+
+    // Metadata compartida de la serie (no fechas ni completed).
+    const seriesUpdate: Record<string, unknown> = { updated_at: now };
+    if (patch.title !== undefined) seriesUpdate.title = patch.title;
+    if (patch.projectId !== undefined) seriesUpdate.project_id = patch.projectId;
+    if (patch.priority !== undefined) seriesUpdate.priority = patch.priority;
+    if (patch.notes !== undefined) seriesUpdate.notes = patch.notes;
+    if (patch.tags !== undefined) seriesUpdate.tags = patch.tags;
+    if (patch.urgency !== undefined) seriesUpdate.urgency = patch.urgency;
+    if (patch.importance !== undefined) seriesUpdate.importance = patch.importance;
+    if (patch.kind !== undefined) seriesUpdate.kind = patch.kind;
+    if (patch.color !== undefined) seriesUpdate.color = patch.color;
+
+    // Campos solo de instancia (nunca se propagan a la serie).
+    const instanceUpdate: Record<string, unknown> = { updated_at: now };
+    if (patch.completed !== undefined) {
+      instanceUpdate.completed = patch.completed;
+      instanceUpdate.completed_at = patch.completed ? now : null;
+    }
+    if (patch.order !== undefined) instanceUpdate.order = patch.order;
+    if (patch.movedFrom !== undefined) instanceUpdate.moved_from = patch.movedFrom;
+    if (patch.endDayId !== undefined) instanceUpdate.end_day_id = patch.endDayId;
     if (patch.recurrenceFrequency !== undefined) {
-      update.recurrence_frequency = patch.recurrenceFrequency;
+      instanceUpdate.recurrence_frequency = patch.recurrenceFrequency;
     }
     if (patch.recurrenceInterval !== undefined) {
-      update.recurrence_interval = patch.recurrenceInterval;
+      instanceUpdate.recurrence_interval = patch.recurrenceInterval;
     }
-    if (patch.urgency !== undefined) update.urgency = patch.urgency;
-    if (patch.importance !== undefined) update.importance = patch.importance;
-    if (patch.kind !== undefined) update.kind = patch.kind;
-    if (patch.color !== undefined) update.color = patch.color;
-    if (patch.completed === true) update.completed_at = now;
-    if (patch.completed === false) update.completed_at = null;
 
-    const { error } = await getSupabaseAdmin()
-      .from('tasks')
-      .update(update)
-      .eq('id', taskId)
-      .eq('user_id', uid);
-    if (error) throw error;
+    const hasSeriesFields = Object.keys(seriesUpdate).length > 1; // updated_at + …
+    const hasInstanceFields = Object.keys(instanceUpdate).length > 1;
 
-    res.json({ id: taskId, weekId, dayId, ...patch });
+    let updatedCount = 0;
+
+    if (applyTo === 'series' && hasSeriesFields) {
+      if (!seriesId) {
+        throw ApiError.badRequest('applyTo=series requiere una tarea con seriesId');
+      }
+      const { error, count } = await getSupabaseAdmin()
+        .from('tasks')
+        .update(seriesUpdate, { count: 'exact' })
+        .eq('user_id', uid)
+        .eq('series_id', seriesId);
+      if (error) throw error;
+      updatedCount = count ?? 0;
+
+      // Campos de instancia (completed, endDayId, …) solo sobre la fila pedida.
+      if (hasInstanceFields) {
+        const { error: instErr } = await getSupabaseAdmin()
+          .from('tasks')
+          .update(instanceUpdate)
+          .eq('id', taskId)
+          .eq('user_id', uid);
+        if (instErr) throw instErr;
+      }
+    } else {
+      // instance (default): merge series + instance fields on one row
+      const update: Record<string, unknown> = { updated_at: now };
+      if (patch.title !== undefined) update.title = patch.title;
+      if (patch.completed !== undefined) {
+        update.completed = patch.completed;
+        update.completed_at = patch.completed ? now : null;
+      }
+      if (patch.projectId !== undefined) update.project_id = patch.projectId;
+      if (patch.priority !== undefined) update.priority = patch.priority;
+      if (patch.notes !== undefined) update.notes = patch.notes;
+      if (patch.tags !== undefined) update.tags = patch.tags;
+      if (patch.order !== undefined) update.order = patch.order;
+      if (patch.movedFrom !== undefined) update.moved_from = patch.movedFrom;
+      if (patch.endDayId !== undefined) update.end_day_id = patch.endDayId;
+      if (patch.recurrenceFrequency !== undefined) {
+        update.recurrence_frequency = patch.recurrenceFrequency;
+      }
+      if (patch.recurrenceInterval !== undefined) {
+        update.recurrence_interval = patch.recurrenceInterval;
+      }
+      if (patch.urgency !== undefined) update.urgency = patch.urgency;
+      if (patch.importance !== undefined) update.importance = patch.importance;
+      if (patch.kind !== undefined) update.kind = patch.kind;
+      if (patch.color !== undefined) update.color = patch.color;
+
+      const { error } = await getSupabaseAdmin()
+        .from('tasks')
+        .update(update)
+        .eq('id', taskId)
+        .eq('user_id', uid);
+      if (error) throw error;
+      updatedCount = 1;
+    }
+
+    const { applyTo: _a, ...clientPatch } = patch;
+    res.json({
+      id: taskId,
+      weekId,
+      dayId,
+      applyTo,
+      updatedCount,
+      ...clientPatch,
+    });
   } catch (err) {
     next(err);
   }
