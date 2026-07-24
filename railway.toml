@@ -1,23 +1,23 @@
-# Deploy con Dockerfile (más fiable que Nixpacks en monorepos).
-# Railway lee este archivo y usa el Dockerfile de la raíz.
+# Docker deploy — un servicio (SPA + API).
 #
-# NO definas PORT.
-#
-# Variables del servicio:
-#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY   → marcar como disponibles en build
-#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# Variables RUNTIME (obligatorias):
+#   SUPABASE_URL=https://hguairmbmavkdckhjvji.supabase.co
+#   SUPABASE_ANON_KEY=<anon public>          ← para el frontend vía /api/public-config
+#   SUPABASE_SERVICE_ROLE_KEY=<service_role> ← solo API
 #   ALLOWED_ORIGINS=https://tracker-pro-production.up.railway.app
 #   NODE_ENV=production
 #
-# En Railway → Variables → para cada VITE_*:
-#   "Available at Build Time" = ON (necesario para Docker ARG/ENV en build)
+# Opcionales en BUILD (Available at Build Time) — si faltan, la SPA
+# obtiene la config en runtime de /api/public-config:
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+#
+# NO definas PORT.
 
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node packages/api/dist/server.cjs"
 healthcheckPath = "/api/version"
 healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"

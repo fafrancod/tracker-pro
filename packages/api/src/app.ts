@@ -8,6 +8,7 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { versionRouter } from './routes/version.js';
+import { publicConfigRouter } from './routes/publicConfig.js';
 import { tasksRouter } from './routes/tasks.js';
 import { projectsRouter } from './routes/projects.js';
 import { authRouter } from './routes/auth.js';
@@ -72,6 +73,7 @@ export function buildApp(): Express {
   }
 
   app.use('/api/version', versionRouter);
+  app.use('/api/public-config', publicConfigRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/tasks', tasksRouter);
   app.use('/api/projects', projectsRouter);
@@ -82,8 +84,16 @@ export function buildApp(): Express {
       status: 'ok',
       spa: serveSpa,
       webDist: serveSpa ? webDist : null,
+      supabaseConfigured: Boolean(config.supabase.url && config.supabase.serviceRoleKey),
+      publicConfigReady: Boolean(config.supabase.url && config.supabase.anonKey),
       docs: 'https://github.com/fafrancod/tracker-pro',
-      endpoints: ['/api/version', '/api/auth/bootstrap', '/api/tasks', '/api/projects'],
+      endpoints: [
+        '/api/version',
+        '/api/public-config',
+        '/api/auth/bootstrap',
+        '/api/tasks',
+        '/api/projects',
+      ],
     });
   });
 

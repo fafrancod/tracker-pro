@@ -32,6 +32,12 @@ export const config = {
   supabase: {
     url: process.env.SUPABASE_URL,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    // Anon key: pública por diseño. Sirve al frontend vía /api/public-config
+    // si el build de Vite no embebió VITE_* (caso habitual en Docker).
+    anonKey:
+      process.env.SUPABASE_ANON_KEY ??
+      process.env.VITE_SUPABASE_ANON_KEY ??
+      undefined,
   },
   worker: {
     runEmbedded: (process.env.RUN_EMBEDDED_WORKER ?? 'true').toLowerCase() === 'true',

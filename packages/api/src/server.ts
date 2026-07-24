@@ -20,6 +20,9 @@ const server = app.listen(port, '0.0.0.0', () => {
       version: config.version,
       nodeEnv: config.nodeEnv,
       cwd: process.cwd(),
+      hasSupabaseUrl: Boolean(config.supabase.url),
+      hasServiceRole: Boolean(config.supabase.serviceRoleKey),
+      hasAnonKey: Boolean(config.supabase.anonKey),
     },
     'daily-tracker-api listening'
   );
@@ -38,11 +41,10 @@ function shutdown(signal: string) {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+// No matar el proceso por un rejection suelto (evita 502 en loop de restart)
 process.on('uncaughtException', err => {
-  logger.fatal({ err }, 'uncaughtException');
-  process.exit(1);
+  logger.error({ err }, 'uncaughtException (proceso sigue vivo)');
 });
 process.on('unhandledRejection', reason => {
-  logger.fatal({ reason }, 'unhandledRejection');
-  process.exit(1);
+  logger.error({ reason }, 'unhandledRejection (proceso sigue vivo)');
 });

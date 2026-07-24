@@ -39,7 +39,7 @@ export function hasRuntimeConfig(): boolean {
   return loadRuntimeConfig() !== null;
 }
 
-function readConfig(): SupabaseConfig {
+function readEnvConfig(): SupabaseConfig {
   const runtime = loadRuntimeConfig();
   if (runtime) return runtime;
 
@@ -84,12 +84,39 @@ function resolveApiBaseUrl(): string {
   if (raw !== undefined && raw !== '') {
     return raw.replace(/\/$/, '');
   }
-  // Dev local: API en otro puerto. Prod: SPA y API en el mismo host.
   if (import.meta.env.DEV) return 'http://localhost:4000';
   return '';
 }
 
-export function bootstrapSupabase(): void {
+interface PublicConfigResponse {
+  supabaseUrl?: string | null;
+  supabaseAnonKey?: string | null;
+  configured?: boolean;
+}
+
+/** Carga config desde la API (runtime) si Vite no embebió VITE_*. */
+async function fetchPublicConfig(): Promise<SupabaseConfig | null> {
+  try {
+    const base = resolveApiBaseUrl();
+    const res = await fetch(`${base}/api/public-config`, {
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as PublicConfigResponse;
+    if (data.supabaseUrl && data.supabaseAnonKey) {
+      return { url: data.supabaseUrl, anonKey: data.supabaseAnonKey };
+    }
+  } catch {
+    // offline / API caida
+  }
+  return null;
+}
+
+/**
+ * Inicializa Supabase + API client.
+ * Orden: localStorage → VITE_* embebidas → GET /api/public-config (runtime).
+ */
+export async function bootstrapSupabase(): Promise<void> {
   if (isDemoActive()) {
     setDemoMode(true);
     configureApi({
@@ -98,7 +125,12 @@ export function bootstrapSupabase(): void {
     return;
   }
 
-  const cfg = readConfig();
+  let cfg = readEnvConfig();
+  if (!cfg.url || !cfg.anonKey) {
+    const fromApi = await fetchPublicConfig();
+    if (fromApi) cfg = fromApi;
+  }
+
   if (cfg.url && cfg.anonKey) {
     initSupabase(cfg);
   }
