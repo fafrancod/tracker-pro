@@ -25,6 +25,10 @@ bootstrapSkinFromLocalStorage();
 async function main() {
   await bootstrapSupabase();
 
+  // Capacitor: status bar, splash, deep links (no-op in browser)
+  const { initNativeShell } = await import('./lib/capacitor');
+  await initNativeShell();
+
   // Dev-only: expose the Zustand store en window para debugging desde la consola.
   if (import.meta.env.DEV) {
     (window as unknown as { __dailyTrackerStore__: typeof useStore }).__dailyTrackerStore__ = useStore;

@@ -23,7 +23,7 @@ Cómo hacer la app **usable y publicable en Android**, partiendo de lo que ya ex
 | Safe area (notch / gesture bar) | ✅ | FAB, header, bottom sheets usan `env(safe-area-inset-*)` |
 | Touch / long-press menú | ✅ | Long-press + botón ⋮ en mobile; TouchSensor dnd-kit |
 | Install banner | ✅ | `PwaInstallBanner` + beforeinstallprompt |
-| Capacitor / APK | ❌ | No hay shell nativo |
+| Capacitor / APK | ✅ S4 bootstrap | `packages/web/android`, appId `com.cerebrostudios.dailytracker` — ver `docs/ANDROID.md` |
 | `packages/mobile` RN | ❌ | Contrato en docs; sin bootstrap |
 | Core reutilizable | ✅ | Lógica en `packages/core` sin imports web |
 
@@ -245,9 +245,9 @@ Variables críticas (sin cambios conceptuales):
 ## Próximo paso concreto
 
 1. ~~S1+S2 hardering táctil + PNG + install banner~~ **hecho** (ver commit en `main`).  
-2. **Probar install** en un Android real contra el deploy de Railway.  
-3. ~~Sprint S3 offline~~ **hecho** (banner + cache + cola de mutaciones).  
-4. **S4** Capacitor solo si quieres AAB / Play Store.
+2. **Probar install PWA** y **build:android** en un dispositivo real.  
+3. ~~Sprint S3 offline~~ **hecho**.  
+4. ~~S4 Capacitor bootstrap~~ **hecho** (`docs/ANDROID.md`). Pendiente: firmar AAB + listing Play + App Links verificados.
 
 ---
 

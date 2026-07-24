@@ -16,3 +16,15 @@ coverage/
 .claude/
 .cursor/
 mcps/
+.atl/
+terminals/
+
+# Capacitor / Android local build artifacts (source under packages/web/android is committed)
+packages/web/android/local.properties
+packages/web/android/.gradle/
+packages/web/android/build/
+packages/web/android/app/build/
+packages/web/android/app/release/
+packages/web/android/captures/
+packages/web/android/*.iml
+packages/web/android/.idea/

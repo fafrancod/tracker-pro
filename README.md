@@ -56,6 +56,18 @@ Iconos PNG (192/512 + maskable): regenerar con
 
 **Offline (S3):** sin red se muestra el último board en caché; crear/completar/editar/borrar/mover se encolan y se sincronizan al reconectar (banner arriba + “Sincronizar”).
 
-Roadmap completo (Capacitor, Play Store): [`roadmap_android.md`](roadmap_android.md).
+## Android (Capacitor)
+
+Shell nativo en `packages/web/android` (`com.cerebrostudios.dailytracker`).
+
+```bash
+# Build SPA + sync WebView assets
+# Importante: define VITE_API_BASE_URL=https://tu-api-prod (absolute HTTPS)
+npm run build:android
+npm run android:open   # Android Studio → Run
+```
+
+Guía completa (OAuth, AAB, live reload): [`docs/ANDROID.md`](docs/ANDROID.md).  
+Roadmap: [`roadmap_android.md`](roadmap_android.md).
 
 Documentación técnica: [`docs/README.md`](docs/README.md).

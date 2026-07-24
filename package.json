@@ -16,6 +16,8 @@
     "build:web": "npm run build --workspace=packages/web",
     "build:prod": "npm run build:web && npm run build:api",
     "start:api": "node packages/api/dist/server.cjs",
+    "build:android": "npm run build:android --workspace=packages/web",
+    "android:open": "npm run cap:android --workspace=packages/web",
     "lint": "npm run lint --workspaces --if-present",
     "type-check": "npm run type-check --workspaces --if-present"
   },
