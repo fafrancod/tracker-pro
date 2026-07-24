@@ -1,0 +1,11 @@
+# Railway (Nixpacks): fuerza Node 22 — @supabase/supabase-js >= 2.110 lo exige.
+providers = []
+
+[phases.setup]
+nixPkgs = ["nodejs_22", "npm-10_x"]
+
+[variables]
+NODE_VERSION = "22"
+NIXPACKS_NODE_VERSION = "22"
+# NODE_ENV=production en install omite devDependencies (tsc/esbuild) y rompe el build.
+NPM_CONFIG_PRODUCTION = "false"

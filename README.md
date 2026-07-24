@@ -23,16 +23,22 @@ Variables: ver `packages/web/.env.example` y `packages/api/.env.example`.
 
 ## Despliegue en Railway
 
+**Node 22** obligatorio (`engines`, `.nvmrc`, `nixpacks.toml`). Nixpacks por defecto puede usar Node 18 y romper con `@supabase/*` y con `npm ci` (`EBUSY` en `node_modules/.cache`).
+
 Dos servicios desde el mismo repo:
 
 | Servicio | Build | Start |
 | --- | --- | --- |
-| API | `npm ci && npm run build:api` | `npm run start:api` |
-| Web | `npm ci && npm run build:web` | `npx serve packages/web/dist -s -l $PORT` |
+| API | (ver `railway.toml`) `npm ci --include=dev --cache /tmp/npm-cache … && npm run build:api` | `npm run start:api` |
+| Web | mismo patrón con `build:web` | `npx serve packages/web/dist -s -l $PORT` |
+
+En el servicio API (Variables):
+- `NIXPACKS_NODE_VERSION=22` (refuerzo por si nixpacks.toml no aplica)
+- `NPM_CONFIG_PRODUCTION=false` (si el panel fuerza production)
 
 En producción:
-- `VITE_API_BASE_URL` → URL pública de la API
+- `VITE_API_BASE_URL` → URL pública de la API (**en el build** de la web)
 - `ALLOWED_ORIGINS` → URL pública del frontend
-- `SUPABASE_URL` y keys en ambos servicios (anon en web, service role solo en API)
+- `SUPABASE_URL` y keys (anon en web, **service role solo en API**)
 
 Documentación técnica: [`docs/README.md`](docs/README.md).

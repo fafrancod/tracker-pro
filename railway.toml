@@ -1,15 +1,21 @@
-# API service — en Railway crea un servicio con este repo y deja la raíz del monorepo.
-# Para el frontend estático, crea un segundo servicio (ver comentario al final).
+# API service — monorepo root.
+# Node 22 se fuerza vía nixpacks.toml + engines en package.json.
+#
+# Si el build sigue fallando con EBUSY en node_modules/.cache:
+#   Variables del servicio → quita cualquier volume montado en /app/node_modules
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm ci && npm run build:api"
+# --include=dev: tsc/esbuild viven en devDependencies
+# --cache /tmp/npm-cache: evita EBUSY al rmdir de node_modules/.cache en Railway
+buildCommand = "npm ci --include=dev --cache /tmp/npm-cache --no-audit --no-fund && npm run build:api"
 
 [deploy]
 startCommand = "npm run start:api"
 healthcheckPath = "/api/version"
 restartPolicyType = "ON_FAILURE"
 
-# Frontend (segundo servicio en Railway):
-#   buildCommand = "npm ci && npm run build:web"
+# Frontend (segundo servicio, misma raíz del monorepo):
+#   buildCommand = "npm ci --include=dev --cache /tmp/npm-cache --no-audit --no-fund && npm run build:web"
 #   startCommand = "npx serve packages/web/dist -s -l $PORT"
+#   Variables de BUILD (VITE_*): VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_API_BASE_URL
