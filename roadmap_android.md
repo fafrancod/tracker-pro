@@ -245,9 +245,10 @@ Variables críticas (sin cambios conceptuales):
 ## Próximo paso concreto
 
 1. ~~S1+S2 hardering táctil + PNG + install banner~~ **hecho** (ver commit en `main`).  
-2. **Probar install PWA** y **build:android** en un dispositivo real.  
-3. ~~Sprint S3 offline~~ **hecho**.  
-4. ~~S4 Capacitor bootstrap~~ **hecho** (`docs/ANDROID.md`). Pendiente: firmar AAB + listing Play + App Links verificados.
+2. **Probar install PWA** y `npm run build:android` + Run en un dispositivo real.  
+3. ~~S3 offline~~ / ~~S4 Capacitor~~ **hechos**.  
+4. ~~CI AAB + iconos nativos + firma + Play checklist~~ **hechos** (`docs/PLAY_STORE.md`, workflow `android.yml`).  
+5. **Tu lado:** crear keystore, secrets de GitHub, listing Play, privacy policy URL.
 
 ---
 

@@ -10,10 +10,13 @@
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
     "icons": "node scripts/generate-pwa-icons.mjs",
+    "icons:android": "node scripts/generate-android-icons.mjs",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:add:android": "npx cap add android",
-    "build:android": "npm run build && npx cap sync android"
+    "build:android": "npm run build && npx cap sync android",
+    "android:bundle": "npm run build:android && cd android && ./gradlew bundleRelease",
+    "android:apk:debug": "cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

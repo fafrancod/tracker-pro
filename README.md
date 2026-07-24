@@ -68,6 +68,7 @@ npm run android:open   # Android Studio → Run
 ```
 
 Guía completa (OAuth, AAB, live reload): [`docs/ANDROID.md`](docs/ANDROID.md).  
+Play Store (checklist + secrets CI): [`docs/PLAY_STORE.md`](docs/PLAY_STORE.md).  
 Roadmap: [`roadmap_android.md`](roadmap_android.md).
 
 Documentación técnica: [`docs/README.md`](docs/README.md).

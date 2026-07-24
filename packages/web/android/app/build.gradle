@@ -1,5 +1,27 @@
 apply plugin: 'com.android.application'
 
+// Optional release signing:
+// 1) Copy keystore.properties.example → keystore.properties (gitignored)
+// 2) Or set env ANDROID_KEYSTORE_PATH / PASSWORD / ALIAS / KEY_PASSWORD (CI)
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+def hasFileSigning = keystorePropertiesFile.exists() &&
+    keystoreProperties['storeFile'] != null &&
+    keystoreProperties['storePassword'] != null &&
+    keystoreProperties['keyAlias'] != null &&
+    keystoreProperties['keyPassword'] != null
+
+def envStorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+def envStorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+def envKeyAlias = System.getenv("ANDROID_KEY_ALIAS")
+def envKeyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+def hasEnvSigning = envStorePath != null && envStorePassword != null &&
+    envKeyAlias != null && envKeyPassword != null
+
 android {
     namespace = "com.cerebrostudios.dailytracker"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +29,8 @@ android {
         applicationId "com.cerebrostudios.dailytracker"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode Integer.parseInt(System.getenv("ANDROID_VERSION_CODE") ?: "1")
+        versionName System.getenv("ANDROID_VERSION_NAME") ?: "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +38,28 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasFileSigning) {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            } else if (hasEnvSigning) {
+                storeFile file(envStorePath)
+                storePassword envStorePassword
+                keyAlias envKeyAlias
+                keyPassword envKeyPassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasFileSigning || hasEnvSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

@@ -28,3 +28,8 @@ packages/web/android/app/release/
 packages/web/android/captures/
 packages/web/android/*.iml
 packages/web/android/.idea/
+packages/web/android/keystore.properties
+packages/web/android/*.keystore
+packages/web/android/*.jks
+packages/web/android/app/*.keystore
+packages/web/android/app/*.jks

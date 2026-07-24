@@ -84,14 +84,53 @@ Los mipmap por defecto de Capacitor son genéricos. Para branding:
 1. Usa Android Studio → **Image Asset** con `packages/web/public/icons/icon-512.png`
 2. O regenera PNG web: `npm run icons --workspace=packages/web`
 
-## Generar AAB / APK de release
+## Iconos del launcher
+
+Tras cambiar el branding web:
+
+```bash
+cd packages/web
+npm run icons              # PNG PWA
+npm run icons:android      # mipmaps nativos desde icon-512.png
+```
+
+## Firma release (local)
+
+```bash
+# Una sola vez
+keytool -genkey -v -keystore packages/web/android/release.keystore \
+  -alias dailytracker -keyalg RSA -keysize 2048 -validity 10000
+
+cp packages/web/android/keystore.properties.example \
+   packages/web/android/keystore.properties
+# Edita passwords en keystore.properties
+```
+
+```bash
+npm run build:android
+cd packages/web/android
+./gradlew bundleRelease   # Windows: gradlew.bat bundleRelease
+```
+
+AAB: `app/build/outputs/bundle/release/app-release.aab`
+
+## CI (GitHub Actions)
+
+Workflow [`.github/workflows/android.yml`](../.github/workflows/android.yml):
+
+- En cada push a `main` (cambios web/core): sube **debug APK** como artifact.
+- Si existen secrets de keystore: también **release AAB** firmado.
+
+Ver secrets en [`PLAY_STORE.md`](./PLAY_STORE.md).
+
+## Generar AAB / APK (Android Studio)
 
 1. `npm run build:android` con vars de producción.
-2. Android Studio → **Build → Generate Signed Bundle / APK**.
-3. Crea un keystore (guárdalo fuera del git).
-4. Sube el **AAB** a Play Console.
+2. Android Studio → **Build → Generate Signed Bundle / APK**  
+   **o** `./gradlew bundleRelease` con `keystore.properties`.
+3. Sube el **AAB** a Play Console.
 
-Checklist Play Store (resumen): privacy policy, Data safety, target API actual, capturas, política de contenido.
+Checklist completo: [`PLAY_STORE.md`](./PLAY_STORE.md).
 
 ## Scripts npm
 
