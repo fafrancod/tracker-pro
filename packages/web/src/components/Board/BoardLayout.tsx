@@ -76,24 +76,24 @@ export function BoardLayout({ filter }: BoardLayoutProps) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={goPrevWeek} className="h-8 w-8" aria-label={t('board_prev_week')}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
+      <header className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1.5 md:px-3">
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" onClick={goPrevWeek} className="h-7 w-7" aria-label={t('board_prev_week')}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={goNextWeek} className="h-8 w-8" aria-label={t('board_next_week')}>
+          <Button variant="ghost" size="icon" onClick={goNextWeek} className="h-7 w-7" aria-label={t('board_next_week')}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-text-primary">{weekLabel}</span>
-          <span className="text-xs text-text-muted">{currentWeekId}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-semibold text-text-primary">{weekLabel}</span>
+          <span className="hidden text-xs text-text-muted sm:inline">{currentWeekId}</span>
         </div>
 
         {!isCurrentWeek && (
-          <Button variant="outline" size="sm" onClick={goToday} className="ml-2 h-7 gap-1.5 text-xs">
+          <Button variant="outline" size="sm" onClick={goToday} className="ml-1 h-7 gap-1.5 text-xs">
             <Calendar className="h-3.5 w-3.5" />
             {t('action_today')}
           </Button>
@@ -101,7 +101,7 @@ export function BoardLayout({ filter }: BoardLayoutProps) {
       </header>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex flex-1 gap-3 overflow-x-auto p-4">
+        <div className="grid min-h-0 flex-1 grid-cols-7 gap-1 p-1.5 md:gap-1.5 md:p-2">
           {days.map(day => (
             <DayColumn
               key={day.dayId}
@@ -117,12 +117,13 @@ export function BoardLayout({ filter }: BoardLayoutProps) {
 
         <DragOverlay>
           {activeDrag ? (
-            <div className="w-[200px] cursor-grabbing">
+            <div className="w-[160px] cursor-grabbing">
               <TaskCard
                 task={activeDrag.task}
                 projects={projects}
                 weekDays={days}
                 nextWeekId={currentWeekId}
+                dense
                 onToggle={() => undefined}
                 onEdit={() => undefined}
                 onMove={() => undefined}

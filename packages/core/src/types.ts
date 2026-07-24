@@ -29,6 +29,11 @@ export interface UserSettings {
   language: Language;
   /** Vista por defecto del tablero al abrir /board. */
   defaultBoardView: BoardViewMode;
+  /**
+   * Skin visual (id de skins del cliente).
+   * Ej. dark-github, light-paper. Default: dark-github.
+   */
+  skinId: string;
 }
 
 export interface Project {

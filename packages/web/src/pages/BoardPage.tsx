@@ -37,6 +37,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
+import { CycleSelect } from '@/components/ui/cycle-select';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -101,15 +102,27 @@ export function BoardPage() {
     setFabOpen(true);
   }
 
-  const selectClass =
-    'h-7 max-w-[140px] rounded-md border border-border bg-surface px-2 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring';
+  const projectOptions = [
+    { value: 'all', label: t('board_filter_all') },
+    ...projects.map(p => ({ value: p.id, label: `${p.icon} ${p.name}` })),
+  ];
+  const urgencyOptions = [
+    { value: 'all', label: t('board_filter_all') },
+    { value: 'urgent', label: t('urgency_urgent') },
+    { value: 'not_urgent', label: t('urgency_not_urgent') },
+  ];
+  const importanceOptions = [
+    { value: 'all', label: t('board_filter_all') },
+    { value: 'important', label: t('importance_important') },
+    { value: 'not_important', label: t('importance_not_important') },
+  ];
 
   return (
     <Layout
       title={t('nav_tasks')}
       primaryAction={{ label: t('action_add_task'), onClick: () => setFabOpen(true) }}
     >
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-1.5 md:px-3">
         <div className="inline-flex rounded-md border border-border bg-surface p-0.5">
           <button
             type="button"
@@ -183,63 +196,57 @@ export function BoardPage() {
           </button>
         </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <label className="flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span className="sr-only md:not-sr-only">{t('board_filter_project')}</span>
-            <select
-              className={selectClass}
-              value={filters.projectId === 'all' || !filters.projectId ? 'all' : filters.projectId}
-              onChange={e =>
+        <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1">
+            <span className="hidden text-[10px] text-text-muted sm:inline">
+              {t('board_filter_project')}
+            </span>
+            <CycleSelect
+              aria-label={t('board_filter_project')}
+              value={
+                filters.projectId === 'all' || !filters.projectId ? 'all' : filters.projectId
+              }
+              options={projectOptions}
+              onChange={v =>
                 setFilters(f => ({
                   ...f,
-                  projectId: e.target.value === 'all' ? 'all' : e.target.value,
+                  projectId: v === 'all' ? 'all' : v,
                 }))
               }
-            >
-              <option value="all">{t('board_filter_all')}</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.icon} {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span className="sr-only md:not-sr-only">{t('board_filter_urgency')}</span>
-            <select
-              className={selectClass}
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="hidden text-[10px] text-text-muted sm:inline">
+              {t('board_filter_urgency')}
+            </span>
+            <CycleSelect
+              aria-label={t('board_filter_urgency')}
               value={filters.urgency ?? 'all'}
-              onChange={e =>
+              options={urgencyOptions}
+              onChange={v =>
                 setFilters(f => ({
                   ...f,
-                  urgency: e.target.value as Urgency | 'all',
+                  urgency: v as Urgency | 'all',
                 }))
               }
-            >
-              <option value="all">{t('board_filter_all')}</option>
-              <option value="urgent">{t('urgency_urgent')}</option>
-              <option value="not_urgent">{t('urgency_not_urgent')}</option>
-            </select>
-          </label>
-
-          <label className="flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span className="sr-only md:not-sr-only">{t('board_filter_importance')}</span>
-            <select
-              className={selectClass}
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="hidden text-[10px] text-text-muted sm:inline">
+              {t('board_filter_importance')}
+            </span>
+            <CycleSelect
+              aria-label={t('board_filter_importance')}
               value={filters.importance ?? 'all'}
-              onChange={e =>
+              options={importanceOptions}
+              onChange={v =>
                 setFilters(f => ({
                   ...f,
-                  importance: e.target.value as Importance | 'all',
+                  importance: v as Importance | 'all',
                 }))
               }
-            >
-              <option value="all">{t('board_filter_all')}</option>
-              <option value="important">{t('importance_important')}</option>
-              <option value="not_important">{t('importance_not_important')}</option>
-            </select>
-          </label>
+            />
+          </div>
         </div>
       </div>
 

@@ -17,6 +17,7 @@ import { useT } from '@/hooks/useT';
 import type { BoardViewMode, Language } from '@core/types';
 import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
+import { skinsByMode, type SkinDefinition } from '@/lib/skins';
 
 interface BackendVersionInfo {
   service: string;
@@ -90,6 +91,15 @@ export function SettingsPage() {
     try {
       await updateSettings({ defaultBoardView: view });
       showToast('Vista por defecto actualizada.', 'success');
+    } catch {
+      showToast('No pudimos guardar las preferencias.', 'error');
+    }
+  }
+
+  async function handleSkin(skinId: string) {
+    try {
+      await updateSettings({ skinId });
+      showToast('Apariencia actualizada.', 'success');
     } catch {
       showToast('No pudimos guardar las preferencias.', 'error');
     }
@@ -234,6 +244,28 @@ export function SettingsPage() {
             </div>
           </section>
 
+          {/* Skins */}
+          <section className="rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-1 text-sm font-semibold text-text-primary">{t('settings_skin')}</h2>
+            <p className="mb-4 text-[11px] text-text-muted">{t('settings_skin_desc')}</p>
+
+            <SkinGrid
+              title={t('settings_skin_dark')}
+              skins={skinsByMode('dark')}
+              selectedId={settings.skinId}
+              language={settings.language}
+              onSelect={id => void handleSkin(id)}
+            />
+            <SkinGrid
+              title={t('settings_skin_light')}
+              skins={skinsByMode('light')}
+              selectedId={settings.skinId}
+              language={settings.language}
+              onSelect={id => void handleSkin(id)}
+              className="mt-5"
+            />
+          </section>
+
           {/* Estado */}
           <section className="rounded-lg border border-border bg-surface p-4 text-xs">
             <div className="mb-3 flex items-center justify-between">
@@ -341,6 +373,81 @@ function SettingRow({
           }`}
         />
       </button>
+    </div>
+  );
+}
+
+function SkinGrid({
+  title,
+  skins,
+  selectedId,
+  language,
+  onSelect,
+  className,
+}: {
+  title: string;
+  skins: SkinDefinition[];
+  selectedId: string;
+  language: Language;
+  onSelect: (id: string) => void;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-text-muted">
+        {title}
+      </p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+        {skins.map(skin => {
+          const label = language === 'en' ? skin.nameEn : skin.name;
+          const selected = selectedId === skin.id;
+          return (
+            <button
+              key={skin.id}
+              type="button"
+              onClick={() => onSelect(skin.id)}
+              title={label}
+              className={cn(
+                'flex flex-col overflow-hidden rounded-lg border text-left transition-shadow',
+                selected
+                  ? 'border-accent-teal ring-2 ring-accent-teal/40'
+                  : 'border-border hover:border-accent-teal/40'
+              )}
+            >
+              <div
+                className="flex h-10 items-end gap-0.5 px-1.5 pb-1.5 pt-1"
+                style={{ backgroundColor: skin.tokens.background }}
+              >
+                <span
+                  className="h-4 flex-1 rounded-sm"
+                  style={{ backgroundColor: skin.tokens.surface, border: `1px solid ${skin.tokens.border}` }}
+                />
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: skin.tokens.accentTeal }}
+                />
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: skin.tokens.accentGreen }}
+                />
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full"
+                  style={{ backgroundColor: skin.tokens.accentPink }}
+                />
+              </div>
+              <span
+                className="truncate px-1.5 py-1 text-[10px] font-medium"
+                style={{
+                  backgroundColor: skin.tokens.surface,
+                  color: skin.tokens.textPrimary,
+                }}
+              >
+                {label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

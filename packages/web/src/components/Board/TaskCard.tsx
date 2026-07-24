@@ -42,6 +42,8 @@ interface TaskCardProps {
   onOpenDetail?: () => void;
   dragHandleProps?: Record<string, unknown>;
   isDragging?: boolean;
+  /** Compact layout for week columns (less lateral padding). */
+  dense?: boolean;
 }
 
 export function TaskCard({
@@ -60,6 +62,7 @@ export function TaskCard({
   onOpenDetail,
   dragHandleProps,
   isDragging,
+  dense = false,
 }: TaskCardProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
@@ -111,39 +114,46 @@ export function TaskCard({
         });
       }}
       className={cn(
-        'group relative rounded-md border border-border bg-surface p-2.5 transition-shadow',
+        'group relative rounded-md border border-border bg-surface transition-shadow',
+        dense ? 'p-1' : 'p-2.5',
         isDragging && 'shadow-lg ring-1 ring-accent-teal/50',
         task.completed && 'opacity-60'
       )}
       style={
         task.color
-          ? { borderLeftWidth: 3, borderLeftColor: task.color }
+          ? { borderLeftWidth: dense ? 2 : 3, borderLeftColor: task.color }
           : project
-            ? { borderLeftWidth: 3, borderLeftColor: project.color }
+            ? { borderLeftWidth: dense ? 2 : 3, borderLeftColor: project.color }
             : undefined
       }
     >
-      <div className="flex items-start gap-2">
-        {/* Drag handle */}
+      <div className={cn('flex items-start', dense ? 'gap-1' : 'gap-2')}>
+        {/* Drag handle — absolute in dense mode to reclaim horizontal space */}
         <button
           {...dragHandleProps}
-          className="mt-0.5 cursor-grab touch-none text-text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+          className={cn(
+            'cursor-grab touch-none text-text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing',
+            dense
+              ? 'absolute left-0 top-0.5 z-10 -ml-0.5 rounded bg-surface/90 p-0'
+              : 'mt-0.5'
+          )}
           tabIndex={-1}
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className={dense ? 'h-3 w-3' : 'h-4 w-4'} />
         </button>
 
         {/* Checkbox */}
         <button
           onClick={onToggle}
           className={cn(
-            'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors',
+            'shrink-0 items-center justify-center rounded-full border transition-colors',
+            dense ? 'mt-0.5 flex h-3.5 w-3.5' : 'mt-0.5 flex h-4 w-4',
             task.completed
               ? 'border-accent-green bg-accent-green/20 text-accent-green'
               : 'border-border hover:border-accent-green'
           )}
         >
-          {task.completed && <Check className="h-2.5 w-2.5" />}
+          {task.completed && <Check className={dense ? 'h-2 w-2' : 'h-2.5 w-2.5'} />}
         </button>
 
         {/* Content */}
@@ -158,7 +168,10 @@ export function TaskCard({
                 if (e.key === 'Enter') commitTitle();
                 if (e.key === 'Escape') { setTitleValue(task.title); setEditingTitle(false); }
               }}
-              className="w-full bg-transparent text-sm text-text-primary outline-none"
+              className={cn(
+                'w-full bg-transparent text-text-primary outline-none',
+                dense ? 'text-xs' : 'text-sm'
+              )}
             />
           ) : (
             <span
@@ -170,7 +183,8 @@ export function TaskCard({
               }}
               title="Clic: ver detalle · Doble clic: editar"
               className={cn(
-                'block cursor-pointer select-none text-sm leading-snug',
+                'block cursor-pointer select-none leading-snug',
+                dense ? 'text-xs' : 'text-sm',
                 task.completed ? 'text-text-muted line-through' : 'text-text-primary hover:text-accent-teal'
               )}
             >
@@ -179,7 +193,7 @@ export function TaskCard({
           )}
 
           {/* Meta row */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <div className={cn('flex flex-wrap items-center', dense ? 'mt-0.5 gap-0.5' : 'mt-1.5 gap-1.5')}>
             {startDayId && task.endDayId && task.endDayId > startDayId && (
               <span className="inline-flex items-center gap-0.5 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
                 {format(parseISO(`${startDayId}T00:00:00`), 'd MMM')}
@@ -214,31 +228,39 @@ export function TaskCard({
             )}
             {project && (
               <span
-                className="inline-flex max-w-full items-center gap-1 truncate whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
+                className={cn(
+                  'inline-flex max-w-full items-center truncate whitespace-nowrap rounded-full font-medium',
+                  dense
+                    ? 'gap-0.5 px-1 py-0 text-[9px]'
+                    : 'gap-1 px-2 py-0.5 text-xs'
+                )}
                 style={{ backgroundColor: project.color + '33', color: project.color }}
                 title={project.name}
               >
                 <span aria-hidden>{project.icon}</span>
-                <span className="truncate">{project.name}</span>
+                {!dense && <span className="truncate">{project.name}</span>}
               </span>
             )}
-            <Badge variant={PRIORITY_CONFIG[task.priority].variant} className="text-[10px] px-1.5 py-0">
-              {PRIORITY_CONFIG[task.priority].label}
-            </Badge>
-            {task.movedFrom && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-text-muted">
+            {!dense && (
+              <Badge variant={PRIORITY_CONFIG[task.priority].variant} className="px-1.5 py-0 text-[10px]">
+                {PRIORITY_CONFIG[task.priority].label}
+              </Badge>
+            )}
+            {!dense && task.movedFrom && (
+              <Badge variant="outline" className="px-1.5 py-0 text-[10px] text-text-muted">
                 ↩ {task.movedFrom}
               </Badge>
             )}
-            {task.tags.map(tag => (
-              <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
-                {tag}
-              </Badge>
-            ))}
+            {!dense &&
+              task.tags.map(tag => (
+                <Badge key={tag} variant="secondary" className="px-1.5 py-0 text-[10px]">
+                  {tag}
+                </Badge>
+              ))}
           </div>
 
-          {/* Notes toggle */}
-          {(task.notes || notesOpen) && (
+          {/* Notes toggle — hidden in dense week columns unless expanded */}
+          {!dense && (task.notes || notesOpen) && (
             <button
               onClick={() => setNotesOpen(v => !v)}
               className="mt-1 flex items-center gap-1 text-[11px] text-text-muted hover:text-text-primary"
@@ -247,7 +269,7 @@ export function TaskCard({
               Notes
             </button>
           )}
-          {notesOpen && (
+          {!dense && notesOpen && (
             <div className="mt-1.5">
               {editingNotes ? (
                 <textarea
@@ -268,7 +290,7 @@ export function TaskCard({
               )}
             </div>
           )}
-          {!task.notes && !notesOpen && (
+          {!dense && !task.notes && !notesOpen && (
             <button
               onClick={() => { setNotesOpen(true); setEditingNotes(true); }}
               className="mt-1 text-[11px] text-text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-text-primary"
@@ -279,7 +301,12 @@ export function TaskCard({
         </div>
 
         {/* Actions */}
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <div
+          className={cn(
+            'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100',
+            dense && 'absolute right-0.5 top-0.5'
+          )}
+        >
           {onOpenDetail && (
             <button
               onClick={onOpenDetail}

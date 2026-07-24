@@ -4,6 +4,20 @@
 
 @layer base {
   :root {
+    /* App skin tokens (overridden by applySkin) */
+    --color-background: #0d1117;
+    --color-surface: #161b22;
+    --color-border: #30363d;
+    --color-text-primary: #e6edf3;
+    --color-text-muted: #7d8590;
+    --color-accent-green: #3fb950;
+    --color-accent-teal: #58a6ff;
+    --color-accent-red: #f85149;
+    --color-accent-pink: #f778ba;
+    --color-scroll-track: #161b22;
+    --color-scroll-thumb: #30363d;
+
+    /* shadcn HSL tokens (kept for components that use them) */
     --background: 216 28% 7%;
     --foreground: 210 40% 92%;
     --card: 216 24% 10%;
@@ -43,15 +57,15 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: #161b22;
+    background: var(--color-scroll-track);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #30363d;
+    background: var(--color-scroll-thumb);
     border-radius: 3px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #484f58;
+    filter: brightness(1.15);
   }
 }

@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               ? 'es'
               : 'en',
           defaultBoardView: 'continuous',
+          skinId: 'dark-github',
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;

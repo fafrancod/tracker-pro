@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useStore } from '@core/store';
 import { updateUserSettings } from '@core/services/userService';
 import type { UserSettings } from '@core/types';
+import { applySkin, DEFAULT_SKIN_ID } from '@/lib/skins';
 import { useToast } from './ToastContext';
 
 const LOCAL_KEY = 'daily-tracker:settings:v1';
@@ -26,6 +27,7 @@ const DEFAULTS: UserSettings = {
   weekStartsOnMonday: true,
   language: detectBrowserLanguage(),
   defaultBoardView: 'continuous',
+  skinId: DEFAULT_SKIN_ID,
 };
 
 function loadLocal(): Partial<UserSettings> | null {
@@ -62,6 +64,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveLocal(settings);
   }, [settings]);
+
+  useEffect(() => {
+    applySkin(settings.skinId ?? DEFAULT_SKIN_ID);
+  }, [settings.skinId]);
 
   const updateSettings = useCallback(
     async (patch: Partial<UserSettings>) => {

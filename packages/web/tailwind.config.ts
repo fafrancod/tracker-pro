@@ -6,15 +6,15 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#0d1117',
-        surface: '#161b22',
-        border: '#30363d',
-        'text-primary': '#e6edf3',
-        'text-muted': '#7d8590',
-        'accent-green': '#3fb950',
-        'accent-teal': '#58a6ff',
-        'accent-red': '#f85149',
-        'accent-pink': '#f778ba',
+        background: 'var(--color-background)',
+        surface: 'var(--color-surface)',
+        border: 'var(--color-border)',
+        'text-primary': 'var(--color-text-primary)',
+        'text-muted': 'var(--color-text-muted)',
+        'accent-green': 'var(--color-accent-green)',
+        'accent-teal': 'var(--color-accent-teal)',
+        'accent-red': 'var(--color-accent-red)',
+        'accent-pink': 'var(--color-accent-pink)',
         // shadcn/ui CSS variable tokens
         ring: 'hsl(var(--ring))',
         input: 'hsl(var(--input))',

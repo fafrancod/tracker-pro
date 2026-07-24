@@ -135,6 +135,10 @@ export interface TranslationDict {
   settings_default_board_view: string;
   settings_default_board_view_desc: string;
   settings_none: string;
+  settings_skin: string;
+  settings_skin_desc: string;
+  settings_skin_dark: string;
+  settings_skin_light: string;
 
   // Urgencia / importancia
   urgency_urgent: string;
@@ -301,6 +305,10 @@ const es_dict: TranslationDict = {
   settings_default_board_view: 'Vista del tablero por defecto',
   settings_default_board_view_desc: 'Cómo se abre el tablero al entrar en Tareas.',
   settings_none: 'Ninguno',
+  settings_skin: 'Apariencia',
+  settings_skin_desc: 'Elige un skin claro u oscuro. Se aplica de inmediato en toda la app.',
+  settings_skin_dark: 'Oscuros',
+  settings_skin_light: 'Claros',
 
   urgency_urgent: 'Urgente',
   urgency_not_urgent: 'No urgente',
@@ -462,6 +470,10 @@ const en_dict: TranslationDict = {
   settings_default_board_view: 'Default board view',
   settings_default_board_view_desc: 'How the board opens when you go to Tasks.',
   settings_none: 'None',
+  settings_skin: 'Appearance',
+  settings_skin_desc: 'Pick a light or dark skin. Applies immediately across the app.',
+  settings_skin_dark: 'Dark',
+  settings_skin_light: 'Light',
 
   urgency_urgent: 'Urgent',
   urgency_not_urgent: 'Not urgent',

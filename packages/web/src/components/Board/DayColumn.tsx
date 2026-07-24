@@ -76,28 +76,33 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
   return (
     <div
       className={cn(
-        'flex w-[220px] shrink-0 flex-col rounded-lg border bg-background',
-        isToday ? 'border-accent-teal/40' : 'border-border'
+        'flex min-h-0 min-w-0 flex-col rounded-md border bg-background',
+        isToday ? 'border-accent-teal/50' : 'border-border'
       )}
     >
       {/* Column header */}
       <div
         className={cn(
-          'flex items-center justify-between rounded-t-lg px-3 py-2.5',
+          'flex shrink-0 items-center justify-between gap-1 rounded-t-md px-1.5 py-1.5',
           isToday ? 'bg-accent-teal/10' : 'bg-surface'
         )}
       >
-        <div>
-          <div className={cn('text-sm font-semibold', isToday ? 'text-accent-teal' : 'text-text-primary')}>
+        <div className="min-w-0">
+          <div
+            className={cn(
+              'truncate text-xs font-semibold sm:text-sm',
+              isToday ? 'text-accent-teal' : 'text-text-primary'
+            )}
+          >
             {label}
           </div>
-          <div className="text-xs text-text-muted">{dateLabel}</div>
+          <div className="truncate text-[10px] text-text-muted sm:text-xs">{dateLabel}</div>
         </div>
         <ProgressRing
           progress={progress}
           completed={completedCount}
           total={tasks.length}
-          size={38}
+          size={28}
         />
       </div>
 
@@ -105,7 +110,7 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
       <div
         ref={setDropRef}
         className={cn(
-          'flex flex-1 flex-col gap-1.5 overflow-y-auto p-2 transition-colors',
+          'flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1 transition-colors',
           isOver && 'rounded bg-accent-teal/5 ring-1 ring-accent-teal/30'
         )}
       >
@@ -132,6 +137,7 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
                       startDayId={loc?.startDayId}
                       locationWeekId={dragWeekId}
                       locationDayId={dragDayId}
+                      dense
                       onToggle={() => editTask(task.id, { completed: !task.completed })}
                       onEdit={payload => editTask(task.id, payload)}
                       onMove={toDate => {
@@ -160,7 +166,7 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
       </div>
 
       {/* Add task */}
-      <div className="p-2 pt-0">
+      <div className="shrink-0 p-1 pt-0">
         <AddTaskForm
           projects={projects}
           startDayId={dayId}
