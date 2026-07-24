@@ -19,6 +19,7 @@ export interface TranslationDict {
 
   // Acciones generales
   action_add_task: string;
+  action_add_reminder: string;
   action_new_project: string;
   action_save: string;
   action_cancel: string;
@@ -48,6 +49,12 @@ export interface TranslationDict {
 
   // Tarea
   task_title_placeholder: string;
+  task_title_label: string;
+  task_reminder_placeholder: string;
+  task_kind_task: string;
+  task_kind_reminder: string;
+  task_color: string;
+  task_color_auto: string;
   task_priority_low: string;
   task_priority_medium: string;
   task_priority_high: string;
@@ -61,10 +68,12 @@ export interface TranslationDict {
   task_repeat_daily: string;
   task_repeat_weekly: string;
   task_repeat_monthly: string;
+  task_repeat_yearly: string;
   task_repeat_every: string;
   task_repeat_unit_days: string;
   task_repeat_unit_weeks: string;
   task_repeat_unit_months: string;
+  task_repeat_unit_years: string;
   task_complete_hint: string;
   task_uncomplete_hint: string;
   task_start_date: string;
@@ -72,6 +81,7 @@ export interface TranslationDict {
   task_date_range: string;
   task_continues: string;
   task_span_recurrence_hint: string;
+  task_create_title: string;
 
   // Settings sections
   settings_account: string;
@@ -142,6 +152,7 @@ const es_dict: TranslationDict = {
   nav_eisenhower: 'Eisenhower',
 
   action_add_task: 'Añadir tarea',
+  action_add_reminder: 'Añadir recordatorio',
   action_new_project: 'Nuevo proyecto',
   action_save: 'Guardar',
   action_cancel: 'Cancelar',
@@ -167,7 +178,13 @@ const es_dict: TranslationDict = {
   task_ctx_edit: 'Editar',
   task_ctx_delete: 'Eliminar',
 
-  task_title_placeholder: 'Título de la tarea…',
+  task_title_placeholder: '¿Qué quieres hacer?',
+  task_title_label: 'Título',
+  task_reminder_placeholder: '¿De qué quieres que te acuerdes?',
+  task_kind_task: 'Tarea',
+  task_kind_reminder: 'Recordatorio',
+  task_color: 'Color',
+  task_color_auto: 'Automático',
   task_priority_low: 'Baja',
   task_priority_medium: 'Media',
   task_priority_high: 'Alta',
@@ -181,17 +198,21 @@ const es_dict: TranslationDict = {
   task_repeat_daily: 'Cada día',
   task_repeat_weekly: 'Cada semana',
   task_repeat_monthly: 'Cada mes',
+  task_repeat_yearly: 'Cada año',
   task_repeat_every: 'Cada',
   task_repeat_unit_days: 'días',
   task_repeat_unit_weeks: 'semanas',
   task_repeat_unit_months: 'meses',
-  task_complete_hint: 'Clic para marcar como completada',
-  task_uncomplete_hint: 'Clic para desmarcar',
+  task_repeat_unit_years: 'años',
+  task_complete_hint: 'Clic derecho para opciones',
+  task_uncomplete_hint: 'Clic derecho para opciones',
   task_start_date: 'Inicio',
   task_end_date: 'Fin',
   task_date_range: 'Rango de fechas',
   task_continues: 'Continúa',
-  task_span_recurrence_hint: 'En rangos de varios días solo puedes repetir cada mes o no repetir.',
+  task_span_recurrence_hint:
+    'En rangos de varios días solo puedes repetir cada mes, cada año o no repetir.',
+  task_create_title: 'Nueva entrada',
 
   settings_account: 'Cuenta',
   settings_plan: 'Plan',
@@ -256,6 +277,7 @@ const en_dict: TranslationDict = {
   nav_eisenhower: 'Eisenhower',
 
   action_add_task: 'Add task',
+  action_add_reminder: 'Add reminder',
   action_new_project: 'New project',
   action_save: 'Save',
   action_cancel: 'Cancel',
@@ -281,7 +303,13 @@ const en_dict: TranslationDict = {
   task_ctx_edit: 'Edit',
   task_ctx_delete: 'Delete',
 
-  task_title_placeholder: 'Task title…',
+  task_title_placeholder: 'What do you want to do?',
+  task_title_label: 'Title',
+  task_reminder_placeholder: 'What should we remind you of?',
+  task_kind_task: 'Task',
+  task_kind_reminder: 'Reminder',
+  task_color: 'Color',
+  task_color_auto: 'Auto',
   task_priority_low: 'Low',
   task_priority_medium: 'Med',
   task_priority_high: 'High',
@@ -295,17 +323,21 @@ const en_dict: TranslationDict = {
   task_repeat_daily: 'Daily',
   task_repeat_weekly: 'Weekly',
   task_repeat_monthly: 'Monthly',
+  task_repeat_yearly: 'Yearly',
   task_repeat_every: 'Every',
   task_repeat_unit_days: 'days',
   task_repeat_unit_weeks: 'weeks',
   task_repeat_unit_months: 'months',
-  task_complete_hint: 'Click to mark as completed',
-  task_uncomplete_hint: 'Click to unmark',
+  task_repeat_unit_years: 'years',
+  task_complete_hint: 'Right-click for options',
+  task_uncomplete_hint: 'Right-click for options',
   task_start_date: 'Start',
   task_end_date: 'End',
   task_date_range: 'Date range',
   task_continues: 'Continues',
-  task_span_recurrence_hint: 'Multi-day ranges only support monthly or no recurrence.',
+  task_span_recurrence_hint:
+    'Multi-day ranges only support monthly, yearly, or no recurrence.',
+  task_create_title: 'New entry',
 
   settings_account: 'Account',
   settings_plan: 'Plan',

@@ -1,8 +1,14 @@
-export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface OccurrenceRange {
   dayId: string;
   endDayId: string;
+}
+
+const MULTI_DAY_FREQUENCIES: RecurrenceFrequency[] = ['none', 'monthly', 'yearly'];
+
+export function isMultiDayRecurrenceAllowed(frequency: RecurrenceFrequency): boolean {
+  return MULTI_DAY_FREQUENCIES.includes(frequency);
 }
 
 export function normalizeRecurrence(
@@ -54,6 +60,8 @@ function recurrenceHorizon(frequency: RecurrenceFrequency): number {
       return 52;
     case 'monthly':
       return 24;
+    case 'yearly':
+      return 10;
     default:
       return 1;
   }
@@ -89,7 +97,8 @@ export function addDaysToDayId(dayId: string, days: number): string {
  * Materializa pares {dayId, endDayId} para una serie.
  * - none: un solo par
  * - multi-day + monthly: anclas DOM + clamp por mes, horizonte 24
- * - single-day + daily/weekly/monthly: lista de starts con end = start
+ * - multi-day + yearly: anclas mes/día + duración, horizonte 10
+ * - single-day + daily/weekly/monthly/yearly: lista de starts con end = start
  */
 export function materializeOccurrenceRanges(
   startDayId: string,
@@ -128,6 +137,26 @@ export function materializeOccurrenceRanges(
     return ranges;
   }
 
+  // Multi-day yearly: preserve month/day + duration across years
+  if (isMultiDay && rec.frequency === 'yearly') {
+    const start = parseDay(startDayId);
+    if (Number.isNaN(start.getTime())) {
+      return [{ dayId: startDayId, endDayId: end }];
+    }
+    const duration = inclusiveDurationDays(startDayId, end);
+    const startMonth = start.getMonth();
+    const startDOM = start.getDate();
+    const max = recurrenceHorizon('yearly');
+    const ranges: OccurrenceRange[] = [];
+    for (let i = 0; i < max; i++) {
+      const y = start.getFullYear() + i * rec.interval;
+      const occStart = clampToMonth(y, startMonth, startDOM);
+      const occEnd = addDaysToDayId(occStart, duration);
+      ranges.push({ dayId: occStart, endDayId: occEnd });
+    }
+    return ranges;
+  }
+
   // Single-day (or multi-day daily/weekly — rejected at route) → end = start each occurrence
   const dayIds = materializeOccurrenceDayIds(startDayId, rec.frequency, rec.interval);
   return dayIds.map(dayId => ({ dayId, endDayId: dayId }));
@@ -147,15 +176,23 @@ export function materializeOccurrenceDayIds(
   const max = recurrenceHorizon(rec.frequency);
   const ids: string[] = [];
   for (let i = 0; i < max; i++) {
-    const d = new Date(start.getTime());
     if (rec.frequency === 'daily') {
+      const d = new Date(start.getTime());
       d.setDate(d.getDate() + i * rec.interval);
+      ids.push(formatDay(d));
     } else if (rec.frequency === 'weekly') {
+      const d = new Date(start.getTime());
       d.setDate(d.getDate() + i * rec.interval * 7);
-    } else {
+      ids.push(formatDay(d));
+    } else if (rec.frequency === 'monthly') {
+      const d = new Date(start.getTime());
       d.setMonth(d.getMonth() + i * rec.interval);
+      ids.push(formatDay(d));
+    } else {
+      // yearly — clamp leap day
+      const y = start.getFullYear() + i * rec.interval;
+      ids.push(clampToMonth(y, start.getMonth(), start.getDate()));
     }
-    ids.push(formatDay(d));
   }
   return ids;
 }

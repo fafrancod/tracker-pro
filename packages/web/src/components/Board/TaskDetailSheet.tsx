@@ -276,6 +276,27 @@ function TaskDetailInner({
           </div>
         </Field>
 
+        {/* Kind */}
+        <Field label={t('task_kind_task') + ' / ' + t('task_kind_reminder')}>
+          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+            {(['task', 'reminder'] as const).map(k => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => editTask(task.id, { kind: k })}
+                className={cn(
+                  'rounded px-3 py-1 text-xs font-medium transition-colors',
+                  task.kind === k
+                    ? 'bg-accent-teal/15 text-accent-teal'
+                    : 'text-text-muted hover:text-text-primary'
+                )}
+              >
+                {k === 'task' ? t('task_kind_task') : t('task_kind_reminder')}
+              </button>
+            ))}
+          </div>
+        </Field>
+
         {/* Priority */}
         <Field label="Prioridad">
           <div className="inline-flex rounded-md border border-border bg-background p-0.5">
@@ -294,6 +315,89 @@ function TaskDetailInner({
                 {t(p.key)}
               </button>
             ))}
+          </div>
+        </Field>
+
+        {/* Eisenhower */}
+        <Field label={t('board_filter_urgency')}>
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                { v: null, label: t('board_filter_all') },
+                { v: 'urgent', label: t('urgency_urgent') },
+                { v: 'not_urgent', label: t('urgency_not_urgent') },
+              ] as Array<{ v: 'urgent' | 'not_urgent' | null; label: string }>
+            ).map(opt => (
+              <button
+                key={String(opt.v)}
+                type="button"
+                onClick={() => editTask(task.id, { urgency: opt.v })}
+                className={cn(
+                  'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                  task.urgency === opt.v
+                    ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
+                    : 'border-border text-text-muted hover:text-text-primary'
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label={t('board_filter_importance')}>
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                { v: null, label: t('board_filter_all') },
+                { v: 'important', label: t('importance_important') },
+                { v: 'not_important', label: t('importance_not_important') },
+              ] as Array<{ v: 'important' | 'not_important' | null; label: string }>
+            ).map(opt => (
+              <button
+                key={String(opt.v)}
+                type="button"
+                onClick={() => editTask(task.id, { importance: opt.v })}
+                className={cn(
+                  'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                  task.importance === opt.v
+                    ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
+                    : 'border-border text-text-muted hover:text-text-primary'
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {/* Color */}
+        <Field label={t('task_color')}>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => editTask(task.id, { color: null })}
+              className={cn(
+                'flex h-7 w-7 items-center justify-center rounded-full border-2 border-dashed border-border text-[10px] text-text-muted',
+                !task.color && 'border-accent-teal ring-1 ring-accent-teal/40'
+              )}
+            >
+              —
+            </button>
+            {['#58a6ff', '#3fb950', '#d29922', '#f85149', '#a371f7', '#db61a2', '#39c5cf', '#e3b341'].map(
+              c => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => editTask(task.id, { color: c })}
+                  className={cn(
+                    'h-7 w-7 rounded-full border-2 border-transparent',
+                    task.color === c && 'ring-2 ring-white/70 ring-offset-1 ring-offset-surface'
+                  )}
+                  style={{ backgroundColor: c }}
+                  aria-label={c}
+                />
+              )
+            )}
           </div>
         </Field>
 

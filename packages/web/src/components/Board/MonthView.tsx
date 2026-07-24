@@ -477,11 +477,14 @@ export function MonthView({
                                 task.recurrence.frequency !== 'none' && 'ring-1 ring-accent-teal/20'
                               )}
                               style={
-                                !task.completed && project
-                                  ? { borderLeft: `2px solid ${project.color}` }
+                                !task.completed && (task.color || project)
+                                  ? {
+                                      borderLeft: `2px solid ${task.color || project!.color}`,
+                                    }
                                   : undefined
                               }
                             >
+                              {task.kind === 'reminder' ? '🔔 ' : ''}
                               {task.recurrence.frequency !== 'none' ? '↻ ' : ''}
                               {task.title}
                             </span>
@@ -503,7 +506,7 @@ export function MonthView({
                     const project = bar.task.projectId
                       ? allProjects.find(p => p.id === bar.task.projectId)
                       : null;
-                    const color = project?.color ?? '#58a6ff';
+                    const color = bar.task.color ?? project?.color ?? '#58a6ff';
                     return (
                       <button
                         key={`${bar.task.id}-${bar.colStart}-${bar.lane}`}

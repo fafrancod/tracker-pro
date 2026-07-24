@@ -36,6 +36,8 @@ function pushTask(
     endDayId: partial.endDayId ?? dayId,
     urgency: partial.urgency ?? null,
     importance: partial.importance ?? null,
+    kind: partial.kind ?? 'task',
+    color: partial.color ?? null,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

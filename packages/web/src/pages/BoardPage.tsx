@@ -188,9 +188,9 @@ export function BoardPage() {
       <TaskDetailSheet />
 
       <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
-        <MobileSheetContent>
-          <MobileSheetHeader>
-            <MobileSheetTitle>{t('action_add_task')}</MobileSheetTitle>
+        <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">
+          <MobileSheetHeader className="pr-8">
+            <MobileSheetTitle className="text-lg">{t('task_create_title')}</MobileSheetTitle>
             <MobileSheetDescription>
               {targetDay
                 ? `${targetDay.label}, ${targetDay.dateLabel}.`
@@ -201,7 +201,9 @@ export function BoardPage() {
           <AddTaskForm
             projects={projects}
             startOpen
+            variant="modal"
             startDayId={targetDayId}
+            onCancel={() => setFabOpen(false)}
             onAdd={async payload => {
               await addTask(payload);
               showToast('OK', 'success');

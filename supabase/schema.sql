@@ -47,10 +47,12 @@ create table if not exists public.tasks (
   moved_from text,
   series_id text,
   recurrence_frequency text not null default 'none'
-    check (recurrence_frequency in ('none', 'daily', 'weekly', 'monthly')),
+    check (recurrence_frequency in ('none', 'daily', 'weekly', 'monthly', 'yearly')),
   recurrence_interval int not null default 1 check (recurrence_interval >= 1 and recurrence_interval <= 365),
   urgency text check (urgency is null or urgency in ('urgent', 'not_urgent')),
   importance text check (importance is null or importance in ('important', 'not_important')),
+  kind text not null default 'task' check (kind in ('task', 'reminder')),
+  color text check (color is null or color ~ '^#[0-9A-Fa-f]{6}$'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (end_day_id >= day_id)
@@ -114,6 +116,56 @@ update public.profiles
 set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('defaultBoardView', 'continuous')
 where settings is null
    or not (settings ? 'defaultBoardView');
+
+-- Migración: yearly recurrence + kind + color
+alter table public.tasks add column if not exists kind text;
+alter table public.tasks add column if not exists color text;
+update public.tasks set kind = 'task' where kind is null;
+alter table public.tasks alter column kind set default 'task';
+alter table public.tasks alter column kind set not null;
+
+do $$
+begin
+  -- Expand recurrence_frequency check to include yearly
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_recurrence_frequency_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks drop constraint tasks_recurrence_frequency_check;
+  end if;
+exception when undefined_object then null;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_recurrence_frequency_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_recurrence_frequency_check
+      check (recurrence_frequency in ('none', 'daily', 'weekly', 'monthly', 'yearly'));
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_kind_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_kind_check check (kind in ('task', 'reminder'));
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_color_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_color_check
+      check (color is null or color ~ '^#[0-9A-Fa-f]{6}$');
+  end if;
+end $$;
 
 create table if not exists public.usage_counters (
   user_id uuid not null references public.profiles (id) on delete cascade,

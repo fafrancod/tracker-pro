@@ -173,6 +173,24 @@ describe('POST /api/tasks — multi-day span validation', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('bad_request');
   });
+
+  it('acepta multi-day + yearly', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        endDayId: '2026-03-15',
+        recurrenceFrequency: 'yearly',
+        kind: 'reminder',
+        color: '#f85149',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.kind).toBe('reminder');
+    expect(res.body.color).toBe('#f85149');
+    expect(Array.isArray(res.body.instances)).toBe(true);
+    expect(res.body.instances.length).toBe(10);
+  });
 });
 
 describe('POST /api/tasks — multi-day create', () => {

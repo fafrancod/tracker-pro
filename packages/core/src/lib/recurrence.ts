@@ -1,4 +1,4 @@
-import { addDays, addMonths, addWeeks, format, parseISO, getISOWeek } from 'date-fns';
+import { addDays, addMonths, addWeeks, addYears, format, parseISO, getISOWeek } from 'date-fns';
 import type { Recurrence, RecurrenceFrequency } from '../types';
 
 export const DEFAULT_RECURRENCE: Recurrence = {
@@ -9,6 +9,12 @@ export const DEFAULT_RECURRENCE: Recurrence = {
 export interface OccurrenceRange {
   dayId: string;
   endDayId: string;
+}
+
+const MULTI_DAY_FREQUENCIES: RecurrenceFrequency[] = ['none', 'monthly', 'yearly'];
+
+export function isMultiDayRecurrenceAllowed(frequency: RecurrenceFrequency): boolean {
+  return MULTI_DAY_FREQUENCIES.includes(frequency);
 }
 
 export function normalizeRecurrence(
@@ -36,6 +42,8 @@ export function recurrenceHorizon(frequency: RecurrenceFrequency): number {
       return 52;
     case 'monthly':
       return 24;
+    case 'yearly':
+      return 10;
     default:
       return 1;
   }
@@ -105,6 +113,25 @@ export function materializeOccurrenceRanges(
     return ranges;
   }
 
+  if (isMultiDay && rec.frequency === 'yearly') {
+    const start = parseISO(startDayId);
+    if (Number.isNaN(start.getTime())) {
+      return [{ dayId: startDayId, endDayId: end }];
+    }
+    const duration = inclusiveDurationDays(startDayId, end);
+    const startMonth = start.getMonth();
+    const startDOM = start.getDate();
+    const max = recurrenceHorizon('yearly');
+    const ranges: OccurrenceRange[] = [];
+    for (let i = 0; i < max; i++) {
+      const y = start.getFullYear() + i * rec.interval;
+      const occStart = clampToMonth(y, startMonth, startDOM);
+      const occEnd = addDaysToDayId(occStart, duration);
+      ranges.push({ dayId: occStart, endDayId: occEnd });
+    }
+    return ranges;
+  }
+
   const dayIds = materializeOccurrenceDayIds(startDayId, rec.frequency, rec.interval);
   return dayIds.map(dayId => ({ dayId, endDayId: dayId }));
 }
@@ -130,8 +157,14 @@ export function materializeOccurrenceDayIds(
     let d: Date;
     if (rec.frequency === 'daily') d = addDays(start, i * rec.interval);
     else if (rec.frequency === 'weekly') d = addWeeks(start, i * rec.interval);
-    else d = addMonths(start, i * rec.interval);
-    ids.push(format(d, 'yyyy-MM-dd'));
+    else if (rec.frequency === 'monthly') d = addMonths(start, i * rec.interval);
+    else d = addYears(start, i * rec.interval);
+    // Clamp leap-day yearly: addYears may shift; re-clamp month/day for yearly
+    if (rec.frequency === 'yearly') {
+      ids.push(clampToMonth(d.getFullYear(), start.getMonth(), start.getDate()));
+    } else {
+      ids.push(format(d, 'yyyy-MM-dd'));
+    }
   }
   return ids;
 }
@@ -150,6 +183,7 @@ export function formatRecurrenceLabel(
     daily: string;
     weekly: string;
     monthly: string;
+    yearly: string;
     every: (n: number, unit: string) => string;
   }
 ): string {
@@ -159,7 +193,9 @@ export function formatRecurrenceLabel(
       ? labels.daily
       : recurrence.frequency === 'weekly'
         ? labels.weekly
-        : labels.monthly;
+        : recurrence.frequency === 'monthly'
+          ? labels.monthly
+          : labels.yearly;
   if (recurrence.interval === 1) return unit;
   return labels.every(recurrence.interval, unit);
 }

@@ -115,6 +115,13 @@ export function TaskCard({
         isDragging && 'shadow-lg ring-1 ring-accent-teal/50',
         task.completed && 'opacity-60'
       )}
+      style={
+        task.color
+          ? { borderLeftWidth: 3, borderLeftColor: task.color }
+          : project
+            ? { borderLeftWidth: 3, borderLeftColor: project.color }
+            : undefined
+      }
     >
       <div className="flex items-start gap-2">
         {/* Drag handle */}
@@ -180,6 +187,11 @@ export function TaskCard({
                 {format(parseISO(`${task.endDayId}T00:00:00`), 'd MMM')}
               </span>
             )}
+            {task.kind === 'reminder' && (
+              <span className="inline-flex items-center rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+                🔔
+              </span>
+            )}
             {task.recurrence.frequency !== 'none' && (
               <span
                 className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-teal"
@@ -194,7 +206,9 @@ export function TaskCard({
                   ? 'D'
                   : task.recurrence.frequency === 'weekly'
                     ? 'S'
-                    : 'M'}
+                    : task.recurrence.frequency === 'monthly'
+                      ? 'M'
+                      : 'A'}
                 {task.recurrence.interval > 1 ? `×${task.recurrence.interval}` : ''}
               </span>
             )}

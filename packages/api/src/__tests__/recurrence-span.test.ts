@@ -69,6 +69,27 @@ describe('materializeOccurrenceRanges', () => {
     expect(ranges[1]).toEqual({ dayId: '2026-03-10', endDayId: '2026-03-12' });
     expect(ranges[2]).toEqual({ dayId: '2026-05-10', endDayId: '2026-05-12' });
   });
+
+  it('yearly single-day → horizonte 10, un día por año', () => {
+    const ranges = materializeOccurrenceRanges('2026-03-10', '2026-03-10', 'yearly', 1);
+    expect(ranges).toHaveLength(10);
+    expect(ranges[0]).toEqual({ dayId: '2026-03-10', endDayId: '2026-03-10' });
+    expect(ranges[1]).toEqual({ dayId: '2027-03-10', endDayId: '2027-03-10' });
+    expect(ranges[9]).toEqual({ dayId: '2035-03-10', endDayId: '2035-03-10' });
+  });
+
+  it('yearly multi-day 10–15 preserva duración cada año', () => {
+    const ranges = materializeOccurrenceRanges('2026-03-10', '2026-03-15', 'yearly', 1);
+    expect(ranges).toHaveLength(10);
+    expect(ranges[0]).toEqual({ dayId: '2026-03-10', endDayId: '2026-03-15' });
+    expect(ranges[1]).toEqual({ dayId: '2027-03-10', endDayId: '2027-03-15' });
+  });
+
+  it('yearly Feb 29 clamp en no bisiesto', () => {
+    const ranges = materializeOccurrenceRanges('2024-02-29', '2024-02-29', 'yearly', 1);
+    expect(ranges[0].dayId).toBe('2024-02-29');
+    expect(ranges[1].dayId).toBe('2025-02-28');
+  });
 });
 
 describe('move duration helpers', () => {

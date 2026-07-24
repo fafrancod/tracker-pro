@@ -19,6 +19,8 @@ function normalizeTask(raw: Task, startDayId?: string): Task {
     endDayId: raw.endDayId ?? startDayId ?? '',
     urgency: raw.urgency ?? null,
     importance: raw.importance ?? null,
+    kind: raw.kind === 'reminder' ? 'reminder' : 'task',
+    color: raw.color ?? null,
   };
 }
 

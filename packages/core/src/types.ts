@@ -1,6 +1,7 @@
 export type Plan = 'free' | 'pro';
 export type Priority = 'low' | 'medium' | 'high';
-export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type TaskKind = 'task' | 'reminder';
 export type Urgency = 'urgent' | 'not_urgent';
 export type Importance = 'important' | 'not_important';
 export type BoardViewMode = 'week' | 'month' | 'continuous';
@@ -62,6 +63,10 @@ export interface Task {
   urgency: Urgency | null;
   /** Matriz Eisenhower; null = sin categorizar. */
   importance: Importance | null;
+  /** Tarea o recordatorio. */
+  kind: TaskKind;
+  /** Color propio (hex). null = usar color del proyecto o default. */
+  color: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +100,8 @@ export interface CreateTaskPayload {
   recurrenceInterval?: number;
   urgency?: Urgency | null;
   importance?: Importance | null;
+  kind?: TaskKind;
+  color?: string | null;
 }
 
 export interface UpdateTaskPayload {
@@ -112,6 +119,8 @@ export interface UpdateTaskPayload {
   recurrenceInterval?: number;
   urgency?: Urgency | null;
   importance?: Importance | null;
+  kind?: TaskKind;
+  color?: string | null;
 }
 
 /** Filtros del tablero (week / month / continuous). */

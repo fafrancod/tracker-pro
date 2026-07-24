@@ -95,6 +95,8 @@ export function useTasks(weekId: string, dayId: string) {
         endDayId,
         urgency: payload.urgency ?? null,
         importance: payload.importance ?? null,
+        kind: payload.kind ?? 'task',
+        color: payload.color ?? null,
         createdAt: now,
         updatedAt: now,
       };
@@ -120,6 +122,8 @@ export function useTasks(weekId: string, dayId: string) {
             endDayId: instance.endDayId,
             urgency: instance.urgency,
             importance: instance.importance,
+            kind: instance.kind,
+            color: instance.color,
             createdAt: instance.createdAt,
             updatedAt: instance.updatedAt,
           });
@@ -153,6 +157,8 @@ export function useTasks(weekId: string, dayId: string) {
       if (payload.endDayId !== undefined) patch.endDayId = payload.endDayId;
       if (payload.urgency !== undefined) patch.urgency = payload.urgency;
       if (payload.importance !== undefined) patch.importance = payload.importance;
+      if (payload.kind !== undefined) patch.kind = payload.kind;
+      if (payload.color !== undefined) patch.color = payload.color;
       if (payload.completed !== undefined) {
         patch.completed = payload.completed;
         patch.completedAt = payload.completed ? new Date().toISOString() : null;

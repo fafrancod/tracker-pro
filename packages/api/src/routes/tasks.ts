@@ -12,6 +12,7 @@ import {
   addDaysToDayId,
   getWeekIdFromDayId,
   inclusiveDurationDays,
+  isMultiDayRecurrenceAllowed,
   materializeOccurrenceRanges,
   normalizeRecurrence,
   type RecurrenceFrequency,
@@ -28,9 +29,15 @@ const taskLocation = z.object({
 });
 
 const prioritySchema = z.enum(['low', 'medium', 'high']);
-const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly']);
+const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']);
 const urgencySchema = z.enum(['urgent', 'not_urgent']);
 const importanceSchema = z.enum(['important', 'not_important']);
+const kindSchema = z.enum(['task', 'reminder']);
+const colorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, 'color hex #RRGGBB')
+  .nullable()
+  .optional();
 
 const createSchema = taskLocation.extend({
   title: z.string().min(1).max(280).trim(),
@@ -44,6 +51,8 @@ const createSchema = taskLocation.extend({
   recurrenceInterval: z.number().int().min(1).max(365).optional(),
   urgency: urgencySchema.nullable().optional(),
   importance: importanceSchema.nullable().optional(),
+  kind: kindSchema.optional(),
+  color: colorSchema,
 });
 
 const updateSchema = z
@@ -61,6 +70,8 @@ const updateSchema = z
     recurrenceInterval: z.number().int().min(1).max(365).optional(),
     urgency: urgencySchema.nullable().optional(),
     importance: importanceSchema.nullable().optional(),
+    kind: kindSchema.optional(),
+    color: colorSchema,
   })
   .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' });
 
@@ -93,6 +104,10 @@ function toClientTask(
     recurrence: normalizeRecurrence(frequency, interval),
     urgency: (row.urgency as string | null | undefined) ?? null,
     importance: (row.importance as string | null | undefined) ?? null,
+    kind: ((row.kind as string | undefined) === 'reminder' ? 'reminder' : 'task') as
+      | 'task'
+      | 'reminder',
+    color: (row.color as string | null | undefined) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -115,6 +130,8 @@ tasksRouter.post('/', async (req, res, next) => {
       recurrenceInterval,
       urgency,
       importance,
+      kind,
+      color,
     } = createSchema.parse(req.body);
 
     const endDayId = rawEndDayId ?? dayId;
@@ -124,9 +141,9 @@ tasksRouter.post('/', async (req, res, next) => {
 
     const recurrence = normalizeRecurrence(recurrenceFrequency, recurrenceInterval);
     const isMultiDay = endDayId > dayId;
-    if (isMultiDay && recurrence.frequency !== 'none' && recurrence.frequency !== 'monthly') {
+    if (isMultiDay && !isMultiDayRecurrenceAllowed(recurrence.frequency)) {
       throw ApiError.badRequest(
-        'Las tareas de varios días solo admiten repetición none o monthly'
+        'Las tareas de varios días solo admiten repetición none, monthly o yearly'
       );
     }
 
@@ -196,6 +213,8 @@ tasksRouter.post('/', async (req, res, next) => {
         recurrence_interval: recurrence.interval,
         urgency: urgency ?? null,
         importance: importance ?? null,
+        kind: kind ?? 'task',
+        color: color ?? null,
         created_at: now,
         updated_at: now,
       });
@@ -250,9 +269,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       const frequency =
         (patch.recurrenceFrequency as RecurrenceFrequency | undefined) ??
         ((existing.recurrence_frequency as RecurrenceFrequency | undefined) ?? 'none');
-      if (willBeMulti && frequency !== 'none' && frequency !== 'monthly') {
+      if (willBeMulti && !isMultiDayRecurrenceAllowed(frequency)) {
         throw ApiError.badRequest(
-          'Las tareas de varios días solo admiten repetición none o monthly'
+          'Las tareas de varios días solo admiten repetición none, monthly o yearly'
         );
       }
       // no-op guard for type use of existingEnd
@@ -279,6 +298,8 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     }
     if (patch.urgency !== undefined) update.urgency = patch.urgency;
     if (patch.importance !== undefined) update.importance = patch.importance;
+    if (patch.kind !== undefined) update.kind = patch.kind;
+    if (patch.color !== undefined) update.color = patch.color;
     if (patch.completed === true) update.completed_at = now;
     if (patch.completed === false) update.completed_at = null;
 

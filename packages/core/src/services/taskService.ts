@@ -198,6 +198,8 @@ export async function createTask(
     recurrenceInterval: payload.recurrenceInterval ?? 1,
     urgency: payload.urgency ?? null,
     importance: payload.importance ?? null,
+    kind: payload.kind ?? 'task',
+    color: payload.color ?? null,
     eventId,
   });
 
@@ -259,6 +261,8 @@ function materializeDemoCreate(
       endDayId: range.endDayId,
       urgency: payload.urgency ?? null,
       importance: payload.importance ?? null,
+      kind: payload.kind ?? 'task',
+      color: payload.color ?? null,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -343,6 +347,9 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     urgency: urgencyRaw === 'urgent' || urgencyRaw === 'not_urgent' ? urgencyRaw : null,
     importance:
       importanceRaw === 'important' || importanceRaw === 'not_important' ? importanceRaw : null,
+    kind: (raw.kind as Task['kind'] | undefined) === 'reminder' ? 'reminder' : 'task',
+    color:
+      typeof raw.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(raw.color) ? raw.color : null,
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
