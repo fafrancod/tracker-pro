@@ -70,6 +70,33 @@ function collectFromStore(
   return result;
 }
 
+/**
+ * Una fila por serie de recurrencia (o por id si no hay seriesId).
+ * Preferimos la instancia incompleta más temprana; si todas están hechas, la más temprana.
+ */
+function dedupeRecurringSeries(rows: LocatedTaskRow[]): LocatedTaskRow[] {
+  const byKey = new Map<string, LocatedTaskRow>();
+  for (const row of rows) {
+    const key = row.seriesId ? `series:${row.seriesId}` : `task:${row.id}`;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, row);
+      continue;
+    }
+    // Prefer incomplete over completed
+    if (prev.completed && !row.completed) {
+      byKey.set(key, row);
+      continue;
+    }
+    if (!prev.completed && row.completed) continue;
+    // Same completion state → earliest start day
+    if (row.dayId < prev.dayId) {
+      byKey.set(key, row);
+    }
+  }
+  return [...byKey.values()];
+}
+
 export function EisenhowerPage() {
   const { t } = useT();
   const { projects } = useProjects();
@@ -119,10 +146,11 @@ export function EisenhowerPage() {
   }, [load]);
 
   const allLocated = useMemo(() => {
-    if (isDemoMode() || remoteTasks === null) {
-      return collectFromStore(tasksByDay);
-    }
-    return remoteTasks;
+    const raw =
+      isDemoMode() || remoteTasks === null
+        ? collectFromStore(tasksByDay)
+        : remoteTasks;
+    return dedupeRecurringSeries(raw);
   }, [remoteTasks, tasksByDay]);
 
   const filtered = useMemo(() => {
@@ -163,23 +191,43 @@ export function EisenhowerPage() {
     urgency: Urgency | null,
     importance: Importance | null
   ) {
-    updateTaskById(loc.id, { urgency, importance });
+    // Toda la serie de recurrencia comparte la misma clasificación Eisenhower.
+    const matchesSeries = (t: LocatedTaskRow | Task) =>
+      loc.seriesId
+        ? t.seriesId === loc.seriesId
+        : t.id === loc.id;
+
+    const sourceRows =
+      remoteTasks ?? collectFromStore(useStore.getState().tasksByDay);
+    const targets = sourceRows.filter(matchesSeries);
+    const toUpdate = targets.length > 0 ? targets : [loc];
+
+    for (const t of toUpdate) {
+      updateTaskById(t.id, { urgency, importance });
+    }
     setRemoteTasks(prev =>
       prev
-        ? prev.map(t => (t.id === loc.id ? { ...t, urgency, importance } : t))
+        ? prev.map(t => (matchesSeries(t) ? { ...t, urgency, importance } : t))
         : prev
     );
+
     try {
-      await updateTask(loc.weekId, loc.dayId, loc.id, { urgency, importance });
+      await Promise.all(
+        toUpdate.map(t =>
+          updateTask(t.weekId, t.dayId, t.id, { urgency, importance })
+        )
+      );
     } catch {
-      updateTaskById(loc.id, {
-        urgency: loc.urgency,
-        importance: loc.importance,
-      });
+      for (const t of toUpdate) {
+        updateTaskById(t.id, {
+          urgency: loc.urgency,
+          importance: loc.importance,
+        });
+      }
       setRemoteTasks(prev =>
         prev
           ? prev.map(t =>
-              t.id === loc.id
+              matchesSeries(t)
                 ? { ...t, urgency: loc.urgency, importance: loc.importance }
                 : t
             )
