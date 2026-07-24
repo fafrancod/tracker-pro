@@ -34,6 +34,8 @@ function pushTask(
     seriesId: partial.seriesId ?? null,
     recurrence,
     endDayId: partial.endDayId ?? dayId,
+    urgency: partial.urgency ?? null,
+    importance: partial.importance ?? null,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

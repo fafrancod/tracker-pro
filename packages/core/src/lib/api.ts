@@ -85,6 +85,7 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
           defaultProjectId: null,
           weekStartsOnMonday: true,
           language: 'es',
+          defaultBoardView: 'continuous',
         },
       },
     } as T;

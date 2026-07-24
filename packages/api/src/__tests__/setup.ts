@@ -35,6 +35,7 @@ vi.mock('../supabaseAdmin', () => {
         defaultProjectId: null,
         weekStartsOnMonday: true,
         language: 'es',
+        defaultBoardView: 'continuous',
       },
       created_at: new Date().toISOString(),
     },

@@ -29,6 +29,8 @@ const taskLocation = z.object({
 
 const prioritySchema = z.enum(['low', 'medium', 'high']);
 const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly']);
+const urgencySchema = z.enum(['urgent', 'not_urgent']);
+const importanceSchema = z.enum(['important', 'not_important']);
 
 const createSchema = taskLocation.extend({
   title: z.string().min(1).max(280).trim(),
@@ -40,6 +42,8 @@ const createSchema = taskLocation.extend({
   endDayId: z.string().refine(isValidDayId, 'endDayId formato YYYY-MM-DD').optional(),
   recurrenceFrequency: recurrenceFrequencySchema.optional(),
   recurrenceInterval: z.number().int().min(1).max(365).optional(),
+  urgency: urgencySchema.nullable().optional(),
+  importance: importanceSchema.nullable().optional(),
 });
 
 const updateSchema = z
@@ -55,6 +59,8 @@ const updateSchema = z
     endDayId: z.string().refine(isValidDayId, 'endDayId formato YYYY-MM-DD').optional(),
     recurrenceFrequency: recurrenceFrequencySchema.optional(),
     recurrenceInterval: z.number().int().min(1).max(365).optional(),
+    urgency: urgencySchema.nullable().optional(),
+    importance: importanceSchema.nullable().optional(),
   })
   .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' });
 
@@ -85,6 +91,8 @@ function toClientTask(
     movedFrom: (row.moved_from as string | null) ?? null,
     seriesId: (row.series_id as string | null) ?? null,
     recurrence: normalizeRecurrence(frequency, interval),
+    urgency: (row.urgency as string | null | undefined) ?? null,
+    importance: (row.importance as string | null | undefined) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -105,6 +113,8 @@ tasksRouter.post('/', async (req, res, next) => {
       endDayId: rawEndDayId,
       recurrenceFrequency,
       recurrenceInterval,
+      urgency,
+      importance,
     } = createSchema.parse(req.body);
 
     const endDayId = rawEndDayId ?? dayId;
@@ -184,6 +194,8 @@ tasksRouter.post('/', async (req, res, next) => {
         series_id: recurrence.frequency === 'none' ? null : seriesId,
         recurrence_frequency: recurrence.frequency,
         recurrence_interval: recurrence.interval,
+        urgency: urgency ?? null,
+        importance: importance ?? null,
         created_at: now,
         updated_at: now,
       });
@@ -265,6 +277,8 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.recurrenceInterval !== undefined) {
       update.recurrence_interval = patch.recurrenceInterval;
     }
+    if (patch.urgency !== undefined) update.urgency = patch.urgency;
+    if (patch.importance !== undefined) update.importance = patch.importance;
     if (patch.completed === true) update.completed_at = now;
     if (patch.completed === false) update.completed_at = null;
 

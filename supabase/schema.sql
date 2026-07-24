@@ -11,7 +11,8 @@ create table if not exists public.profiles (
     'autoRollIncomplete', false,
     'defaultProjectId', null,
     'weekStartsOnMonday', true,
-    'language', 'es'
+    'language', 'es',
+    'defaultBoardView', 'continuous'
   ),
   created_at timestamptz not null default now()
 );
@@ -48,6 +49,8 @@ create table if not exists public.tasks (
   recurrence_frequency text not null default 'none'
     check (recurrence_frequency in ('none', 'daily', 'weekly', 'monthly')),
   recurrence_interval int not null default 1 check (recurrence_interval >= 1 and recurrence_interval <= 365),
+  urgency text check (urgency is null or urgency in ('urgent', 'not_urgent')),
+  importance text check (importance is null or importance in ('important', 'not_important')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (end_day_id >= day_id)
@@ -80,6 +83,37 @@ begin
   end if;
 end $$;
 create index if not exists tasks_user_span_idx on public.tasks (user_id, day_id, end_day_id);
+
+-- Migración idempotente: Eisenhower (urgency / importance)
+alter table public.tasks add column if not exists urgency text;
+alter table public.tasks add column if not exists importance text;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_urgency_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_urgency_check
+      check (urgency is null or urgency in ('urgent', 'not_urgent'));
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_importance_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_importance_check
+      check (importance is null or importance in ('important', 'not_important'));
+  end if;
+end $$;
+
+-- Preferencia defaultBoardView en perfiles existentes (merge jsonb)
+update public.profiles
+set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object('defaultBoardView', 'continuous')
+where settings is null
+   or not (settings ? 'defaultBoardView');
 
 create table if not exists public.usage_counters (
   user_id uuid not null references public.profiles (id) on delete cascade,

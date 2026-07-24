@@ -231,6 +231,99 @@ describe('POST /api/tasks — multi-day create', () => {
   });
 });
 
+describe('POST /api/tasks — urgency & importance', () => {
+  it('persiste urgency e importance en insert y toClientTask', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        urgency: 'urgent',
+        importance: 'important',
+      });
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert).toHaveLength(1);
+    expect(lastTaskInsert[0].urgency).toBe('urgent');
+    expect(lastTaskInsert[0].importance).toBe('important');
+    expect(res.body.urgency).toBe('urgent');
+    expect(res.body.importance).toBe('important');
+  });
+
+  it('acepta urgency/importance null', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        urgency: null,
+        importance: null,
+      });
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert[0].urgency).toBeNull();
+    expect(lastTaskInsert[0].importance).toBeNull();
+  });
+});
+
+describe('PATCH /api/tasks — urgency & importance', () => {
+  it('actualiza urgency e importance', async () => {
+    const existing = {
+      id: 'task-eisen',
+      user_id: 'test-uid',
+      week_id: '2026-W11',
+      day_id: '2026-03-10',
+      end_day_id: '2026-03-10',
+      title: 'Classify me',
+      completed: false,
+      urgency: null,
+      importance: null,
+    };
+    let lastUpdate: Record<string, unknown> | null = null;
+
+    vi.mocked(getSupabaseAdmin).mockReturnValue({
+      auth: {
+        getUser: vi.fn(async () => ({
+          data: {
+            user: { id: 'test-uid', email: 'test@example.com', app_metadata: {} },
+          },
+          error: null,
+        })),
+      },
+      from: vi.fn((table: string) => {
+        if (table !== 'tasks') return chainEqMaybeSingle({ data: null, error: null });
+        return {
+          select: vi.fn(() => {
+            const c: Record<string, unknown> = {
+              eq: vi.fn(() => c),
+              maybeSingle: vi.fn(async () => ({ data: existing, error: null })),
+            };
+            return c;
+          }),
+          update: vi.fn((patch: Record<string, unknown>) => {
+            lastUpdate = patch;
+            const c: Record<string, unknown> = {
+              eq: vi.fn(() => c),
+              then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+            };
+            return c;
+          }),
+        };
+      }),
+    } as unknown as ReturnType<typeof getSupabaseAdmin>);
+
+    const res = await request(app)
+      .patch('/api/tasks/2026-W11/2026-03-10/task-eisen')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ urgency: 'not_urgent', importance: 'important' });
+
+    expect(res.status).toBe(200);
+    expect(lastUpdate).toBeTruthy();
+    expect(lastUpdate!.urgency).toBe('not_urgent');
+    expect(lastUpdate!.importance).toBe('important');
+    expect(res.body.urgency).toBe('not_urgent');
+    expect(res.body.importance).toBe('important');
+  });
+});
+
 describe('POST /api/tasks/:weekId/:dayId/:taskId/move — keep duration', () => {
   it('copia end_day_id desplazado manteniendo duración', async () => {
     // Seed fromTask with multi-day span 10–15 (duration offset 5)

@@ -17,6 +17,8 @@ function normalizeTask(raw: Task, startDayId?: string): Task {
     seriesId: raw.seriesId ?? null,
     recurrence: raw.recurrence ?? { frequency: 'none', interval: 1 },
     endDayId: raw.endDayId ?? startDayId ?? '',
+    urgency: raw.urgency ?? null,
+    importance: raw.importance ?? null,
   };
 }
 

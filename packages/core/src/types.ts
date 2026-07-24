@@ -1,6 +1,9 @@
 export type Plan = 'free' | 'pro';
 export type Priority = 'low' | 'medium' | 'high';
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly';
+export type Urgency = 'urgent' | 'not_urgent';
+export type Importance = 'important' | 'not_important';
+export type BoardViewMode = 'week' | 'month' | 'continuous';
 
 export interface Recurrence {
   frequency: RecurrenceFrequency;
@@ -23,6 +26,8 @@ export interface UserSettings {
   defaultProjectId: string | null;
   weekStartsOnMonday: boolean;
   language: Language;
+  /** Vista por defecto del tablero al abrir /board. */
+  defaultBoardView: BoardViewMode;
 }
 
 export interface Project {
@@ -53,6 +58,10 @@ export interface Task {
    * single-day tasks. Location in the store uses the start day bucket.
    */
   endDayId: string;
+  /** Matriz Eisenhower; null = sin categorizar. */
+  urgency: Urgency | null;
+  /** Matriz Eisenhower; null = sin categorizar. */
+  importance: Importance | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +93,8 @@ export interface CreateTaskPayload {
   endDayId?: string;
   recurrenceFrequency?: RecurrenceFrequency;
   recurrenceInterval?: number;
+  urgency?: Urgency | null;
+  importance?: Importance | null;
 }
 
 export interface UpdateTaskPayload {
@@ -99,6 +110,31 @@ export interface UpdateTaskPayload {
   endDayId?: string;
   recurrenceFrequency?: RecurrenceFrequency;
   recurrenceInterval?: number;
+  urgency?: Urgency | null;
+  importance?: Importance | null;
+}
+
+/** Filtros del tablero (week / month / continuous). */
+export interface BoardTaskFilters {
+  projectId?: string | null | 'all';
+  urgency?: Urgency | 'all';
+  importance?: Importance | 'all';
+}
+
+export function taskMatchesFilters(
+  task: Pick<Task, 'projectId' | 'urgency' | 'importance'>,
+  filters: BoardTaskFilters
+): boolean {
+  if (filters.projectId && filters.projectId !== 'all') {
+    if (task.projectId !== filters.projectId) return false;
+  }
+  if (filters.urgency && filters.urgency !== 'all') {
+    if (task.urgency !== filters.urgency) return false;
+  }
+  if (filters.importance && filters.importance !== 'all') {
+    if (task.importance !== filters.importance) return false;
+  }
+  return true;
 }
 
 export interface CreateProjectPayload {

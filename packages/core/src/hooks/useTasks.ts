@@ -93,6 +93,8 @@ export function useTasks(weekId: string, dayId: string) {
         seriesId: recurrence.frequency === 'none' ? null : optimisticId,
         recurrence,
         endDayId,
+        urgency: payload.urgency ?? null,
+        importance: payload.importance ?? null,
         createdAt: now,
         updatedAt: now,
       };
@@ -116,6 +118,8 @@ export function useTasks(weekId: string, dayId: string) {
             seriesId: instance.seriesId,
             recurrence: instance.recurrence,
             endDayId: instance.endDayId,
+            urgency: instance.urgency,
+            importance: instance.importance,
             createdAt: instance.createdAt,
             updatedAt: instance.updatedAt,
           });
@@ -147,6 +151,8 @@ export function useTasks(weekId: string, dayId: string) {
       if (payload.order !== undefined) patch.order = payload.order;
       if (payload.movedFrom !== undefined) patch.movedFrom = payload.movedFrom;
       if (payload.endDayId !== undefined) patch.endDayId = payload.endDayId;
+      if (payload.urgency !== undefined) patch.urgency = payload.urgency;
+      if (payload.importance !== undefined) patch.importance = payload.importance;
       if (payload.completed !== undefined) {
         patch.completed = payload.completed;
         patch.completedAt = payload.completed ? new Date().toISOString() : null;

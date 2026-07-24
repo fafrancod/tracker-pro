@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
   defaultProjectId: null,
   weekStartsOnMonday: true,
   language: 'es' as const,
+  defaultBoardView: 'continuous' as const,
 };
 
 authRouter.post('/bootstrap', async (req, res, next) => {

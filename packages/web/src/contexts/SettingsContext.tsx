@@ -25,6 +25,7 @@ const DEFAULTS: UserSettings = {
   defaultProjectId: null,
   weekStartsOnMonday: true,
   language: detectBrowserLanguage(),
+  defaultBoardView: 'continuous',
 };
 
 function loadLocal(): Partial<UserSettings> | null {

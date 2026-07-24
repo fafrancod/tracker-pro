@@ -60,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('es')
               ? 'es'
               : 'en',
+          defaultBoardView: 'continuous',
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;

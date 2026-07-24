@@ -95,6 +95,38 @@ export async function fetchTasksInRange(
 }
 
 /**
+ * Todas las tareas del usuario (para Eisenhower y listados globales).
+ * Opcionalmente filtra por proyecto en cliente tras el select.
+ */
+export async function fetchAllTasks(
+  uid: string,
+  opts?: { projectId?: string | null }
+): Promise<LocatedTaskRow[]> {
+  if (isDemoMode()) return [];
+
+  let query = getSupabase()
+    .from('tasks')
+    .select('*')
+    .eq('user_id', uid)
+    .order('day_id', { ascending: true })
+    .order('order', { ascending: true });
+
+  if (opts?.projectId) {
+    query = query.eq('project_id', opts.projectId);
+  } else if (opts?.projectId === null) {
+    query = query.is('project_id', null);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).map(row => ({
+    ...mapTask(row.id as string, row),
+    weekId: (row.week_id as string) ?? getWeekIdFromDayId(row.day_id as string),
+    dayId: row.day_id as string,
+  }));
+}
+
+/**
  * Subscribe to tasks covering a day. Callback receives rows located at their **start** day
  * (not necessarily the subscribed dayId), so the store can merge into start buckets.
  */
@@ -164,6 +196,8 @@ export async function createTask(
     tags: payload.tags ?? [],
     recurrenceFrequency: payload.recurrenceFrequency ?? 'none',
     recurrenceInterval: payload.recurrenceInterval ?? 1,
+    urgency: payload.urgency ?? null,
+    importance: payload.importance ?? null,
     eventId,
   });
 
@@ -223,6 +257,8 @@ function materializeDemoCreate(
       seriesId,
       recurrence,
       endDayId: range.endDayId,
+      urgency: payload.urgency ?? null,
+      importance: payload.importance ?? null,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -285,6 +321,11 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     (raw.endDayId as string | undefined) ??
     startDayId;
 
+  const urgencyRaw =
+    (raw.urgency as Task['urgency'] | undefined) ?? null;
+  const importanceRaw =
+    (raw.importance as Task['importance'] | undefined) ?? null;
+
   return {
     id,
     title: (raw.title as string) ?? '',
@@ -299,6 +340,9 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     seriesId: (raw.series_id as string | null) ?? (raw.seriesId as string | null) ?? null,
     recurrence: normalizeRecurrence(frequency, interval),
     endDayId: endDayId || startDayId,
+    urgency: urgencyRaw === 'urgent' || urgencyRaw === 'not_urgent' ? urgencyRaw : null,
+    importance:
+      importanceRaw === 'important' || importanceRaw === 'not_important' ? importanceRaw : null,
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
