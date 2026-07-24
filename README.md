@@ -23,22 +23,24 @@ Variables: ver `packages/web/.env.example` y `packages/api/.env.example`.
 
 ## Despliegue en Railway
 
-**Node 22** obligatorio (`engines`, `.nvmrc`, `nixpacks.toml`). Nixpacks por defecto puede usar Node 18 y romper con `@supabase/*` y con `npm ci` (`EBUSY` en `node_modules/.cache`).
+**Un solo servicio** sirve la API y la SPA (Express monta `packages/web/dist`).
 
-Dos servicios desde el mismo repo:
+**Node 22** obligatorio. Build: `npm run build:prod` (web + api). Start: `npm run start:api`.
 
-| Servicio | Build | Start |
+Variables del servicio:
+
+| Variable | Cuándo | Notas |
 | --- | --- | --- |
-| API | (ver `railway.toml`) `npm ci --include=dev --cache /tmp/npm-cache … && npm run build:api` | `npm run start:api` |
-| Web | mismo patrón con `build:web` | `npx serve packages/web/dist -s -l $PORT` |
+| `NIXPACKS_NODE_VERSION` | siempre | `22` |
+| `NPM_CONFIG_PRODUCTION` | build | `false` |
+| `VITE_SUPABASE_URL` | **build** | Project URL de Supabase |
+| `VITE_SUPABASE_ANON_KEY` | **build** | anon key |
+| `VITE_API_BASE_URL` | build (opcional) | vacío = same-origin (recomendado) |
+| `SUPABASE_URL` | runtime | misma Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | runtime | **solo servidor** |
+| `ALLOWED_ORIGINS` | runtime | `https://tu-app.up.railway.app` |
+| `NODE_ENV` | runtime | `production` |
 
-En el servicio API (Variables):
-- `NIXPACKS_NODE_VERSION=22` (refuerzo por si nixpacks.toml no aplica)
-- `NPM_CONFIG_PRODUCTION=false` (si el panel fuerza production)
-
-En producción:
-- `VITE_API_BASE_URL` → URL pública de la API (**en el build** de la web)
-- `ALLOWED_ORIGINS` → URL pública del frontend
-- `SUPABASE_URL` y keys (anon en web, **service role solo en API**)
+Tras el deploy: abre `https://tu-app.up.railway.app/` → UI. Health: `/api/version`.
 
 Documentación técnica: [`docs/README.md`](docs/README.md).

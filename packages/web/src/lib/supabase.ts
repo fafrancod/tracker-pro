@@ -78,11 +78,22 @@ export function disableDemo(): void {
   }
 }
 
+/** Base URL de la API. En prod monorepo (mismo dominio) usa '' (same-origin). */
+function resolveApiBaseUrl(): string {
+  const raw = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (raw !== undefined && raw !== '') {
+    return raw.replace(/\/$/, '');
+  }
+  // Dev local: API en otro puerto. Prod: SPA y API en el mismo host.
+  if (import.meta.env.DEV) return 'http://localhost:4000';
+  return '';
+}
+
 export function bootstrapSupabase(): void {
   if (isDemoActive()) {
     setDemoMode(true);
     configureApi({
-      baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+      baseUrl: resolveApiBaseUrl() || 'http://localhost:4000',
     });
     return;
   }
@@ -93,7 +104,7 @@ export function bootstrapSupabase(): void {
   }
 
   configureApi({
-    baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+    baseUrl: resolveApiBaseUrl(),
   });
 }
 

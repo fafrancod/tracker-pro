@@ -1,7 +1,4 @@
-# Railway / Nixpacks
-# - NO listar nodejs_22 en nixPkgs (pin de nixpkgs no lo tiene).
-# - NO volver a correr npm ci/install en buildCommand: un segundo install
-#   intenta rmdir node_modules/.cache → EBUSY en Railway.
+# Railway / Nixpacks — un servicio (API + SPA)
 
 [variables]
 NIXPACKS_NODE_VERSION = "22"
@@ -9,8 +6,6 @@ NPM_CONFIG_PRODUCTION = "false"
 NPM_CONFIG_CACHE = "/tmp/npm-cache"
 
 [phases.install]
-# Install una sola vez. npm install tolera mejor capas/cache residuales
-# que npm ci (que fuerza wipe de node_modules).
 cmds = [
   "mkdir -p /tmp/npm-cache",
   "if [ -d node_modules/.cache ]; then rm -rf node_modules/.cache 2>/dev/null || mv node_modules/.cache \"/tmp/nm-cache-$$\" 2>/dev/null || true; fi",
@@ -18,4 +13,5 @@ cmds = [
 ]
 
 [phases.build]
-cmds = ["npm run build:api"]
+# Web primero (dist), luego API (Express sirve packages/web/dist en runtime)
+cmds = ["npm run build:prod"]

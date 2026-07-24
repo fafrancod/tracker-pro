@@ -1,26 +1,19 @@
-# API service — monorepo root.
+# Un solo servicio: API Express + SPA React (packages/web/dist).
 #
-# Importante:
-# - Node 22 vía NIXPACKS_NODE_VERSION / engines / .nvmrc
-# - El install lo hace nixpacks.toml (una sola vez).
-# - buildCommand SOLO compila: un segundo npm ci provoca
-#   EBUSY: rmdir '/app/node_modules/.cache' en Railway.
+# En Railway (mismo servicio):
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY  (build de la web)
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+#   ALLOWED_ORIGINS=https://tracker-pro-production.up.railway.app
+#   NIXPACKS_NODE_VERSION=22
+#   NPM_CONFIG_PRODUCTION=false
 #
-# Si sigue EBUSY: Settings del servicio → Volumes → elimina montajes
-# sobre /app o node_modules, luego Clear build cache + redeploy.
+# Opcional: VITE_API_BASE_URL vacío o la misma URL pública (same-origin).
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm run build:api"
+buildCommand = "npm run build:prod"
 
 [deploy]
 startCommand = "npm run start:api"
 healthcheckPath = "/api/version"
 restartPolicyType = "ON_FAILURE"
-
-# Frontend (segundo servicio, misma raíz):
-#   En nixpacks.toml del repo el build es de API; para web, en el panel
-#   del servicio Web sobrescribe Build Command a:
-#     npm run build:web
-#   y Start:
-#     npx serve packages/web/dist -s -l $PORT
