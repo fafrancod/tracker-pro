@@ -62,6 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               : 'en',
           defaultBoardView: 'continuous',
           skinId: 'dark-github',
+          dayStartHour: 7,
+          dayEndHour: 22,
+          defaultScheduleLayout: 'list',
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;

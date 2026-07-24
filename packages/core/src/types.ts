@@ -4,7 +4,9 @@ export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yea
 export type TaskKind = 'task' | 'reminder';
 export type Urgency = 'urgent' | 'not_urgent';
 export type Importance = 'important' | 'not_important';
-export type BoardViewMode = 'week' | 'month' | 'continuous';
+export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
+/** Lista de actividades vs grilla horaria (semana / día). */
+export type ScheduleLayout = 'list' | 'schedule';
 
 export interface Recurrence {
   frequency: RecurrenceFrequency;
@@ -34,6 +36,12 @@ export interface UserSettings {
    * Ej. dark-github, light-paper. Default: dark-github.
    */
   skinId: string;
+  /** Hora de inicio de la grilla horaria (0–23). Default 7. */
+  dayStartHour: number;
+  /** Hora de fin de la grilla (1–24, exclusiva del último slot visual). Default 22. */
+  dayEndHour: number;
+  /** Layout por defecto en vista semana/día: lista o horario. */
+  defaultScheduleLayout: ScheduleLayout;
 }
 
 export interface Project {
@@ -72,6 +80,12 @@ export interface Task {
   kind: TaskKind;
   /** Color propio (hex). null = usar color del proyecto o default. */
   color: string | null;
+  /**
+   * Hora de inicio local HH:mm (24h). null = sin horario (solo en lista / "todo el día").
+   */
+  startTime: string | null;
+  /** Hora de fin local HH:mm. Si falta y hay start, la UI asume +1h. */
+  endTime: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +121,8 @@ export interface CreateTaskPayload {
   importance?: Importance | null;
   kind?: TaskKind;
   color?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -128,6 +144,8 @@ export interface UpdateTaskPayload {
   importance?: Importance | null;
   kind?: TaskKind;
   color?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (título, color, …) a toda la serie.
@@ -148,6 +166,8 @@ export type SeriesSharedTaskFields = Pick<
   | 'importance'
   | 'kind'
   | 'color'
+  | 'startTime'
+  | 'endTime'
 >;
 
 /** Filtros del tablero (week / month / continuous). */

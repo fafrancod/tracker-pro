@@ -63,6 +63,8 @@ export const taskHistory = {
       importance: payload.importance ?? null,
       kind: payload.kind ?? 'task',
       color: payload.color ?? null,
+      startTime: payload.startTime ?? null,
+      endTime: payload.endTime ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -91,6 +93,8 @@ export const taskHistory = {
           importance: instance.importance,
           kind: instance.kind,
           color: instance.color,
+          startTime: instance.startTime,
+          endTime: instance.endTime,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });
@@ -286,6 +290,8 @@ export const taskHistory = {
         importance: task.importance,
         kind: task.kind,
         color: task.color,
+        startTime: task.startTime,
+        endTime: task.endTime,
       },
     };
 

@@ -28,6 +28,9 @@ const DEFAULTS: UserSettings = {
   language: detectBrowserLanguage(),
   defaultBoardView: 'continuous',
   skinId: DEFAULT_SKIN_ID,
+  dayStartHour: 7,
+  dayEndHour: 22,
+  defaultScheduleLayout: 'list',
 };
 
 function loadLocal(): Partial<UserSettings> | null {

@@ -99,6 +99,8 @@ export function AddTaskForm({
   const [urgency, setUrgency] = useState<Urgency | null>(null);
   const [importance, setImportance] = useState<Importance | null>(null);
   const [color, setColor] = useState<string | null>(null);
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -132,6 +134,8 @@ export function AddTaskForm({
     setUrgency(null);
     setImportance(null);
     setColor(null);
+    setStartTime('');
+    setEndTime('');
     if (startDayId) setEndDayId(startDayId);
   }
 
@@ -160,6 +164,8 @@ export function AddTaskForm({
         urgency,
         importance,
         color,
+        startTime: startTime || null,
+        endTime: endTime || null,
       });
       resetForm();
       inputRef.current?.focus();
@@ -436,6 +442,43 @@ export function AddTaskForm({
           </label>
         </div>
       )}
+
+      {/* Schedule times */}
+      <div className={cn('flex flex-wrap items-end gap-2', isModal && 'gap-3')}>
+        <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+          <span>{t('task_start_time')}</span>
+          <input
+            type="time"
+            value={startTime}
+            onChange={e => setStartTime(e.target.value)}
+            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            aria-label={t('task_start_time')}
+          />
+        </label>
+        <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+          <span>{t('task_end_time')}</span>
+          <input
+            type="time"
+            value={endTime}
+            min={startTime || undefined}
+            onChange={e => setEndTime(e.target.value)}
+            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            aria-label={t('task_end_time')}
+          />
+        </label>
+        {(startTime || endTime) && (
+          <button
+            type="button"
+            className="mb-0.5 text-[10px] text-text-muted hover:text-text-primary"
+            onClick={() => {
+              setStartTime('');
+              setEndTime('');
+            }}
+          >
+            {t('task_clear_time')}
+          </button>
+        )}
+      </div>
 
       {/* Recurrence */}
       <div

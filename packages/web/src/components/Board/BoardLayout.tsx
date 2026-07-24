@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, List, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   DndContext,
@@ -12,14 +12,17 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { useWeek } from '@core/hooks/useWeek';
+import { useStore } from '@core/store';
 import { taskHistory } from '@core/history/taskHistory';
 import { Button } from '@/components/ui/button';
 import { DayColumn } from './DayColumn';
 import { TaskCard } from './TaskCard';
+import { ScheduleGrid } from './ScheduleGrid';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { useProjects } from '@core/hooks/useProjects';
-import type { BoardTaskFilters, Task } from '@core/types';
+import type { BoardTaskFilters, ScheduleLayout, Task } from '@core/types';
+import { cn } from '@/lib/utils';
 
 interface DragData {
   task: Task;
@@ -29,14 +32,25 @@ interface DragData {
 
 interface BoardLayoutProps {
   filter?: BoardTaskFilters;
+  dayStartHour?: number;
+  dayEndHour?: number;
+  layout?: ScheduleLayout;
+  onLayoutChange?: (layout: ScheduleLayout) => void;
 }
 
-export function BoardLayout({ filter }: BoardLayoutProps) {
+export function BoardLayout({
+  filter,
+  dayStartHour = 7,
+  dayEndHour = 22,
+  layout = 'list',
+  onLayoutChange,
+}: BoardLayoutProps) {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { currentWeekId, weekStart, days, isCurrentWeek, goNextWeek, goPrevWeek, goToday, todayDayId } =
     useWeek({ locale, weekdayFormat, shortDateFormat });
   const { projects } = useProjects();
   const { showToast } = useToast();
+  const setDetailTask = useStore(s => s.setDetailTask);
 
   const [activeDrag, setActiveDrag] = useState<DragData | null>(null);
 
@@ -98,44 +112,91 @@ export function BoardLayout({ filter }: BoardLayoutProps) {
             {t('action_today')}
           </Button>
         )}
+
+        {onLayoutChange && (
+          <div className="ml-auto inline-flex rounded-md border border-border bg-surface p-0.5">
+            <button
+              type="button"
+              onClick={() => onLayoutChange('list')}
+              className={cn(
+                'flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium',
+                layout === 'list'
+                  ? 'bg-accent-teal/15 text-accent-teal'
+                  : 'text-text-muted hover:text-text-primary'
+              )}
+            >
+              <List className="h-3.5 w-3.5" />
+              {t('layout_list')}
+            </button>
+            <button
+              type="button"
+              onClick={() => onLayoutChange('schedule')}
+              className={cn(
+                'flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium',
+                layout === 'schedule'
+                  ? 'bg-accent-teal/15 text-accent-teal'
+                  : 'text-text-muted hover:text-text-primary'
+              )}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              {t('layout_schedule')}
+            </button>
+          </div>
+        )}
       </header>
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="grid min-h-0 flex-1 grid-cols-7 gap-1 p-1.5 md:gap-1.5 md:p-2">
-          {days.map(day => (
-            <DayColumn
-              key={day.dayId}
-              weekId={currentWeekId}
-              dayId={day.dayId}
-              label={day.label}
-              dateLabel={day.dateLabel}
-              isToday={day.dayId === todayDayId}
-              filter={filter}
-            />
-          ))}
-        </div>
-
-        <DragOverlay>
-          {activeDrag ? (
-            <div className="w-[160px] cursor-grabbing">
-              <TaskCard
-                task={activeDrag.task}
-                projects={projects}
-                weekDays={days}
-                nextWeekId={currentWeekId}
-                dense
-                onToggle={() => undefined}
-                onEdit={() => undefined}
-                onMove={() => undefined}
-                onMoveNextWeek={() => undefined}
-                onDuplicate={() => undefined}
-                onDelete={() => undefined}
-                isDragging
+      {layout === 'schedule' ? (
+        <ScheduleGrid
+          days={days.map(day => ({
+            weekId: currentWeekId,
+            dayId: day.dayId,
+            label: day.label,
+            dateLabel: day.dateLabel,
+            isToday: day.dayId === todayDayId,
+          }))}
+          dayStartHour={dayStartHour}
+          dayEndHour={dayEndHour}
+          filter={filter}
+          onOpenTask={loc => setDetailTask(loc)}
+        />
+      ) : (
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <div className="grid min-h-0 flex-1 grid-cols-7 gap-1 p-1.5 md:gap-1.5 md:p-2">
+            {days.map(day => (
+              <DayColumn
+                key={day.dayId}
+                weekId={currentWeekId}
+                dayId={day.dayId}
+                label={day.label}
+                dateLabel={day.dateLabel}
+                isToday={day.dayId === todayDayId}
+                filter={filter}
               />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeDrag ? (
+              <div className="w-[160px] cursor-grabbing">
+                <TaskCard
+                  task={activeDrag.task}
+                  projects={projects}
+                  weekDays={days}
+                  nextWeekId={currentWeekId}
+                  dense
+                  onToggle={() => undefined}
+                  onEdit={() => undefined}
+                  onMove={() => undefined}
+                  onMoveNextWeek={() => undefined}
+                  onDuplicate={() => undefined}
+                  onDelete={() => undefined}
+                  isDragging
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
     </div>
   );
 }

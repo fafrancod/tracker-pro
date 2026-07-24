@@ -26,6 +26,8 @@ function taskToUpdatePayload(task: Task): UpdateTaskPayload {
     importance: task.importance,
     kind: task.kind,
     color: task.color,
+    startTime: task.startTime,
+    endTime: task.endTime,
   };
 }
 
@@ -40,6 +42,8 @@ function seriesSharedPatch(task: Task): UpdateTaskPayload {
     importance: task.importance,
     kind: task.kind,
     color: task.color,
+    startTime: task.startTime,
+    endTime: task.endTime,
   };
 }
 
@@ -57,6 +61,8 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
   if (payload.importance !== undefined) patch.importance = payload.importance;
   if (payload.kind !== undefined) patch.kind = payload.kind;
   if (payload.color !== undefined) patch.color = payload.color;
+  if (payload.startTime !== undefined) patch.startTime = payload.startTime;
+  if (payload.endTime !== undefined) patch.endTime = payload.endTime;
   if (payload.completed !== undefined) {
     patch.completed = payload.completed;
     patch.completedAt = payload.completed ? new Date().toISOString() : null;
@@ -154,6 +160,8 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           importance: instance.importance,
           kind: instance.kind,
           color: instance.color,
+          startTime: instance.startTime,
+          endTime: instance.endTime,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

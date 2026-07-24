@@ -36,9 +36,15 @@ export interface TranslationDict {
   board_week_view: string;
   board_month_view: string;
   board_continuous_view: string;
+  board_day_view: string;
   board_next_week: string;
   board_prev_week: string;
+  board_prev_day: string;
+  board_next_day: string;
   board_add_task: string;
+  layout_list: string;
+  layout_schedule: string;
+  schedule_all_day: string;
   board_filter_project: string;
   board_filter_urgency: string;
   board_filter_importance: string;
@@ -82,6 +88,10 @@ export interface TranslationDict {
   task_start_date: string;
   task_end_date: string;
   task_date_range: string;
+  task_schedule: string;
+  task_start_time: string;
+  task_end_time: string;
+  task_clear_time: string;
   task_continues: string;
   task_span_recurrence_hint: string;
   task_create_title: string;
@@ -139,6 +149,11 @@ export interface TranslationDict {
   settings_skin_desc: string;
   settings_skin_dark: string;
   settings_skin_light: string;
+  settings_day_start_hour: string;
+  settings_day_end_hour: string;
+  settings_schedule_hours_desc: string;
+  settings_default_schedule_layout: string;
+  settings_default_schedule_layout_desc: string;
 
   // Urgencia / importancia
   urgency_urgent: string;
@@ -208,9 +223,15 @@ const es_dict: TranslationDict = {
   board_week_view: 'Semana',
   board_month_view: 'Mes',
   board_continuous_view: 'Continuo',
+  board_day_view: 'Día',
   board_next_week: 'Semana siguiente',
   board_prev_week: 'Semana anterior',
+  board_prev_day: 'Día anterior',
+  board_next_day: 'Día siguiente',
   board_add_task: 'Añadir tarea',
+  layout_list: 'Lista',
+  layout_schedule: 'Horario',
+  schedule_all_day: 'Sin hora',
   board_filter_project: 'Proyecto',
   board_filter_urgency: 'Urgencia',
   board_filter_importance: 'Importancia',
@@ -252,6 +273,10 @@ const es_dict: TranslationDict = {
   task_start_date: 'Inicio',
   task_end_date: 'Fin',
   task_date_range: 'Rango de fechas',
+  task_schedule: 'Horario',
+  task_start_time: 'Hora inicio',
+  task_end_time: 'Hora fin',
+  task_clear_time: 'Quitar hora',
   task_continues: 'Continúa',
   task_span_recurrence_hint:
     'En rangos de varios días solo puedes repetir cada mes, cada año o no repetir.',
@@ -309,6 +334,13 @@ const es_dict: TranslationDict = {
   settings_skin_desc: 'Elige un skin claro u oscuro. Se aplica de inmediato en toda la app.',
   settings_skin_dark: 'Oscuros',
   settings_skin_light: 'Claros',
+  settings_day_start_hour: 'Inicio de la grilla horaria',
+  settings_day_end_hour: 'Fin de la grilla horaria',
+  settings_schedule_hours_desc:
+    'Define desde qué hora se muestra el calendario semanal y diario en modo Horario (por defecto 7:00–22:00).',
+  settings_default_schedule_layout: 'Layout lista / horario',
+  settings_default_schedule_layout_desc:
+    'Cómo se abren las vistas Día y Semana: lista de actividades o grilla por horas.',
 
   urgency_urgent: 'Urgente',
   urgency_not_urgent: 'No urgente',
@@ -373,9 +405,15 @@ const en_dict: TranslationDict = {
   board_week_view: 'Week',
   board_month_view: 'Month',
   board_continuous_view: 'Continuous',
+  board_day_view: 'Day',
   board_next_week: 'Next week',
   board_prev_week: 'Previous week',
+  board_prev_day: 'Previous day',
+  board_next_day: 'Next day',
   board_add_task: 'Add task',
+  layout_list: 'List',
+  layout_schedule: 'Schedule',
+  schedule_all_day: 'No time',
   board_filter_project: 'Project',
   board_filter_urgency: 'Urgency',
   board_filter_importance: 'Importance',
@@ -417,6 +455,10 @@ const en_dict: TranslationDict = {
   task_start_date: 'Start',
   task_end_date: 'End',
   task_date_range: 'Date range',
+  task_schedule: 'Schedule',
+  task_start_time: 'Start time',
+  task_end_time: 'End time',
+  task_clear_time: 'Clear time',
   task_continues: 'Continues',
   task_span_recurrence_hint:
     'Multi-day ranges only support monthly, yearly, or no recurrence.',
@@ -474,6 +516,13 @@ const en_dict: TranslationDict = {
   settings_skin_desc: 'Pick a light or dark skin. Applies immediately across the app.',
   settings_skin_dark: 'Dark',
   settings_skin_light: 'Light',
+  settings_day_start_hour: 'Schedule grid start',
+  settings_day_end_hour: 'Schedule grid end',
+  settings_schedule_hours_desc:
+    'Choose the hour range for week and day schedule views (default 7:00–22:00).',
+  settings_default_schedule_layout: 'List / schedule layout',
+  settings_default_schedule_layout_desc:
+    'How Day and Week views open: activity list or hourly grid.',
 
   urgency_urgent: 'Urgent',
   urgency_not_urgent: 'Not urgent',

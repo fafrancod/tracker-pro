@@ -7,3 +7,5 @@ export { MonthView } from './MonthView';
 export { ContinuousMonthsView } from './ContinuousMonthsView';
 export { TaskDetailSheet } from './TaskDetailSheet';
 export { TaskContextMenu } from './TaskContextMenu';
+export { ScheduleGrid } from './ScheduleGrid';
+export { DayView } from './DayView';

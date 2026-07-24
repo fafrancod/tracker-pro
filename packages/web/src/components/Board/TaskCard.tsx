@@ -194,6 +194,11 @@ export function TaskCard({
 
           {/* Meta row */}
           <div className={cn('flex flex-wrap items-center', dense ? 'mt-0.5 gap-0.5' : 'mt-1.5 gap-1.5')}>
+            {task.startTime && (
+              <span className="inline-flex items-center rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
+                {task.endTime ? `${task.startTime}–${task.endTime}` : task.startTime}
+              </span>
+            )}
             {startDayId && task.endDayId && task.endDayId > startDayId && (
               <span className="inline-flex items-center gap-0.5 rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
                 {format(parseISO(`${startDayId}T00:00:00`), 'd MMM')}

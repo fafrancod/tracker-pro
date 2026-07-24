@@ -200,6 +200,8 @@ export async function createTask(
     importance: payload.importance ?? null,
     kind: payload.kind ?? 'task',
     color: payload.color ?? null,
+    startTime: payload.startTime ?? null,
+    endTime: payload.endTime ?? null,
     eventId,
   });
 
@@ -263,6 +265,8 @@ function materializeDemoCreate(
       importance: payload.importance ?? null,
       kind: payload.kind ?? 'task',
       color: payload.color ?? null,
+      startTime: payload.startTime ?? null,
+      endTime: payload.endTime ?? null,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -350,7 +354,14 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     kind: (raw.kind as Task['kind'] | undefined) === 'reminder' ? 'reminder' : 'task',
     color:
       typeof raw.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(raw.color) ? raw.color : null,
+    startTime: normalizeTimeField(raw.start_time ?? raw.startTime),
+    endTime: normalizeTimeField(raw.end_time ?? raw.endTime),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
+}
+
+function normalizeTimeField(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
 }

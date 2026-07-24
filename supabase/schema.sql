@@ -53,6 +53,9 @@ create table if not exists public.tasks (
   importance text check (importance is null or importance in ('important', 'not_important')),
   kind text not null default 'task' check (kind in ('task', 'reminder')),
   color text check (color is null or color ~ '^#[0-9A-Fa-f]{6}$'),
+  -- Optional time-of-day schedule (local HH:mm, 24h). Null = sin horario.
+  start_time text check (start_time is null or start_time ~ '^[0-2][0-9]:[0-5][0-9]$'),
+  end_time text check (end_time is null or end_time ~ '^[0-2][0-9]:[0-5][0-9]$'),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (end_day_id >= day_id)
@@ -164,6 +167,31 @@ begin
     alter table public.tasks
       add constraint tasks_color_check
       check (color is null or color ~ '^#[0-9A-Fa-f]{6}$');
+  end if;
+end $$;
+
+-- Horarios opcionales (HH:mm)
+alter table public.tasks add column if not exists start_time text;
+alter table public.tasks add column if not exists end_time text;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_start_time_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_start_time_check
+      check (start_time is null or start_time ~ '^[0-2][0-9]:[0-5][0-9]$');
+  end if;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_end_time_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_end_time_check
+      check (end_time is null or end_time ~ '^[0-2][0-9]:[0-5][0-9]$');
   end if;
 end $$;
 

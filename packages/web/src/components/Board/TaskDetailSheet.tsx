@@ -68,6 +68,8 @@ interface DraftState {
   color: string | null;
   projectId: string | null;
   endDayId: string;
+  startTime: string;
+  endTime: string;
 }
 
 function taskToDraft(task: Task, fallbackDayId: string): DraftState {
@@ -82,6 +84,8 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     color: task.color,
     projectId: task.projectId,
     endDayId: task.endDayId || fallbackDayId,
+    startTime: task.startTime ?? '',
+    endTime: task.endTime ?? '',
   };
 }
 
@@ -97,6 +101,8 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.color !== base.color ||
     draft.projectId !== base.projectId ||
     draft.endDayId !== base.endDayId ||
+    draft.startTime !== base.startTime ||
+    draft.endTime !== base.endTime ||
     draft.tags.join('\0') !== base.tags.join('\0')
   );
 }
@@ -209,6 +215,8 @@ function TaskDetailInner({
         color: draft.color,
         projectId: draft.projectId,
         endDayId: draft.endDayId,
+        startTime: draft.startTime || null,
+        endTime: draft.endTime || null,
         applyTo: isSeries ? applyTo : 'instance',
       });
       showToast(
@@ -372,6 +380,39 @@ function TaskDetailInner({
                 className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
               />
             </label>
+          </div>
+        </Field>
+
+        <Field label={t('task_schedule')}>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('task_start_time')}</span>
+              <input
+                type="time"
+                value={draft.startTime}
+                onChange={e => patchDraft({ startTime: e.target.value })}
+                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('task_end_time')}</span>
+              <input
+                type="time"
+                value={draft.endTime}
+                min={draft.startTime || undefined}
+                onChange={e => patchDraft({ endTime: e.target.value })}
+                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </label>
+            {(draft.startTime || draft.endTime) && (
+              <button
+                type="button"
+                className="text-[10px] text-text-muted hover:text-text-primary"
+                onClick={() => patchDraft({ startTime: '', endTime: '' })}
+              >
+                {t('task_clear_time')}
+              </button>
+            )}
           </div>
         </Field>
 

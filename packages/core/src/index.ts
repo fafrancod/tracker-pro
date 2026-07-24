@@ -17,6 +17,7 @@ export * from './lib/api';
 export * from './lib/demoMode';
 export * from './lib/recurrence';
 export * from './lib/taskPresence';
+export * from './lib/schedule';
 export * from './history/historyStore';
 export * from './history/taskHistory';
 export * from './history/types';

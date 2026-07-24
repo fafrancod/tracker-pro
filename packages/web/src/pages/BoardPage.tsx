@@ -5,6 +5,7 @@ import {
   GalleryVertical,
   Redo2,
   Undo2,
+  Sun,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -13,6 +14,7 @@ import {
   MonthView,
   ContinuousMonthsView,
   TaskDetailSheet,
+  DayView,
 } from '@/components/Board';
 import {
   MobileSheet,
@@ -31,6 +33,7 @@ import type {
   BoardTaskFilters,
   BoardViewMode,
   Importance,
+  ScheduleLayout,
   Urgency,
 } from '@core/types';
 import { useToast } from '@/contexts/ToastContext';
@@ -51,6 +54,9 @@ export function BoardPage() {
   const { settings } = useSettings();
   const [view, setView] = useState<BoardViewMode>(
     () => settings.defaultBoardView ?? 'continuous'
+  );
+  const [scheduleLayout, setScheduleLayout] = useState<ScheduleLayout>(
+    () => settings.defaultScheduleLayout ?? 'list'
   );
   const [filters, setFilters] = useState<BoardTaskFilters>({
     projectId: 'all',
@@ -126,9 +132,22 @@ export function BoardPage() {
         <div className="inline-flex rounded-md border border-border bg-surface p-0.5">
           <button
             type="button"
+            onClick={() => setView('day')}
+            className={cn(
+              'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
+              view === 'day'
+                ? 'bg-accent-teal/15 text-accent-teal'
+                : 'text-text-muted hover:text-text-primary'
+            )}
+          >
+            <Sun className="h-3.5 w-3.5" />
+            {t('board_day_view')}
+          </button>
+          <button
+            type="button"
             onClick={() => setView('week')}
             className={cn(
-              'flex items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors',
+              'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
               view === 'week'
                 ? 'bg-accent-teal/15 text-accent-teal'
                 : 'text-text-muted hover:text-text-primary'
@@ -141,7 +160,7 @@ export function BoardPage() {
             type="button"
             onClick={() => setView('month')}
             className={cn(
-              'flex items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors',
+              'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
               view === 'month'
                 ? 'bg-accent-teal/15 text-accent-teal'
                 : 'text-text-muted hover:text-text-primary'
@@ -154,7 +173,7 @@ export function BoardPage() {
             type="button"
             onClick={() => setView('continuous')}
             className={cn(
-              'flex items-center gap-1.5 rounded px-3 py-1 text-xs font-medium transition-colors',
+              'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
               view === 'continuous'
                 ? 'bg-accent-teal/15 text-accent-teal'
                 : 'text-text-muted hover:text-text-primary'
@@ -250,7 +269,24 @@ export function BoardPage() {
         </div>
       </div>
 
-      {view === 'week' && <BoardLayout filter={filters} />}
+      {view === 'day' && (
+        <DayView
+          filter={filters}
+          dayStartHour={settings.dayStartHour ?? 7}
+          dayEndHour={settings.dayEndHour ?? 22}
+          layout={scheduleLayout}
+          onLayoutChange={setScheduleLayout}
+        />
+      )}
+      {view === 'week' && (
+        <BoardLayout
+          filter={filters}
+          dayStartHour={settings.dayStartHour ?? 7}
+          dayEndHour={settings.dayEndHour ?? 22}
+          layout={scheduleLayout}
+          onLayoutChange={setScheduleLayout}
+        />
+      )}
       {view === 'month' && <MonthView onPickDay={handlePickDay} filter={filters} />}
       {view === 'continuous' && (
         <ContinuousMonthsView onPickDay={handlePickDay} filter={filters} />

@@ -38,6 +38,8 @@ function pushTask(
     importance: partial.importance ?? null,
     kind: partial.kind ?? 'task',
     color: partial.color ?? null,
+    startTime: partial.startTime ?? null,
+    endTime: partial.endTime ?? null,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -84,16 +86,16 @@ export function getDemoSeed(): DemoSeed {
   for (let i = 0; i < 7; i++) tasksByDay[currentWeekId][getDayId(day(i))] = [];
 
   const sampleTasks: Array<[number, Partial<Task> & { title: string }]> = [
-    [0, { title: 'Plan semanal', projectId: 'demo-proj-lanzamiento', priority: 'high', completed: true }],
-    [0, { title: 'Revisar pricing', projectId: 'demo-proj-lanzamiento', priority: 'medium', completed: true }],
-    [1, { title: 'Capítulo 4 — ownership', projectId: 'demo-proj-rust', priority: 'medium' }],
+    [0, { title: 'Plan semanal', projectId: 'demo-proj-lanzamiento', priority: 'high', completed: true, startTime: '09:00', endTime: '09:45' }],
+    [0, { title: 'Revisar pricing', projectId: 'demo-proj-lanzamiento', priority: 'medium', completed: true, startTime: '11:00', endTime: '12:00' }],
+    [1, { title: 'Capítulo 4 — ownership', projectId: 'demo-proj-rust', priority: 'medium', startTime: '08:30', endTime: '10:00' }],
     [1, { title: 'Llamar al dentista', projectId: 'demo-proj-vida', priority: 'low', completed: true }],
-    [2, { title: 'Sprint review', projectId: 'demo-proj-lanzamiento', priority: 'medium' }],
-    [2, { title: 'Exercise rust #12', projectId: 'demo-proj-rust', priority: 'low' }],
-    [3, { title: 'Mandar invoice', projectId: 'demo-proj-vida', priority: 'high' }],
-    [4, { title: 'Demo a Cliente X', projectId: 'demo-proj-lanzamiento', priority: 'high' }],
-    [5, { title: 'Caminar 30 min', projectId: 'demo-proj-vida', priority: 'low', completed: true }],
-    [6, { title: 'Retro semanal', projectId: 'demo-proj-lanzamiento', priority: 'medium' }],
+    [2, { title: 'Sprint review', projectId: 'demo-proj-lanzamiento', priority: 'medium', startTime: '15:00', endTime: '16:00' }],
+    [2, { title: 'Exercise rust #12', projectId: 'demo-proj-rust', priority: 'low', startTime: '18:00', endTime: '19:00' }],
+    [3, { title: 'Mandar invoice', projectId: 'demo-proj-vida', priority: 'high', startTime: '10:00', endTime: '10:30' }],
+    [4, { title: 'Demo a Cliente X', projectId: 'demo-proj-lanzamiento', priority: 'high', startTime: '12:00', endTime: '13:30' }],
+    [5, { title: 'Caminar 30 min', projectId: 'demo-proj-vida', priority: 'low', completed: true, startTime: '07:30', endTime: '08:00' }],
+    [6, { title: 'Retro semanal', projectId: 'demo-proj-lanzamiento', priority: 'medium', startTime: '17:00', endTime: '18:00' }],
   ];
 
   for (const [offset, partial] of sampleTasks) {

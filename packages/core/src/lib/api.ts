@@ -86,6 +86,10 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
           weekStartsOnMonday: true,
           language: 'es',
           defaultBoardView: 'continuous',
+          skinId: 'dark-github',
+          dayStartHour: 7,
+          dayEndHour: 22,
+          defaultScheduleLayout: 'list',
         },
       },
     } as T;
@@ -109,6 +113,13 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
       movedFrom: null,
       seriesId: frequency === 'none' ? null : randomId(),
       recurrence: { frequency, interval },
+      startTime: json?.startTime ?? null,
+      endTime: json?.endTime ?? null,
+      endDayId: json?.endDayId ?? json?.dayId,
+      kind: json?.kind ?? 'task',
+      color: json?.color ?? null,
+      urgency: json?.urgency ?? null,
+      importance: json?.importance ?? null,
     } as T;
   }
 

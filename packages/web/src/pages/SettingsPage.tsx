@@ -14,7 +14,7 @@ import { appVersion } from '@/lib/appVersion';
 
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
-import type { BoardViewMode, Language } from '@core/types';
+import type { BoardViewMode, Language, ScheduleLayout } from '@core/types';
 import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import { skinsByMode, type SkinDefinition } from '@/lib/skins';
@@ -237,10 +237,85 @@ export function SettingsPage() {
                 onChange={e => handleDefaultBoardView(e.target.value as BoardViewMode)}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
               >
+                <option value="day">{t('board_day_view')}</option>
                 <option value="week">{t('board_week_view')}</option>
                 <option value="month">{t('board_month_view')}</option>
                 <option value="continuous">{t('board_continuous_view')}</option>
               </select>
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-medium text-text-muted">
+                {t('settings_default_schedule_layout')}
+              </label>
+              <p className="mb-1.5 text-[11px] text-text-muted">
+                {t('settings_default_schedule_layout_desc')}
+              </p>
+              <select
+                value={settings.defaultScheduleLayout ?? 'list'}
+                onChange={e =>
+                  void updateSettings({
+                    defaultScheduleLayout: e.target.value as ScheduleLayout,
+                  })
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="list">{t('layout_list')}</option>
+                <option value="schedule">{t('layout_schedule')}</option>
+              </select>
+            </div>
+
+            <div className="mt-4">
+              <p className="mb-1.5 text-xs font-medium text-text-muted">
+                {t('settings_day_start_hour')} / {t('settings_day_end_hour')}
+              </p>
+              <p className="mb-2 text-[11px] text-text-muted">
+                {t('settings_schedule_hours_desc')}
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs text-text-muted">
+                  <span>{t('settings_day_start_hour')}</span>
+                  <select
+                    value={settings.dayStartHour ?? 7}
+                    onChange={e => {
+                      const dayStartHour = Number(e.target.value);
+                      const dayEndHour = Math.max(
+                        dayStartHour + 1,
+                        settings.dayEndHour ?? 22
+                      );
+                      void updateSettings({ dayStartHour, dayEndHour });
+                    }}
+                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-text-primary"
+                  >
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <option key={h} value={h}>
+                        {String(h).padStart(2, '0')}:00
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-text-muted">
+                  <span>{t('settings_day_end_hour')}</span>
+                  <select
+                    value={settings.dayEndHour ?? 22}
+                    onChange={e => {
+                      const dayEndHour = Number(e.target.value);
+                      const dayStartHour = Math.min(
+                        (settings.dayStartHour ?? 7),
+                        dayEndHour - 1
+                      );
+                      void updateSettings({ dayStartHour, dayEndHour });
+                    }}
+                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-text-primary"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => i + 1).map(h => (
+                      <option key={h} value={h}>
+                        {String(h).padStart(2, '0')}:00
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
           </section>
 

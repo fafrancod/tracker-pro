@@ -21,6 +21,10 @@ const DEFAULT_SETTINGS = {
   weekStartsOnMonday: true,
   language: 'es' as const,
   defaultBoardView: 'continuous' as const,
+  skinId: 'dark-github',
+  dayStartHour: 7,
+  dayEndHour: 22,
+  defaultScheduleLayout: 'list' as const,
 };
 
 authRouter.post('/bootstrap', async (req, res, next) => {

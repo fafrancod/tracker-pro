@@ -39,6 +39,22 @@ const colorSchema = z
   .nullable()
   .optional();
 
+/** Local time HH:mm (24h). */
+const timeSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'hora formato HH:mm')
+  .nullable()
+  .optional();
+
+function assertTimeRange(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined
+) {
+  if (startTime && endTime && endTime < startTime) {
+    throw ApiError.badRequest('endTime debe ser >= startTime');
+  }
+}
+
 const createSchema = taskLocation.extend({
   title: z.string().min(1).max(280).trim(),
   projectId: z.string().nullable().optional(),
@@ -53,6 +69,8 @@ const createSchema = taskLocation.extend({
   importance: importanceSchema.nullable().optional(),
   kind: kindSchema.optional(),
   color: colorSchema,
+  startTime: timeSchema,
+  endTime: timeSchema,
 });
 
 const updateSchema = z
@@ -72,6 +90,8 @@ const updateSchema = z
     importance: importanceSchema.nullable().optional(),
     kind: kindSchema.optional(),
     color: colorSchema,
+    startTime: timeSchema,
+    endTime: timeSchema,
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -113,6 +133,8 @@ function toClientTask(
       | 'task'
       | 'reminder',
     color: (row.color as string | null | undefined) ?? null,
+    startTime: (row.start_time as string | null | undefined) ?? null,
+    endTime: (row.end_time as string | null | undefined) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -137,7 +159,11 @@ tasksRouter.post('/', async (req, res, next) => {
       importance,
       kind,
       color,
+      startTime,
+      endTime,
     } = createSchema.parse(req.body);
+
+    assertTimeRange(startTime, endTime);
 
     const endDayId = rawEndDayId ?? dayId;
     if (endDayId < dayId) {
@@ -220,6 +246,8 @@ tasksRouter.post('/', async (req, res, next) => {
         importance: importance ?? null,
         kind: kind ?? 'task',
         color: color ?? null,
+        start_time: startTime ?? null,
+        end_time: endTime ?? null,
         created_at: now,
         updated_at: now,
       });
@@ -286,6 +314,16 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     const applyTo = patch.applyTo ?? 'instance';
     const seriesId = (existing.series_id as string | null | undefined) ?? null;
 
+    const nextStart =
+      patch.startTime !== undefined
+        ? patch.startTime
+        : ((existing.start_time as string | null | undefined) ?? null);
+    const nextEnd =
+      patch.endTime !== undefined
+        ? patch.endTime
+        : ((existing.end_time as string | null | undefined) ?? null);
+    assertTimeRange(nextStart, nextEnd);
+
     // Metadata compartida de la serie (no fechas ni completed).
     const seriesUpdate: Record<string, unknown> = { updated_at: now };
     if (patch.title !== undefined) seriesUpdate.title = patch.title;
@@ -297,6 +335,8 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.importance !== undefined) seriesUpdate.importance = patch.importance;
     if (patch.kind !== undefined) seriesUpdate.kind = patch.kind;
     if (patch.color !== undefined) seriesUpdate.color = patch.color;
+    if (patch.startTime !== undefined) seriesUpdate.start_time = patch.startTime;
+    if (patch.endTime !== undefined) seriesUpdate.end_time = patch.endTime;
 
     // Campos solo de instancia (nunca se propagan a la serie).
     const instanceUpdate: Record<string, unknown> = { updated_at: now };
@@ -365,6 +405,8 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       if (patch.importance !== undefined) update.importance = patch.importance;
       if (patch.kind !== undefined) update.kind = patch.kind;
       if (patch.color !== undefined) update.color = patch.color;
+      if (patch.startTime !== undefined) update.start_time = patch.startTime;
+      if (patch.endTime !== undefined) update.end_time = patch.endTime;
 
       const { error } = await getSupabaseAdmin()
         .from('tasks')

@@ -342,6 +342,38 @@ describe('PATCH /api/tasks — urgency & importance', () => {
   });
 });
 
+describe('POST /api/tasks — startTime / endTime', () => {
+  it('persiste horarios en insert', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        startTime: '09:30',
+        endTime: '10:45',
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert[0].start_time).toBe('09:30');
+    expect(lastTaskInsert[0].end_time).toBe('10:45');
+    expect(res.body.startTime).toBe('09:30');
+    expect(res.body.endTime).toBe('10:45');
+  });
+
+  it('rechaza endTime < startTime', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        startTime: '14:00',
+        endTime: '13:00',
+      });
+
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('PATCH /api/tasks — applyTo series', () => {
   const existingWithSeries = {
     id: 'task-series-1',
