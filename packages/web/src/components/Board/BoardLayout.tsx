@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
@@ -54,9 +55,12 @@ export function BoardLayout({
 
   const [activeDrag, setActiveDrag] = useState<DragData | null>(null);
 
-  // Distancia mínima evita drags accidentales por click corto.
+  // Touch: delay+tolerance so scroll/tap still work; mouse: small distance.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 8 },
+    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 

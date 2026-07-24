@@ -43,4 +43,17 @@ Variables del servicio:
 
 Tras el deploy: abre `https://tu-app.up.railway.app/` → UI. Health: `/api/version`.
 
+## Instalar en Android (PWA)
+
+1. Despliega con **HTTPS** (Railway u otro host).
+2. En el teléfono, abre la URL con **Chrome**.
+3. Si aparece el banner **Instalar Daily Tracker**, pulsa **Instalar**.  
+   Si no: menú ⋮ → **Instalar app** / **Añadir a la pantalla de inicio**.
+4. El icono abre el board en modo pantalla completa (`standalone`).
+
+Iconos PNG (192/512 + maskable): regenerar con  
+`node packages/web/scripts/generate-pwa-icons.mjs` (requiere `sharp` en web).
+
+Roadmap completo (offline, Capacitor, Play Store): [`roadmap_android.md`](roadmap_android.md).
+
 Documentación técnica: [`docs/README.md`](docs/README.md).

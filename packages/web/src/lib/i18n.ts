@@ -31,6 +31,9 @@ export interface TranslationDict {
   action_sign_in: string;
   action_undo: string;
   action_redo: string;
+  pwa_install_title: string;
+  pwa_install_desc: string;
+  pwa_install_action: string;
 
   // Layout / Board
   board_week_view: string;
@@ -219,6 +222,9 @@ const es_dict: TranslationDict = {
   action_sign_in: 'Iniciar sesión',
   action_undo: 'Deshacer',
   action_redo: 'Rehacer',
+  pwa_install_title: 'Instalar Daily Tracker',
+  pwa_install_desc: 'Ábrela como app desde tu pantalla de inicio.',
+  pwa_install_action: 'Instalar',
 
   board_week_view: 'Semana',
   board_month_view: 'Mes',
@@ -401,6 +407,9 @@ const en_dict: TranslationDict = {
   action_sign_in: 'Sign in',
   action_undo: 'Undo',
   action_redo: 'Redo',
+  pwa_install_title: 'Install Daily Tracker',
+  pwa_install_desc: 'Open it like an app from your home screen.',
+  pwa_install_action: 'Install',
 
   board_week_view: 'Week',
   board_month_view: 'Month',

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { GripVertical, MoreHorizontal, Pencil, Check, ChevronDown, ChevronUp, Maximize2, Repeat } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -72,8 +72,53 @@ export function TaskCard({
   const [ctxMenu, setCtxMenu] = useState<TaskContextMenuState | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressOrigin = useRef<{ x: number; y: number } | null>(null);
 
   const project = projects.find(p => p.id === task.projectId);
+
+  const openMenuAt = useCallback(
+    (x: number, y: number) => {
+      setCtxMenu({
+        x,
+        y,
+        task,
+        weekId: locationWeekId ?? '',
+        dayId: locationDayId ?? startDayId ?? '',
+      });
+    },
+    [task, locationWeekId, locationDayId, startDayId]
+  );
+
+  function clearLongPress() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    longPressOrigin.current = null;
+  }
+
+  function onTouchStartMenu(e: React.TouchEvent) {
+    const touch = e.touches[0];
+    if (!touch) return;
+    longPressOrigin.current = { x: touch.clientX, y: touch.clientY };
+    longPressTimer.current = setTimeout(() => {
+      const origin = longPressOrigin.current;
+      if (!origin) return;
+      // Haptic-ish: prevent synthetic click after long-press
+      openMenuAt(origin.x, origin.y);
+      longPressTimer.current = null;
+    }, 480);
+  }
+
+  function onTouchMoveMenu(e: React.TouchEvent) {
+    const origin = longPressOrigin.current;
+    const touch = e.touches[0];
+    if (!origin || !touch) return;
+    const dx = Math.abs(touch.clientX - origin.x);
+    const dy = Math.abs(touch.clientY - origin.y);
+    if (dx > 10 || dy > 10) clearLongPress();
+  }
 
   useEffect(() => {
     if (editingTitle) titleInputRef.current?.focus();
@@ -105,17 +150,15 @@ export function TaskCard({
       onContextMenu={e => {
         e.preventDefault();
         e.stopPropagation();
-        setCtxMenu({
-          x: e.clientX,
-          y: e.clientY,
-          task,
-          weekId: locationWeekId ?? '',
-          dayId: locationDayId ?? startDayId ?? '',
-        });
+        openMenuAt(e.clientX, e.clientY);
       }}
+      onTouchStart={onTouchStartMenu}
+      onTouchMove={onTouchMoveMenu}
+      onTouchEnd={clearLongPress}
+      onTouchCancel={clearLongPress}
       className={cn(
-        'group relative rounded-md border border-border bg-surface transition-shadow',
-        dense ? 'p-1' : 'p-2.5',
+        'group relative rounded-md border border-border bg-surface transition-shadow touch-manipulation',
+        dense ? 'p-1.5' : 'p-2.5',
         isDragging && 'shadow-lg ring-1 ring-accent-teal/50',
         task.completed && 'opacity-60'
       )}
@@ -130,30 +173,36 @@ export function TaskCard({
       <div className={cn('flex items-start', dense ? 'gap-1' : 'gap-2')}>
         {/* Drag handle — absolute in dense mode to reclaim horizontal space */}
         <button
+          type="button"
           {...dragHandleProps}
           className={cn(
-            'cursor-grab touch-none text-text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing',
+            'cursor-grab touch-none text-text-muted transition-opacity active:cursor-grabbing',
+            // Always visible enough on touch; stronger on hover/desktop
+            'opacity-40 group-hover:opacity-100',
             dense
-              ? 'absolute left-0 top-0.5 z-10 -ml-0.5 rounded bg-surface/90 p-0'
-              : 'mt-0.5'
+              ? 'absolute left-0 top-0.5 z-10 flex h-8 w-6 items-center justify-center rounded bg-surface/90'
+              : 'mt-0.5 flex h-8 w-6 items-center justify-center'
           )}
           tabIndex={-1}
+          aria-label="Arrastrar"
         >
-          <GripVertical className={dense ? 'h-3 w-3' : 'h-4 w-4'} />
+          <GripVertical className="h-4 w-4" />
         </button>
 
-        {/* Checkbox */}
+        {/* Checkbox — min touch target ~44px hit area via padding */}
         <button
+          type="button"
           onClick={onToggle}
           className={cn(
-            'shrink-0 items-center justify-center rounded-full border transition-colors',
-            dense ? 'mt-0.5 flex h-3.5 w-3.5' : 'mt-0.5 flex h-4 w-4',
+            'flex shrink-0 items-center justify-center rounded-full border transition-colors',
+            dense ? 'mt-0.5 h-5 w-5' : 'mt-0.5 h-5 w-5',
             task.completed
               ? 'border-accent-green bg-accent-green/20 text-accent-green'
               : 'border-border hover:border-accent-green'
           )}
+          aria-label={task.completed ? 'Desmarcar' : 'Completar'}
         >
-          {task.completed && <Check className={dense ? 'h-2 w-2' : 'h-2.5 w-2.5'} />}
+          {task.completed && <Check className="h-3 w-3" />}
         </button>
 
         {/* Content */}
@@ -305,35 +354,54 @@ export function TaskCard({
           )}
         </div>
 
-        {/* Actions */}
+        {/* Actions — visible on touch devices (hover alone is useless) */}
         <div
           className={cn(
-            'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100',
+            'flex shrink-0 items-center gap-0.5 opacity-90 transition-opacity group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100',
             dense && 'absolute right-0.5 top-0.5'
           )}
         >
           {onOpenDetail && (
             <button
+              type="button"
               onClick={onOpenDetail}
-              className="rounded p-0.5 text-text-muted hover:bg-border hover:text-text-primary"
+              className="flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-border hover:text-text-primary"
               title="Abrir detalle"
               aria-label="Abrir detalle"
             >
-              <Maximize2 className="h-3 w-3" />
+              <Maximize2 className="h-3.5 w-3.5" />
             </button>
           )}
           <button
+            type="button"
             onClick={() => setEditingTitle(true)}
-            className="rounded p-0.5 text-text-muted hover:bg-border hover:text-text-primary"
+            className="hidden h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-border hover:text-text-primary sm:flex"
             title="Editar inline"
             aria-label="Editar inline"
           >
-            <Pencil className="h-3 w-3" />
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              openMenuAt(rect.left, rect.bottom + 4);
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-border hover:text-text-primary sm:hidden"
+            aria-label="Más opciones"
+            title="Más opciones"
+          >
+            <MoreHorizontal className="h-4 w-4" />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="rounded p-0.5 text-text-muted hover:bg-border hover:text-text-primary">
-                <MoreHorizontal className="h-3.5 w-3.5" />
+              <button
+                type="button"
+                className="hidden h-8 w-8 items-center justify-center rounded text-text-muted hover:bg-border hover:text-text-primary sm:flex"
+                aria-label="Más opciones"
+              >
+                <MoreHorizontal className="h-4 w-4" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">

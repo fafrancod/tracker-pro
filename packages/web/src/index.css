@@ -46,9 +46,17 @@
     @apply border-border;
   }
 
+  html {
+    /* Avoid pull-to-refresh fighting the board scroll on Android Chrome */
+    overscroll-behavior-y: none;
+  }
+
   body {
     @apply bg-background text-text-primary;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    /* Touch: remove 300ms tap delay legacy, improve scrolling */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   ::-webkit-scrollbar {

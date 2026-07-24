@@ -41,7 +41,7 @@ export function CycleSelect({
   return (
     <div
       className={cn(
-        'inline-flex h-7 items-stretch overflow-hidden rounded-md border border-border bg-surface',
+        'inline-flex h-9 min-h-9 items-stretch overflow-hidden rounded-md border border-border bg-surface sm:h-8',
         className
       )}
       role="group"
@@ -50,11 +50,10 @@ export function CycleSelect({
       <button
         type="button"
         onClick={() => step(-1)}
-        className="flex w-6 shrink-0 items-center justify-center text-text-muted transition-colors hover:bg-background hover:text-text-primary"
+        className="flex w-9 shrink-0 items-center justify-center text-text-muted transition-colors hover:bg-background hover:text-text-primary sm:w-7"
         aria-label="Anterior"
-        tabIndex={-1}
       >
-        <ChevronLeft className="h-3.5 w-3.5" />
+        <ChevronLeft className="h-4 w-4" />
       </button>
       <select
         value={value}
@@ -74,11 +73,10 @@ export function CycleSelect({
       <button
         type="button"
         onClick={() => step(1)}
-        className="flex w-6 shrink-0 items-center justify-center text-text-muted transition-colors hover:bg-background hover:text-text-primary"
+        className="flex w-9 shrink-0 items-center justify-center text-text-muted transition-colors hover:bg-background hover:text-text-primary sm:w-7"
         aria-label="Siguiente"
-        tabIndex={-1}
       >
-        <ChevronRight className="h-3.5 w-3.5" />
+        <ChevronRight className="h-4 w-4" />
       </button>
     </div>
   );

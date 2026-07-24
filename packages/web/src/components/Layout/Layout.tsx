@@ -34,7 +34,7 @@ export function Layout({ children, title, primaryAction, onFabClick, showFab = t
   const fabHandler = onFabClick ?? primaryAction?.onClick;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-background overscroll-none">
       {/* Sidebar desktop */}
       <div className="hidden md:flex">
         <Sidebar variant="desktop" />
@@ -45,11 +45,12 @@ export function Layout({ children, title, primaryAction, onFabClick, showFab = t
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Header */}
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-3 md:px-5">
+        {/* Header — top safe area for notches / status bar in standalone */}
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-3 pt-[env(safe-area-inset-top,0px)] md:px-5">
           <button
+            type="button"
             onClick={() => setDrawerOpen(true)}
-            className="rounded-md p-1.5 text-text-muted hover:bg-background hover:text-text-primary md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted hover:bg-background hover:text-text-primary md:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />

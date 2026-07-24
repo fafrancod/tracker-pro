@@ -16,7 +16,9 @@ export function FAB({ onClick, label = 'Nueva tarea', className }: FABProps) {
       aria-label={label}
       title={label}
       className={cn(
-        'fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent-teal text-background shadow-lg shadow-accent-teal/25 transition-transform hover:scale-105 active:scale-95',
+        'fixed z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent-teal text-background shadow-lg shadow-accent-teal/25 transition-transform hover:scale-105 active:scale-95',
+        // Safe area: gesture bar / home indicator on Android & iOS
+        'bottom-[max(1.25rem,env(safe-area-inset-bottom,0px))] right-[max(1.25rem,env(safe-area-inset-right,0px))]',
         className
       )}
     >

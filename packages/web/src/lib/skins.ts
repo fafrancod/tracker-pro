@@ -597,6 +597,10 @@ export function applySkin(skinId: string | null | undefined): void {
   root.dataset.theme = skin.mode;
   root.classList.toggle('dark', skin.mode === 'dark');
   root.classList.toggle('light', skin.mode === 'light');
+
+  // Android / browser status bar color
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t.background);
 }
 
 export function skinsByMode(mode: SkinMode): SkinDefinition[] {

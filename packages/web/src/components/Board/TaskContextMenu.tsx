@@ -34,7 +34,7 @@ export function TaskContextMenu({
   useEffect(() => {
     if (!menu) return;
 
-    function handlePointer(e: MouseEvent) {
+    function handlePointer(e: PointerEvent | MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         onClose();
       }
@@ -46,11 +46,11 @@ export function TaskContextMenu({
       onClose();
     }
 
-    document.addEventListener('mousedown', handlePointer);
+    document.addEventListener('pointerdown', handlePointer);
     document.addEventListener('keydown', handleKey);
     window.addEventListener('scroll', handleScroll, true);
     return () => {
-      document.removeEventListener('mousedown', handlePointer);
+      document.removeEventListener('pointerdown', handlePointer);
       document.removeEventListener('keydown', handleKey);
       window.removeEventListener('scroll', handleScroll, true);
     };
@@ -89,36 +89,36 @@ export function TaskContextMenu({
       <button
         type="button"
         role="menuitem"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-text-primary hover:bg-background"
+        className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-primary hover:bg-background active:bg-background"
         onClick={() => {
           onToggleComplete(menu);
           onClose();
         }}
       >
         {completed ? (
-          <Circle className="h-3.5 w-3.5 text-text-muted" />
+          <Circle className="h-4 w-4 text-text-muted" />
         ) : (
-          <Check className="h-3.5 w-3.5 text-accent-green" />
+          <Check className="h-4 w-4 text-accent-green" />
         )}
         {completed ? t('task_ctx_mark_pending') : t('task_ctx_mark_complete')}
       </button>
       <button
         type="button"
         role="menuitem"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-text-primary hover:bg-background"
+        className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-text-primary hover:bg-background active:bg-background"
         onClick={() => {
           onEdit(menu);
           onClose();
         }}
       >
-        <Pencil className="h-3.5 w-3.5 text-text-muted" />
+        <Pencil className="h-4 w-4 text-text-muted" />
         {t('task_ctx_edit')}
       </button>
       {onDelete && (
         <button
           type="button"
           role="menuitem"
-          className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-accent-red hover:bg-background"
+          className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-accent-red hover:bg-background active:bg-background"
           onClick={() => {
             onDelete(menu);
             onClose();
