@@ -59,6 +59,21 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /**
+   * Native <select> / <option> must follow skin tokens.
+   * Without this, dark skins often get OS white dropdown + light text (unreadable).
+   */
+  select {
+    color: var(--color-text-primary);
+    background-color: var(--color-surface);
+  }
+
+  select option,
+  select optgroup {
+    color: var(--color-text-primary);
+    background-color: var(--color-surface);
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

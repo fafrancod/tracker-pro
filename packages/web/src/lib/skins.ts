@@ -597,6 +597,11 @@ export function applySkin(skinId: string | null | undefined): void {
   root.dataset.theme = skin.mode;
   root.classList.toggle('dark', skin.mode === 'dark');
   root.classList.toggle('light', skin.mode === 'light');
+  /**
+   * color-scheme hace que los <select> nativos (Windows/Chrome) usen
+   * dropdown oscuro o claro según el skin — evita texto blanco sobre fondo blanco.
+   */
+  root.style.colorScheme = skin.mode === 'dark' ? 'dark' : 'light';
 
   // Android / browser status bar color
   const meta = document.querySelector('meta[name="theme-color"]');

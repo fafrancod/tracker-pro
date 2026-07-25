@@ -60,12 +60,18 @@ export function CycleSelect({
         onChange={e => onChange(e.target.value)}
         aria-label={ariaLabel}
         className={cn(
-          'h-full min-w-0 max-w-[130px] flex-1 cursor-pointer appearance-none border-0 border-x border-border bg-transparent px-1.5 text-center text-xs text-text-primary focus:outline-none focus:ring-0',
+          // Fondo sólido (no transparent): el dropdown nativo hereda color legible
+          // junto con color-scheme del skin (applySkin) + option styles en index.css
+          'h-full min-w-0 max-w-[130px] flex-1 cursor-pointer appearance-none border-0 border-x border-border bg-surface px-1.5 text-center text-xs text-text-primary focus:outline-none focus:ring-0',
           selectClassName
         )}
       >
         {options.map(o => (
-          <option key={o.value} value={o.value}>
+          <option
+            key={o.value}
+            value={o.value}
+            className="bg-surface text-text-primary"
+          >
             {o.label}
           </option>
         ))}
