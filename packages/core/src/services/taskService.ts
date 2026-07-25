@@ -8,6 +8,7 @@ import {
   getWeekIdFromDayId,
 } from '../lib/recurrence';
 import type { Task, CreateTaskPayload, UpdateTaskPayload, Recurrence } from '../types';
+import { isRxKind, materializeRxOccurrences, buildRxMetaForOccurrence, parseRxMeta } from '../lib/rx';
 import { getISOWeek, format } from 'date-fns';
 
 export type TasksUnsubscribe = () => void;
@@ -202,6 +203,8 @@ export async function createTask(
     color: payload.color ?? null,
     startTime: payload.startTime ?? null,
     endTime: payload.endTime ?? null,
+    rxPhases: payload.rxPhases,
+    rxSubject: payload.rxSubject ?? null,
     eventId,
   });
 
@@ -232,6 +235,51 @@ function materializeDemoCreate(
   payload: CreateTaskPayload,
   firstId: string
 ): CreateTaskResult {
+  const now = new Date().toISOString();
+  const kind = payload.kind ?? 'task';
+
+  if (isRxKind(kind) && payload.rxPhases?.length) {
+    const occs = materializeRxOccurrences(dayId, payload.rxPhases);
+    const instances = occs.map((occ, index) => {
+      const id = index === 0 ? firstId : `${firstId}-${index}`;
+      const rx = buildRxMetaForOccurrence(
+        dayId,
+        payload.rxPhases!,
+        occ,
+        payload.rxSubject ?? null
+      );
+      const task: Task & { weekId: string; dayId: string } = {
+        id,
+        title: payload.title,
+        completed: false,
+        completedAt: null,
+        projectId: payload.projectId ?? null,
+        priority: payload.priority ?? 'high',
+        notes: payload.notes ?? '',
+        order: 0,
+        tags: payload.tags ?? [],
+        movedFrom: null,
+        seriesId: firstId,
+        recurrence: { frequency: 'none', interval: 1 },
+        endDayId: occ.dayId,
+        urgency: payload.urgency ?? null,
+        importance: payload.importance ?? null,
+        kind,
+        color:
+          payload.color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
+        startTime: occ.startTime,
+        endTime: null,
+        rx,
+        createdAt: now,
+        updatedAt: now,
+        weekId: occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId),
+        dayId: occ.dayId,
+      };
+      return task;
+    });
+    return { task: instances[0], instances };
+  }
+
   const recurrence = normalizeRecurrence(
     payload.recurrenceFrequency,
     payload.recurrenceInterval
@@ -244,7 +292,6 @@ function materializeDemoCreate(
     recurrence.interval
   );
   const seriesId = recurrence.frequency === 'none' ? null : firstId;
-  const now = new Date().toISOString();
   const instances = ranges.map((range, index) => {
     const id = index === 0 ? firstId : `${firstId}-${index}`;
     const task: Task & { weekId: string; dayId: string } = {
@@ -263,10 +310,11 @@ function materializeDemoCreate(
       endDayId: range.endDayId,
       urgency: payload.urgency ?? null,
       importance: payload.importance ?? null,
-      kind: payload.kind ?? 'task',
+      kind,
       color: payload.color ?? null,
       startTime: payload.startTime ?? null,
       endTime: payload.endTime ?? null,
+      rx: null,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -351,14 +399,22 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     urgency: urgencyRaw === 'urgent' || urgencyRaw === 'not_urgent' ? urgencyRaw : null,
     importance:
       importanceRaw === 'important' || importanceRaw === 'not_important' ? importanceRaw : null,
-    kind: (raw.kind as Task['kind'] | undefined) === 'reminder' ? 'reminder' : 'task',
+    kind: normalizeTaskKind(raw.kind),
     color:
       typeof raw.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(raw.color) ? raw.color : null,
     startTime: normalizeTimeField(raw.start_time ?? raw.startTime),
     endTime: normalizeTimeField(raw.end_time ?? raw.endTime),
+    rx: parseRxMeta(raw.rx_meta ?? raw.rx),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
+}
+
+function normalizeTaskKind(raw: unknown): Task['kind'] {
+  if (raw === 'reminder') return 'reminder';
+  if (raw === 'rx_human') return 'rx_human';
+  if (raw === 'rx_pet') return 'rx_pet';
+  return 'task';
 }
 
 function normalizeTimeField(value: unknown): string | null {

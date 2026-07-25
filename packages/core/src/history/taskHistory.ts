@@ -87,6 +87,7 @@ export const taskHistory = {
       color: payload.color ?? null,
       startTime: payload.startTime ?? null,
       endTime: payload.endTime ?? null,
+      rx: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -145,6 +146,7 @@ export const taskHistory = {
           color: instance.color,
           startTime: instance.startTime,
           endTime: instance.endTime,
+          rx: instance.rx,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

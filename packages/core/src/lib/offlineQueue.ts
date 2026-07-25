@@ -286,6 +286,7 @@ async function applyOne(mut: OfflineMutation, idMap: Map<string, string>): Promi
           color: instance.color,
           startTime: instance.startTime,
           endTime: instance.endTime,
+          rx: instance.rx,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

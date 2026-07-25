@@ -60,8 +60,9 @@ These features are **shipped product** on `main` and must exist on **both** remo
 - Multi-day: `end_day_id` single row; complete-once for the whole span.
 - Multi-day recurrence: **`none` | `monthly` | `yearly`** only.
 - Eisenhower: `urgency`, `importance` (nullable).
-- Kind: `task` | `reminder`; optional `color` hex.
+- Kind: `task` | `reminder` | **`rx_human` | `rx_pet`**; optional `color` hex.
 - **Time schedule**: optional `startTime` / `endTime` (`HH:mm` / DB `start_time`/`end_time`).
+- **Recetario**: phased doses (`rxPhases`: amount, pills|ml, days, times[]); materializes one task per day×time with `rx` / `rx_meta`. Board filter **category**: all | projects | rx.
 - Series: shared `seriesId`; edit scope **instance | series** (`applyTo`) for shared metadata (incl. title, color, times, Eisenhower).
 - Interactions: long-press / ⋮ / right-click context menu; double-click → detail sheet; draft+save in detail when dirty.
 

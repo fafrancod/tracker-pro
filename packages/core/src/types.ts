@@ -1,12 +1,44 @@
 export type Plan = 'free' | 'pro';
 export type Priority = 'low' | 'medium' | 'high';
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-export type TaskKind = 'task' | 'reminder';
+/** task/reminder = proyectos y pendientes; rx_* = recetario. */
+export type TaskKind = 'task' | 'reminder' | 'rx_human' | 'rx_pet';
 export type Urgency = 'urgent' | 'not_urgent';
 export type Importance = 'important' | 'not_important';
 export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
 /** Lista de actividades vs grilla horaria (semana / día). */
 export type ScheduleLayout = 'list' | 'schedule';
+/** Unidad de dosis por sesión. */
+export type DoseUnit = 'pills' | 'ml';
+/** Filtro de categoría en el tablero: todo / solo proyectos / solo recetarios. */
+export type BoardCategoryFilter = 'all' | 'projects' | 'rx';
+
+/**
+ * Una fase del plan de medicación.
+ * Ejemplo: 1 pastilla 2×/día durante 7 días, luego 0.5 pastilla 1×/día 7 días.
+ */
+export interface RxPhase {
+  /** Cantidad por sesión (toma). */
+  amount: number;
+  unit: DoseUnit;
+  /** Días consecutivos de esta fase (≥ 1). */
+  days: number;
+  /** Horarios locales HH:mm de cada sesión del día. */
+  times: string[];
+}
+
+/** Metadatos de recetario en cada toma materializada. */
+export interface RxMeta {
+  /** Nombre del paciente / mascota (opcional en humano). */
+  subject: string | null;
+  /** Dosis de ESTA toma. */
+  amount: number;
+  unit: DoseUnit;
+  phaseIndex: number;
+  planStartDayId: string;
+  /** Plan completo (snapshot) para mostrar contexto. */
+  phases: RxPhase[];
+}
 
 export interface Recurrence {
   frequency: RecurrenceFrequency;
@@ -76,7 +108,7 @@ export interface Task {
   urgency: Urgency | null;
   /** Matriz Eisenhower; null = sin categorizar. */
   importance: Importance | null;
-  /** Tarea o recordatorio. */
+  /** Tarea, recordatorio o toma de recetario (humano / mascota). */
   kind: TaskKind;
   /** Color propio (hex). null = usar color del proyecto o default. */
   color: string | null;
@@ -86,6 +118,11 @@ export interface Task {
   startTime: string | null;
   /** Hora de fin local HH:mm. Si falta y hay start, la UI asume +1h. */
   endTime: string | null;
+  /**
+   * Presente en tomas de recetario (kind rx_human | rx_pet).
+   * null en tareas normales.
+   */
+  rx: RxMeta | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -123,6 +160,13 @@ export interface CreateTaskPayload {
   color?: string | null;
   startTime?: string | null;
   endTime?: string | null;
+  /**
+   * Solo al crear kind rx_human | rx_pet: plan por fases.
+   * El API materializa una tarea por (día × horario).
+   */
+  rxPhases?: RxPhase[];
+  /** Paciente / nombre de mascota (recetario). */
+  rxSubject?: string | null;
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -170,17 +214,31 @@ export type SeriesSharedTaskFields = Pick<
   | 'endTime'
 >;
 
-/** Filtros del tablero (week / month / continuous). */
+/** Filtros del tablero (week / month / continuous / day). */
 export interface BoardTaskFilters {
   projectId?: string | null | 'all';
   urgency?: Urgency | 'all';
   importance?: Importance | 'all';
+  /**
+   * all = todo;
+   * projects = tareas/recordatorios (no recetario);
+   * rx = solo recetarios (humano + mascota).
+   */
+  category?: BoardCategoryFilter;
 }
 
 export function taskMatchesFilters(
-  task: Pick<Task, 'projectId' | 'urgency' | 'importance'>,
+  task: Pick<Task, 'projectId' | 'urgency' | 'importance' | 'kind'>,
   filters: BoardTaskFilters
 ): boolean {
+  if (filters.category && filters.category !== 'all') {
+    const kind = task.kind ?? 'task';
+    if (filters.category === 'projects') {
+      if (kind === 'rx_human' || kind === 'rx_pet') return false;
+    } else if (filters.category === 'rx') {
+      if (kind !== 'rx_human' && kind !== 'rx_pet') return false;
+    }
+  }
   if (filters.projectId && filters.projectId !== 'all') {
     if (task.projectId !== filters.projectId) return false;
   }

@@ -56,6 +56,10 @@ export interface TranslationDict {
   board_filter_urgency: string;
   board_filter_importance: string;
   board_filter_all: string;
+  board_filter_category: string;
+  board_filter_category_all: string;
+  board_filter_category_projects: string;
+  board_filter_category_rx: string;
 
   // Context menu tareas
   task_ctx_mark_complete: string;
@@ -69,6 +73,24 @@ export interface TranslationDict {
   task_reminder_placeholder: string;
   task_kind_task: string;
   task_kind_reminder: string;
+  task_kind_rx_human: string;
+  task_kind_rx_pet: string;
+  rx_medicine_name: string;
+  rx_medicine_placeholder: string;
+  rx_patient_name: string;
+  rx_patient_placeholder: string;
+  rx_pet_name: string;
+  rx_pet_placeholder: string;
+  rx_phases_hint: string;
+  rx_phase: string;
+  rx_amount: string;
+  rx_unit: string;
+  rx_unit_pills: string;
+  rx_unit_ml: string;
+  rx_days: string;
+  rx_times: string;
+  rx_add_time: string;
+  rx_add_phase: string;
   task_color: string;
   task_color_auto: string;
   task_priority_low: string;
@@ -250,6 +272,10 @@ const es_dict: TranslationDict = {
   board_filter_urgency: 'Urgencia',
   board_filter_importance: 'Importancia',
   board_filter_all: 'Todos',
+  board_filter_category: 'Categoría',
+  board_filter_category_all: 'Todo',
+  board_filter_category_projects: 'Proyectos',
+  board_filter_category_rx: 'Recetario',
 
   task_ctx_mark_complete: 'Marcar como completada',
   task_ctx_mark_pending: 'Marcar como pendiente',
@@ -261,6 +287,25 @@ const es_dict: TranslationDict = {
   task_reminder_placeholder: '¿De qué quieres que te acuerdes?',
   task_kind_task: 'Tarea',
   task_kind_reminder: 'Recordatorio',
+  task_kind_rx_human: 'Rx humano',
+  task_kind_rx_pet: 'Rx mascota',
+  rx_medicine_name: 'Medicamento',
+  rx_medicine_placeholder: 'Ej. Amoxicilina',
+  rx_patient_name: 'Paciente (opcional)',
+  rx_patient_placeholder: 'Nombre o nota',
+  rx_pet_name: 'Mascota',
+  rx_pet_placeholder: 'Ej. Luna',
+  rx_phases_hint:
+    'Cada fase define dosis, horarios y días. Puedes añadir otra fase con dosis distinta (ej. 7 días a 1 pastilla y 7 a media).',
+  rx_phase: 'Fase',
+  rx_amount: 'Cantidad / sesión',
+  rx_unit: 'Unidad',
+  rx_unit_pills: 'Pastillas',
+  rx_unit_ml: 'ml',
+  rx_days: 'Días',
+  rx_times: 'Horarios',
+  rx_add_time: 'horario',
+  rx_add_phase: 'Añadir fase (otra dosis)',
   task_color: 'Color',
   task_color_auto: 'Automático',
   task_priority_low: 'Baja',
@@ -439,6 +484,10 @@ const en_dict: TranslationDict = {
   board_filter_urgency: 'Urgency',
   board_filter_importance: 'Importance',
   board_filter_all: 'All',
+  board_filter_category: 'Category',
+  board_filter_category_all: 'All',
+  board_filter_category_projects: 'Projects',
+  board_filter_category_rx: 'Prescriptions',
 
   task_ctx_mark_complete: 'Mark as completed',
   task_ctx_mark_pending: 'Mark as pending',
@@ -450,6 +499,25 @@ const en_dict: TranslationDict = {
   task_reminder_placeholder: 'What should we remind you of?',
   task_kind_task: 'Task',
   task_kind_reminder: 'Reminder',
+  task_kind_rx_human: 'Rx human',
+  task_kind_rx_pet: 'Rx pet',
+  rx_medicine_name: 'Medicine',
+  rx_medicine_placeholder: 'e.g. Amoxicillin',
+  rx_patient_name: 'Patient (optional)',
+  rx_patient_placeholder: 'Name or note',
+  rx_pet_name: 'Pet',
+  rx_pet_placeholder: 'e.g. Luna',
+  rx_phases_hint:
+    'Each phase sets dose, times and days. Add another phase for a different dose (e.g. 7 days at 1 pill, then 7 at half).',
+  rx_phase: 'Phase',
+  rx_amount: 'Amount / session',
+  rx_unit: 'Unit',
+  rx_unit_pills: 'Pills',
+  rx_unit_ml: 'ml',
+  rx_days: 'Days',
+  rx_times: 'Times',
+  rx_add_time: 'time',
+  rx_add_phase: 'Add phase (new dose)',
   task_color: 'Color',
   task_color_auto: 'Auto',
   task_priority_low: 'Low',

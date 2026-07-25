@@ -16,6 +16,7 @@ import {
   type TaskContextMenuState,
 } from './TaskContextMenu';
 import type { Task, Project, Priority } from '@core/types';
+import { formatDose, isRxKind } from '@core/lib/rx';
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; variant: 'green' | 'teal' | 'red' }> = {
   low: { label: 'Low', variant: 'green' },
@@ -246,6 +247,20 @@ export function TaskCard({
             {task.startTime && (
               <span className="inline-flex items-center rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
                 {task.endTime ? `${task.startTime}–${task.endTime}` : task.startTime}
+              </span>
+            )}
+            {isRxKind(task.kind) && task.rx && (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                  task.kind === 'rx_pet'
+                    ? 'bg-amber-500/15 text-amber-200'
+                    : 'bg-violet-500/15 text-violet-200'
+                )}
+                title={task.rx.subject ?? undefined}
+              >
+                {task.kind === 'rx_pet' ? '🐾' : '💊'} {formatDose(task.rx.amount, task.rx.unit)}
+                {task.rx.subject ? ` · ${task.rx.subject}` : ''}
               </span>
             )}
             {startDayId && task.endDayId && task.endDayId > startDayId && (

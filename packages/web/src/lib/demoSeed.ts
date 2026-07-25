@@ -40,6 +40,7 @@ function pushTask(
     color: partial.color ?? null,
     startTime: partial.startTime ?? null,
     endTime: partial.endTime ?? null,
+    rx: partial.rx ?? null,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

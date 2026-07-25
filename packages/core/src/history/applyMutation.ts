@@ -162,6 +162,7 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           color: instance.color,
           startTime: instance.startTime,
           endTime: instance.endTime,
+          rx: instance.rx,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

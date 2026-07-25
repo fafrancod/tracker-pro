@@ -30,6 +30,7 @@ import { useStore } from '@core/store';
 import { useWeek } from '@core/hooks/useWeek';
 import { getDayId, getWeekId } from '@core/services/taskService';
 import type {
+  BoardCategoryFilter,
   BoardTaskFilters,
   BoardViewMode,
   Importance,
@@ -62,6 +63,7 @@ export function BoardPage() {
     projectId: 'all',
     urgency: 'all',
     importance: 'all',
+    category: 'all',
   });
 
   const { projects } = useProjects();
@@ -108,6 +110,11 @@ export function BoardPage() {
     setFabOpen(true);
   }
 
+  const categoryOptions = [
+    { value: 'all', label: t('board_filter_category_all') },
+    { value: 'projects', label: t('board_filter_category_projects') },
+    { value: 'rx', label: t('board_filter_category_rx') },
+  ];
   const projectOptions = [
     { value: 'all', label: t('board_filter_all') },
     ...projects.map(p => ({ value: p.id, label: `${p.icon} ${p.name}` })),
@@ -216,6 +223,22 @@ export function BoardPage() {
         </div>
 
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          <div className="flex items-center gap-1">
+            <span className="hidden text-[10px] text-text-muted sm:inline">
+              {t('board_filter_category')}
+            </span>
+            <CycleSelect
+              aria-label={t('board_filter_category')}
+              value={filters.category ?? 'all'}
+              options={categoryOptions}
+              onChange={v =>
+                setFilters(f => ({
+                  ...f,
+                  category: v as BoardCategoryFilter,
+                }))
+              }
+            />
+          </div>
           <div className="flex items-center gap-1">
             <span className="hidden text-[10px] text-text-muted sm:inline">
               {t('board_filter_project')}

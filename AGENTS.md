@@ -47,8 +47,9 @@ Agents must treat the following as **in-tree product**, not optional experiments
 
 ### Tasks
 
-- Fields: title, notes, tags, priority, project, `kind` (task|reminder), `color`, Eisenhower `urgency`/`importance`, multi-day range.
+- Fields: title, notes, tags, priority, project, `kind` (**task|reminder|rx_human|rx_pet**), `color`, Eisenhower `urgency`/`importance`, multi-day range.
 - **Schedules**: optional `startTime` / `endTime` (`HH:mm`).
+- **Recetario** (`rx_human` / `rx_pet`): phased plan (`rxPhases`: amount, unit pills|ml, days, times[]); API materializes one task per day×time with `rx_meta` JSON. Board filter **category**: all | projects | rx.
 - Recurrence: materialize on create; multi-day allows **`none` | `monthly` | `yearly`** only; also daily/weekly for single-day.
 - Series edit: draft + **Guardar solo este** / **Guardar en toda la serie** (`applyTo: instance|series`).
 - Session **undo/redo** (Ctrl+Z/Y on board) + Bitácora (`/activity`) timeline jump.

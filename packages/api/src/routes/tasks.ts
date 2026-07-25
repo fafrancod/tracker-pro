@@ -17,6 +17,14 @@ import {
   normalizeRecurrence,
   type RecurrenceFrequency,
 } from '../lib/recurrence.js';
+import {
+  buildRxMetaForOccurrence,
+  isRxKind,
+  materializeRxOccurrences,
+  parseRxMeta,
+  validateRxPhases,
+  type RxPhase,
+} from '../lib/rx.js';
 
 export const tasksRouter = Router();
 
@@ -32,7 +40,7 @@ const prioritySchema = z.enum(['low', 'medium', 'high']);
 const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']);
 const urgencySchema = z.enum(['urgent', 'not_urgent']);
 const importanceSchema = z.enum(['important', 'not_important']);
-const kindSchema = z.enum(['task', 'reminder']);
+const kindSchema = z.enum(['task', 'reminder', 'rx_human', 'rx_pet']);
 const colorSchema = z
   .string()
   .regex(/^#[0-9A-Fa-f]{6}$/, 'color hex #RRGGBB')
@@ -45,6 +53,16 @@ const timeSchema = z
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'hora formato HH:mm')
   .nullable()
   .optional();
+
+const rxPhaseSchema = z.object({
+  amount: z.number().positive().max(10000),
+  unit: z.enum(['pills', 'ml']),
+  days: z.number().int().min(1).max(365),
+  times: z
+    .array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/))
+    .min(1)
+    .max(12),
+});
 
 function assertTimeRange(
   startTime: string | null | undefined,
@@ -71,6 +89,8 @@ const createSchema = taskLocation.extend({
   color: colorSchema,
   startTime: timeSchema,
   endTime: timeSchema,
+  rxPhases: z.array(rxPhaseSchema).min(1).max(12).optional(),
+  rxSubject: z.string().max(120).nullable().optional(),
 });
 
 const updateSchema = z
@@ -129,15 +149,23 @@ function toClientTask(
     recurrence: normalizeRecurrence(frequency, interval),
     urgency: (row.urgency as string | null | undefined) ?? null,
     importance: (row.importance as string | null | undefined) ?? null,
-    kind: ((row.kind as string | undefined) === 'reminder' ? 'reminder' : 'task') as
-      | 'task'
-      | 'reminder',
+    kind: normalizeKind(row.kind),
     color: (row.color as string | null | undefined) ?? null,
     startTime: (row.start_time as string | null | undefined) ?? null,
     endTime: (row.end_time as string | null | undefined) ?? null,
+    rx: parseRxMeta(row.rx_meta ?? row.rx),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
+}
+
+function normalizeKind(
+  raw: unknown
+): 'task' | 'reminder' | 'rx_human' | 'rx_pet' {
+  if (raw === 'reminder') return 'reminder';
+  if (raw === 'rx_human') return 'rx_human';
+  if (raw === 'rx_pet') return 'rx_pet';
+  return 'task';
 }
 
 tasksRouter.post('/', async (req, res, next) => {
@@ -161,96 +189,187 @@ tasksRouter.post('/', async (req, res, next) => {
       color,
       startTime,
       endTime,
+      rxPhases,
+      rxSubject,
     } = createSchema.parse(req.body);
 
     assertTimeRange(startTime, endTime);
 
-    const endDayId = rawEndDayId ?? dayId;
-    if (endDayId < dayId) {
-      throw ApiError.badRequest('endDayId debe ser >= dayId');
-    }
-
-    const recurrence = normalizeRecurrence(recurrenceFrequency, recurrenceInterval);
-    const isMultiDay = endDayId > dayId;
-    if (isMultiDay && !isMultiDayRecurrenceAllowed(recurrence.frequency)) {
-      throw ApiError.badRequest(
-        'Las tareas de varios días solo admiten repetición none, monthly o yearly'
-      );
-    }
-
-    const occurrenceRanges = materializeOccurrenceRanges(
-      dayId,
-      endDayId,
-      recurrence.frequency,
-      recurrence.interval
-    );
-
-    const plan = await readProfilePlan(uid);
-    const limits = getLimits(plan);
-    if (Number.isFinite(limits.maxTasksPerMonth)) {
-      const usage = await readUsage(uid, monthFromDay(dayId));
-      const tasksThisMonth = usage.tasks_created ?? 0;
-      if (tasksThisMonth + occurrenceRanges.length > limits.maxTasksPerMonth) {
-        throw ApiError.planLimit(
-          `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
-          {
-            plan,
-            limit: limits.maxTasksPerMonth,
-            current: tasksThisMonth,
-            requested: occurrenceRanges.length,
-          }
-        );
-      }
-    }
-
+    const taskKind = kind ?? 'task';
     const now = new Date().toISOString();
     const seriesId = generateId();
     const rows: Record<string, unknown>[] = [];
 
-    // order por día: contamos tareas existentes en cada día de la serie
-    const orderByDay = new Map<string, number>();
-    for (const range of occurrenceRanges) {
-      if (orderByDay.has(range.dayId)) continue;
-      const { count } = await getSupabaseAdmin()
-        .from('tasks')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', uid)
-        .eq('day_id', range.dayId);
-      orderByDay.set(range.dayId, count ?? 0);
-    }
+    // ——— Recetario: materializa 1 fila por (día × horario) con plan por fases ———
+    if (isRxKind(taskKind)) {
+      if (!rxPhases || rxPhases.length === 0) {
+        throw ApiError.badRequest('Recetario requiere rxPhases (fases del plan)');
+      }
+      const phases = rxPhases as RxPhase[];
+      const phaseErr = validateRxPhases(phases);
+      if (phaseErr) throw ApiError.badRequest(phaseErr);
 
-    for (const range of occurrenceRanges) {
-      const occWeekId = range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId);
-      const order = orderByDay.get(range.dayId) ?? 0;
-      orderByDay.set(range.dayId, order + 1);
-      const taskId = generateId();
-      rows.push({
-        id: taskId,
-        user_id: uid,
-        week_id: occWeekId,
-        day_id: range.dayId,
-        end_day_id: range.endDayId,
-        title,
-        completed: false,
-        completed_at: null,
-        project_id: projectId ?? null,
-        priority: priority ?? 'medium',
-        notes: notes ?? '',
-        order,
-        tags: tags ?? [],
-        moved_from: null,
-        series_id: recurrence.frequency === 'none' ? null : seriesId,
-        recurrence_frequency: recurrence.frequency,
-        recurrence_interval: recurrence.interval,
-        urgency: urgency ?? null,
-        importance: importance ?? null,
-        kind: kind ?? 'task',
-        color: color ?? null,
-        start_time: startTime ?? null,
-        end_time: endTime ?? null,
-        created_at: now,
-        updated_at: now,
-      });
+      let occurrences;
+      try {
+        occurrences = materializeRxOccurrences(dayId, phases);
+      } catch (e) {
+        throw ApiError.badRequest(e instanceof Error ? e.message : 'Plan de recetario inválido');
+      }
+
+      const plan = await readProfilePlan(uid);
+      const limits = getLimits(plan);
+      if (Number.isFinite(limits.maxTasksPerMonth)) {
+        const usage = await readUsage(uid, monthFromDay(dayId));
+        const tasksThisMonth = usage.tasks_created ?? 0;
+        if (tasksThisMonth + occurrences.length > limits.maxTasksPerMonth) {
+          throw ApiError.planLimit(
+            `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
+            {
+              plan,
+              limit: limits.maxTasksPerMonth,
+              current: tasksThisMonth,
+              requested: occurrences.length,
+            }
+          );
+        }
+      }
+
+      const orderByDay = new Map<string, number>();
+      for (const occ of occurrences) {
+        if (orderByDay.has(occ.dayId)) continue;
+        const { count } = await getSupabaseAdmin()
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', uid)
+          .eq('day_id', occ.dayId);
+        orderByDay.set(occ.dayId, count ?? 0);
+      }
+
+      for (const occ of occurrences) {
+        const occWeekId =
+          occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId);
+        const order = orderByDay.get(occ.dayId) ?? 0;
+        orderByDay.set(occ.dayId, order + 1);
+        const rxMeta = buildRxMetaForOccurrence(
+          dayId,
+          phases,
+          occ,
+          rxSubject ?? null
+        );
+        rows.push({
+          id: generateId(),
+          user_id: uid,
+          week_id: occWeekId,
+          day_id: occ.dayId,
+          end_day_id: occ.dayId,
+          title,
+          completed: false,
+          completed_at: null,
+          project_id: projectId ?? null,
+          priority: priority ?? 'high',
+          notes: notes ?? '',
+          order,
+          tags: tags ?? [],
+          moved_from: null,
+          series_id: seriesId,
+          recurrence_frequency: 'none',
+          recurrence_interval: 1,
+          urgency: urgency ?? null,
+          importance: importance ?? null,
+          kind: taskKind,
+          color: color ?? (taskKind === 'rx_pet' ? '#d29922' : '#a371f7'),
+          start_time: occ.startTime,
+          end_time: null,
+          rx_meta: rxMeta,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+    } else {
+      // ——— Tarea / recordatorio normal (recurrence materialization) ———
+      const endDayId = rawEndDayId ?? dayId;
+      if (endDayId < dayId) {
+        throw ApiError.badRequest('endDayId debe ser >= dayId');
+      }
+
+      const recurrence = normalizeRecurrence(recurrenceFrequency, recurrenceInterval);
+      const isMultiDay = endDayId > dayId;
+      if (isMultiDay && !isMultiDayRecurrenceAllowed(recurrence.frequency)) {
+        throw ApiError.badRequest(
+          'Las tareas de varios días solo admiten repetición none, monthly o yearly'
+        );
+      }
+
+      const occurrenceRanges = materializeOccurrenceRanges(
+        dayId,
+        endDayId,
+        recurrence.frequency,
+        recurrence.interval
+      );
+
+      const plan = await readProfilePlan(uid);
+      const limits = getLimits(plan);
+      if (Number.isFinite(limits.maxTasksPerMonth)) {
+        const usage = await readUsage(uid, monthFromDay(dayId));
+        const tasksThisMonth = usage.tasks_created ?? 0;
+        if (tasksThisMonth + occurrenceRanges.length > limits.maxTasksPerMonth) {
+          throw ApiError.planLimit(
+            `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
+            {
+              plan,
+              limit: limits.maxTasksPerMonth,
+              current: tasksThisMonth,
+              requested: occurrenceRanges.length,
+            }
+          );
+        }
+      }
+
+      const orderByDay = new Map<string, number>();
+      for (const range of occurrenceRanges) {
+        if (orderByDay.has(range.dayId)) continue;
+        const { count } = await getSupabaseAdmin()
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', uid)
+          .eq('day_id', range.dayId);
+        orderByDay.set(range.dayId, count ?? 0);
+      }
+
+      for (const range of occurrenceRanges) {
+        const occWeekId =
+          range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId);
+        const order = orderByDay.get(range.dayId) ?? 0;
+        orderByDay.set(range.dayId, order + 1);
+        rows.push({
+          id: generateId(),
+          user_id: uid,
+          week_id: occWeekId,
+          day_id: range.dayId,
+          end_day_id: range.endDayId,
+          title,
+          completed: false,
+          completed_at: null,
+          project_id: projectId ?? null,
+          priority: priority ?? 'medium',
+          notes: notes ?? '',
+          order,
+          tags: tags ?? [],
+          moved_from: null,
+          series_id: recurrence.frequency === 'none' ? null : seriesId,
+          recurrence_frequency: recurrence.frequency,
+          recurrence_interval: recurrence.interval,
+          urgency: urgency ?? null,
+          importance: importance ?? null,
+          kind: taskKind,
+          color: color ?? null,
+          start_time: startTime ?? null,
+          end_time: endTime ?? null,
+          rx_meta: null,
+          created_at: now,
+          updated_at: now,
+        });
+      }
     }
 
     const { error } = await getSupabaseAdmin().from('tasks').insert(rows);
