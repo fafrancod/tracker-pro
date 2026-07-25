@@ -324,8 +324,9 @@ tasksRouter.post('/', async (req, res, next) => {
         ).slice(0, 40)
       : [];
     const isEventLike = taskKind === 'event' || taskKind === 'possible_event';
+    // Evento y evento posible pueden llevar lugar (en posibles es "lugar posible").
     const locationValue =
-      taskKind === 'event' && typeof location === 'string' && location.trim()
+      isEventLike && typeof location === 'string' && location.trim()
         ? location.trim().slice(0, 200)
         : null;
     const departureValue = taskKind === 'event' ? (departureTime ?? null) : null;

@@ -45,6 +45,7 @@ import { normalizeTimeInput } from '@core/lib/time';
 import { isValidTaskTimeRange } from '@core/lib/schedule';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
+import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import type {
   DoseUnit,
   Importance,
@@ -675,14 +676,24 @@ function TaskDetailInner({
           </Field>
         )}
 
-        {/* Campos de evento (visibles según borrador; no se vacían al cambiar de tipo) */}
+        {/* Campos de evento / posible (visibles según borrador; no se vacían al cambiar de tipo) */}
         {!isRx && draftIsEventLike && (
           <>
-            <Field label={t('task_event_location')}>
+            <Field
+              label={
+                draftIsEvent
+                  ? t('task_event_location')
+                  : t('task_possible_event_location')
+              }
+            >
               <Input
                 value={draft.location}
                 onChange={e => patchDraft({ location: e.target.value })}
-                placeholder={t('task_event_location_ph')}
+                placeholder={
+                  draftIsEvent
+                    ? t('task_event_location_ph')
+                    : t('task_possible_event_location_ph')
+                }
                 maxLength={200}
                 className="h-9 text-sm"
               />
@@ -704,47 +715,19 @@ function TaskDetailInner({
               <p className="mb-1.5 text-[10px] text-text-muted">
                 {t('task_involved_contacts_hint')}
               </p>
-              {contacts.length === 0 ? (
-                <p className="text-[11px] text-text-muted">{t('circle_empty')}</p>
-              ) : (
-                <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border bg-background p-1.5">
-                  {contacts.map(c => {
-                    const active = draft.involvedContactIds.includes(c.id);
-                    return (
-                      <label
-                        key={c.id}
-                        className={cn(
-                          'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs',
-                          active
-                            ? draftIsEvent
-                              ? 'bg-sky-500/15'
-                              : 'bg-fuchsia-500/15'
-                            : 'hover:bg-surface'
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          className={cn(
-                            'h-3.5 w-3.5',
-                            draftIsEvent ? 'accent-sky-500' : 'accent-fuchsia-500'
-                          )}
-                          checked={active}
-                          onChange={() => {
-                            patchDraft({
-                              involvedContactIds: active
-                                ? draft.involvedContactIds.filter(id => id !== c.id)
-                                : [...draft.involvedContactIds, c.id],
-                            });
-                          }}
-                        />
-                        <span className="min-w-0 flex-1 truncate">
-                          {c.kind === 'pet' ? '🐾' : '👤'} {c.name}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
+              <InvolvedContactsPicker
+                contacts={contacts}
+                selectedIds={draft.involvedContactIds}
+                onToggle={id => {
+                  const active = draft.involvedContactIds.includes(id);
+                  patchDraft({
+                    involvedContactIds: active
+                      ? draft.involvedContactIds.filter(x => x !== id)
+                      : [...draft.involvedContactIds, id],
+                  });
+                }}
+                accent={draftIsEvent ? 'event' : 'possible'}
+              />
             </Field>
           </>
         )}
@@ -1396,7 +1379,7 @@ function TaskDetailInner({
               className="w-full gap-1.5"
             >
               <Save className="h-3.5 w-3.5" />
-              {t('action_save')}
+              {draftIsEventLike ? t('action_save_event') : t('action_save')}
             </Button>
           )}
           <button

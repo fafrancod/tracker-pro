@@ -58,6 +58,7 @@ import { isValidTaskTimeRange } from '@core/lib/schedule';
 import { useStore } from '@core/store';
 import { useToast } from '@/contexts/ToastContext';
 import { ApiClientError } from '@core/lib/api';
+import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 
 const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
@@ -425,7 +426,7 @@ export function AddTaskForm({
         endTime: endN,
         tags,
         involvedContactIds: isEventLike ? involvedContactIds : [],
-        location: isEvent ? location.trim() || null : null,
+        location: isEventLike ? location.trim() || null : null,
         departureTime: isEvent ? depN : null,
       });
       resetForm();
@@ -540,22 +541,59 @@ export function AddTaskForm({
       )}
 
       {/* Kind: Tarea | Recordatorio | Rx | Evento | Evento posible */}
-      <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6', !isModal && 'gap-1')}>
+      <div
+        className={cn(
+          'grid gap-2',
+          isModal
+            ? 'grid-cols-2 sm:grid-cols-3'
+            : 'grid-cols-2 gap-1 sm:grid-cols-3'
+        )}
+        role="group"
+        aria-label={t('task_kind_convert')}
+      >
         {(
           [
-            { value: 'task' as const, icon: CheckSquare, label: t('task_kind_task') },
-            { value: 'reminder' as const, icon: Bell, label: t('task_kind_reminder') },
-            { value: 'rx_human' as const, icon: Pill, label: t('task_kind_rx_human') },
-            { value: 'rx_pet' as const, icon: PawPrint, label: t('task_kind_rx_pet') },
+            {
+              value: 'task' as const,
+              icon: CheckSquare,
+              label: t('task_kind_task'),
+              activeClass:
+                'border-accent-teal/50 bg-accent-teal/15 text-accent-teal ring-accent-teal/30',
+            },
+            {
+              value: 'reminder' as const,
+              icon: Bell,
+              label: t('task_kind_reminder'),
+              activeClass:
+                'border-amber-500/50 bg-amber-500/15 text-amber-100 ring-amber-500/30',
+            },
+            {
+              value: 'rx_human' as const,
+              icon: Pill,
+              label: t('task_kind_rx_human'),
+              activeClass:
+                'border-violet-500/50 bg-violet-500/15 text-violet-100 ring-violet-500/30',
+            },
+            {
+              value: 'rx_pet' as const,
+              icon: PawPrint,
+              label: t('task_kind_rx_pet'),
+              activeClass:
+                'border-pink-500/50 bg-pink-500/15 text-pink-100 ring-pink-500/30',
+            },
             {
               value: 'event' as const,
               icon: MapPin,
               label: t('task_kind_event'),
+              activeClass:
+                'border-sky-500/50 bg-sky-500/15 text-sky-100 ring-sky-500/30',
             },
             {
               value: 'possible_event' as const,
               icon: CalendarHeart,
               label: t('task_kind_possible_event'),
+              activeClass:
+                'border-fuchsia-500/50 bg-fuchsia-500/15 text-fuchsia-100 ring-fuchsia-500/30',
             },
           ] as const
         ).map(opt => {
@@ -566,16 +604,30 @@ export function AddTaskForm({
               key={opt.value}
               type="button"
               onClick={() => setKind(opt.value)}
+              title={opt.label}
               className={cn(
-                'flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-medium transition-all sm:text-sm sm:px-3 sm:py-2.5',
+                'flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-center transition-all sm:min-h-[3.5rem] sm:px-3',
                 active
-                  ? 'border-accent-teal/50 bg-accent-teal/15 text-accent-teal shadow-sm ring-1 ring-accent-teal/30'
-                  : 'border-border bg-background/60 text-text-muted hover:border-border hover:bg-surface hover:text-text-primary',
-                !isModal && 'py-1.5 text-[10px] rounded-md'
+                  ? cn('shadow-sm ring-1 font-semibold', opt.activeClass)
+                  : 'border-border bg-background/60 font-medium text-text-muted hover:border-border hover:bg-surface hover:text-text-primary',
+                !isModal && 'min-h-[2.75rem] rounded-md py-1.5'
               )}
             >
-              <Icon className={cn('h-3.5 w-3.5 shrink-0', isModal && 'h-4 w-4')} />
-              <span className="truncate">{opt.label}</span>
+              <Icon
+                className={cn(
+                  'h-4 w-4 shrink-0',
+                  !isModal && 'h-3.5 w-3.5',
+                  active && 'opacity-100'
+                )}
+              />
+              <span
+                className={cn(
+                  'w-full whitespace-normal break-words text-[11px] leading-tight sm:text-xs',
+                  !isModal && 'text-[10px] leading-snug'
+                )}
+              >
+                {opt.label}
+              </span>
             </button>
           );
         })}
@@ -953,38 +1005,53 @@ export function AddTaskForm({
         </>
       )}
 
-      {/* Evento: lugar + salida prevista */}
-      {isEvent && (
-        <div className="space-y-3 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
+      {/* Evento / evento posible: lugar (+ salida solo en evento real) */}
+      {isEventLike && (
+        <div
+          className={cn(
+            'space-y-3 rounded-xl border p-3',
+            isEvent
+              ? 'border-sky-500/30 bg-sky-500/5'
+              : 'border-fuchsia-500/30 bg-fuchsia-500/5'
+          )}
+        >
           <label className="flex flex-col gap-1 text-[11px] text-text-muted">
             <span className="inline-flex items-center gap-1 font-medium uppercase tracking-wide">
               <MapPin className="h-3 w-3" />
-              {t('task_event_location')}
+              {isEvent
+                ? t('task_event_location')
+                : t('task_possible_event_location')}
             </span>
             <Input
               value={location}
               onChange={e => setLocation(e.target.value)}
-              placeholder={t('task_event_location_ph')}
+              placeholder={
+                isEvent
+                  ? t('task_event_location_ph')
+                  : t('task_possible_event_location_ph')
+              }
               maxLength={200}
               className="h-9 text-sm"
             />
           </label>
-          <label className="flex flex-col gap-1 text-[11px] text-text-muted">
-            <span className="font-medium uppercase tracking-wide">
-              {t('task_event_departure')}
-            </span>
-            <TimeInput
-              value={departureTime}
-              onChange={setDepartureTime}
-              nowLabel={t('time_now')}
-              clearLabel={t('task_clear_time')}
-            />
-            <span className="text-[10px]">{t('task_event_departure_hint')}</span>
-          </label>
+          {isEvent && (
+            <label className="flex flex-col gap-1 text-[11px] text-text-muted">
+              <span className="font-medium uppercase tracking-wide">
+                {t('task_event_departure')}
+              </span>
+              <TimeInput
+                value={departureTime}
+                onChange={setDepartureTime}
+                nowLabel={t('time_now')}
+                clearLabel={t('task_clear_time')}
+              />
+              <span className="text-[10px]">{t('task_event_departure_hint')}</span>
+            </label>
+          )}
         </div>
       )}
 
-      {/* Evento / evento posible: contactos del Círculo */}
+      {/* Evento / evento posible: contactos del Círculo con filtros */}
       {isEventLike && (
         <div
           className={cn(
@@ -998,47 +1065,13 @@ export function AddTaskForm({
             {t('task_involved_contacts')}
           </p>
           <p className="text-[10px] text-text-muted">{t('task_involved_contacts_hint')}</p>
-          {contacts.length === 0 ? (
-            <p className="text-[11px] text-text-muted">{t('circle_empty')}</p>
-          ) : (
-            <div className="flex max-h-36 flex-col gap-1 overflow-y-auto">
-              {contacts.map(c => {
-                const active = involvedContactIds.includes(c.id);
-                return (
-                  <label
-                    key={c.id}
-                    className={cn(
-                      'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
-                      active
-                        ? isEvent
-                          ? 'bg-sky-500/15 text-text-primary'
-                          : 'bg-fuchsia-500/15 text-text-primary'
-                        : 'text-text-muted hover:bg-background'
-                    )}
-                  >
-                    <input
-                      type="checkbox"
-                      className={cn(
-                        'h-3.5 w-3.5',
-                        isEvent ? 'accent-sky-500' : 'accent-fuchsia-500'
-                      )}
-                      checked={active}
-                      onChange={() => toggleInvolvedContact(c.id)}
-                    />
-                    <span className="min-w-0 flex-1 truncate">
-                      {c.kind === 'pet' ? '🐾' : '👤'} {c.name}
-                    </span>
-                    <span className="shrink-0 text-[10px] text-accent-teal">
-                      {contactHandles(c)
-                        .map(h => `@${h}`)
-                        .join(' ')}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-          {involvedContactIds.length === 0 && (
+          <InvolvedContactsPicker
+            contacts={contacts}
+            selectedIds={involvedContactIds}
+            onToggle={toggleInvolvedContact}
+            accent={isEvent ? 'event' : 'possible'}
+          />
+          {involvedContactIds.length === 0 && contacts.length > 0 && (
             <p className="text-[10px] text-text-muted">{t('task_involved_none')}</p>
           )}
         </div>
@@ -1270,7 +1303,11 @@ export function AddTaskForm({
           )}
           disabled={!title.trim() || submitting}
         >
-          {kind === 'reminder' ? t('action_add_reminder') : t('action_add_task')}
+          {isEventLike
+            ? t('action_save_event')
+            : kind === 'reminder'
+              ? t('action_add_reminder')
+              : t('action_add_task')}
         </Button>
       </div>
     </form>

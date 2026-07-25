@@ -162,6 +162,7 @@ export interface TranslationDict {
   // Acciones generales
   action_add_task: string;
   action_add_reminder: string;
+  action_save_event: string;
   action_new_project: string;
   action_save: string;
   action_cancel: string;
@@ -245,11 +246,22 @@ export interface TranslationDict {
   task_event_placeholder: string;
   task_event_location: string;
   task_event_location_ph: string;
+  task_possible_event_location: string;
+  task_possible_event_location_ph: string;
   task_event_departure: string;
   task_event_departure_hint: string;
   task_involved_contacts: string;
   task_involved_contacts_hint: string;
   task_involved_none: string;
+  involved_filter_label: string;
+  involved_filter_all: string;
+  involved_filter_family: string;
+  involved_filter_partner: string;
+  involved_filter_friend: string;
+  involved_filter_work: string;
+  involved_filter_pet: string;
+  involved_filter_other: string;
+  involved_filter_empty: string;
   board_category_rx_hint: string;
 
   // Context menu tareas
@@ -742,6 +754,7 @@ const es_dict: TranslationDict = {
 
   action_add_task: 'Añadir tarea',
   action_add_reminder: 'Añadir recordatorio',
+  action_save_event: 'Guardar evento',
   action_new_project: 'Nuevo proyecto',
   action_save: 'Guardar',
   action_cancel: 'Cancelar',
@@ -849,6 +862,8 @@ const es_dict: TranslationDict = {
   task_event_placeholder: 'Ej. Cena con Ana, partido, cita médica…',
   task_event_location: 'Lugar',
   task_event_location_ph: 'Ej. Casa de Ana, Teatro Colón, Zoom…',
+  task_possible_event_location: 'Lugar posible',
+  task_possible_event_location_ph: 'Ej. casa de Ana, parque, restaurante…',
   task_event_departure: 'Salida prevista',
   task_event_departure_hint:
     'Hora a la que sales. Los avisos «X min antes» se calculan desde esta hora.',
@@ -856,6 +871,15 @@ const es_dict: TranslationDict = {
   task_involved_contacts_hint:
     'Elige personas o mascotas. Quedarán asociadas al evento y a sus compromisos.',
   task_involved_none: 'Nadie seleccionado',
+  involved_filter_label: 'Filtrar involucrados',
+  involved_filter_all: 'Todos',
+  involved_filter_family: 'Familia',
+  involved_filter_partner: 'Pareja',
+  involved_filter_friend: 'Amigos',
+  involved_filter_work: 'Trabajo',
+  involved_filter_pet: 'Mascotas',
+  involved_filter_other: 'Otros',
+  involved_filter_empty: 'Nadie en este filtro',
   rx_medicine_name: 'Medicamento',
   rx_medicine_placeholder: 'Ej. Amoxicilina',
   rx_patient_name: 'Paciente (opcional)',
@@ -1343,6 +1367,7 @@ const en_dict: TranslationDict = {
 
   action_add_task: 'Add task',
   action_add_reminder: 'Add reminder',
+  action_save_event: 'Save event',
   action_new_project: 'New project',
   action_save: 'Save',
   action_cancel: 'Cancel',
@@ -1450,6 +1475,8 @@ const en_dict: TranslationDict = {
   task_event_placeholder: 'e.g. Dinner with Ana, match, doctor visit…',
   task_event_location: 'Place',
   task_event_location_ph: "e.g. Ana's place, Colón Theatre, Zoom…",
+  task_possible_event_location: 'Possible place',
+  task_possible_event_location_ph: "e.g. Ana's place, park, restaurant…",
   task_event_departure: 'Planned departure',
   task_event_departure_hint:
     'Time you leave. “X min before” reminders are scheduled from this time.',
@@ -1457,6 +1484,15 @@ const en_dict: TranslationDict = {
   task_involved_contacts_hint:
     'Pick people or pets. They will be linked to the event and their commitments.',
   task_involved_none: 'None selected',
+  involved_filter_label: 'Filter involved',
+  involved_filter_all: 'All',
+  involved_filter_family: 'Family',
+  involved_filter_partner: 'Partner',
+  involved_filter_friend: 'Friends',
+  involved_filter_work: 'Work',
+  involved_filter_pet: 'Pets',
+  involved_filter_other: 'Other',
+  involved_filter_empty: 'No one in this filter',
   rx_medicine_name: 'Medicine',
   rx_medicine_placeholder: 'e.g. Amoxicillin',
   rx_patient_name: 'Patient (optional)',
