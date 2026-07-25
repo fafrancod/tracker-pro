@@ -518,6 +518,9 @@ export interface TranslationDict {
   circle_rel_mother: string;
   circle_rel_son: string;
   circle_rel_daughter: string;
+  circle_rel_brother: string;
+  circle_rel_sister: string;
+  circle_rel_partner: string;
   circle_rel_niece: string;
   circle_rel_nephew: string;
   circle_rel_friend: string;
@@ -1095,6 +1098,9 @@ const es_dict: TranslationDict = {
   circle_rel_mother: 'Madre',
   circle_rel_son: 'Hijo',
   circle_rel_daughter: 'Hija',
+  circle_rel_brother: 'Hermano',
+  circle_rel_sister: 'Hermana',
+  circle_rel_partner: 'Pareja',
   circle_rel_niece: 'Sobrina',
   circle_rel_nephew: 'Sobrino',
   circle_rel_friend: 'Amigo/a',
@@ -1675,6 +1681,9 @@ const en_dict: TranslationDict = {
   circle_rel_mother: 'Mother',
   circle_rel_son: 'Son',
   circle_rel_daughter: 'Daughter',
+  circle_rel_brother: 'Brother',
+  circle_rel_sister: 'Sister',
+  circle_rel_partner: 'Partner',
   circle_rel_niece: 'Niece',
   circle_rel_nephew: 'Nephew',
   circle_rel_friend: 'Friend',

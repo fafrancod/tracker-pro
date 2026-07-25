@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FolderKanban, Pencil, Trash2 } from 'lucide-react';
+import { FolderKanban, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { useProjects } from '@core/hooks/useProjects';
@@ -112,6 +112,19 @@ export function ProjectsPage() {
                 </div>
               </li>
             ))}
+            {/* Tarjeta «+» para añadir otro proyecto (además del FAB) */}
+            <li>
+              <button
+                type="button"
+                onClick={openCreate}
+                className="flex h-full min-h-[3.75rem] w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-surface/50 px-3 py-2.5 text-sm font-medium text-text-muted transition-colors hover:border-accent-teal/50 hover:bg-accent-teal/10 hover:text-accent-teal"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-teal/15 text-accent-teal">
+                  <Plus className="h-5 w-5" strokeWidth={2.5} />
+                </span>
+                Nuevo proyecto
+              </button>
+            </li>
           </ul>
         )}
       </div>

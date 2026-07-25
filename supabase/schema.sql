@@ -347,6 +347,7 @@ create table if not exists public.contacts (
     relationship is null
     or relationship in (
       'father', 'mother', 'son', 'daughter',
+      'brother', 'sister', 'partner',
       'niece', 'nephew', 'friend', 'coworker'
     )
   ),

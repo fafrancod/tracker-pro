@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Menu, Sparkles, Plus } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar, NAV_ITEMS } from './Sidebar';
@@ -47,6 +47,9 @@ export function Layout({
   fabRef.current = onFabClick;
 
   // Deps solo strings/flags → no bucle Maximum update depth (#185).
+  // set + cleanup en el MISMO useLayoutEffect: al cambiar de ruta el cleanup
+  // de la página saliente corre ANTES del set de la entrante (no al revés).
+  // Antes el reset iba en useEffect y borraba el FAB de la página nueva.
   useLayoutEffect(() => {
     if (!chromeApi) return;
     chromeApi.setChrome({
@@ -66,14 +69,10 @@ export function Layout({
           }
         : null,
     });
-  }, [chromeApi, titleKey, showFab, actionLabel, hasPrimary, hasFabClick]);
-
-  useEffect(() => {
-    if (!chromeApi) return;
     return () => {
       chromeApi.resetChrome();
     };
-  }, [chromeApi]);
+  }, [chromeApi, titleKey, showFab, actionLabel, hasPrimary, hasFabClick]);
 
   if (chromeApi) {
     return <>{children}</>;
