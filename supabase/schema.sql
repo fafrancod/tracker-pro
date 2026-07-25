@@ -232,6 +232,9 @@ create index if not exists tasks_user_involved_contacts_idx
 alter table public.tasks add column if not exists start_time text;
 alter table public.tasks add column if not exists end_time text;
 alter table public.tasks add column if not exists rx_meta jsonb;
+
+-- Checklist de pasos (tarea / recordatorio / evento / posible)
+alter table public.tasks add column if not exists steps jsonb not null default '[]'::jsonb;
 do $$
 begin
   if not exists (

@@ -46,6 +46,8 @@ import { isValidTaskTimeRange } from '@core/lib/schedule';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
+import { TaskStepsEditor } from './TaskStepsEditor';
+import { kindSupportsSteps, stepsEqual } from '@core/lib/steps';
 import type {
   DoseUnit,
   Importance,
@@ -55,6 +57,7 @@ import type {
   Task,
   TaskApplyTo,
   TaskKind,
+  TaskStep,
   Urgency,
 } from '@core/types';
 
@@ -127,6 +130,7 @@ interface DraftState {
   involvedContactIds: string[];
   location: string;
   departureTime: string;
+  steps: TaskStep[];
 }
 
 function taskToDraft(task: Task, fallbackDayId: string): DraftState {
@@ -150,6 +154,7 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     involvedContactIds: [...(task.involvedContactIds ?? [])],
     location: task.location ?? '',
     departureTime: task.departureTime ?? '',
+    steps: [...(task.steps ?? [])].map(s => ({ ...s })),
   };
 }
 
@@ -174,7 +179,8 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     !phasesEqual(draft.rxPhases, base.rxPhases) ||
     draft.involvedContactIds.join('\0') !== base.involvedContactIds.join('\0') ||
     draft.location !== base.location ||
-    draft.departureTime !== base.departureTime
+    draft.departureTime !== base.departureTime ||
+    !stepsEqual(draft.steps, base.steps)
   );
 }
 
@@ -290,6 +296,7 @@ function TaskDetailInner({
   const draftIsProjectKind = draftKind === 'task' || draftKind === 'reminder';
   const draftIsHabit =
     draftKind === 'habit_good' || draftKind === 'habit_quit';
+  const draftSupportsSteps = kindSupportsSteps(draftKind);
 
   /** Kinds intercambiables en el menú de edición (no incluye rx). */
   const CONVERTIBLE_KINDS: Array<{ value: TaskKind; label: string }> = [
@@ -517,6 +524,11 @@ function TaskDetailInner({
           departureTime: saveIsEvent ? depN : null,
           startTime: startN,
           endTime: endN,
+          steps: kindSupportsSteps(saveKind)
+            ? draft.steps
+                .map(s => ({ ...s, title: s.title.trim() }))
+                .filter(s => s.title.length > 0)
+            : [],
           applyTo: isSeries ? applyTo : 'instance',
         });
         showToast(
@@ -685,6 +697,15 @@ function TaskDetailInner({
               ))}
             </div>
           </Field>
+        )}
+
+        {/* Pasos asociados */}
+        {!isRx && draftSupportsSteps && (
+          <TaskStepsEditor
+            steps={draft.steps}
+            onChange={next => patchDraft({ steps: next })}
+            defaultOpen={draft.steps.length > 0}
+          />
         )}
 
         {/* Campos de evento / posible (visibles según borrador; no se vacían al cambiar de tipo) */}

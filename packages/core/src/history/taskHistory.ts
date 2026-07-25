@@ -91,6 +91,7 @@ export const taskHistory = {
       involvedContactIds: payload.involvedContactIds ?? [],
       location: payload.location ?? null,
       departureTime: payload.departureTime ?? null,
+      steps: payload.steps ?? [],
       createdAt: now,
       updatedAt: now,
     };
@@ -153,6 +154,7 @@ export const taskHistory = {
           involvedContactIds: instance.involvedContactIds ?? [],
           location: instance.location ?? null,
           departureTime: instance.departureTime ?? null,
+          steps: instance.steps ?? [],
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

@@ -288,6 +288,13 @@ export interface Contact {
   createdAt: string;
 }
 
+/** Paso de checklist asociado a tarea / evento / evento posible. */
+export interface TaskStep {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -338,6 +345,10 @@ export interface Task {
    * Ancla de notificaciones «X min antes» si está definida.
    */
   departureTime: string | null;
+  /**
+   * Pasos asociados (checklist). Solo aplica a task / reminder / event / possible_event.
+   */
+  steps: TaskStep[];
   createdAt: string;
   updatedAt: string;
 }
@@ -388,6 +399,8 @@ export interface CreateTaskPayload {
   location?: string | null;
   /** Hora de salida prevista HH:mm (eventos → notificaciones). */
   departureTime?: string | null;
+  /** Pasos asociados (tarea / recordatorio / evento / posible). */
+  steps?: TaskStep[];
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -418,6 +431,7 @@ export interface UpdateTaskPayload {
   involvedContactIds?: string[];
   location?: string | null;
   departureTime?: string | null;
+  steps?: TaskStep[];
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (título, color, …) a toda la serie.

@@ -294,6 +294,16 @@ export function TaskCard({
                 {habitGood ? `✓ ${t('habit_badge_good')}` : `⊘ ${t('habit_badge_quit')}`}
               </span>
             )}
+            {(task.steps?.length ?? 0) > 0 && (
+              <span className="inline-flex items-center rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
+                {t('task_steps_progress')
+                  .replace(
+                    '{done}',
+                    String(task.steps.filter(s => s.completed).length)
+                  )
+                  .replace('{total}', String(task.steps.length))}
+              </span>
+            )}
             {isRxKind(task.kind) && task.rx && (
               <span
                 className={cn(

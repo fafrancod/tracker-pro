@@ -50,6 +50,7 @@ import {
   defaultHabitColor,
   isHabitKind,
 } from '@core/lib/habits';
+import { kindSupportsSteps } from '@core/lib/steps';
 import {
   contactHandles,
   extractHashtags,
@@ -57,6 +58,7 @@ import {
   mergeTags,
   normalizeTag,
 } from '@core/lib/tags';
+import type { TaskStep } from '@core/types';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
 import { normalizeTimeInput } from '@core/lib/time';
@@ -65,6 +67,7 @@ import { useStore } from '@core/store';
 import { useToast } from '@/contexts/ToastContext';
 import { ApiClientError } from '@core/lib/api';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
+import { TaskStepsEditor } from './TaskStepsEditor';
 
 const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
@@ -183,6 +186,7 @@ export function AddTaskForm({
   const [involvedContactIds, setInvolvedContactIds] = useState<string[]>([]);
   const [location, setLocation] = useState('');
   const [departureTime, setDepartureTime] = useState('');
+  const [steps, setSteps] = useState<TaskStep[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
@@ -190,6 +194,7 @@ export function AddTaskForm({
   const isEvent = isEventKind(kind);
   const isEventLike = isPossible || isEvent;
   const isHabit = isHabitKind(kind);
+  const supportsSteps = kindSupportsSteps(kind);
   const tasksByDay = useStore(s => s.tasksByDay);
   const contacts = useStore(s => s.contacts);
 
@@ -285,6 +290,7 @@ export function AddTaskForm({
     setInvolvedContactIds([]);
     setLocation('');
     setDepartureTime('');
+    setSteps([]);
     if (startDayId) setEndDayId(startDayId);
   }
 
@@ -457,6 +463,14 @@ export function AddTaskForm({
         involvedContactIds: isEventLike ? involvedContactIds : [],
         location: isEventLike ? location.trim() || null : null,
         departureTime: isEvent ? depN : null,
+        steps: supportsSteps
+          ? steps
+              .map(s => ({
+                ...s,
+                title: s.title.trim(),
+              }))
+              .filter(s => s.title.length > 0)
+          : undefined,
       });
       resetForm();
       inputRef.current?.focus();
@@ -1050,6 +1064,11 @@ export function AddTaskForm({
             </div>
           </div>
         </>
+      )}
+
+      {/* Pasos asociados (tarea / recordatorio / evento / posible) */}
+      {supportsSteps && (
+        <TaskStepsEditor steps={steps} onChange={setSteps} />
       )}
 
       {/* Evento / evento posible: lugar (+ salida solo en evento real) */}

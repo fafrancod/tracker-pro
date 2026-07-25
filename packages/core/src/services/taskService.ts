@@ -15,6 +15,7 @@ import type {
   Recurrence,
 } from '../types';
 import { isRxKind, materializeRxOccurrences, buildRxMetaForOccurrence, parseRxMeta } from '../lib/rx';
+import { kindSupportsSteps, normalizeTaskSteps } from '../lib/steps';
 import { extractHashtags, mergeTags } from '../lib/tags';
 import { findTaskLocation, useStore } from '../store';
 import { getISOWeek, format } from 'date-fns';
@@ -216,6 +217,7 @@ export async function createTask(
     involvedContactIds: payload.involvedContactIds ?? [],
     location: payload.location ?? null,
     departureTime: payload.departureTime ?? null,
+    steps: payload.steps,
     eventId,
   });
 
@@ -289,6 +291,7 @@ function materializeDemoCreate(
         involvedContactIds: [],
         location: null,
         departureTime: null,
+        steps: [],
         createdAt: now,
         updatedAt: now,
         weekId: occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId),
@@ -300,6 +303,10 @@ function materializeDemoCreate(
   }
 
   const isHabit = kind === 'habit_good' || kind === 'habit_quit';
+  const steps =
+    kindSupportsSteps(kind) && payload.steps?.length
+      ? normalizeTaskSteps(payload.steps)
+      : [];
   const recurrence = normalizeRecurrence(
     isHabit &&
       (!payload.recurrenceFrequency || payload.recurrenceFrequency === 'none')
@@ -353,6 +360,7 @@ function materializeDemoCreate(
           : null,
       departureTime:
         kind === 'event' ? (payload.departureTime ?? null) : null,
+      steps,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -442,6 +450,7 @@ export async function rematerializeRxSeries(
       involvedContactIds: instance.involvedContactIds ?? [],
       location: instance.location ?? null,
       departureTime: instance.departureTime ?? null,
+      steps: instance.steps ?? [],
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
     });
@@ -543,6 +552,7 @@ function rematerializeDemoRx(
       involvedContactIds: [],
       location: null,
       departureTime: null,
+      steps: [],
       color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
       startTime: occ.startTime,
       endTime: null,
@@ -636,6 +646,7 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     ),
     location: normalizeLocationField(raw.location),
     departureTime: normalizeTimeField(raw.departure_time ?? raw.departureTime),
+    steps: normalizeTaskSteps(raw.steps),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };

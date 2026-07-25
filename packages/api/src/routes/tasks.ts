@@ -152,6 +152,32 @@ function assertTimeRange(
   }
 }
 
+const taskStepSchema = z.object({
+  id: z.string().min(1).max(80),
+  title: z.string().min(1).max(280).trim(),
+  completed: z.boolean().optional().default(false),
+});
+
+function normalizeSteps(raw: unknown): Array<{
+  id: string;
+  title: string;
+  completed: boolean;
+}> {
+  if (!Array.isArray(raw)) return [];
+  const out: Array<{ id: string; title: string; completed: boolean }> = [];
+  for (const item of raw) {
+    const parsed = taskStepSchema.safeParse(item);
+    if (!parsed.success) continue;
+    out.push({
+      id: parsed.data.id,
+      title: parsed.data.title,
+      completed: Boolean(parsed.data.completed),
+    });
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
 const createSchema = taskLocation.extend({
   title: z.string().min(1).max(280).trim(),
   projectId: z.string().nullable().optional(),
@@ -173,6 +199,7 @@ const createSchema = taskLocation.extend({
   involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
   location: z.string().max(200).nullable().optional(),
   departureTime: timeSchema,
+  steps: z.array(taskStepSchema).max(40).optional(),
 });
 
 const updateSchema = z
@@ -201,6 +228,7 @@ const updateSchema = z
     involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
     location: z.string().max(200).nullable().optional(),
     departureTime: timeSchema,
+    steps: z.array(taskStepSchema).max(40).optional(),
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -268,6 +296,7 @@ function toClientTask(
       (row.departure_time as string | null | undefined) ??
       (row.departureTime as string | null | undefined) ??
       null,
+    steps: normalizeSteps(row.steps),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -298,6 +327,15 @@ function isHabitKind(kind: string | null | undefined): boolean {
   return kind === 'habit_good' || kind === 'habit_quit';
 }
 
+function kindSupportsSteps(kind: string | null | undefined): boolean {
+  return (
+    kind === 'task' ||
+    kind === 'reminder' ||
+    kind === 'event' ||
+    kind === 'possible_event'
+  );
+}
+
 tasksRouter.post('/', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
@@ -324,6 +362,7 @@ tasksRouter.post('/', async (req, res, next) => {
       involvedContactIds,
       location,
       departureTime,
+      steps: rawSteps,
     } = createSchema.parse(req.body);
 
     const resolvedEndDayId =
@@ -346,6 +385,9 @@ tasksRouter.post('/', async (req, res, next) => {
         ? location.trim().slice(0, 200)
         : null;
     const departureValue = taskKind === 'event' ? (departureTime ?? null) : null;
+    const stepsValue = kindSupportsSteps(taskKind)
+      ? normalizeSteps(rawSteps)
+      : [];
 
     // ——— Recetario: materializa 1 fila por (día × horario) con plan por fases ———
     if (isRxKind(taskKind)) {
@@ -435,6 +477,7 @@ tasksRouter.post('/', async (req, res, next) => {
           involved_contact_ids: [],
           location: null,
           departure_time: null,
+          steps: [],
           created_at: now,
           updated_at: now,
         });
@@ -543,6 +586,7 @@ tasksRouter.post('/', async (req, res, next) => {
           involved_contact_ids: isEventLike ? involvedIds : [],
           location: isHabit ? null : locationValue,
           departure_time: isHabit ? null : departureValue,
+          steps: isHabit ? [] : stepsValue,
           created_at: now,
           updated_at: now,
         });
@@ -644,6 +688,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.location !== undefined) seriesUpdate.location = patch.location;
     if (patch.departureTime !== undefined) {
       seriesUpdate.departure_time = patch.departureTime;
+    }
+    if (patch.steps !== undefined) {
+      seriesUpdate.steps = normalizeSteps(patch.steps);
     }
 
     // Campos solo de instancia (nunca se propagan a la serie).
@@ -748,6 +795,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       if (patch.location !== undefined) update.location = patch.location;
       if (patch.departureTime !== undefined) {
         update.departure_time = patch.departureTime;
+      }
+      if (patch.steps !== undefined) {
+        update.steps = normalizeSteps(patch.steps);
       }
       if (
         patch.rxAmount !== undefined ||

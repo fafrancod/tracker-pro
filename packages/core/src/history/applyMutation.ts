@@ -176,6 +176,7 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           involvedContactIds: instance.involvedContactIds ?? [],
           location: instance.location ?? null,
           departureTime: instance.departureTime ?? null,
+          steps: instance.steps ?? [],
           rx: instance.rx,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,

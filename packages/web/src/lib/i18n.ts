@@ -533,7 +533,18 @@ export interface TranslationDict {
 
   // Generales
   empty_no_tasks: string;
+  empty_no_events: string;
+  empty_no_possible: string;
+  empty_no_rx: string;
+  empty_no_habits: string;
+  empty_no_projects_cat: string;
   empty_no_projects: string;
+  task_steps_label: string;
+  task_steps_hint: string;
+  task_steps_empty: string;
+  task_steps_placeholder: string;
+  task_steps_add: string;
+  task_steps_progress: string;
 
   // Círculo (personas y mascotas)
   circle_title: string;
@@ -1153,7 +1164,18 @@ const es_dict: TranslationDict = {
   dashboard_dose_done: 'Desmarcar toma',
 
   empty_no_tasks: 'Aún no hay tareas.',
+  empty_no_events: 'Aún no hay eventos.',
+  empty_no_possible: 'Aún no hay eventos posibles.',
+  empty_no_rx: 'Aún no hay tomas de recetario.',
+  empty_no_habits: 'Aún no hay hábitos.',
+  empty_no_projects_cat: 'Aún no hay tareas de proyectos.',
   empty_no_projects: 'Aún no hay proyectos.',
+  task_steps_label: 'Pasos asociados',
+  task_steps_hint: 'Pulsa para desplegar y añadir una checklist.',
+  task_steps_empty: 'Sin pasos. Añade el primero.',
+  task_steps_placeholder: 'Ej. Comprar cuerdas, calentar 10 min…',
+  task_steps_add: 'Añadir paso',
+  task_steps_progress: '{done}/{total} pasos',
 
   circle_title: 'Círculo',
   circle_subtitle:
@@ -1778,7 +1800,18 @@ const en_dict: TranslationDict = {
   dashboard_dose_done: 'Unmark dose',
 
   empty_no_tasks: 'No tasks yet.',
+  empty_no_events: 'No events yet.',
+  empty_no_possible: 'No possible events yet.',
+  empty_no_rx: 'No prescription doses yet.',
+  empty_no_habits: 'No habits yet.',
+  empty_no_projects_cat: 'No project tasks yet.',
   empty_no_projects: 'No projects yet.',
+  task_steps_label: 'Associated steps',
+  task_steps_hint: 'Click to expand and add a checklist.',
+  task_steps_empty: 'No steps yet. Add the first one.',
+  task_steps_placeholder: 'e.g. Buy strings, warm up 10 min…',
+  task_steps_add: 'Add step',
+  task_steps_progress: '{done}/{total} steps',
 
   circle_title: 'Circle',
   circle_subtitle:
