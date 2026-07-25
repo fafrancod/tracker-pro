@@ -1,6 +1,6 @@
 {
   "name": "daily-tracker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "engines": {
     "node": ">=22"
@@ -19,7 +19,11 @@
     "build:android": "npm run build:android --workspace=packages/web",
     "android:open": "npm run cap:android --workspace=packages/web",
     "lint": "npm run lint --workspaces --if-present",
-    "type-check": "npm run type-check --workspaces --if-present"
+    "type-check": "npm run type-check --workspaces --if-present",
+    "version:set": "node scripts/bump-version.mjs",
+    "version:patch": "node scripts/bump-version.mjs patch",
+    "version:minor": "node scripts/bump-version.mjs minor",
+    "version:major": "node scripts/bump-version.mjs major"
   },
   "devDependencies": {
     "typescript": "^5.4.5"

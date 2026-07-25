@@ -66,7 +66,10 @@ daily-tracker/
 
 Igual que finanzas-pro:
 
-- Cada PR aumenta `version` en `package.json` del paquete tocado.
+- Cada ship a `main` aumenta la versión SemVer (MAJOR.MINOR.PATCH) en **root + packages/** (mismo número en todos).
+  - MAJOR = cambio estructural grande; MINOR = feature grande; PATCH = mejora/fix pequeño.
+  - Helper: `npm run version:patch|minor|major` (`scripts/bump-version.mjs`).
+  - Los PR deben documentar `vX.Y.Z` y el nivel de bump en la descripción.
 - Semver. Para beta: `x.y.z-beta.n`.
 - Version backend expuesta por `/api/version`.
 - Version frontend inyectada por Vite (`__APP_VERSION__`).

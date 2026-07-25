@@ -2,14 +2,22 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 function readPackageVersion(): string {
-  try {
-    const pkg = JSON.parse(
-      readFileSync(resolve(process.cwd(), 'package.json'), 'utf-8')
-    ) as { version?: string };
-    return pkg.version ?? '0.0.0';
-  } catch {
-    return '0.0.0';
+  // Prefer root monorepo version (Docker/runtime cwd = /app).
+  // Fallback a packages/api cuando se arranca desde el workspace.
+  const candidates = [
+    resolve(process.cwd(), 'package.json'),
+    resolve(process.cwd(), '../../package.json'),
+    resolve(process.cwd(), 'packages/api/package.json'),
+  ];
+  for (const path of candidates) {
+    try {
+      const pkg = JSON.parse(readFileSync(path, 'utf-8')) as { version?: string };
+      if (pkg.version) return pkg.version;
+    } catch {
+      // try next
+    }
   }
+  return '0.0.0';
 }
 
 function parsePort(): number {
