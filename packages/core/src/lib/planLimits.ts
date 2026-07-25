@@ -14,7 +14,8 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
-    maxProjects: 3,
+    // Proyectos sin tope: la app es personal y el límite de 3 bloqueaba el uso real.
+    maxProjects: Infinity,
     maxTasksPerMonth: 500,
     canViewPastWeeks: false,
     canViewAnalytics: false,

@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { FolderKanban, Pencil, Trash2, Lock } from 'lucide-react';
+import { FolderKanban, Pencil, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useProjects } from '@core/hooks/useProjects';
-import { usePlan } from '@core/hooks/usePlan';
 import { useToast } from '@/contexts/ToastContext';
 import { ProjectFormDialog, type ProjectFormValue } from '@/components/Projects/ProjectFormDialog';
 import type { Project } from '@core/types';
@@ -12,13 +10,10 @@ import { ApiClientError } from '@core/lib/api';
 
 export function ProjectsPage() {
   const { projects, addProject, editProject, removeProject } = useProjects();
-  const { isPro, limits, plan } = usePlan();
   const { showToast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
-
-  const limitReached = !isPro && projects.length >= limits.maxProjects;
 
   function openCreate() {
     setEditing(null);
@@ -62,41 +57,19 @@ export function ProjectsPage() {
   return (
     <Layout
       title="Proyectos"
-      primaryAction={
-        limitReached
-          ? undefined
-          : { label: 'Nuevo proyecto', onClick: openCreate }
-      }
-      onFabClick={limitReached ? undefined : openCreate}
-      showFab={!limitReached}
+      primaryAction={{ label: 'Nuevo proyecto', onClick: openCreate }}
+      onFabClick={openCreate}
+      showFab
     >
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        {/* Plan banner */}
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-border bg-surface px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Badge variant={isPro ? 'teal' : 'secondary'}>{plan === 'pro' ? 'Pro' : 'Free'}</Badge>
-            <span className="text-sm text-text-muted">
-              {isPro
-                ? 'Proyectos ilimitados.'
-                : `${projects.length} de ${limits.maxProjects} proyectos usados.`}
-            </span>
-          </div>
-          {limitReached && (
-            <Badge variant="red" className="gap-1">
-              <Lock className="h-3 w-3" /> Límite alcanzado
-            </Badge>
-          )}
-        </div>
-
-        {/* List */}
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border p-12 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-text-muted">
               <FolderKanban className="h-5 w-5" />
             </div>
-            <h2 className="text-sm font-semibold text-text-primary">Aún no tenés proyectos</h2>
+            <h2 className="text-sm font-semibold text-text-primary">Aún no tienes proyectos</h2>
             <p className="max-w-sm text-xs text-text-muted">
-              Creá tu primer proyecto para agrupar tareas y ver progreso por contexto.
+              Crea tu primer proyecto para agrupar tareas y ver progreso por contexto.
             </p>
             <Button onClick={openCreate} size="sm" className="mt-1">
               Crear primer proyecto

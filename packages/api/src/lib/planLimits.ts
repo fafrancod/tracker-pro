@@ -15,7 +15,8 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
   free: {
-    maxProjects: 3,
+    // Proyectos sin tope (alineado con core). Otros límites free se mantienen.
+    maxProjects: Infinity,
     maxTasksPerMonth: 500,
     canViewPastWeeks: false,
     canViewAnalytics: false,
