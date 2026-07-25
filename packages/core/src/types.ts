@@ -14,8 +14,16 @@ export type DoseUnit = 'pills' | 'ml';
 export type BoardCategoryFilter = 'all' | 'projects' | 'rx';
 
 /**
+ * Cómo se definen los horarios de la fase:
+ * - fixed: lista de horas del día (times[])
+ * - interval: cada N horas a partir de startTime → se expanden a times[]
+ */
+export type RxScheduleMode = 'fixed' | 'interval';
+
+/**
  * Una fase del plan de medicación.
  * Ejemplo: 1 pastilla 2×/día durante 7 días, luego 0.5 pastilla 1×/día 7 días.
+ * O: 1 pastilla cada 8 h desde las 08:00 durante 7 días.
  */
 export interface RxPhase {
   /** Cantidad por sesión (toma). */
@@ -23,8 +31,21 @@ export interface RxPhase {
   unit: DoseUnit;
   /** Días consecutivos de esta fase (≥ 1). */
   days: number;
-  /** Horarios locales HH:mm de cada sesión del día. */
+  /**
+   * fixed = horarios fijos (times).
+   * interval = cada everyHours desde startTime (times se calcula).
+   * Default implícito: fixed si no viene (planes antiguos).
+   */
+  scheduleMode?: RxScheduleMode;
+  /**
+   * Horarios locales HH:mm de cada sesión del día.
+   * En modo interval se rellenan al validar/materializar.
+   */
   times: string[];
+  /** Intervalo en horas (1–24). Solo modo interval. */
+  everyHours?: number | null;
+  /** Hora de partida HH:mm. Solo modo interval. */
+  startTime?: string | null;
 }
 
 /** Metadatos de recetario en cada toma materializada. */

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { materializeRxOccurrences, validateRxPhases } from '../lib/rx.js';
+import {
+  expandIntervalTimes,
+  materializeRxOccurrences,
+  validateRxPhases,
+} from '../lib/rx.js';
 
 describe('materializeRxOccurrences', () => {
   it('expande dos fases con horarios en días consecutivos', () => {
@@ -24,7 +28,30 @@ describe('materializeRxOccurrences', () => {
     });
   });
 
+  it('expande modo interval cada 8h desde 08:00', () => {
+    const phase = {
+      amount: 1,
+      unit: 'pills' as const,
+      days: 1,
+      scheduleMode: 'interval' as const,
+      times: [] as string[],
+      everyHours: 8,
+      startTime: '08:00',
+    };
+    expect(validateRxPhases([phase])).toBeNull();
+    expect(phase.times).toEqual(['08:00', '16:00', '00:00']);
+    const occs = materializeRxOccurrences('2026-03-10', [phase]);
+    expect(occs).toHaveLength(3);
+    expect(occs.map(o => o.startTime).sort()).toEqual(['00:00', '08:00', '16:00']);
+  });
+
   it('valida plan vacío', () => {
     expect(validateRxPhases([])).toMatch(/fase/i);
+  });
+});
+
+describe('expandIntervalTimes', () => {
+  it('cada 6h desde 06:00', () => {
+    expect(expandIntervalTimes('06:00', 6)).toEqual(['06:00', '12:00', '18:00', '00:00']);
   });
 });

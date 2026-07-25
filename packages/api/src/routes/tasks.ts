@@ -80,15 +80,49 @@ const timeSchema = z.preprocess(
 
 const hhmmSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'hora formato HH:mm');
 
-const rxPhaseSchema = z.object({
-  amount: z.number().positive().max(10000),
-  unit: z.enum(['pills', 'ml']),
-  days: z.number().int().min(1).max(365),
-  times: z
-    .array(z.preprocess(normalizeTimeValue, hhmmSchema))
-    .min(1)
-    .max(12),
-});
+const rxPhaseSchema = z
+  .object({
+    amount: z.number().positive().max(10000),
+    unit: z.enum(['pills', 'ml']),
+    days: z.number().int().min(1).max(365),
+    scheduleMode: z.enum(['fixed', 'interval']).optional(),
+    times: z
+      .array(z.preprocess(normalizeTimeValue, hhmmSchema))
+      .max(12)
+      .optional()
+      .default([]),
+    everyHours: z.number().int().min(1).max(24).nullable().optional(),
+    startTime: z.preprocess(normalizeTimeValue, hhmmSchema.nullable().optional()),
+  })
+  .superRefine((p, ctx) => {
+    const mode =
+      p.scheduleMode === 'interval' ||
+      (typeof p.everyHours === 'number' && p.everyHours >= 1 && (!p.times || p.times.length === 0))
+        ? 'interval'
+        : 'fixed';
+    if (mode === 'interval') {
+      if (p.everyHours == null || p.everyHours < 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'everyHours requerido en modo interval (1–24)',
+          path: ['everyHours'],
+        });
+      }
+      if (!p.startTime) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'startTime requerido en modo interval',
+          path: ['startTime'],
+        });
+      }
+    } else if (!p.times || p.times.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'times requerido en modo fixed (o usa scheduleMode interval)',
+        path: ['times'],
+      });
+    }
+  });
 
 function assertTimeRange(
   startTime: string | null | undefined,

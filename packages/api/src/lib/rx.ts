@@ -2,12 +2,16 @@ import { addDaysToDayId } from './recurrence.js';
 
 export type DoseUnit = 'pills' | 'ml';
 export type RxTaskKind = 'rx_human' | 'rx_pet';
+export type RxScheduleMode = 'fixed' | 'interval';
 
 export interface RxPhase {
   amount: number;
   unit: DoseUnit;
   days: number;
+  scheduleMode?: RxScheduleMode;
   times: string[];
+  everyHours?: number | null;
+  startTime?: string | null;
 }
 
 export interface RxMeta {
@@ -21,7 +25,7 @@ export interface RxMeta {
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-function normalizePhaseTime(raw: string): string {
+export function normalizePhaseTime(raw: string): string {
   const s = raw.trim();
   if (/^\d{1,2}:\d{2}:\d{2}$/.test(s)) {
     return normalizePhaseTime(s.slice(0, s.lastIndexOf(':')));
@@ -36,6 +40,97 @@ function normalizePhaseTime(raw: string): string {
 
 export function isRxKind(kind: string | null | undefined): boolean {
   return kind === 'rx_human' || kind === 'rx_pet';
+}
+
+/**
+ * Expande "cada N horas desde startTime" a horarios del día (máx. 12).
+ * Dual-port de packages/core/src/lib/rx.ts.
+ */
+export function expandIntervalTimes(startTime: string, everyHours: number): string[] {
+  const st = normalizePhaseTime(startTime);
+  if (!TIME_RE.test(st)) return [];
+  const eh = Math.floor(everyHours);
+  if (!Number.isFinite(eh) || eh < 1 || eh > 24) return [];
+
+  const [h0, m0] = st.split(':').map(Number);
+  const startMin = h0 * 60 + m0;
+  const step = eh * 60;
+  const dayMins = 24 * 60;
+  const out: string[] = [];
+
+  for (let i = 0; i < 12; i++) {
+    const elapsed = i * step;
+    if (elapsed >= dayMins) break;
+    const mins = (startMin + elapsed) % dayMins;
+    if (i > 0 && mins === startMin) break;
+    const hh = Math.floor(mins / 60);
+    const mm = mins % 60;
+    out.push(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+  }
+  return out;
+}
+
+export function resolvePhaseScheduleMode(phase: RxPhase): RxScheduleMode {
+  if (phase.scheduleMode === 'interval' || phase.scheduleMode === 'fixed') {
+    return phase.scheduleMode;
+  }
+  const eh = phase.everyHours;
+  if (typeof eh === 'number' && eh >= 1 && (!phase.times || phase.times.length === 0)) {
+    return 'interval';
+  }
+  return 'fixed';
+}
+
+export function normalizeRxPhaseSchedule(phase: RxPhase, phaseLabel: string): string | null {
+  const mode = resolvePhaseScheduleMode(phase);
+  phase.scheduleMode = mode;
+
+  if (mode === 'interval') {
+    const eh = Math.floor(Number(phase.everyHours));
+    if (!Number.isFinite(eh) || eh < 1 || eh > 24) {
+      return `${phaseLabel}: indica cada cuántas horas (1–24)`;
+    }
+    const stRaw = phase.startTime ?? '08:00';
+    if (typeof stRaw !== 'string') {
+      return `${phaseLabel}: hora de inicio inválida`;
+    }
+    const st = normalizePhaseTime(stRaw);
+    if (!TIME_RE.test(st)) {
+      return `${phaseLabel}: hora de inicio inválida (${stRaw})`;
+    }
+    const times = expandIntervalTimes(st, eh);
+    if (times.length === 0) {
+      return `${phaseLabel}: no se pudieron calcular horarios con ese intervalo`;
+    }
+    if (times.length > 12) {
+      return `${phaseLabel}: demasiadas tomas al día (máx. 12)`;
+    }
+    phase.everyHours = eh;
+    phase.startTime = st;
+    phase.times = times;
+    return null;
+  }
+
+  phase.everyHours = null;
+  phase.startTime = null;
+  if (!Array.isArray(phase.times) || phase.times.length === 0) {
+    return `${phaseLabel}: indica al menos un horario o usa «cada N horas»`;
+  }
+  if (phase.times.length > 12) {
+    return `${phaseLabel}: máximo 12 horarios por día`;
+  }
+  for (let ti = 0; ti < phase.times.length; ti++) {
+    const t = phase.times[ti];
+    if (typeof t !== 'string') {
+      return `${phaseLabel}: horario inválido`;
+    }
+    const nt = normalizePhaseTime(t);
+    if (!TIME_RE.test(nt)) {
+      return `${phaseLabel}: horario inválido (${t})`;
+    }
+    phase.times[ti] = nt;
+  }
+  return null;
 }
 
 export function validateRxPhases(phases: RxPhase[]): string | null {
@@ -59,23 +154,9 @@ export function validateRxPhases(phases: RxPhase[]): string | null {
     if (!Number.isFinite(days) || days < 1 || days > 365) {
       return `Fase ${i + 1}: días entre 1 y 365`;
     }
-    if (!Array.isArray(p.times) || p.times.length === 0) {
-      return `Fase ${i + 1}: indica al menos un horario`;
-    }
-    if (p.times.length > 12) {
-      return `Fase ${i + 1}: máximo 12 horarios por día`;
-    }
-    for (let ti = 0; ti < p.times.length; ti++) {
-      const t = p.times[ti];
-      if (typeof t !== 'string') {
-        return `Fase ${i + 1}: horario inválido`;
-      }
-      const nt = normalizePhaseTime(t);
-      if (!TIME_RE.test(nt)) {
-        return `Fase ${i + 1}: horario inválido (${t})`;
-      }
-      p.times[ti] = nt;
-    }
+    p.days = days;
+    const schedErr = normalizeRxPhaseSchedule(p, `Fase ${i + 1}`);
+    if (schedErr) return schedErr;
     totalDays += days;
     totalSessions += days * p.times.length;
   }
@@ -127,6 +208,19 @@ export function materializeRxOccurrences(
   return out;
 }
 
+function snapshotPhase(p: RxPhase): RxPhase {
+  const mode = resolvePhaseScheduleMode(p);
+  return {
+    amount: p.amount,
+    unit: p.unit,
+    days: Math.floor(p.days),
+    scheduleMode: mode,
+    times: [...p.times].sort(),
+    everyHours: mode === 'interval' ? (p.everyHours ?? null) : null,
+    startTime: mode === 'interval' ? (p.startTime ?? null) : null,
+  };
+}
+
 export function buildRxMetaForOccurrence(
   planStartDayId: string,
   phases: RxPhase[],
@@ -139,12 +233,7 @@ export function buildRxMetaForOccurrence(
     unit: occ.unit,
     phaseIndex: occ.phaseIndex,
     planStartDayId,
-    phases: phases.map(p => ({
-      amount: p.amount,
-      unit: p.unit,
-      days: Math.floor(p.days),
-      times: [...p.times].sort(),
-    })),
+    phases: phases.map(snapshotPhase),
   };
 }
 

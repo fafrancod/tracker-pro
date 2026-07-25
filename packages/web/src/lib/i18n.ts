@@ -247,6 +247,12 @@ export interface TranslationDict {
   rx_days: string;
   rx_times: string;
   rx_add_time: string;
+  rx_schedule_mode: string;
+  rx_schedule_fixed: string;
+  rx_schedule_interval: string;
+  rx_every_hours: string;
+  rx_interval_start: string;
+  rx_interval_preview: string;
   rx_add_phase: string;
   rx_edit_plan: string;
   rx_this_dose: string;
@@ -712,8 +718,14 @@ const es_dict: TranslationDict = {
   rx_unit_pills: 'Pastillas',
   rx_unit_ml: 'ml',
   rx_days: 'Días',
-  rx_times: 'Horarios',
+  rx_times: 'Horarios fijos',
   rx_add_time: 'horario',
+  rx_schedule_mode: 'Cómo programar las tomas',
+  rx_schedule_fixed: 'Horas fijas',
+  rx_schedule_interval: 'Cada N horas',
+  rx_every_hours: 'Cada (horas)',
+  rx_interval_start: 'Hora de inicio',
+  rx_interval_preview: 'Horarios calculados',
   rx_add_phase: 'Añadir fase (otra dosis)',
   rx_edit_plan: 'Recetario',
   rx_this_dose: 'Esta toma',
@@ -1187,8 +1199,14 @@ const en_dict: TranslationDict = {
   rx_unit_pills: 'Pills',
   rx_unit_ml: 'ml',
   rx_days: 'Days',
-  rx_times: 'Times',
+  rx_times: 'Fixed times',
   rx_add_time: 'time',
+  rx_schedule_mode: 'How to schedule doses',
+  rx_schedule_fixed: 'Fixed times',
+  rx_schedule_interval: 'Every N hours',
+  rx_every_hours: 'Every (hours)',
+  rx_interval_start: 'Start time',
+  rx_interval_preview: 'Computed times',
   rx_add_phase: 'Add phase (new dose)',
   rx_edit_plan: 'Prescription',
   rx_this_dose: 'This dose',

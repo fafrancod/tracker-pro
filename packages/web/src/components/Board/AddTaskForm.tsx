@@ -27,10 +27,18 @@ import type {
   Urgency,
   Importance,
   RxPhase,
+  RxScheduleMode,
   DoseUnit,
 } from '@core/types';
 import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
-import { isRxKind, rxPlanEndDayId, totalRxPlanDays, validateRxPhases } from '@core/lib/rx';
+import {
+  expandIntervalTimes,
+  isRxKind,
+  resolvePhaseScheduleMode,
+  rxPlanEndDayId,
+  totalRxPlanDays,
+  validateRxPhases,
+} from '@core/lib/rx';
 import { extractHashtags, mergeTags, normalizeTag } from '@core/lib/tags';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
@@ -43,7 +51,10 @@ const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
   unit: 'pills',
   days: 7,
+  scheduleMode: 'fixed',
   times: ['08:00'],
+  everyHours: null,
+  startTime: null,
 };
 
 const PRIORITY_OPTIONS: {
@@ -208,7 +219,15 @@ export function AddTaskForm({
   function addPhase() {
     setRxPhases(prev => [
       ...prev,
-      { amount: 1, unit: 'pills' as DoseUnit, days: 7, times: ['08:00'] },
+      {
+        amount: 1,
+        unit: 'pills' as DoseUnit,
+        days: 7,
+        scheduleMode: 'fixed',
+        times: ['08:00'],
+        everyHours: null,
+        startTime: null,
+      },
     ]);
   }
 
@@ -351,10 +370,41 @@ export function AddTaskForm({
   function notesFromRx(subject: string, phases: RxPhase[]): string {
     const lines = phases.map((p, i) => {
       const unit = p.unit === 'ml' ? 'ml' : 'past.';
-      return `Fase ${i + 1}: ${p.amount} ${unit} · ${p.times.join(', ')} · ${p.days}d`;
+      const mode = resolvePhaseScheduleMode(p);
+      const schedule =
+        mode === 'interval' && p.everyHours && p.startTime
+          ? `cada ${p.everyHours}h desde ${p.startTime} (${(p.times ?? []).join(', ')})`
+          : (p.times ?? []).join(', ');
+      return `Fase ${i + 1}: ${p.amount} ${unit} · ${schedule} · ${p.days}d`;
     });
     if (subject.trim()) lines.unshift(`Para: ${subject.trim()}`);
     return lines.join('\n');
+  }
+
+  function setPhaseScheduleMode(index: number, mode: RxScheduleMode) {
+    setRxPhases(prev =>
+      prev.map((p, i) => {
+        if (i !== index) return p;
+        if (mode === 'interval') {
+          const everyHours = p.everyHours && p.everyHours >= 1 ? p.everyHours : 8;
+          const startTime = p.startTime || p.times[0] || '08:00';
+          return {
+            ...p,
+            scheduleMode: 'interval',
+            everyHours,
+            startTime,
+            times: expandIntervalTimes(startTime, everyHours),
+          };
+        }
+        return {
+          ...p,
+          scheduleMode: 'fixed',
+          everyHours: null,
+          startTime: null,
+          times: p.times.length ? p.times : ['08:00'],
+        };
+      })
+    );
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -547,39 +597,119 @@ export function AddTaskForm({
                   />
                 </label>
               </div>
-              <div className="space-y-1">
+              {/* Horarios: fijos O cada N horas */}
+              <div className="space-y-2">
                 <span className="text-[10px] font-medium uppercase text-text-muted">
-                  {t('rx_times')}
+                  {t('rx_schedule_mode')}
                 </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {phase.times.map((tm, ti) => (
-                    <div key={ti} className="flex items-center gap-0.5">
-                      <TimeInput
-                        value={tm}
-                        onChange={v => setPhaseTime(pi, ti, v || '08:00')}
-                        showNow={false}
-                        clearLabel={t('action_delete')}
-                      />
-                      {phase.times.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removePhaseTime(pi, ti)}
-                          className="text-text-muted hover:text-accent-red"
-                          aria-label={t('action_delete')}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => addTimeToPhase(pi)}
-                    className="rounded border border-dashed border-border px-2 py-1 text-[10px] text-text-muted hover:text-text-primary"
-                  >
-                    + {t('rx_add_time')}
-                  </button>
+                <div className="inline-flex rounded-lg border border-border bg-background p-0.5">
+                  {(['fixed', 'interval'] as RxScheduleMode[]).map(mode => {
+                    const active = resolvePhaseScheduleMode(phase) === mode;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setPhaseScheduleMode(pi, mode)}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+                          active
+                            ? 'bg-accent-teal/15 text-accent-teal'
+                            : 'text-text-muted hover:text-text-primary'
+                        )}
+                      >
+                        {mode === 'fixed' ? t('rx_schedule_fixed') : t('rx_schedule_interval')}
+                      </button>
+                    );
+                  })}
                 </div>
+
+                {resolvePhaseScheduleMode(phase) === 'interval' ? (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-end gap-2">
+                      <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                        <span>{t('rx_every_hours')}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={24}
+                          value={phase.everyHours ?? 8}
+                          onChange={e => {
+                            const everyHours = Math.max(
+                              1,
+                              Math.min(24, Math.floor(Number(e.target.value) || 8))
+                            );
+                            const startTime = phase.startTime || '08:00';
+                            updatePhase(pi, {
+                              scheduleMode: 'interval',
+                              everyHours,
+                              startTime,
+                              times: expandIntervalTimes(startTime, everyHours),
+                            });
+                          }}
+                          className="w-20 rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                        <span>{t('rx_interval_start')}</span>
+                        <TimeInput
+                          value={phase.startTime || '08:00'}
+                          onChange={v => {
+                            const startTime = v || '08:00';
+                            const everyHours = phase.everyHours && phase.everyHours >= 1 ? phase.everyHours : 8;
+                            updatePhase(pi, {
+                              scheduleMode: 'interval',
+                              startTime,
+                              everyHours,
+                              times: expandIntervalTimes(startTime, everyHours),
+                            });
+                          }}
+                          showNow={false}
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-text-muted">
+                      {t('rx_interval_preview')}:{' '}
+                      <span className="font-medium text-text-primary">
+                        {(phase.times ?? []).join(' · ') || '—'}
+                      </span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-medium uppercase text-text-muted">
+                      {t('rx_times')}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {phase.times.map((tm, ti) => (
+                        <div key={ti} className="flex items-center gap-0.5">
+                          <TimeInput
+                            value={tm}
+                            onChange={v => setPhaseTime(pi, ti, v || '08:00')}
+                            showNow={false}
+                            clearLabel={t('action_delete')}
+                          />
+                          {phase.times.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removePhaseTime(pi, ti)}
+                              className="text-text-muted hover:text-accent-red"
+                              aria-label={t('action_delete')}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => addTimeToPhase(pi)}
+                        className="rounded border border-dashed border-border px-2 py-1 text-[10px] text-text-muted hover:text-text-primary"
+                      >
+                        + {t('rx_add_time')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
