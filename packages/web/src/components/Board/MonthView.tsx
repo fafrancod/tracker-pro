@@ -244,11 +244,27 @@ export function MonthView({
 
   function getSingleDayChips(date: Date): LocatedTask[] {
     const dayId = getDayId(date);
-    return collectTasksCovering(tasksByDay, dayId).filter(t => {
+    const chips = collectTasksCovering(tasksByDay, dayId).filter(t => {
       if (filter && !taskMatchesFilters(t, filter)) return false;
       const end = t.endDayId || t.startDayId;
       return end === t.startDayId;
     });
+    // Timed first (by startTime), then untimed by title.
+    return chips.sort((a, b) => {
+      const ta = a.startTime?.slice(0, 5) ?? '';
+      const tb = b.startTime?.slice(0, 5) ?? '';
+      if (ta && tb) return ta.localeCompare(tb);
+      if (ta) return -1;
+      if (tb) return 1;
+      return a.title.localeCompare(b.title);
+    });
+  }
+
+  function chipTimeLabel(task: Task): string | null {
+    if (!task.startTime) return null;
+    const start = task.startTime.slice(0, 5);
+    if (task.endTime) return `${start}–${task.endTime.slice(0, 5)}`;
+    return start;
   }
 
   function openDetail(weekId: string, dayId: string, taskId: string) {
@@ -393,37 +409,43 @@ export function MonthView({
             const laneCount = Math.max(1, ...bars.map(b => b.lane + 1), 1);
 
             return (
-              <div key={rowIdx} className="relative grid min-h-[104px] grid-cols-7 gap-1">
+              <div key={rowIdx} className="relative grid min-h-[132px] grid-cols-7 gap-1">
                 {weekDates.map((date, col) => {
                   const inMonth = isSameMonth(date, cursor);
                   const isToday = isSameDay(date, today);
                   const chips = getSingleDayChips(date);
-                  const visible = chips.slice(0, 2);
-                  const chipOverflow = chips.length - visible.length;
                   const covering = collectTasksCovering(tasksByDay, getDayId(date)).filter(
                     t => !filter || taskMatchesFilters(t, filter)
                   );
                   const completed = covering.filter(task => task.completed).length;
                   const total = covering.length;
-                  const extra = overflowByCol[col] + Math.max(0, chipOverflow);
+                  // Overflow only from multi-day bars that don't fit in lanes
+                  const barOverflow = overflowByCol[col];
 
                   return (
-                    <button
+                    <div
                       key={date.toISOString()}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => onPickDay(date)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onPickDay(date);
+                        }
+                      }}
                       onContextMenu={e => {
                         if (!onViewDay) return;
                         openDayContextMenu(e, date, setDayCtxMenu);
                       }}
                       className={cn(
-                        'group relative flex min-h-[104px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
+                        'group relative flex h-[132px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
                         inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
                         isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30',
                         'hover:border-accent-teal/40'
                       )}
                     >
-                      <div className="flex items-center justify-between gap-1">
+                      <div className="flex shrink-0 items-center justify-between gap-1">
                         <span
                           className={cn(
                             'text-xs font-semibold',
@@ -448,18 +470,29 @@ export function MonthView({
                         aria-hidden
                       />
 
-                      <div className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
-                        {visible.map(task => {
+                      <div
+                        className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain"
+                        onClick={e => e.stopPropagation()}
+                        onWheel={e => {
+                          // Keep wheel scroll inside the day cell when the list overflows.
+                          const el = e.currentTarget;
+                          if (el.scrollHeight > el.clientHeight) {
+                            e.stopPropagation();
+                          }
+                        }}
+                      >
+                        {chips.map(task => {
                           const project = task.projectId
                             ? allProjects.find(p => p.id === task.projectId)
                             : null;
+                          const timeLabel = chipTimeLabel(task);
                           return (
                             <span
                               key={task.id}
                               role="button"
                               tabIndex={0}
                               onClick={e => {
-                                // Single click on chip: do NOT toggle complete; let day create stay on empty cells.
+                                // Single click on chip: do NOT open create sheet.
                                 e.stopPropagation();
                               }}
                               onDoubleClick={e => {
@@ -476,9 +509,11 @@ export function MonthView({
                                   openDetail(task.weekId, task.startDayId, task.id);
                                 }
                               }}
-                              title={task.title}
+                              title={
+                                timeLabel ? `${task.title} · ${timeLabel}` : task.title
+                              }
                               className={cn(
-                                'block truncate rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
+                                'flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
                                 task.completed
                                   ? 'bg-accent-green/10 text-text-muted line-through'
                                   : 'bg-background/80 text-text-primary hover:bg-accent-teal/15',
@@ -492,17 +527,26 @@ export function MonthView({
                                   : undefined
                               }
                             >
-                              {task.kind === 'reminder' ? '🔔 ' : ''}
-                              {task.recurrence.frequency !== 'none' ? '↻ ' : ''}
-                              {task.title}
+                              <span className="min-w-0 flex-1 truncate">
+                                {task.kind === 'reminder' ? '🔔 ' : ''}
+                                {task.recurrence.frequency !== 'none' ? '↻ ' : ''}
+                                {task.title}
+                              </span>
+                              {timeLabel && (
+                                <span className="shrink-0 tabular-nums text-[9px] font-medium text-text-muted">
+                                  {timeLabel}
+                                </span>
+                              )}
                             </span>
                           );
                         })}
-                        {extra > 0 && (
-                          <span className="px-1 text-[9px] text-text-muted">+{extra}</span>
+                        {barOverflow > 0 && (
+                          <span className="px-1 text-[9px] text-text-muted">
+                            +{barOverflow}
+                          </span>
                         )}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
 
@@ -530,9 +574,13 @@ export function MonthView({
                         onContextMenu={e =>
                           openCtx(e, bar.task, bar.startWeekId, bar.startDayId)
                         }
-                        title={bar.task.title}
+                        title={
+                          bar.task.startTime
+                            ? `${bar.task.title} · ${chipTimeLabel(bar.task)}`
+                            : bar.task.title
+                        }
                         className={cn(
-                          'pointer-events-auto absolute z-10 truncate rounded px-1.5 text-left text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
+                          'pointer-events-auto absolute z-10 flex items-center gap-0.5 rounded px-1.5 text-left text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
                           bar.task.completed && 'line-through opacity-60',
                           bar.continuesLeft && 'rounded-l-none',
                           bar.continuesRight && 'rounded-r-none'
@@ -545,10 +593,17 @@ export function MonthView({
                           color: bar.task.completed ? undefined : '#0d1117',
                         }}
                       >
-                        {bar.continuesLeft ? '‹ ' : ''}
-                        {bar.task.recurrence.frequency !== 'none' ? '↻ ' : ''}
-                        {bar.task.title}
-                        {bar.continuesRight ? ' ›' : ''}
+                        <span className="min-w-0 flex-1 truncate">
+                          {bar.continuesLeft ? '‹ ' : ''}
+                          {bar.task.recurrence.frequency !== 'none' ? '↻ ' : ''}
+                          {bar.task.title}
+                          {bar.continuesRight ? ' ›' : ''}
+                        </span>
+                        {bar.task.startTime && (
+                          <span className="shrink-0 tabular-nums text-[9px] opacity-80">
+                            {bar.task.startTime.slice(0, 5)}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
