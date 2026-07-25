@@ -235,6 +235,18 @@ export type PersonRelationship =
   | 'friend'
   | 'coworker';
 
+/**
+ * Percepción personal de cómo está el vínculo (principalmente personas).
+ * great → very good; need_connect → hace falta conectar; strained → tensa; bad → mala.
+ */
+export type RelationPulse =
+  | 'great'
+  | 'good'
+  | 'neutral'
+  | 'need_connect'
+  | 'strained'
+  | 'bad';
+
 export interface Contact {
   id: string;
   kind: ContactKind;
@@ -243,6 +255,8 @@ export interface Contact {
   tags: string[];
   /** Solo personas; null en mascotas o si no se indica. */
   relationship: PersonRelationship | null;
+  /** Cómo sientes que está la relación ahora. */
+  relationPulse: RelationPulse | null;
   order: number;
   createdAt: string;
 }
@@ -443,6 +457,7 @@ export interface CreateContactPayload {
   name: string;
   tags: string[];
   relationship?: PersonRelationship | null;
+  relationPulse?: RelationPulse | null;
 }
 
 export interface UpdateContactPayload {
@@ -450,6 +465,7 @@ export interface UpdateContactPayload {
   name?: string;
   tags?: string[];
   relationship?: PersonRelationship | null;
+  relationPulse?: RelationPulse | null;
   order?: number;
 }
 

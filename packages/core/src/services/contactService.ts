@@ -8,6 +8,7 @@ import type {
   ContactKind,
   CreateContactPayload,
   PersonRelationship,
+  RelationPulse,
   UpdateContactPayload,
 } from '../types';
 
@@ -22,6 +23,15 @@ const RELATIONSHIPS = new Set<PersonRelationship>([
   'nephew',
   'friend',
   'coworker',
+]);
+
+const PULSES = new Set<RelationPulse>([
+  'great',
+  'good',
+  'neutral',
+  'need_connect',
+  'strained',
+  'bad',
 ]);
 
 export async function fetchContacts(uid: string): Promise<Contact[]> {
@@ -58,6 +68,8 @@ interface ContactApiResponse {
   name: string;
   tags: string[];
   relationship: PersonRelationship | null;
+  relationPulse?: RelationPulse | null;
+  relation_pulse?: RelationPulse | null;
   order: number;
   created_at?: string;
   createdAt?: string;
@@ -89,12 +101,19 @@ function mapContact(id: string, raw: Record<string, unknown>): Contact {
       ? (relRaw as PersonRelationship)
       : null;
 
+  const pulseRaw = raw.relation_pulse ?? raw.relationPulse;
+  const relationPulse =
+    typeof pulseRaw === 'string' && PULSES.has(pulseRaw as RelationPulse)
+      ? (pulseRaw as RelationPulse)
+      : null;
+
   return {
     id,
     kind,
     name: (raw.name as string) ?? '',
     tags,
     relationship,
+    relationPulse,
     order: typeof raw.order === 'number' ? raw.order : 0,
     createdAt:
       (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),

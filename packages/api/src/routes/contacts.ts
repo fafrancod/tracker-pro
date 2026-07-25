@@ -22,6 +22,15 @@ const relationshipSchema = z.enum([
   'coworker',
 ]);
 
+const relationPulseSchema = z.enum([
+  'great',
+  'good',
+  'neutral',
+  'need_connect',
+  'strained',
+  'bad',
+]);
+
 function normalizeTags(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const out: string[] = [];
@@ -44,6 +53,7 @@ const createSchema = z
     name: z.string().min(1).max(80).trim(),
     tags: z.array(z.string()).max(12).optional(),
     relationship: relationshipSchema.nullable().optional(),
+    relationPulse: relationPulseSchema.nullable().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.kind === 'pet' && val.relationship) {
@@ -61,6 +71,7 @@ const updateSchema = z
     name: z.string().min(1).max(80).trim().optional(),
     tags: z.array(z.string()).max(12).optional(),
     relationship: relationshipSchema.nullable().optional(),
+    relationPulse: relationPulseSchema.nullable().optional(),
     order: z.number().int().nonnegative().optional(),
   })
   .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' });
@@ -78,6 +89,7 @@ contactsRouter.post('/', async (req, res, next) => {
 
     const relationship =
       body.kind === 'person' ? (body.relationship ?? null) : null;
+    const relationPulse = body.relationPulse ?? null;
 
     const { count, error: countErr } = await getSupabaseAdmin()
       .from('contacts')
@@ -94,6 +106,7 @@ contactsRouter.post('/', async (req, res, next) => {
       name: body.name,
       tags: finalTags,
       relationship,
+      relation_pulse: relationPulse,
       order,
     });
     if (error) throw error;
@@ -104,6 +117,7 @@ contactsRouter.post('/', async (req, res, next) => {
       name: body.name,
       tags: finalTags,
       relationship,
+      relationPulse,
       order,
     });
   } catch (err) {
@@ -142,6 +156,9 @@ contactsRouter.patch('/:contactId', async (req, res, next) => {
       update.relationship = nextKind === 'pet' ? null : (patch.relationship ?? null);
     }
     if (nextKind === 'pet') update.relationship = null;
+    if (patch.relationPulse !== undefined) {
+      update.relation_pulse = patch.relationPulse;
+    }
 
     if (Object.keys(update).length === 0) {
       throw ApiError.badRequest('Nada que actualizar');

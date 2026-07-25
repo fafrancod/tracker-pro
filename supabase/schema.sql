@@ -337,10 +337,20 @@ create table if not exists public.contacts (
       'niece', 'nephew', 'friend', 'coworker'
     )
   ),
+  -- Percepción personal del vínculo
+  relation_pulse text check (
+    relation_pulse is null
+    or relation_pulse in (
+      'great', 'good', 'neutral', 'need_connect', 'strained', 'bad'
+    )
+  ),
   "order" int not null default 0,
   created_at timestamptz not null default now(),
   check (kind = 'person' or relationship is null)
 );
+
+-- Migración idempotente: relation_pulse
+alter table public.contacts add column if not exists relation_pulse text;
 
 create index if not exists contacts_user_order_idx on public.contacts (user_id, "order");
 

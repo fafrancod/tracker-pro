@@ -14,13 +14,19 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
 import { normalizeTag } from '@core/lib/tags';
 import type { TKey } from '@/lib/i18n';
-import type { Contact, ContactKind, PersonRelationship } from '@core/types';
+import type {
+  Contact,
+  ContactKind,
+  PersonRelationship,
+  RelationPulse,
+} from '@core/types';
 
 export interface ContactFormValue {
   kind: ContactKind;
   name: string;
   tags: string[];
   relationship: PersonRelationship | null;
+  relationPulse: RelationPulse | null;
 }
 
 const RELATIONSHIPS: PersonRelationship[] = [
@@ -32,6 +38,15 @@ const RELATIONSHIPS: PersonRelationship[] = [
   'nephew',
   'friend',
   'coworker',
+];
+
+export const RELATION_PULSES: RelationPulse[] = [
+  'great',
+  'good',
+  'neutral',
+  'need_connect',
+  'strained',
+  'bad',
 ];
 
 interface ContactFormDialogProps {
@@ -53,6 +68,7 @@ export function ContactFormDialog({
   const [name, setName] = useState('');
   const [tagsText, setTagsText] = useState('');
   const [relationship, setRelationship] = useState<PersonRelationship | ''>('');
+  const [relationPulse, setRelationPulse] = useState<RelationPulse | ''>('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -61,6 +77,7 @@ export function ContactFormDialog({
     setName(initial?.name ?? '');
     setTagsText((initial?.tags ?? []).join(', '));
     setRelationship(initial?.relationship ?? '');
+    setRelationPulse(initial?.relationPulse ?? '');
   }, [open, initial]);
 
   async function handleSubmit(e: FormEvent) {
@@ -77,6 +94,7 @@ export function ContactFormDialog({
         name: name.trim(),
         tags,
         relationship: kind === 'person' && relationship ? relationship : null,
+        relationPulse: relationPulse || null,
       });
       onOpenChange(false);
     } finally {
@@ -178,6 +196,29 @@ export function ContactFormDialog({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {kind === 'person' && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-text-muted">
+                {t('circle_pulse')}
+              </label>
+              <select
+                value={relationPulse}
+                onChange={e =>
+                  setRelationPulse((e.target.value || '') as RelationPulse | '')
+                }
+                className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">{t('circle_pulse_none')}</option>
+                {RELATION_PULSES.map(p => (
+                  <option key={p} value={p}>
+                    {t(`circle_pulse_${p}` as TKey)}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[10px] text-text-muted">{t('circle_pulse_hint')}</p>
             </div>
           )}
 

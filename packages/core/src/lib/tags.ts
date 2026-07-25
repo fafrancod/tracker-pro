@@ -70,6 +70,39 @@ export function contactHandles(contact: {
 }
 
 /**
+ * ¿La tarea está etiquetada / mencionada con algún handle del contacto?
+ * Mira tags[], @menciones en título/notas y subject de recetario.
+ */
+export function taskMatchesContact(
+  task: {
+    title?: string | null;
+    notes?: string | null;
+    tags?: string[] | null;
+    rx?: { subject?: string | null } | null;
+  },
+  contact: { name: string; tags: string[] | null | undefined }
+): boolean {
+  const handles = contactHandles(contact);
+  if (handles.length === 0) return false;
+  const keys = new Set(handles.map(h => h.toLocaleLowerCase()));
+
+  for (const tag of task.tags ?? []) {
+    const n = normalizeTag(tag).toLocaleLowerCase();
+    if (n && keys.has(n)) return true;
+  }
+
+  const haystack = `${task.title ?? ''}\n${task.notes ?? ''}`.toLocaleLowerCase();
+  for (const h of handles) {
+    if (haystack.includes(`@${h.toLocaleLowerCase()}`)) return true;
+  }
+
+  const subject = task.rx?.subject ? normalizeTag(task.rx.subject).toLocaleLowerCase() : '';
+  if (subject && keys.has(subject)) return true;
+
+  return false;
+}
+
+/**
  * Une tags existentes + hashtags del título + etiqueta extra (p. ej. nombre de mascota).
  * Deduplica case-insensitive preservando la primera forma vista.
  */

@@ -515,6 +515,20 @@ export interface TranslationDict {
   circle_delete_error: string;
   circle_delete_confirm: string;
   circle_mention_hint: string;
+  circle_pulse: string;
+  circle_pulse_none: string;
+  circle_pulse_hint: string;
+  circle_pulse_great: string;
+  circle_pulse_good: string;
+  circle_pulse_neutral: string;
+  circle_pulse_need_connect: string;
+  circle_pulse_strained: string;
+  circle_pulse_bad: string;
+  circle_view_commitments: string;
+  circle_commitments_title: string;
+  circle_commitments_desc: string;
+  circle_commitments_empty: string;
+  circle_commitments_error: string;
 }
 
 const es_dict: TranslationDict = {
@@ -1058,6 +1072,22 @@ const es_dict: TranslationDict = {
   circle_delete_error: 'No pudimos eliminar el contacto.',
   circle_delete_confirm: '¿Eliminar a «{name}» del círculo?',
   circle_mention_hint: 'Usa @tag para etiquetar a alguien del Círculo.',
+  circle_pulse: 'Cómo está la relación',
+  circle_pulse_none: 'Sin indicar',
+  circle_pulse_hint:
+    'Tu percepción personal del vínculo: útil para priorizar con quién conectar.',
+  circle_pulse_great: 'Muy buena',
+  circle_pulse_good: 'Buena',
+  circle_pulse_neutral: 'Neutra',
+  circle_pulse_need_connect: 'Falta conectar',
+  circle_pulse_strained: 'Tensa',
+  circle_pulse_bad: 'Mala',
+  circle_view_commitments: 'Ver compromisos futuros',
+  circle_commitments_title: 'Compromisos con {name}',
+  circle_commitments_desc:
+    'Tareas y citas pendientes en los próximos {days} días etiquetadas con @ de esta persona o mascota.',
+  circle_commitments_empty: 'No hay compromisos futuros con este contacto.',
+  circle_commitments_error: 'No pudimos cargar los compromisos.',
 };
 
 const en_dict: TranslationDict = {
@@ -1600,6 +1630,22 @@ const en_dict: TranslationDict = {
   circle_delete_error: 'Could not delete the contact.',
   circle_delete_confirm: 'Remove “{name}” from the circle?',
   circle_mention_hint: 'Use @tag to mention someone in your Circle.',
+  circle_pulse: 'How the relationship feels',
+  circle_pulse_none: 'Not set',
+  circle_pulse_hint:
+    'Your personal sense of the bond — useful for deciding who to reconnect with.',
+  circle_pulse_great: 'Great',
+  circle_pulse_good: 'Good',
+  circle_pulse_neutral: 'Neutral',
+  circle_pulse_need_connect: 'Need to connect',
+  circle_pulse_strained: 'Strained',
+  circle_pulse_bad: 'Bad',
+  circle_view_commitments: 'View future commitments',
+  circle_commitments_title: 'Commitments with {name}',
+  circle_commitments_desc:
+    'Pending tasks and dates in the next {days} days tagged with @ for this person or pet.',
+  circle_commitments_empty: 'No future commitments with this contact.',
+  circle_commitments_error: 'Could not load commitments.',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {
