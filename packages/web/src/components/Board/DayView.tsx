@@ -192,8 +192,11 @@ export function DayView({
   const sortedLocated = useMemo(() => {
     const keys = sortKeys.length > 0 ? sortKeys : (['time'] as DayListSortKey[]);
     return [...located].sort((a, b) => {
-      // Completadas siempre al final (salvo que solo queden completadas)
-      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      // Orden por horario (default): más temprano → más tarde, sin sesgo de completadas.
+      // Otros criterios: completadas al final.
+      if (keys[0] !== 'time' && a.completed !== b.completed) {
+        return a.completed ? 1 : -1;
+      }
       return compareLocated(a, b, keys, sortDir);
     });
   }, [located, sortKeys, sortDir]);

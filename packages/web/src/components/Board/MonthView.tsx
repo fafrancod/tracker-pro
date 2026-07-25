@@ -14,7 +14,11 @@ import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useStore } from '@core/store';
 import { getDayId, fetchTasksInRange } from '@core/services/taskService';
 import { taskHistory } from '@core/history/taskHistory';
-import { collectTasksCovering, type LocatedTask } from '@core/lib/taskPresence';
+import {
+  collectTasksCovering,
+  compareByStartTime,
+  type LocatedTask,
+} from '@core/lib/taskPresence';
 import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
 import { isDemoMode } from '@core/lib/demoMode';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
@@ -266,15 +270,8 @@ export function MonthView({
       const end = t.endDayId || t.startDayId;
       return end === t.startDayId;
     });
-    // Timed first (by startTime), then untimed by title.
-    return chips.sort((a, b) => {
-      const ta = a.startTime?.slice(0, 5) ?? '';
-      const tb = b.startTime?.slice(0, 5) ?? '';
-      if (ta && tb) return ta.localeCompare(tb);
-      if (ta) return -1;
-      if (tb) return 1;
-      return a.title.localeCompare(b.title);
-    });
+    // Lista por celda: más temprano → más tarde; sin hora al final.
+    return chips.sort(compareByStartTime);
   }
 
   function chipTimeLabel(task: Task): string | null {

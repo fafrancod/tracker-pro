@@ -7,9 +7,32 @@ export function taskCoversDay(startDayId: string, endDayId: string, dayId: strin
 
 export type LocatedTask = Task & { weekId: string; startDayId: string };
 
+/** Clave de orden horario: sin HH:mm al final del día. */
+export function startTimeSortKey(startTime: string | null | undefined): string {
+  if (!startTime || !/^\d{2}:\d{2}/.test(startTime)) return '99:99';
+  return startTime.slice(0, 5);
+}
+
+/**
+ * Orden de lista en calendario: más temprano → más tarde;
+ * sin hora al final; desempate por título e id.
+ */
+export function compareByStartTime(
+  a: Pick<Task, 'startTime' | 'title' | 'id'>,
+  b: Pick<Task, 'startTime' | 'title' | 'id'>
+): number {
+  const byTime = startTimeSortKey(a.startTime).localeCompare(
+    startTimeSortKey(b.startTime)
+  );
+  if (byTime !== 0) return byTime;
+  const byTitle = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+  if (byTitle !== 0) return byTitle;
+  return a.id.localeCompare(b.id);
+}
+
 /**
  * Scan store buckets (start-day only) and return unique tasks whose span covers dayId.
- * Sorted by startDayId then order.
+ * Sorted by start time (early → late); unscheduled last.
  */
 export function collectTasksCovering(
   tasksByDay: Record<string, Record<string, Task[]>>,
@@ -30,9 +53,6 @@ export function collectTasksCovering(
     }
   }
 
-  result.sort((a, b) => {
-    if (a.startDayId !== b.startDayId) return a.startDayId.localeCompare(b.startDayId);
-    return a.order - b.order;
-  });
+  result.sort(compareByStartTime);
   return result;
 }

@@ -27,10 +27,24 @@ interface DayColumnProps {
 export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: DayColumnProps) {
   const { tasks: allTasks, addTask, editTask, removeTask, moveTaskToDay } =
     useTasks(weekId, dayId);
-  const tasks = useMemo(
-    () => (filter ? allTasks.filter(t => taskMatchesFilters(t, filter)) : allTasks),
-    [allTasks, filter]
-  );
+  // Lista: horario temprano → tarde (collectTasksCovering ya ordena; re-sort tras filtro).
+  const tasks = useMemo(() => {
+    const list = filter
+      ? allTasks.filter(t => taskMatchesFilters(t, filter))
+      : [...allTasks];
+    return list.sort((a, b) => {
+      const ta =
+        a.startTime && /^\d{2}:\d{2}/.test(a.startTime)
+          ? a.startTime.slice(0, 5)
+          : '99:99';
+      const tb =
+        b.startTime && /^\d{2}:\d{2}/.test(b.startTime)
+          ? b.startTime.slice(0, 5)
+          : '99:99';
+      if (ta !== tb) return ta.localeCompare(tb);
+      return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+    });
+  }, [allTasks, filter]);
   const completedCount = tasks.filter(t => t.completed).length;
   const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
   const { projects } = useProjects();
