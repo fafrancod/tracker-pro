@@ -519,9 +519,13 @@ export function BoardPage() {
             }
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {
-              await addTask(payload);
-              showToast(t('task_created_ok'), 'success');
+              // Cerrar al instante; la red va en background (roadmap §0.2).
               setFabOpen(false);
+              void addTask(payload)
+                .then(() => showToast(t('task_created_ok'), 'success'))
+                .catch(() =>
+                  showToast(t('task_save_error'), 'error')
+                );
             }}
           />
         </MobileSheetContent>

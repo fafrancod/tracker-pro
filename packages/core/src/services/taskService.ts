@@ -148,18 +148,35 @@ export function subscribeTasks(
 ): TasksUnsubscribe {
   if (isDemoMode()) return () => undefined;
 
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const DEBOUNCE_MS = 200;
+
   const load = () => {
     void fetchTasksCoveringDay(uid, dayId).then(cb);
   };
 
+  /** Coalesce ráfagas Realtime (p. ej. insert de 90 hábitos) — roadmap §0.4. */
+  const scheduleLoad = () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      load();
+    }, DEBOUNCE_MS);
+  };
+
   load();
 
-  return subscribeTable({
+  const unsub = subscribeTable({
     topic: `tasks:${uid}:${weekId}:${dayId}`,
     table: 'tasks',
     filter: `user_id=eq.${uid}`,
-    onChange: load,
+    onChange: scheduleLoad,
   });
+
+  return () => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    unsub();
+  };
 }
 
 export interface CreateTaskResult {

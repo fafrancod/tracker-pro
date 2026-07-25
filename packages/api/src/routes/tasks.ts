@@ -26,6 +26,40 @@ import {
   type RxPhase,
 } from '../lib/rx.js';
 import { extractHashtags, mergeTags, mergeTagsForRx } from '../lib/tags.js';
+import { logger } from '../logger.js';
+
+/**
+ * Contadores de filas por day_id en **una** query (evita N+1 de COUNT secuenciales
+ * al materializar hábitos diarios / recetarios).
+ * @see roadmap_optimization.md §0.1 / §1.1
+ */
+async function loadOrderCounters(
+  uid: string,
+  dayIds: string[]
+): Promise<Map<string, number>> {
+  const unique = Array.from(new Set(dayIds.filter(Boolean)));
+  const map = new Map<string, number>();
+  for (const id of unique) map.set(id, 0);
+  if (unique.length === 0) return map;
+
+  // Un solo SELECT de day_id (sin head count por día).
+  // Chunk si hay muchos días (p. ej. > 80) para no saturar `.in()`.
+  const CHUNK = 80;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const slice = unique.slice(i, i + CHUNK);
+    const { data, error } = await getSupabaseAdmin()
+      .from('tasks')
+      .select('day_id')
+      .eq('user_id', uid)
+      .in('day_id', slice);
+    if (error) throw error;
+    for (const row of data ?? []) {
+      const d = row.day_id as string;
+      map.set(d, (map.get(d) ?? 0) + 1);
+    }
+  }
+  return map;
+}
 
 export const tasksRouter = Router();
 
@@ -405,10 +439,12 @@ tasksRouter.post('/', async (req, res, next) => {
         throw ApiError.badRequest(e instanceof Error ? e.message : 'Plan de recetario inválido');
       }
 
-      const plan = await readProfilePlan(uid);
+      const [plan, usage] = await Promise.all([
+        readProfilePlan(uid),
+        readUsage(uid, monthFromDay(dayId)),
+      ]);
       const limits = getLimits(plan);
       if (Number.isFinite(limits.maxTasksPerMonth)) {
-        const usage = await readUsage(uid, monthFromDay(dayId));
         const tasksThisMonth = usage.tasks_created ?? 0;
         if (tasksThisMonth + occurrences.length > limits.maxTasksPerMonth) {
           throw ApiError.planLimit(
@@ -423,16 +459,10 @@ tasksRouter.post('/', async (req, res, next) => {
         }
       }
 
-      const orderByDay = new Map<string, number>();
-      for (const occ of occurrences) {
-        if (orderByDay.has(occ.dayId)) continue;
-        const { count } = await getSupabaseAdmin()
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', uid)
-          .eq('day_id', occ.dayId);
-        orderByDay.set(occ.dayId, count ?? 0);
-      }
+      const orderByDay = await loadOrderCounters(
+        uid,
+        occurrences.map(o => o.dayId)
+      );
 
       // Recetario: sin proyecto; se asume urgente e importante.
       // Mascota (rxSubject) y #hashtags del título → tags reutilizables.
@@ -511,10 +541,12 @@ tasksRouter.post('/', async (req, res, next) => {
         recurrence.interval
       );
 
-      const plan = await readProfilePlan(uid);
+      const [plan, usage] = await Promise.all([
+        readProfilePlan(uid),
+        readUsage(uid, monthFromDay(dayId)),
+      ]);
       const limits = getLimits(plan);
       if (Number.isFinite(limits.maxTasksPerMonth)) {
-        const usage = await readUsage(uid, monthFromDay(dayId));
         const tasksThisMonth = usage.tasks_created ?? 0;
         if (tasksThisMonth + occurrenceRanges.length > limits.maxTasksPerMonth) {
           throw ApiError.planLimit(
@@ -529,16 +561,10 @@ tasksRouter.post('/', async (req, res, next) => {
         }
       }
 
-      const orderByDay = new Map<string, number>();
-      for (const range of occurrenceRanges) {
-        if (orderByDay.has(range.dayId)) continue;
-        const { count } = await getSupabaseAdmin()
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', uid)
-          .eq('day_id', range.dayId);
-        orderByDay.set(range.dayId, count ?? 0);
-      }
+      const orderByDay = await loadOrderCounters(
+        uid,
+        occurrenceRanges.map(r => r.dayId)
+      );
 
       // #hashtags en el título se convierten en tags reutilizables
       const mergedTags = mergeTags(tags, extractHashtags(title));
@@ -596,14 +622,17 @@ tasksRouter.post('/', async (req, res, next) => {
     const { error } = await getSupabaseAdmin().from('tasks').insert(rows);
     if (error) throw error;
 
-    await bumpUsage(uid, { tasksCreated: rows.length }, eventId);
-
     const instances = rows.map(row => toClientTask(row));
     const first = instances[0];
 
     res.status(201).json({
       ...first,
       instances,
+    });
+
+    // No bloquear la respuesta al cliente (roadmap §1.3 / 0).
+    void bumpUsage(uid, { tasksCreated: rows.length }, eventId).catch(err => {
+      logger.warn({ err, uid, n: rows.length }, 'bumpUsage after create failed');
     });
   } catch (err) {
     next(err);
@@ -909,10 +938,12 @@ tasksRouter.post(
         );
       }
 
-      const plan = await readProfilePlan(uid);
+      const [plan, usage] = await Promise.all([
+        readProfilePlan(uid),
+        readUsage(uid, monthFromDay(fromDayId)),
+      ]);
       const limits = getLimits(plan);
       if (Number.isFinite(limits.maxTasksPerMonth)) {
-        const usage = await readUsage(uid, monthFromDay(fromDayId));
         const tasksThisMonth = usage.tasks_created ?? 0;
         if (tasksThisMonth + occurrences.length > limits.maxTasksPerMonth) {
           throw ApiError.planLimit(
@@ -928,16 +959,10 @@ tasksRouter.post(
       }
 
       const now = new Date().toISOString();
-      const orderByDay = new Map<string, number>();
-      for (const occ of occurrences) {
-        if (orderByDay.has(occ.dayId)) continue;
-        const { count } = await getSupabaseAdmin()
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', uid)
-          .eq('day_id', occ.dayId);
-        orderByDay.set(occ.dayId, count ?? 0);
-      }
+      const orderByDay = await loadOrderCounters(
+        uid,
+        occurrences.map(o => o.dayId)
+      );
 
       const rows: Record<string, unknown>[] = [];
       for (const occ of occurrences) {
@@ -985,7 +1010,6 @@ tasksRouter.post(
           .from('tasks')
           .insert(rows);
         if (insErr) throw insErr;
-        await bumpUsage(uid, { tasksCreated: rows.length });
       }
 
       // Actualizar título en tomas completadas conservadas
@@ -1005,6 +1029,15 @@ tasksRouter.post(
         created: instances.length,
         instances,
       });
+
+      if (rows.length > 0) {
+        void bumpUsage(uid, { tasksCreated: rows.length }).catch(err => {
+          logger.warn(
+            { err, uid, n: rows.length },
+            'bumpUsage after rematerialize-rx failed'
+          );
+        });
+      }
     } catch (err) {
       next(err);
     }

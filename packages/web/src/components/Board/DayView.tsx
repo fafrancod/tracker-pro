@@ -474,7 +474,7 @@ export function DayView({
               projects={projects}
               startDayId={dayId}
               onAdd={async payload => {
-                await addTask(payload);
+                void addTask(payload);
               }}
             />
           </div>
@@ -552,9 +552,10 @@ export function DayView({
               initialStartTime={slotCreate.startTime}
               onCancel={() => setSlotCreate(null)}
               onAdd={async payload => {
-                await addTask(payload);
-                showToast(t('task_created_ok'), 'success');
                 setSlotCreate(null);
+                void addTask(payload)
+                  .then(() => showToast(t('task_created_ok'), 'success'))
+                  .catch(() => showToast(t('task_save_error'), 'error'));
               }}
             />
           )}

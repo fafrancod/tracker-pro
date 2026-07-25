@@ -60,21 +60,17 @@ function buildFromMock() {
       };
     }
     if (table === 'tasks') {
-      const countChain: Record<string, unknown> = {};
-      countChain.eq = vi.fn(() => countChain);
-      countChain.then = undefined;
-      // select with count returns { count }
+      // select('day_id').eq().in() → batch order counters (loadOrderCounters)
+      // also legacy head count path for other routes
       const selectFn = vi.fn((_cols?: string, _opts?: { count?: string; head?: boolean }) => {
-        // Head count path resolves when awaited via eq chain that finally returns count
-        const headResult = { data: null, error: null, count: 0 };
+        const headResult = { data: [] as { day_id: string }[], error: null, count: 0 };
         const c: Record<string, unknown> = {
           eq: vi.fn(function eq() {
             return c;
           }),
-          // When the await hits the final chain (after .eq().eq()), vitest/supabase
-          // style is that the whole chain is thenable OR returns on maybeSingle.
-          // Our route uses: const { count } = await ...eq().eq() — so the chain
-          // itself must be thenable.
+          in: vi.fn(function inn() {
+            return c;
+          }),
           then: (resolve: (v: unknown) => void) => resolve(headResult),
         };
         return c;

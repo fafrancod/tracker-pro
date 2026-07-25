@@ -213,6 +213,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.reload();
       return;
     }
+    try {
+      const { clearAccessTokenCache } = await import('@core/lib/api');
+      clearAccessTokenCache();
+    } catch {
+      /* ignore */
+    }
     const { error } = await getSupabase().auth.signOut();
     if (error) throw error;
   }, []);

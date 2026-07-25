@@ -43,10 +43,41 @@ interface AuthFetchOptions extends Omit<RequestInit, 'body'> {
   withAuth?: boolean;
 }
 
+/** Cache JWT para no llamar getSession en cada mutación (roadmap §0.5). */
+let cachedAccessToken: string | null = null;
+let cachedAccessTokenExpiresAtMs = 0;
+
 async function getAccessToken(): Promise<string | null> {
   if (isDemoMode()) return 'demo-token';
+  const now = Date.now();
+  // Renovar 60s antes de expirar.
+  if (
+    cachedAccessToken &&
+    cachedAccessTokenExpiresAtMs > now + 60_000
+  ) {
+    return cachedAccessToken;
+  }
   const { data } = await getSupabase().auth.getSession();
-  return data.session?.access_token ?? null;
+  const session = data.session;
+  if (!session?.access_token) {
+    cachedAccessToken = null;
+    cachedAccessTokenExpiresAtMs = 0;
+    return null;
+  }
+  cachedAccessToken = session.access_token;
+  // expires_at en segundos unix (Supabase).
+  const expSec = session.expires_at;
+  cachedAccessTokenExpiresAtMs =
+    typeof expSec === 'number' && Number.isFinite(expSec)
+      ? expSec * 1000
+      : now + 55 * 60_000;
+  return cachedAccessToken;
+}
+
+/** Invalida cache de token (p. ej. tras sign-out). */
+export function clearAccessTokenCache(): void {
+  cachedAccessToken = null;
+  cachedAccessTokenExpiresAtMs = 0;
 }
 
 function randomId(): string {

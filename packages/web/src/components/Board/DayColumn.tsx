@@ -197,7 +197,8 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
           projects={projects}
           startDayId={dayId}
           onAdd={async payload => {
-            await addTask(payload);
+            // No bloquear la columna compacta esperando la API.
+            void addTask(payload);
           }}
         />
       </div>
