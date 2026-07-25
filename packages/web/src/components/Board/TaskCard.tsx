@@ -41,6 +41,8 @@ interface TaskCardProps {
   onDuplicate: () => void;
   onDelete: () => void;
   onOpenDetail?: () => void;
+  /** Convierte evento posible → evento real. */
+  onConfirmAsEvent?: () => void;
   dragHandleProps?: Record<string, unknown>;
   isDragging?: boolean;
   /** Compact layout for week columns (less lateral padding). */
@@ -61,6 +63,7 @@ export function TaskCard({
   onDuplicate,
   onDelete,
   onOpenDetail,
+  onConfirmAsEvent,
   dragHandleProps,
   isDragging,
   dense = false,
@@ -161,6 +164,8 @@ export function TaskCard({
         'group relative rounded-md border border-border bg-surface transition-shadow touch-manipulation',
         dense ? 'p-1.5' : 'p-2.5',
         isDragging && 'shadow-lg ring-1 ring-accent-teal/50',
+        // Eventos posibles: aspecto “tentativo”
+        task.kind === 'possible_event' && !task.completed && 'opacity-60',
         task.completed && 'opacity-60'
       )}
       style={
@@ -475,6 +480,11 @@ export function TaskCard({
         onToggleComplete={() => onToggle()}
         onEdit={() => onOpenDetail?.()}
         onDelete={() => onDelete()}
+        onConfirmAsEvent={
+          onConfirmAsEvent
+            ? () => onConfirmAsEvent()
+            : undefined
+        }
       />
     </motion.div>
   );

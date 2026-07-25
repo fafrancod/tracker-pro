@@ -244,6 +244,8 @@ export interface TranslationDict {
   task_ctx_mark_pending: string;
   task_ctx_edit: string;
   task_ctx_delete: string;
+  task_ctx_confirm_event: string;
+  task_confirm_event_done: string;
 
   // Tarea
   task_title_placeholder: string;
@@ -795,6 +797,8 @@ const es_dict: TranslationDict = {
   task_ctx_mark_pending: 'Marcar como pendiente',
   task_ctx_edit: 'Editar',
   task_ctx_delete: 'Eliminar',
+  task_ctx_confirm_event: 'Convertir en evento real',
+  task_confirm_event_done: 'Ahora es un evento confirmado.',
 
   task_title_placeholder: '¿Qué quieres hacer?',
   task_title_label: 'Título',
@@ -1373,6 +1377,8 @@ const en_dict: TranslationDict = {
   task_ctx_mark_pending: 'Mark as pending',
   task_ctx_edit: 'Edit',
   task_ctx_delete: 'Delete',
+  task_ctx_confirm_event: 'Convert to real event',
+  task_confirm_event_done: 'Now it’s a confirmed event.',
 
   task_title_placeholder: 'What do you want to do?',
   task_title_label: 'Title',

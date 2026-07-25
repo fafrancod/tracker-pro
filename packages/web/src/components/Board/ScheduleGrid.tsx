@@ -227,6 +227,7 @@ export function ScheduleGrid({
                       }}
                       className={cn(
                         'absolute left-0.5 right-0.5 z-[1] overflow-hidden rounded border border-black/10 px-1 py-0.5 text-left shadow-sm transition-opacity hover:z-[2] hover:brightness-110',
+                        loc.kind === 'possible_event' && !loc.completed && 'opacity-60',
                         loc.completed && 'opacity-55 line-through',
                         compact ? 'text-[11px]' : 'text-[10px]'
                       )}

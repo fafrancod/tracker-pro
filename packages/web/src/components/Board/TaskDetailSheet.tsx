@@ -279,6 +279,31 @@ function TaskDetailInner({
   const isPossible = task.kind === 'possible_event';
   const isEvent = task.kind === 'event';
   const isEventLike = isPossible || isEvent;
+  // Capture for nested async (TS no narrows after early return inside closures).
+  const currentTask = task;
+  const currentDraft = draft;
+
+  async function confirmAsRealEvent() {
+    if (currentTask.kind !== 'possible_event') return;
+    setSaving(true);
+    try {
+      await editTask(currentTask.id, {
+        kind: 'event',
+        color: currentDraft.color ?? currentTask.color ?? '#58a6ff',
+        projectId: null,
+        urgency: null,
+        importance: null,
+        involvedContactIds: currentDraft.involvedContactIds,
+        location: currentDraft.location.trim() || null,
+        departureTime: normalizeTimeInput(currentDraft.departureTime),
+      });
+      showToast(t('task_confirm_event_done'), 'success');
+    } catch {
+      showToast(t('task_save_error'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
   const rxPlanStart = task.rx?.planStartDayId || dayId;
   const rxPlanDays = isRx ? totalRxPlanDays(draft.rxPhases) : 0;
   const rxPlanEnd = isRx ? rxPlanEndDayId(rxPlanStart, draft.rxPhases) : '';
@@ -608,7 +633,24 @@ function TaskDetailInner({
           </p>
         )}
 
-        {isEvent && (
+        {isPossible && (
+          <div className="mb-3 rounded-lg border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-2">
+            <p className="mb-2 text-[11px] text-text-muted">
+              {t('board_category_possible_hint')}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              className="h-8 w-full gap-1.5 text-xs"
+              disabled={saving}
+              onClick={() => void confirmAsRealEvent()}
+            >
+              {t('task_ctx_confirm_event')}
+            </Button>
+          </div>
+        )}
+
+        {(isEvent || isPossible) && (
           <>
             <Field label={t('task_event_location')}>
               <Input

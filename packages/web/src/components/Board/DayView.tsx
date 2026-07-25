@@ -201,6 +201,18 @@ export function DayView({
                   locationDayId={loc.startDayId}
                   onToggle={() => void editTask(loc.id, { completed: !loc.completed })}
                   onEdit={payload => void editTask(loc.id, payload)}
+                  onConfirmAsEvent={
+                    loc.kind === 'possible_event'
+                      ? () =>
+                          void editTask(loc.id, {
+                            kind: 'event',
+                            color: loc.color ?? '#58a6ff',
+                            projectId: null,
+                            urgency: null,
+                            importance: null,
+                          })
+                      : undefined
+                  }
                   onMove={toDate => void moveTaskToDay(loc, toDate)}
                   onMoveNextWeek={() => undefined}
                   onDuplicate={() =>

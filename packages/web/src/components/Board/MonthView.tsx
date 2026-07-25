@@ -526,6 +526,9 @@ export function MonthView({
                                 task.completed
                                   ? 'bg-accent-green/10 text-text-muted line-through'
                                   : 'bg-background/80 text-text-primary hover:bg-accent-teal/15',
+                                task.kind === 'possible_event' &&
+                                  !task.completed &&
+                                  'opacity-60',
                                 task.recurrence.frequency !== 'none' && 'ring-1 ring-accent-teal/20'
                               )}
                               style={
@@ -591,6 +594,9 @@ export function MonthView({
                         className={cn(
                           'pointer-events-auto absolute z-10 flex items-center gap-0.5 rounded px-1.5 text-left text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
                           bar.task.completed && 'line-through opacity-60',
+                          bar.task.kind === 'possible_event' &&
+                            !bar.task.completed &&
+                            'opacity-60',
                           bar.continuesLeft && 'rounded-l-none',
                           bar.continuesRight && 'rounded-r-none'
                         )}
@@ -639,6 +645,16 @@ export function MonthView({
             task: m.task,
             startDayId: m.dayId,
             startWeekId: m.weekId,
+          });
+        }}
+        onConfirmAsEvent={m => {
+          if (m.task.kind !== 'possible_event') return;
+          void taskHistory.update(m.weekId, m.dayId, m.task.id, {
+            kind: 'event',
+            color: m.task.color ?? '#58a6ff',
+            projectId: null,
+            urgency: null,
+            importance: null,
           });
         }}
       />

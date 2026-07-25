@@ -140,6 +140,18 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
                       dense
                       onToggle={() => editTask(task.id, { completed: !task.completed })}
                       onEdit={payload => editTask(task.id, payload)}
+                      onConfirmAsEvent={
+                        task.kind === 'possible_event'
+                          ? () =>
+                              void editTask(task.id, {
+                                kind: 'event',
+                                color: task.color ?? '#58a6ff',
+                                projectId: null,
+                                urgency: null,
+                                importance: null,
+                              })
+                          : undefined
+                      }
                       onMove={toDate => {
                         const found = tasks.find(t2 => t2.id === task.id);
                         if (found) moveTaskToDay(found, toDate);

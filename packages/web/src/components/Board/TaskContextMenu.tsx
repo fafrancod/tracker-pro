@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Circle, Pencil, Trash2 } from 'lucide-react';
+import { CalendarCheck, Check, Circle, Pencil, Trash2 } from 'lucide-react';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import type { Task } from '@core/types';
@@ -19,6 +19,8 @@ interface TaskContextMenuProps {
   onToggleComplete: (menu: TaskContextMenuState) => void;
   onEdit: (menu: TaskContextMenuState) => void;
   onDelete?: (menu: TaskContextMenuState) => void;
+  /** Convierte un evento posible en evento real. */
+  onConfirmAsEvent?: (menu: TaskContextMenuState) => void;
 }
 
 export function TaskContextMenu({
@@ -27,6 +29,7 @@ export function TaskContextMenu({
   onToggleComplete,
   onEdit,
   onDelete,
+  onConfirmAsEvent,
 }: TaskContextMenuProps) {
   const { t } = useT();
   const ref = useRef<HTMLDivElement>(null);
@@ -114,6 +117,20 @@ export function TaskContextMenu({
         <Pencil className="h-4 w-4 text-text-muted" />
         {t('task_ctx_edit')}
       </button>
+      {onConfirmAsEvent && menu.task.kind === 'possible_event' && (
+        <button
+          type="button"
+          role="menuitem"
+          className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-sky-200 hover:bg-background active:bg-background"
+          onClick={() => {
+            onConfirmAsEvent(menu);
+            onClose();
+          }}
+        >
+          <CalendarCheck className="h-4 w-4 text-sky-300" />
+          {t('task_ctx_confirm_event')}
+        </button>
+      )}
       {onDelete && (
         <button
           type="button"
