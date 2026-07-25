@@ -1,6 +1,6 @@
-import { Suspense, useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import { Menu, Plus, Sparkles, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Menu, Plus, Sparkles } from 'lucide-react';
 import { Sidebar, NAV_ITEMS } from './Sidebar';
 import { MobileDrawer } from './MobileDrawer';
 import { FAB } from './FAB';
@@ -8,12 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { isDemoMode } from '@core/lib/demoMode';
 import { useT } from '@/hooks/useT';
-import { useLocation } from 'react-router-dom';
 import { PageChromeProvider, usePageChrome } from './PageChromeContext';
 
 /**
  * Shell persistente: sidebar + header no se desmontan al cambiar de ruta.
- * Solo el <Outlet /> (contenido) hace Suspense → sin flash a pantalla negra.
+ * El contenido vive en <Outlet /> (páginas eager → navegación inmediata).
  */
 export function AppShell() {
   return (
@@ -81,24 +80,13 @@ function AppShellInner() {
         </header>
 
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Suspense fallback={<ContentFallback />}>
-            <Outlet />
-          </Suspense>
+          <Outlet />
         </main>
       </div>
 
       {showFab && fabHandler && (
         <FAB onClick={fabHandler} label={primaryAction?.label ?? 'Nueva tarea'} />
       )}
-    </div>
-  );
-}
-
-/** Fallback suave: no tapa el sidebar ni pinta pantalla completa negra. */
-function ContentFallback() {
-  return (
-    <div className="flex flex-1 items-center justify-center bg-transparent">
-      <Loader2 className="h-5 w-5 animate-spin text-text-muted opacity-60" />
     </div>
   );
 }
