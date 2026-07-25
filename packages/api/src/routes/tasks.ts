@@ -622,11 +622,20 @@ tasksRouter.post('/', async (req, res, next) => {
     const { error } = await getSupabaseAdmin().from('tasks').insert(rows);
     if (error) throw error;
 
-    const instances = rows.map(row => toClientTask(row));
-    const first = instances[0];
+    // Primera instancia completa (compat) + resto compacto (id/ubicación).
+    // roadmap §1.4: no volcar 28–90 filas full con steps/rx en la respuesta.
+    const first = toClientTask(rows[0]);
+    const instances = rows.map(row => ({
+      id: row.id as string,
+      weekId: (row.week_id as string) ?? weekId,
+      dayId: (row.day_id as string) ?? dayId,
+      endDayId: (row.end_day_id as string) ?? (row.day_id as string) ?? dayId,
+      seriesId: (row.series_id as string | null) ?? null,
+    }));
 
     res.status(201).json({
       ...first,
+      createdCount: rows.length,
       instances,
     });
 
@@ -718,15 +727,16 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.departureTime !== undefined) {
       seriesUpdate.departure_time = patch.departureTime;
     }
-    if (patch.steps !== undefined) {
-      seriesUpdate.steps = normalizeSteps(patch.steps);
-    }
+    // steps: solo en la instancia por defecto (roadmap §1.7). No volcar checklist a toda la serie.
 
     // Campos solo de instancia (nunca se propagan a la serie).
     const instanceUpdate: Record<string, unknown> = { updated_at: now };
     if (patch.completed !== undefined) {
       instanceUpdate.completed = patch.completed;
       instanceUpdate.completed_at = patch.completed ? now : null;
+    }
+    if (patch.steps !== undefined) {
+      instanceUpdate.steps = normalizeSteps(patch.steps);
     }
     if (patch.order !== undefined) instanceUpdate.order = patch.order;
     if (patch.movedFrom !== undefined) instanceUpdate.moved_from = patch.movedFrom;

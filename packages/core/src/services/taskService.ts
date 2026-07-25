@@ -189,20 +189,145 @@ interface CreateTaskResponse {
   weekId: string;
   dayId: string;
   endDayId?: string;
-  title: string;
-  completed: boolean;
-  completedAt: string | null;
-  projectId: string | null;
-  priority: 'low' | 'medium' | 'high';
-  notes: string;
-  order: number;
-  tags: string[];
-  movedFrom: string | null;
+  title?: string;
+  completed?: boolean;
+  completedAt?: string | null;
+  projectId?: string | null;
+  priority?: 'low' | 'medium' | 'high';
+  notes?: string;
+  order?: number;
+  tags?: string[];
+  movedFrom?: string | null;
   seriesId?: string | null;
   recurrence?: Recurrence;
+  kind?: Task['kind'];
+  color?: string | null;
+  urgency?: Task['urgency'];
+  importance?: Task['importance'];
+  startTime?: string | null;
+  endTime?: string | null;
+  /** Compact stubs: { id, weekId, dayId, endDayId?, seriesId? } or full rows. */
   instances?: Array<Record<string, unknown>>;
+  createdCount?: number;
   createdAt?: string;
   updatedAt?: string;
+  involvedContactIds?: string[];
+  location?: string | null;
+  departureTime?: string | null;
+  steps?: Task['steps'];
+}
+
+/** ¿La fila de instancia trae título (full) o solo ids (compacta)? */
+function isCompactInstanceStub(raw: Record<string, unknown>): boolean {
+  return typeof raw.title !== 'string' && (raw.id != null || raw.weekId != null);
+}
+
+/**
+ * Expande stubs compactos del API a Task completas usando el payload de create
+ * (roadmap §1.4 — respuesta ligera).
+ */
+function expandCreateInstances(
+  weekId: string,
+  dayId: string,
+  payload: CreateTaskPayload,
+  res: CreateTaskResponse
+): Array<Task & { weekId: string; dayId: string }> {
+  const kind = payload.kind ?? (res.kind as Task['kind']) ?? 'task';
+  const recurrence = normalizeRecurrence(
+    payload.recurrenceFrequency ?? res.recurrence?.frequency,
+    payload.recurrenceInterval ?? res.recurrence?.interval
+  );
+  const seriesId =
+    (res.seriesId as string | null | undefined) ??
+    (recurrence.frequency === 'none' ? null : (res.id as string));
+  const now = new Date().toISOString();
+  const stubs = Array.isArray(res.instances)
+    ? res.instances
+    : [
+        {
+          id: res.id,
+          weekId: res.weekId ?? weekId,
+          dayId: res.dayId ?? dayId,
+          endDayId: res.endDayId ?? dayId,
+          seriesId,
+        },
+      ];
+
+  const isHabit = kind === 'habit_good' || kind === 'habit_quit';
+  const isEventLike = kind === 'event' || kind === 'possible_event';
+  const steps =
+    kindSupportsSteps(kind) && payload.steps?.length
+      ? normalizeTaskSteps(payload.steps)
+      : [];
+
+  return stubs.map((raw, index) => {
+    const row = raw as Record<string, unknown>;
+    if (!isCompactInstanceStub(row) && typeof row.title === 'string') {
+      const mapped = mapTask((row.id as string) ?? res.id, row);
+      return {
+        ...mapped,
+        weekId: (row.weekId as string) ?? (row.week_id as string) ?? weekId,
+        dayId: (row.dayId as string) ?? (row.day_id as string) ?? dayId,
+      };
+    }
+
+    const instDayId =
+      (row.dayId as string) ?? (row.day_id as string) ?? dayId;
+    const instWeekId =
+      (row.weekId as string) ?? (row.week_id as string) ?? weekId;
+    const instEnd =
+      (row.endDayId as string) ??
+      (row.end_day_id as string) ??
+      instDayId;
+    const instSeries =
+      (row.seriesId as string | null | undefined) ??
+      (row.series_id as string | null | undefined) ??
+      seriesId;
+
+    return {
+      id: (row.id as string) ?? `${res.id}-${index}`,
+      title: payload.title,
+      completed: false,
+      completedAt: null,
+      projectId: isHabit || isEventLike ? null : (payload.projectId ?? null),
+      priority: payload.priority ?? 'medium',
+      notes: payload.notes ?? '',
+      order: index,
+      tags: payload.tags ?? [],
+      movedFrom: null,
+      seriesId: instSeries,
+      recurrence,
+      endDayId: instEnd,
+      urgency: isHabit || isEventLike ? null : (payload.urgency ?? null),
+      importance: isHabit || isEventLike ? null : (payload.importance ?? null),
+      kind,
+      color:
+        payload.color ??
+        (kind === 'event'
+          ? '#58a6ff'
+          : kind === 'possible_event'
+            ? '#a371f7'
+            : kind === 'habit_good'
+              ? '#3fb950'
+              : kind === 'habit_quit'
+                ? '#f85149'
+                : null),
+      startTime: isHabit ? null : (payload.startTime ?? null),
+      endTime: isHabit ? null : (payload.endTime ?? null),
+      rx: null,
+      involvedContactIds: isEventLike ? (payload.involvedContactIds ?? []) : [],
+      location:
+        kind === 'event' || kind === 'possible_event'
+          ? (payload.location?.trim() || null)
+          : null,
+      departureTime: kind === 'event' ? (payload.departureTime ?? null) : null,
+      steps,
+      createdAt: res.createdAt ?? now,
+      updatedAt: res.updatedAt ?? now,
+      weekId: instWeekId,
+      dayId: instDayId,
+    };
+  });
 }
 
 export async function createTask(
@@ -243,15 +368,7 @@ export async function createTask(
     return materializeDemoCreate(weekId, dayId, payload, res.id);
   }
 
-  const instancesRaw = Array.isArray(res.instances) ? res.instances : [res as unknown as Record<string, unknown>];
-  const instances = instancesRaw.map(raw => {
-    const mapped = mapTask((raw.id as string) ?? res.id, raw);
-    return {
-      ...mapped,
-      weekId: (raw.weekId as string) ?? (raw.week_id as string) ?? weekId,
-      dayId: (raw.dayId as string) ?? (raw.day_id as string) ?? dayId,
-    };
-  });
+  const instances = expandCreateInstances(weekId, dayId, payload, res);
 
   return {
     task: instances[0] ?? mapTask(res.id, res as unknown as Record<string, unknown>),

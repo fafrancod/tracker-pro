@@ -416,3 +416,4 @@ Las features de **v2.6–2.7** (hábitos, pasos, eventos, Círculo, resumen con 
 | 2026-07-25 | Versión inicial (mutaciones lentas) |
 | 2026-07-25 | **Actualización v2.7.5:** mapa de features (hábitos, pasos, checks, orden por hora, resumen, reflexiones, eventos/Círculo); riesgos amplificados; fases 0.3 checkbox, 1.5–1.7 hábitos/pasos; referencias de código al día |
 | 2026-07-25 | **Fase 0 aplicada (parcial, v2.7.6):** `loadOrderCounters` (1 query batch por chunks, sin N COUNT secuenciales); plan+usage en `Promise.all`; `bumpUsage` post-respuesta; create form cierra sin await; Realtime debounce 200 ms en `subscribeTasks`; cache JWT en `api.ts` + clear en signOut |
+| 2026-07-25 | **Fase 1 aplicada (v2.7.7):** respuesta create compacta (`instances` = id/weekId/dayId/endDayId/seriesId + `createdCount`); cliente `expandCreateInstances`; horizonte daily **28** / weekly **26** (api+core); steps solo en instancia (no seriesUpdate); tests verdes |

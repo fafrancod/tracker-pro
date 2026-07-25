@@ -52,12 +52,16 @@ export function getWeekIdFromDayId(dayId: string): string {
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
-function recurrenceHorizon(frequency: RecurrenceFrequency): number {
+/**
+ * Horizonte de materialización (nº de ocurrencias).
+ * daily: 28 ≈ 4 semanas visibles (antes 90 — roadmap §1.5, perf hábitos).
+ */
+export function recurrenceHorizon(frequency: RecurrenceFrequency): number {
   switch (frequency) {
     case 'daily':
-      return 90;
+      return 28;
     case 'weekly':
-      return 52;
+      return 26;
     case 'monthly':
       return 24;
     case 'yearly':

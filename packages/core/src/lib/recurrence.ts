@@ -33,13 +33,16 @@ export function isRecurring(recurrence: Recurrence | null | undefined): boolean 
   return Boolean(recurrence && recurrence.frequency !== 'none');
 }
 
-/** Horizonte de materialización por frecuencia (nº de ocurrencias, incluida la primera). */
+/**
+ * Horizonte de materialización por frecuencia (nº de ocurrencias, incluida la primera).
+ * dual-port con packages/api — daily 28 (ventana ~mes, roadmap §1.5).
+ */
 export function recurrenceHorizon(frequency: RecurrenceFrequency): number {
   switch (frequency) {
     case 'daily':
-      return 90;
+      return 28;
     case 'weekly':
-      return 52;
+      return 26;
     case 'monthly':
       return 24;
     case 'yearly':
