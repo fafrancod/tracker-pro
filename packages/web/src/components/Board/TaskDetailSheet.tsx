@@ -288,6 +288,8 @@ function TaskDetailInner({
   const draftIsEvent = draftKind === 'event';
   const draftIsEventLike = draftIsPossible || draftIsEvent;
   const draftIsProjectKind = draftKind === 'task' || draftKind === 'reminder';
+  const draftIsHabit =
+    draftKind === 'habit_good' || draftKind === 'habit_quit';
 
   /** Kinds intercambiables en el menú de edición (no incluye rx). */
   const CONVERTIBLE_KINDS: Array<{ value: TaskKind; label: string }> = [
@@ -295,6 +297,8 @@ function TaskDetailInner({
     { value: 'reminder', label: t('task_kind_reminder') },
     { value: 'event', label: t('task_kind_event') },
     { value: 'possible_event', label: t('task_kind_possible_event') },
+    { value: 'habit_good', label: t('task_kind_habit_good') },
+    { value: 'habit_quit', label: t('task_kind_habit_quit') },
   ];
 
   const rxPlanStart = task.rx?.planStartDayId || dayId;
@@ -458,17 +462,20 @@ function TaskDetailInner({
         const saveEventLike =
           saveKind === 'event' || saveKind === 'possible_event';
         const saveIsEvent = saveKind === 'event';
+        const saveIsHabit =
+          saveKind === 'habit_good' || saveKind === 'habit_quit';
         const tags = mergeTags(
           draft.tags,
           extractHashtags(title),
           extractMentions(title),
           extractMentions(draft.notes)
         );
-        const startN = normalizeTimeInput(draft.startTime);
-        const endN = normalizeTimeInput(draft.endTime);
+        const startN = saveIsHabit ? null : normalizeTimeInput(draft.startTime);
+        const endN = saveIsHabit ? null : normalizeTimeInput(draft.endTime);
         const depN = normalizeTimeInput(draft.departureTime);
         // Multi-día: se permite 20:00 → 03:00 (cruce de medianoche).
         if (
+          !saveIsHabit &&
           !isValidTaskTimeRange(
             startN,
             endN,
@@ -487,17 +494,21 @@ function TaskDetailInner({
           tags,
           kind: saveKind,
           priority: draft.priority,
-          urgency: saveEventLike ? null : draft.urgency,
-          importance: saveEventLike ? null : draft.importance,
+          urgency: saveEventLike || saveIsHabit ? null : draft.urgency,
+          importance: saveEventLike || saveIsHabit ? null : draft.importance,
           color:
             draft.color ??
             (saveIsEvent
               ? '#58a6ff'
               : saveKind === 'possible_event'
                 ? '#a371f7'
-                : null),
-          projectId: saveEventLike ? null : draft.projectId,
-          endDayId: draft.endDayId,
+                : saveKind === 'habit_good'
+                  ? '#3fb950'
+                  : saveKind === 'habit_quit'
+                    ? '#f85149'
+                    : null),
+          projectId: saveEventLike || saveIsHabit ? null : draft.projectId,
+          endDayId: saveIsHabit ? dayId : draft.endDayId,
           involvedContactIds: saveEventLike ? draft.involvedContactIds : [],
           location:
             saveIsEvent || saveKind === 'possible_event'
@@ -1379,7 +1390,11 @@ function TaskDetailInner({
               className="w-full gap-1.5"
             >
               <Save className="h-3.5 w-3.5" />
-              {draftIsEventLike ? t('action_save_event') : t('action_save')}
+              {draftIsEventLike
+                ? t('action_save_event')
+                : draftIsHabit
+                  ? t('action_add_habit')
+                  : t('action_save')}
             </Button>
           )}
           <button

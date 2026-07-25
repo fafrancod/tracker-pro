@@ -299,11 +299,15 @@ function materializeDemoCreate(
     return { task: instances[0], instances };
   }
 
+  const isHabit = kind === 'habit_good' || kind === 'habit_quit';
   const recurrence = normalizeRecurrence(
-    payload.recurrenceFrequency,
+    isHabit &&
+      (!payload.recurrenceFrequency || payload.recurrenceFrequency === 'none')
+      ? 'daily'
+      : payload.recurrenceFrequency,
     payload.recurrenceInterval
   );
-  const endDayId = payload.endDayId ?? dayId;
+  const endDayId = isHabit ? dayId : (payload.endDayId ?? dayId);
   const ranges = materializeOccurrenceRanges(
     dayId,
     endDayId,
@@ -320,7 +324,7 @@ function materializeDemoCreate(
       title: payload.title,
       completed: false,
       completedAt: null,
-      projectId: payload.projectId ?? null,
+      projectId: isHabit ? null : (payload.projectId ?? null),
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: 0,
@@ -329,15 +333,24 @@ function materializeDemoCreate(
       seriesId,
       recurrence,
       endDayId: range.endDayId,
-      urgency: payload.urgency ?? null,
-      importance: payload.importance ?? null,
+      urgency: isHabit ? null : (payload.urgency ?? null),
+      importance: isHabit ? null : (payload.importance ?? null),
       kind,
-      color: payload.color ?? null,
-      startTime: payload.startTime ?? null,
-      endTime: payload.endTime ?? null,
+      color:
+        payload.color ??
+        (kind === 'habit_good'
+          ? '#3fb950'
+          : kind === 'habit_quit'
+            ? '#f85149'
+            : null),
+      startTime: isHabit ? null : (payload.startTime ?? null),
+      endTime: isHabit ? null : (payload.endTime ?? null),
       rx: null,
-      involvedContactIds: involved,
-      location: kind === 'event' ? (payload.location?.trim() || null) : null,
+      involvedContactIds: isHabit ? [] : involved,
+      location:
+        kind === 'event' || kind === 'possible_event'
+          ? (payload.location?.trim() || null)
+          : null,
       departureTime:
         kind === 'event' ? (payload.departureTime ?? null) : null,
       createdAt: now,
@@ -634,6 +647,8 @@ function normalizeTaskKind(raw: unknown): Task['kind'] {
   if (raw === 'rx_pet') return 'rx_pet';
   if (raw === 'possible_event') return 'possible_event';
   if (raw === 'event') return 'event';
+  if (raw === 'habit_good') return 'habit_good';
+  if (raw === 'habit_quit') return 'habit_quit';
   return 'task';
 }
 

@@ -240,6 +240,17 @@ export interface TranslationDict {
   board_category_possible_hint: string;
   board_filter_category_events: string;
   board_category_events_hint: string;
+  board_filter_category_habits: string;
+  board_category_habits_hint: string;
+  task_kind_habit_good: string;
+  task_kind_habit_quit: string;
+  task_habit_placeholder: string;
+  task_habit_quit_placeholder: string;
+  action_add_habit: string;
+  habit_done: string;
+  habit_not_done: string;
+  habit_badge_good: string;
+  habit_badge_quit: string;
   task_kind_possible_event: string;
   task_possible_event_placeholder: string;
   task_kind_event: string;
@@ -581,7 +592,7 @@ export interface TranslationDict {
 
 const es_dict: TranslationDict = {
   nav_summary: 'Resumen',
-  nav_tasks: 'Tareas',
+  nav_tasks: 'Calendario',
   nav_projects: 'Proyectos',
   nav_circle: 'Círculo',
   nav_analytics: 'Analytics',
@@ -832,6 +843,9 @@ const es_dict: TranslationDict = {
   board_category_possible_hint:
     'Planes tentativos: un día o un rango. Asocia personas o mascotas del Círculo.',
   board_filter_category_events: 'Eventos',
+  board_filter_category_habits: 'Hábitos',
+  board_category_habits_hint:
+    'Hábitos buenos y a dejar. Cada día aparece con casilla para marcar si lo hiciste.',
   board_category_events_hint:
     'Eventos con lugar, fechas y salida prevista (avisos según la hora de salida).',
   board_category_rx_hint:
@@ -859,6 +873,15 @@ const es_dict: TranslationDict = {
   task_kind_possible_event: 'Evento posible',
   task_possible_event_placeholder: 'Ej. Viaje en familia, visita al veterinario…',
   task_kind_event: 'Evento',
+  task_kind_habit_good: 'Hábito bueno',
+  task_kind_habit_quit: 'Hábito a dejar',
+  task_habit_placeholder: 'Ej. Tocar guitarra, leer, ir al gym…',
+  task_habit_quit_placeholder: 'Ej. Redes sociales, azúcares, procrastinar…',
+  action_add_habit: 'Guardar hábito',
+  habit_done: 'Hecho',
+  habit_not_done: 'Pendiente',
+  habit_badge_good: 'Cultivar',
+  habit_badge_quit: 'Dejar',
   task_event_placeholder: 'Ej. Cena con Ana, partido, cita médica…',
   task_event_location: 'Lugar',
   task_event_location_ph: 'Ej. Casa de Ana, Teatro Colón, Zoom…',
@@ -1019,7 +1042,7 @@ const es_dict: TranslationDict = {
   settings_auto_roll_desc: 'Los domingos a las 23:59 mueve las pendientes al lunes siguiente.',
   settings_default_project: 'Proyecto por defecto',
   settings_default_board_view: 'Vista del tablero por defecto',
-  settings_default_board_view_desc: 'Cómo se abre el tablero al entrar en Tareas.',
+  settings_default_board_view_desc: 'Cómo se abre el tablero al entrar en Calendario.',
   settings_none: 'Ninguno',
   settings_skin: 'Apariencia',
   settings_skin_desc: 'Elige un skin claro u oscuro. Se aplica de inmediato en toda la app.',
@@ -1194,7 +1217,7 @@ const es_dict: TranslationDict = {
 
 const en_dict: TranslationDict = {
   nav_summary: 'Summary',
-  nav_tasks: 'Tasks',
+  nav_tasks: 'Calendar',
   nav_projects: 'Projects',
   nav_circle: 'Circle',
   nav_analytics: 'Analytics',
@@ -1445,6 +1468,9 @@ const en_dict: TranslationDict = {
   board_category_possible_hint:
     'Tentative plans: one day or a range. Link people or pets from your Circle.',
   board_filter_category_events: 'Events',
+  board_filter_category_habits: 'Habits',
+  board_category_habits_hint:
+    'Good habits and habits to quit. Each day shows a checkbox to mark if you did it.',
   board_category_events_hint:
     'Events with place, dates and planned departure (reminders use departure time).',
   board_category_rx_hint:
@@ -1472,6 +1498,15 @@ const en_dict: TranslationDict = {
   task_kind_possible_event: 'Possible event',
   task_possible_event_placeholder: 'e.g. Family trip, vet visit…',
   task_kind_event: 'Event',
+  task_kind_habit_good: 'Good habit',
+  task_kind_habit_quit: 'Habit to quit',
+  task_habit_placeholder: 'e.g. Play guitar, read, go to the gym…',
+  task_habit_quit_placeholder: 'e.g. Social media, sugar, procrastinating…',
+  action_add_habit: 'Save habit',
+  habit_done: 'Done',
+  habit_not_done: 'Pending',
+  habit_badge_good: 'Build',
+  habit_badge_quit: 'Quit',
   task_event_placeholder: 'e.g. Dinner with Ana, match, doctor visit…',
   task_event_location: 'Place',
   task_event_location_ph: "e.g. Ana's place, Colón Theatre, Zoom…",
@@ -1632,7 +1667,7 @@ const en_dict: TranslationDict = {
   settings_auto_roll_desc: 'Sundays 23:59 move pending tasks to the next Monday.',
   settings_default_project: 'Default project',
   settings_default_board_view: 'Default board view',
-  settings_default_board_view_desc: 'How the board opens when you go to Tasks.',
+  settings_default_board_view_desc: 'How the board opens when you go to Calendar.',
   settings_none: 'None',
   settings_skin: 'Appearance',
   settings_skin_desc: 'Pick a light or dark skin. Applies immediately across the app.',

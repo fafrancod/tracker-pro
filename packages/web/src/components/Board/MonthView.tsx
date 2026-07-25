@@ -18,12 +18,14 @@ import { collectTasksCovering, type LocatedTask } from '@core/lib/taskPresence';
 import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
 import { isDemoMode } from '@core/lib/demoMode';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
+import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useT } from '@/hooks/useT';
 import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
 import { capitalize } from '@/lib/i18n';
+import { Check } from 'lucide-react';
 import {
   TaskContextMenu,
   type TaskContextMenuState,
@@ -508,13 +510,14 @@ export function MonthView({
                             ? allProjects.find(p => p.id === task.projectId)
                             : null;
                           const timeLabel = chipTimeLabel(task);
+                          const habit = isHabitKind(task.kind);
                           return (
                             <span
                               key={task.id}
                               role="button"
                               tabIndex={0}
                               onClick={e => {
-                                // Single click on chip: do NOT open create sheet.
+                                // Hábito: clic en la fila no crea tarea del día.
                                 e.stopPropagation();
                               }}
                               onDoubleClick={e => {
@@ -537,12 +540,20 @@ export function MonthView({
                               className={cn(
                                 'flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
                                 task.completed
-                                  ? 'bg-accent-green/10 text-text-muted line-through'
-                                  : 'bg-background/80 text-text-primary hover:bg-accent-teal/15',
+                                  ? isHabitQuit(task.kind)
+                                    ? 'bg-red-500/10 text-text-muted line-through'
+                                    : 'bg-accent-green/10 text-text-muted line-through'
+                                  : habit && isHabitGood(task.kind)
+                                    ? 'bg-emerald-500/10 text-text-primary hover:bg-emerald-500/20'
+                                    : habit && isHabitQuit(task.kind)
+                                      ? 'bg-red-500/10 text-text-primary hover:bg-red-500/20'
+                                      : 'bg-background/80 text-text-primary hover:bg-accent-teal/15',
                                 task.kind === 'possible_event' &&
                                   !task.completed &&
                                   'opacity-60',
-                                task.recurrence.frequency !== 'none' && 'ring-1 ring-accent-teal/20'
+                                task.recurrence.frequency !== 'none' &&
+                                  !habit &&
+                                  'ring-1 ring-accent-teal/20'
                               )}
                               style={
                                 !task.completed && (task.color || project)
@@ -552,12 +563,42 @@ export function MonthView({
                                   : undefined
                               }
                             >
+                              {habit ? (
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border',
+                                    task.completed
+                                      ? isHabitQuit(task.kind)
+                                        ? 'border-red-500/70 bg-red-500/25 text-red-100'
+                                        : 'border-accent-green bg-accent-green/25 text-accent-green'
+                                      : isHabitGood(task.kind)
+                                        ? 'border-emerald-500/60'
+                                        : 'border-red-500/60'
+                                  )}
+                                  aria-label={
+                                    task.completed ? t('habit_done') : t('habit_not_done')
+                                  }
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    void handleToggleLocated({
+                                      task,
+                                      startDayId: task.startDayId,
+                                      startWeekId: task.weekId,
+                                    });
+                                  }}
+                                >
+                                  {task.completed && <Check className="h-2.5 w-2.5" />}
+                                </button>
+                              ) : null}
                               <span className="min-w-0 flex-1 truncate">
-                                {task.kind === 'reminder' ? '🔔 ' : ''}
-                                {task.recurrence.frequency !== 'none' ? '↻ ' : ''}
+                                {!habit && task.kind === 'reminder' ? '🔔 ' : ''}
+                                {!habit && task.recurrence.frequency !== 'none' ? '↻ ' : ''}
+                                {habit && isHabitGood(task.kind) ? '🌱 ' : ''}
+                                {habit && isHabitQuit(task.kind) ? '⊘ ' : ''}
                                 {task.title}
                               </span>
-                              {timeLabel && (
+                              {timeLabel && !habit && (
                                 <span className="shrink-0 tabular-nums text-[9px] font-medium text-text-muted">
                                   {timeLabel}
                                 </span>

@@ -17,6 +17,8 @@ import {
 } from './TaskContextMenu';
 import type { Task, Project, Priority } from '@core/types';
 import { formatDose, isRxKind } from '@core/lib/rx';
+import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
+import { useT } from '@/hooks/useT';
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; variant: 'green' | 'teal' | 'red' }> = {
   low: { label: 'Low', variant: 'green' },
@@ -68,6 +70,7 @@ export function TaskCard({
   isDragging,
   dense = false,
 }: TaskCardProps) {
+  const { t } = useT();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(task.title);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -80,6 +83,9 @@ export function TaskCard({
   const longPressOrigin = useRef<{ x: number; y: number } | null>(null);
 
   const project = projects.find(p => p.id === task.projectId);
+  const isHabit = isHabitKind(task.kind);
+  const habitGood = isHabitGood(task.kind);
+  const habitQuit = isHabitQuit(task.kind);
 
   const openMenuAt = useCallback(
     (x: number, y: number) => {
@@ -195,20 +201,42 @@ export function TaskCard({
           <GripVertical className="h-4 w-4" />
         </button>
 
-        {/* Checkbox — min touch target ~44px hit area via padding */}
+        {/* Checkbox — hábitos: casilla cuadrada más visible */}
         <button
           type="button"
           onClick={onToggle}
           className={cn(
-            'flex shrink-0 items-center justify-center rounded-full border transition-colors',
-            dense ? 'mt-0.5 h-5 w-5' : 'mt-0.5 h-5 w-5',
+            'flex shrink-0 items-center justify-center border transition-colors',
+            dense ? 'mt-0.5 h-5 w-5' : isHabit ? 'mt-0.5 h-6 w-6' : 'mt-0.5 h-5 w-5',
+            isHabit ? 'rounded-md' : 'rounded-full',
             task.completed
-              ? 'border-accent-green bg-accent-green/20 text-accent-green'
-              : 'border-border hover:border-accent-green'
+              ? habitQuit
+                ? 'border-red-500/70 bg-red-500/20 text-red-200'
+                : 'border-accent-green bg-accent-green/20 text-accent-green'
+              : habitGood
+                ? 'border-emerald-500/50 hover:border-emerald-400'
+                : habitQuit
+                  ? 'border-red-500/50 hover:border-red-400'
+                  : 'border-border hover:border-accent-green'
           )}
-          aria-label={task.completed ? 'Desmarcar' : 'Completar'}
+          aria-label={
+            isHabit
+              ? task.completed
+                ? t('habit_done')
+                : t('habit_not_done')
+              : task.completed
+                ? 'Desmarcar'
+                : 'Completar'
+          }
+          title={
+            isHabit
+              ? task.completed
+                ? t('habit_done')
+                : t('habit_not_done')
+              : undefined
+          }
         >
-          {task.completed && <Check className="h-3 w-3" />}
+          {task.completed && <Check className={cn(isHabit ? 'h-3.5 w-3.5' : 'h-3 w-3')} />}
         </button>
 
         {/* Content */}
@@ -252,6 +280,18 @@ export function TaskCard({
             {task.startTime && (
               <span className="inline-flex items-center rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
                 {task.endTime ? `${task.startTime}–${task.endTime}` : task.startTime}
+              </span>
+            )}
+            {isHabit && (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                  habitGood
+                    ? 'bg-emerald-500/15 text-emerald-200'
+                    : 'bg-red-500/15 text-red-200'
+                )}
+              >
+                {habitGood ? `✓ ${t('habit_badge_good')}` : `⊘ ${t('habit_badge_quit')}`}
               </span>
             )}
             {isRxKind(task.kind) && task.rx && (

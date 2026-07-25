@@ -2,7 +2,7 @@ import { type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  ListChecks,
+  CalendarDays,
   FolderKanban,
   Users,
   BarChart3,
@@ -32,10 +32,10 @@ export interface NavItem {
 }
 
 // El playbook indica que el segundo item debe ser la acción/entidad principal.
-// En task tracker la entidad principal son las Tareas.
+// Calendario: tablero día/semana/mes/continuo (tareas, eventos, hábitos…).
 export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', labelKey: 'nav_summary', icon: LayoutDashboard },
-  { to: '/board', labelKey: 'nav_tasks', icon: ListChecks },
+  { to: '/board', labelKey: 'nav_tasks', icon: CalendarDays },
   { to: '/notifications', labelKey: 'nav_notifications', icon: Bell },
   { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
   { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass, skipMainList: true },
@@ -133,7 +133,7 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <ListChecks className="h-5 w-5 text-accent-teal" />
+        <CalendarDays className="h-5 w-5 text-accent-teal" />
         <span className="text-sm font-bold tracking-tight text-text-primary">Daily Tracker</span>
       </div>
 

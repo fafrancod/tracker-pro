@@ -304,11 +304,13 @@ export function EisenhowerPage() {
   const filtered = useMemo(() => {
     const keySet = new Set(activeProjectKeys);
     return allLocated.filter(t => {
-      // Recetarios no entran en la matriz de prioridades
+      // Recetarios, eventos y hábitos no entran en la matriz de prioridades
       if (
         isRxKind(t.kind) ||
         t.kind === 'possible_event' ||
-        t.kind === 'event'
+        t.kind === 'event' ||
+        t.kind === 'habit_good' ||
+        t.kind === 'habit_quit'
       ) {
         return false;
       }

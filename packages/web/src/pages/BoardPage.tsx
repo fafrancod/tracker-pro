@@ -12,6 +12,7 @@ import {
   Pill,
   CalendarHeart,
   MapPin,
+  Leaf,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -153,6 +154,7 @@ export function BoardPage() {
   const isProjectsCategory = category === 'projects';
   const isPossibleCategory = category === 'possible';
   const isEventsCategory = category === 'events';
+  const isHabitsCategory = category === 'habits';
 
   const categoryTabs: Array<{
     value: BoardCategoryFilter;
@@ -175,6 +177,11 @@ export function BoardPage() {
       value: 'possible',
       label: t('board_filter_category_possible'),
       icon: CalendarHeart,
+    },
+    {
+      value: 'habits',
+      label: t('board_filter_category_habits'),
+      icon: Leaf,
     },
   ];
 
@@ -328,7 +335,8 @@ export function BoardPage() {
                     // Al entrar en recetario o eventos posibles, limpia filtros de proyecto/Eisenhower
                     ...(tab.value === 'rx' ||
                     tab.value === 'possible' ||
-                    tab.value === 'events'
+                    tab.value === 'events' ||
+                    tab.value === 'habits'
                       ? { projectId: 'all', urgency: 'all', importance: 'all' }
                       : {}),
                   }))
@@ -342,9 +350,11 @@ export function BoardPage() {
                         ? 'bg-fuchsia-500/20 text-fuchsia-200'
                         : tab.value === 'events'
                           ? 'bg-sky-500/20 text-sky-200'
-                          : tab.value === 'projects'
-                            ? 'bg-accent-teal/15 text-accent-teal'
-                            : 'bg-accent-teal/15 text-accent-teal'
+                          : tab.value === 'habits'
+                            ? 'bg-emerald-500/20 text-emerald-200'
+                            : tab.value === 'projects'
+                              ? 'bg-accent-teal/15 text-accent-teal'
+                              : 'bg-accent-teal/15 text-accent-teal'
                     : 'text-text-muted hover:bg-surface hover:text-text-primary'
                 )}
               >
@@ -365,9 +375,17 @@ export function BoardPage() {
             {t('board_category_events_hint')}
           </p>
         )}
+        {isHabitsCategory && (
+          <p className="text-[11px] text-text-muted md:ml-auto">
+            {t('board_category_habits_hint')}
+          </p>
+        )}
 
         {/* Filtros secundarios: solo donde aplican */}
-        {!isRxCategory && !isPossibleCategory && !isEventsCategory && (
+        {!isRxCategory &&
+          !isPossibleCategory &&
+          !isEventsCategory &&
+          !isHabitsCategory && (
           <div className="flex flex-wrap items-center gap-1.5 md:ml-auto">
             {(isProjectsCategory || category === 'all') && (
               <div className="flex items-center gap-1">
@@ -495,7 +513,9 @@ export function BoardPage() {
                   ? 'event'
                   : isPossibleCategory
                     ? 'possible_event'
-                    : 'task'
+                    : isHabitsCategory
+                      ? 'habit_good'
+                      : 'task'
             }
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {

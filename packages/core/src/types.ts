@@ -5,7 +5,9 @@ export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yea
  * task/reminder = proyectos y pendientes;
  * rx_* = recetario;
  * possible_event = evento posible (día o rango, con personas/mascotas);
- * event = evento confirmado (lugar, fechas, horario, salida prevista).
+ * event = evento confirmado (lugar, fechas, horario, salida prevista);
+ * habit_good = hábito a cultivar (checkbox diario);
+ * habit_quit = hábito a dejar (checkbox diario).
  */
 export type TaskKind =
   | 'task'
@@ -13,7 +15,9 @@ export type TaskKind =
   | 'rx_human'
   | 'rx_pet'
   | 'possible_event'
-  | 'event';
+  | 'event'
+  | 'habit_good'
+  | 'habit_quit';
 export type Urgency = 'urgent' | 'not_urgent';
 export type Importance = 'important' | 'not_important';
 export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
@@ -23,14 +27,15 @@ export type ScheduleLayout = 'list' | 'schedule';
 export type DoseUnit = 'pills' | 'ml';
 /**
  * Filtro de categoría en el tablero:
- * all | projects | rx | possible | events.
+ * all | projects | rx | possible | events | habits.
  */
 export type BoardCategoryFilter =
   | 'all'
   | 'projects'
   | 'rx'
   | 'possible'
-  | 'events';
+  | 'events'
+  | 'habits';
 
 /**
  * Cómo se definen los horarios de la fase:
@@ -455,9 +460,11 @@ export interface BoardTaskFilters {
   importance?: Importance | 'all';
   /**
    * all = todo;
-   * projects = tareas/recordatorios (no recetario ni eventos posibles);
+   * projects = tareas/recordatorios (no recetario, eventos ni hábitos);
    * rx = solo recetarios;
-   * possible = solo eventos posibles.
+   * possible = solo eventos posibles;
+   * events = eventos confirmados;
+   * habits = hábitos buenos y a dejar.
    */
   category?: BoardCategoryFilter;
 }
@@ -473,7 +480,9 @@ export function taskMatchesFilters(
         kind === 'rx_human' ||
         kind === 'rx_pet' ||
         kind === 'possible_event' ||
-        kind === 'event'
+        kind === 'event' ||
+        kind === 'habit_good' ||
+        kind === 'habit_quit'
       ) {
         return false;
       }
@@ -483,6 +492,8 @@ export function taskMatchesFilters(
       if (kind !== 'possible_event') return false;
     } else if (filters.category === 'events') {
       if (kind !== 'event') return false;
+    } else if (filters.category === 'habits') {
+      if (kind !== 'habit_good' && kind !== 'habit_quit') return false;
     }
   }
   if (filters.projectId && filters.projectId !== 'all') {

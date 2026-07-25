@@ -48,6 +48,8 @@ const kindSchema = z.enum([
   'rx_pet',
   'possible_event',
   'event',
+  'habit_good',
+  'habit_quit',
 ]);
 const colorSchema = z
   .string()
@@ -273,13 +275,27 @@ function toClientTask(
 
 function normalizeKind(
   raw: unknown
-): 'task' | 'reminder' | 'rx_human' | 'rx_pet' | 'possible_event' | 'event' {
+):
+  | 'task'
+  | 'reminder'
+  | 'rx_human'
+  | 'rx_pet'
+  | 'possible_event'
+  | 'event'
+  | 'habit_good'
+  | 'habit_quit' {
   if (raw === 'reminder') return 'reminder';
   if (raw === 'rx_human') return 'rx_human';
   if (raw === 'rx_pet') return 'rx_pet';
   if (raw === 'possible_event') return 'possible_event';
   if (raw === 'event') return 'event';
+  if (raw === 'habit_good') return 'habit_good';
+  if (raw === 'habit_quit') return 'habit_quit';
   return 'task';
+}
+
+function isHabitKind(kind: string | null | undefined): boolean {
+  return kind === 'habit_good' || kind === 'habit_quit';
 }
 
 tasksRouter.post('/', async (req, res, next) => {
@@ -424,13 +440,20 @@ tasksRouter.post('/', async (req, res, next) => {
         });
       }
     } else {
-      // ——— Tarea / recordatorio / eventos (recurrence materialization) ———
-      const endDayId = rawEndDayId ?? dayId;
+      // ——— Tarea / recordatorio / eventos / hábitos (recurrence materialization) ———
+      const isHabit = isHabitKind(taskKind);
+      // Hábitos: un día por instancia (no multi-día) y, por defecto, diarios.
+      const endDayId = isHabit ? dayId : (rawEndDayId ?? dayId);
       if (endDayId < dayId) {
         throw ApiError.badRequest('endDayId debe ser >= dayId');
       }
 
-      const recurrence = normalizeRecurrence(recurrenceFrequency, recurrenceInterval);
+      const recurrence = normalizeRecurrence(
+        isHabit && (!recurrenceFrequency || recurrenceFrequency === 'none')
+          ? 'daily'
+          : recurrenceFrequency,
+        recurrenceInterval
+      );
       const isMultiDay = endDayId > dayId;
       if (isMultiDay && !isMultiDayRecurrenceAllowed(recurrence.frequency)) {
         throw ApiError.badRequest(
@@ -491,8 +514,8 @@ tasksRouter.post('/', async (req, res, next) => {
           title,
           completed: false,
           completed_at: null,
-          project_id: isEventLike ? null : (projectId ?? null),
-          priority: priority ?? 'medium',
+          project_id: isEventLike || isHabit ? null : (projectId ?? null),
+          priority: priority ?? (isHabit ? 'medium' : 'medium'),
           notes: notes ?? '',
           order,
           tags: mergedTags,
@@ -500,8 +523,8 @@ tasksRouter.post('/', async (req, res, next) => {
           series_id: recurrence.frequency === 'none' ? null : seriesId,
           recurrence_frequency: recurrence.frequency,
           recurrence_interval: recurrence.interval,
-          urgency: isEventLike ? null : (urgency ?? null),
-          importance: isEventLike ? null : (importance ?? null),
+          urgency: isEventLike || isHabit ? null : (urgency ?? null),
+          importance: isEventLike || isHabit ? null : (importance ?? null),
           kind: taskKind,
           color:
             color ??
@@ -509,13 +532,17 @@ tasksRouter.post('/', async (req, res, next) => {
               ? '#58a6ff'
               : taskKind === 'possible_event'
                 ? '#a371f7'
-                : null),
-          start_time: startTime ?? null,
-          end_time: endTime ?? null,
+                : taskKind === 'habit_good'
+                  ? '#3fb950'
+                  : taskKind === 'habit_quit'
+                    ? '#f85149'
+                    : null),
+          start_time: isHabit ? null : (startTime ?? null),
+          end_time: isHabit ? null : (endTime ?? null),
           rx_meta: null,
           involved_contact_ids: isEventLike ? involvedIds : [],
-          location: locationValue,
-          departure_time: departureValue,
+          location: isHabit ? null : locationValue,
+          departure_time: isHabit ? null : departureValue,
           created_at: now,
           updated_at: now,
         });

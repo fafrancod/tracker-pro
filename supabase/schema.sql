@@ -52,7 +52,10 @@ create table if not exists public.tasks (
   urgency text check (urgency is null or urgency in ('urgent', 'not_urgent')),
   importance text check (importance is null or importance in ('important', 'not_important')),
   kind text not null default 'task'
-    check (kind in ('task', 'reminder', 'rx_human', 'rx_pet')),
+    check (kind in (
+      'task', 'reminder', 'rx_human', 'rx_pet',
+      'possible_event', 'event', 'habit_good', 'habit_quit'
+    )),
   color text check (color is null or color ~ '^#[0-9A-Fa-f]{6}$'),
   -- Optional time-of-day schedule (local HH:mm, 24h). Null = sin horario.
   start_time text check (start_time is null or start_time ~ '^[0-2][0-9]:[0-5][0-9]$'),
@@ -181,7 +184,7 @@ begin
   end if;
 end $$;
 
--- Expand kind check for existing DBs (+ rx_* + possible_event + event)
+-- Expand kind check for existing DBs (+ rx_* + possible_event + event + habits)
 do $$
 begin
   if exists (
@@ -193,7 +196,29 @@ begin
   end if;
   alter table public.tasks
     add constraint tasks_kind_check
-    check (kind in ('task', 'reminder', 'rx_human', 'rx_pet', 'possible_event', 'event'));
+    check (kind in (
+      'task', 'reminder', 'rx_human', 'rx_pet',
+      'possible_event', 'event', 'habit_good', 'habit_quit'
+    ));
+exception when duplicate_object then null;
+end $$;
+
+-- Hábitos (buenos / a dejar): ampliar constraint en DBs ya migradas
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_kind_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks drop constraint tasks_kind_check;
+  end if;
+  alter table public.tasks
+    add constraint tasks_kind_check
+    check (kind in (
+      'task', 'reminder', 'rx_human', 'rx_pet',
+      'possible_event', 'event', 'habit_good', 'habit_quit'
+    ));
 exception when duplicate_object then null;
 end $$;
 
