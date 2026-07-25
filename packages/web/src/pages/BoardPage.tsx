@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  Calendar,
   CalendarDays,
   CalendarRange,
   GalleryVertical,
@@ -68,6 +69,8 @@ export function BoardPage() {
     importance: 'all',
     category: 'all',
   });
+  /** Bumps so month/continuous re-center on the present period. */
+  const [focusTodayNonce, setFocusTodayNonce] = useState(0);
 
   const { projects } = useProjects();
   const { showToast } = useToast();
@@ -100,6 +103,30 @@ export function BoardPage() {
     weekdayFormat,
     shortDateFormat,
   });
+
+  const snapToPresent = useCallback(() => {
+    const now = new Date();
+    setCurrentWeek(getWeekId(now));
+    setSelectedDay(getDayId(now));
+    setFocusTodayNonce(n => n + 1);
+  }, [setCurrentWeek, setSelectedDay]);
+
+  // Al abrir la pestaña de tareas: día/semana actuales.
+  useEffect(() => {
+    snapToPresent();
+  }, [snapToPresent]);
+
+  function selectView(next: BoardViewMode) {
+    setView(next);
+    snapToPresent();
+  }
+
+  const goPresentLabel =
+    view === 'day'
+      ? t('board_go_today')
+      : view === 'week'
+        ? t('board_go_this_week')
+        : t('board_go_this_month');
 
   const fallbackDayId = isCurrentWeek ? (todayDayId ?? days[0].dayId) : days[0].dayId;
   const targetDayId =
@@ -162,7 +189,7 @@ export function BoardPage() {
         <div className="inline-flex rounded-md border border-border bg-surface p-0.5">
           <button
             type="button"
-            onClick={() => setView('day')}
+            onClick={() => selectView('day')}
             className={cn(
               'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
               view === 'day'
@@ -175,7 +202,7 @@ export function BoardPage() {
           </button>
           <button
             type="button"
-            onClick={() => setView('week')}
+            onClick={() => selectView('week')}
             className={cn(
               'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
               view === 'week'
@@ -188,7 +215,7 @@ export function BoardPage() {
           </button>
           <button
             type="button"
-            onClick={() => setView('month')}
+            onClick={() => selectView('month')}
             className={cn(
               'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
               view === 'month'
@@ -201,7 +228,7 @@ export function BoardPage() {
           </button>
           <button
             type="button"
-            onClick={() => setView('continuous')}
+            onClick={() => selectView('continuous')}
             className={cn(
               'flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors',
               view === 'continuous'
@@ -213,6 +240,17 @@ export function BoardPage() {
             {t('board_continuous_view')}
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={snapToPresent}
+          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-text-muted transition-colors hover:bg-background hover:text-text-primary"
+          title={goPresentLabel}
+        >
+          <Calendar className="h-3.5 w-3.5 text-accent-teal" />
+          <span className="hidden sm:inline">{goPresentLabel}</span>
+          <span className="sm:hidden">{t('action_today')}</span>
+        </button>
 
         <div className="inline-flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
           <button
@@ -380,6 +418,7 @@ export function BoardPage() {
           onPickDay={handlePickDay}
           onViewDay={handleViewDay}
           filter={filters}
+          focusTodayNonce={focusTodayNonce}
         />
       )}
       {view === 'continuous' && (
@@ -387,6 +426,7 @@ export function BoardPage() {
           onPickDay={handlePickDay}
           onViewDay={handleViewDay}
           filter={filters}
+          focusTodayNonce={focusTodayNonce}
         />
       )}
 

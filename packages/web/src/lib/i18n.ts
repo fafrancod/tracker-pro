@@ -202,6 +202,9 @@ export interface TranslationDict {
   board_day_view: string;
   /** Menú contextual de celda en mes/continuo */
   board_ctx_view_day: string;
+  board_go_today: string;
+  board_go_this_week: string;
+  board_go_this_month: string;
   board_next_week: string;
   board_prev_week: string;
   board_prev_day: string;
@@ -427,6 +430,11 @@ export interface TranslationDict {
   eisenhower_title: string;
   eisenhower_project: string;
   eisenhower_all_projects: string;
+  eisenhower_select_all: string;
+  eisenhower_deselect_all: string;
+  eisenhower_no_project: string;
+  eisenhower_filters: string;
+  eisenhower_rx_excluded: string;
   eisenhower_do: string;
   eisenhower_schedule: string;
   eisenhower_delegate: string;
@@ -687,6 +695,9 @@ const es_dict: TranslationDict = {
   board_continuous_view: 'Continuo',
   board_day_view: 'Día',
   board_ctx_view_day: 'Ver día',
+  board_go_today: 'Ir al día de hoy',
+  board_go_this_week: 'Ir a la semana de hoy',
+  board_go_this_month: 'Ir al mes de hoy',
   board_next_week: 'Semana siguiente',
   board_prev_week: 'Semana anterior',
   board_prev_day: 'Día anterior',
@@ -922,6 +933,11 @@ const es_dict: TranslationDict = {
   eisenhower_title: 'Matriz de Prioridades',
   eisenhower_project: 'Proyecto',
   eisenhower_all_projects: 'Todos',
+  eisenhower_select_all: 'Seleccionar todos',
+  eisenhower_deselect_all: 'Deseleccionar todos',
+  eisenhower_no_project: 'Sin proyecto',
+  eisenhower_filters: 'Filtros',
+  eisenhower_rx_excluded: 'Los recetarios no se muestran en esta matriz.',
   eisenhower_do: 'Urgente e importante',
   eisenhower_schedule: 'No urgente e importante',
   eisenhower_delegate: 'Urgente y no importante',
@@ -1181,6 +1197,9 @@ const en_dict: TranslationDict = {
   board_continuous_view: 'Continuous',
   board_day_view: 'Day',
   board_ctx_view_day: 'View day',
+  board_go_today: 'Go to today',
+  board_go_this_week: 'Go to this week',
+  board_go_this_month: 'Go to this month',
   board_next_week: 'Next week',
   board_prev_week: 'Previous week',
   board_prev_day: 'Previous day',
@@ -1416,6 +1435,11 @@ const en_dict: TranslationDict = {
   eisenhower_title: 'Priority Matrix',
   eisenhower_project: 'Project',
   eisenhower_all_projects: 'All',
+  eisenhower_select_all: 'Select all',
+  eisenhower_deselect_all: 'Deselect all',
+  eisenhower_no_project: 'No project',
+  eisenhower_filters: 'Filters',
+  eisenhower_rx_excluded: 'Prescriptions are not shown in this matrix.',
   eisenhower_do: 'Urgent & important',
   eisenhower_schedule: 'Not urgent & important',
   eisenhower_delegate: 'Urgent & not important',

@@ -6,6 +6,7 @@ import {
   format,
   startOfMonth,
 } from 'date-fns';
+import { Filter, X } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
@@ -16,12 +17,16 @@ import {
 } from '@core/services/taskService';
 import { taskHistory } from '@core/history/taskHistory';
 import { isDemoMode } from '@core/lib/demoMode';
+import { isRxKind } from '@core/lib/rx';
 import type { Importance, RecurrenceFrequency, Task, Urgency } from '@core/types';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
 import { TaskDetailSheet } from '@/components/Board';
 import type { TKey } from '@/lib/i18n';
+
+/** Sentinel for tasks without project in the multi-select filter. */
+const NO_PROJECT = '__none__';
 
 type QuadrantKey = 'do' | 'schedule' | 'delegate' | 'eliminate';
 
@@ -232,13 +237,27 @@ export function EisenhowerPage() {
   const setDayTasks = useStore(s => s.setDayTasks);
   const setDetailTask = useStore(s => s.setDetailTask);
 
-  const [projectFilter, setProjectFilter] = useState<string>('all');
+  /** null = todos seleccionados (default). Set/array = solo esos ids (incluye NO_PROJECT). */
+  const [selectedProjectKeys, setSelectedProjectKeys] = useState<string[] | null>(
+    null
+  );
   const [horizon, setHorizon] = useState<PriorityHorizon>('30d');
   const [loading, setLoading] = useState(false);
   const [remoteTasks, setRemoteTasks] = useState<LocatedTaskRow[] | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const ranges = useMemo(() => horizonRanges(horizon), [horizon]);
   const todayId = useMemo(() => formatDayLocal(new Date()), []);
+
+  const allProjectKeys = useMemo(
+    () => [NO_PROJECT, ...projects.map(p => p.id)],
+    [projects]
+  );
+
+  const activeProjectKeys = selectedProjectKeys ?? allProjectKeys;
+  const allProjectsSelected =
+    allProjectKeys.length > 0 &&
+    allProjectKeys.every(k => activeProjectKeys.includes(k));
 
   const load = useCallback(async () => {
     if (!uid || isDemoMode()) {
@@ -283,11 +302,32 @@ export function EisenhowerPage() {
   }, [remoteTasks, tasksByDay, ranges.from, ranges.to, ranges.fetchTo, todayId]);
 
   const filtered = useMemo(() => {
+    const keySet = new Set(activeProjectKeys);
     return allLocated.filter(t => {
-      if (projectFilter !== 'all' && t.projectId !== projectFilter) return false;
-      return true;
+      // Recetarios no entran en la matriz de prioridades
+      if (isRxKind(t.kind)) return false;
+      const key = t.projectId ?? NO_PROJECT;
+      return keySet.has(key);
     });
-  }, [allLocated, projectFilter]);
+  }, [allLocated, activeProjectKeys]);
+
+  function toggleProjectKey(key: string) {
+    setSelectedProjectKeys(prev => {
+      const base = prev ?? [...allProjectKeys];
+      if (base.includes(key)) {
+        return base.filter(k => k !== key);
+      }
+      return [...base, key];
+    });
+  }
+
+  function selectAllProjects() {
+    setSelectedProjectKeys(null);
+  }
+
+  function deselectAllProjects() {
+    setSelectedProjectKeys([]);
+  }
 
   const buckets = useMemo(() => {
     const byQ: Record<QuadrantKey | 'uncategorized', MatrixRow[]> = {
@@ -449,9 +489,91 @@ export function EisenhowerPage() {
     }
   }
 
+  const projectFilterPanel = (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+        <h2 className="text-sm font-semibold text-text-primary">
+          {t('eisenhower_project')}
+        </h2>
+        <button
+          type="button"
+          className="rounded p-1 text-text-muted hover:bg-background hover:text-text-primary md:hidden"
+          onClick={() => setFiltersOpen(false)}
+          aria-label={t('action_close')}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-1.5 border-b border-border px-3 py-2">
+        <button
+          type="button"
+          onClick={selectAllProjects}
+          disabled={allProjectsSelected}
+          className={cn(
+            'rounded-md border border-border px-2 py-1 text-[11px] font-medium transition-colors',
+            allProjectsSelected
+              ? 'cursor-default opacity-50'
+              : 'text-text-primary hover:border-accent-teal/40 hover:bg-accent-teal/10'
+          )}
+        >
+          {t('eisenhower_select_all')}
+        </button>
+        <button
+          type="button"
+          onClick={deselectAllProjects}
+          disabled={activeProjectKeys.length === 0}
+          className={cn(
+            'rounded-md border border-border px-2 py-1 text-[11px] font-medium transition-colors',
+            activeProjectKeys.length === 0
+              ? 'cursor-default opacity-50'
+              : 'text-text-primary hover:border-accent-red/40 hover:bg-accent-red/10'
+          )}
+        >
+          {t('eisenhower_deselect_all')}
+        </button>
+      </div>
+      <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2 py-2">
+        <li>
+          <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-text-primary hover:bg-background">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-border accent-teal-500"
+              checked={activeProjectKeys.includes(NO_PROJECT)}
+              onChange={() => toggleProjectKey(NO_PROJECT)}
+            />
+            <span className="text-text-muted">{t('eisenhower_no_project')}</span>
+          </label>
+        </li>
+        {projects.map(p => (
+          <li key={p.id}>
+            <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-xs text-text-primary hover:bg-background">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-border accent-teal-500"
+                checked={activeProjectKeys.includes(p.id)}
+                onChange={() => toggleProjectKey(p.id)}
+              />
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: p.color }}
+                aria-hidden
+              />
+              <span className="min-w-0 truncate">
+                {p.icon} {p.name}
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <p className="shrink-0 border-t border-border px-3 py-2 text-[10px] leading-snug text-text-muted">
+        {t('eisenhower_rx_excluded')}
+      </p>
+    </div>
+  );
+
   return (
     <Layout title={t('eisenhower_title')} showFab={false}>
-      <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
         <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3">
           <label className="flex items-center gap-2 text-xs text-text-muted">
             {t('eisenhower_horizon')}
@@ -469,21 +591,20 @@ export function EisenhowerPage() {
           </label>
           <span className="text-[11px] tabular-nums text-text-muted">{rangeLabel}</span>
 
-          <label className="flex items-center gap-2 text-xs text-text-muted">
-            {t('eisenhower_project')}
-            <select
-              value={projectFilter}
-              onChange={e => setProjectFilter(e.target.value)}
-              className="h-8 rounded-md border border-border bg-surface px-2 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="all">{t('eisenhower_all_projects')}</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.icon} {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-primary hover:border-accent-teal/40 md:hidden"
+          >
+            <Filter className="h-3.5 w-3.5" />
+            {t('eisenhower_filters')}
+            {!allProjectsSelected && (
+              <span className="rounded-full bg-accent-teal/20 px-1.5 text-[10px] text-accent-teal">
+                {activeProjectKeys.length}
+              </span>
+            )}
+          </button>
+
           {loading && (
             <span className="text-[11px] text-text-muted">{t('status_checking')}</span>
           )}
@@ -492,83 +613,105 @@ export function EisenhowerPage() {
           </p>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="mx-auto grid max-w-5xl gap-3 md:grid-cols-2">
-            {QUADRANTS.map(q => (
-              <section
-                key={q.key}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => onDropQuadrant(e, q.urgency, q.importance)}
-                className={cn(
-                  'flex min-h-[180px] flex-col rounded-lg border p-3',
-                  q.accent
-                )}
-              >
-                <header className="mb-2 flex items-center justify-between gap-2">
-                  <h2 className="text-sm font-semibold text-text-primary">
-                    {t(q.titleKey)}
-                  </h2>
-                  <span className="text-[10px] tabular-nums text-text-muted">
-                    {buckets[q.key].length}
-                  </span>
-                </header>
-                <div className="flex flex-1 flex-col gap-1.5">
-                  {buckets[q.key].length === 0 ? (
-                    <p className="text-[11px] text-text-muted">{t('eisenhower_empty')}</p>
-                  ) : (
-                    buckets[q.key].map(loc => (
-                      <div key={loc.id} className="flex gap-1">
-                        <div className="min-w-0 flex-1">
-                          <TaskChip loc={loc} />
-                        </div>
-                        <button
-                          type="button"
-                          title={t(q.titleKey)}
-                          className="shrink-0 rounded border border-border px-1.5 text-[10px] text-text-muted hover:bg-background"
-                          onClick={() =>
-                            void assignQuadrant(loc, q.urgency, q.importance)
-                          }
-                        >
-                          →
-                        </button>
-                      </div>
-                    ))
+        <div className="relative flex min-h-0 flex-1">
+          <div className="min-w-0 flex-1 overflow-y-auto p-4">
+            <div className="mx-auto grid max-w-5xl gap-3 md:grid-cols-2">
+              {QUADRANTS.map(q => (
+                <section
+                  key={q.key}
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => onDropQuadrant(e, q.urgency, q.importance)}
+                  className={cn(
+                    'flex min-h-[180px] flex-col rounded-lg border p-3',
+                    q.accent
                   )}
+                >
+                  <header className="mb-2 flex items-center justify-between gap-2">
+                    <h2 className="text-sm font-semibold text-text-primary">
+                      {t(q.titleKey)}
+                    </h2>
+                    <span className="text-[10px] tabular-nums text-text-muted">
+                      {buckets[q.key].length}
+                    </span>
+                  </header>
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    {buckets[q.key].length === 0 ? (
+                      <p className="text-[11px] text-text-muted">{t('eisenhower_empty')}</p>
+                    ) : (
+                      buckets[q.key].map(loc => (
+                        <div key={loc.id} className="flex gap-1">
+                          <div className="min-w-0 flex-1">
+                            <TaskChip loc={loc} />
+                          </div>
+                          <button
+                            type="button"
+                            title={t(q.titleKey)}
+                            className="shrink-0 rounded border border-border px-1.5 text-[10px] text-text-muted hover:bg-background"
+                            onClick={() =>
+                              void assignQuadrant(loc, q.urgency, q.importance)
+                            }
+                          >
+                            →
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <section className="mx-auto mt-4 max-w-5xl rounded-lg border border-dashed border-border p-3">
+              <h2 className="mb-2 text-sm font-semibold text-text-primary">
+                {t('eisenhower_uncategorized')}
+              </h2>
+              {buckets.uncategorized.length === 0 ? (
+                <p className="text-[11px] text-text-muted">{t('eisenhower_empty')}</p>
+              ) : (
+                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                  {buckets.uncategorized.map(loc => (
+                    <div key={loc.id} className="flex flex-col gap-1">
+                      <TaskChip loc={loc} />
+                      <div className="flex flex-wrap gap-1">
+                        {QUADRANTS.map(q => (
+                          <button
+                            key={q.key}
+                            type="button"
+                            className="rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] text-text-muted hover:border-accent-teal/40 hover:text-text-primary"
+                            onClick={() =>
+                              void assignQuadrant(loc, q.urgency, q.importance)
+                            }
+                          >
+                            {t(q.titleKey)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </section>
-            ))}
+              )}
+            </section>
           </div>
 
-          <section className="mx-auto mt-4 max-w-5xl rounded-lg border border-dashed border-border p-3">
-            <h2 className="mb-2 text-sm font-semibold text-text-primary">
-              {t('eisenhower_uncategorized')}
-            </h2>
-            {buckets.uncategorized.length === 0 ? (
-              <p className="text-[11px] text-text-muted">{t('eisenhower_empty')}</p>
-            ) : (
-              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                {buckets.uncategorized.map(loc => (
-                  <div key={loc.id} className="flex flex-col gap-1">
-                    <TaskChip loc={loc} />
-                    <div className="flex flex-wrap gap-1">
-                      {QUADRANTS.map(q => (
-                        <button
-                          key={q.key}
-                          type="button"
-                          className="rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] text-text-muted hover:border-accent-teal/40 hover:text-text-primary"
-                          onClick={() =>
-                            void assignQuadrant(loc, q.urgency, q.importance)
-                          }
-                        >
-                          {t(q.titleKey)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          {/* Desktop: panel lateral derecho */}
+          <aside className="hidden w-64 shrink-0 border-l border-border bg-surface md:flex md:flex-col">
+            {projectFilterPanel}
+          </aside>
+
+          {/* Mobile: drawer desde la derecha */}
+          {filtersOpen && (
+            <div className="absolute inset-0 z-30 flex md:hidden">
+              <button
+                type="button"
+                className="min-w-0 flex-1 bg-black/40"
+                aria-label={t('action_close')}
+                onClick={() => setFiltersOpen(false)}
+              />
+              <aside className="flex h-full w-[min(18rem,88vw)] flex-col border-l border-border bg-surface shadow-xl">
+                {projectFilterPanel}
+              </aside>
+            </div>
+          )}
         </div>
       </div>
       <TaskDetailSheet />

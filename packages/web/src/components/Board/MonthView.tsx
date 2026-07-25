@@ -46,6 +46,8 @@ export interface MonthViewProps {
   filter?: BoardTaskFilters;
   /** Skip independent range fetch when parent already loaded the range. */
   skipFetch?: boolean;
+  /** Increment to jump cursor to the current month (single mode). */
+  focusTodayNonce?: number;
 }
 
 const MAX_LANES = 3;
@@ -148,6 +150,7 @@ export function MonthView({
   hideChrome = false,
   filter,
   skipFetch = false,
+  focusTodayNonce = 0,
 }: MonthViewProps) {
   const { locale, t } = useT();
   const { settings } = useSettings();
@@ -170,6 +173,12 @@ export function MonthView({
   useEffect(() => {
     if (monthDate) setCursor(startOfMonth(monthDate));
   }, [monthDate?.getTime()]);
+
+  // Jump to current month when parent requests (go-today / open tasks)
+  useEffect(() => {
+    if (mode !== 'single' || !focusTodayNonce) return;
+    setCursor(startOfMonth(new Date()));
+  }, [focusTodayNonce, mode]);
 
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
@@ -367,7 +376,7 @@ export function MonthView({
               className="ml-2 h-7 gap-1.5 text-xs"
             >
               <Calendar className="h-3.5 w-3.5" />
-              {t('action_today')}
+              {t('board_go_this_month')}
             </Button>
           )}
         </header>

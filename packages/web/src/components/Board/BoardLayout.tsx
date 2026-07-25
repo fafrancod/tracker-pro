@@ -113,7 +113,7 @@ export function BoardLayout({
         {!isCurrentWeek && (
           <Button variant="outline" size="sm" onClick={goToday} className="ml-1 h-7 gap-1.5 text-xs">
             <Calendar className="h-3.5 w-3.5" />
-            {t('action_today')}
+            {t('board_go_this_week')}
           </Button>
         )}
 

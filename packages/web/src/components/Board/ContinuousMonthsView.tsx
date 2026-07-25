@@ -12,6 +12,8 @@ interface ContinuousMonthsViewProps {
   onPickDay: (date: Date) => void;
   onViewDay?: (date: Date) => void;
   filter?: BoardTaskFilters;
+  /** Increment to reset range and scroll to the current month. */
+  focusTodayNonce?: number;
 }
 
 /** Inclusive month offsets relative to "today" month. Start: current-2 .. current+2 */
@@ -28,6 +30,7 @@ export function ContinuousMonthsView({
   onPickDay,
   onViewDay,
   filter,
+  focusTodayNonce = 0,
 }: ContinuousMonthsViewProps) {
   const { settings } = useSettings();
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
@@ -40,6 +43,30 @@ export function ContinuousMonthsView({
 
   const [fromOffset, setFromOffset] = useState(-INITIAL_PAST);
   const [toOffset, setToOffset] = useState(INITIAL_FUTURE);
+
+  const scrollToCurrentMonth = useCallback(() => {
+    const key = monthKey(startOfMonth(new Date()));
+    requestAnimationFrame(() => {
+      const el = scrollRef.current?.querySelector(
+        `[data-month-key="${key}"]`
+      ) as HTMLElement | null;
+      el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  }, []);
+
+  // On first paint, land on the current month (not the oldest preloaded).
+  useEffect(() => {
+    scrollToCurrentMonth();
+  }, [scrollToCurrentMonth]);
+
+  // Parent «Ir al mes de hoy» / change view.
+  useEffect(() => {
+    if (!focusTodayNonce) return;
+    setFromOffset(-INITIAL_PAST);
+    setToOffset(INITIAL_FUTURE);
+    // Wait for DOM after offset reset
+    requestAnimationFrame(() => scrollToCurrentMonth());
+  }, [focusTodayNonce, scrollToCurrentMonth]);
 
   const months = useMemo(() => {
     const list: Date[] = [];
@@ -125,7 +152,11 @@ export function ContinuousMonthsView({
       className="flex h-full flex-col overflow-y-auto bg-background"
     >
       {months.map(m => (
-        <div key={monthKey(m)} className="border-b border-border last:border-b-0">
+        <div
+          key={monthKey(m)}
+          data-month-key={monthKey(m)}
+          className="border-b border-border last:border-b-0"
+        >
           <MonthView
             onPickDay={onPickDay}
             onViewDay={onViewDay}

@@ -26,7 +26,8 @@ function capitalize(s: string): string {
 
 export function useWeek(opts: UseWeekOptions = {}) {
   const currentWeekId = useStore(s => s.currentWeekId);
-  const { setCurrentWeek } = useStore();
+  const setCurrentWeek = useStore(s => s.setCurrentWeek);
+  const setSelectedDay = useStore(s => s.setSelectedDay);
 
   const weekStart = parsWeekId(currentWeekId);
   const { locale, weekdayFormat = 'EEE', shortDateFormat = 'MMM d' } = opts;
@@ -53,8 +54,10 @@ export function useWeek(opts: UseWeekOptions = {}) {
   }, [weekStart, setCurrentWeek]);
 
   const goToday = useCallback(() => {
-    setCurrentWeek(getWeekId(new Date()));
-  }, [setCurrentWeek]);
+    const now = new Date();
+    setCurrentWeek(getWeekId(now));
+    setSelectedDay(getDayId(now));
+  }, [setCurrentWeek, setSelectedDay]);
 
   const nextWeekId = getWeekId(addWeeks(weekStart, 1));
   const todayDayId = getDayId(new Date());
