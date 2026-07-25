@@ -209,7 +209,13 @@ export interface TranslationDict {
   settings_notify_rx: string;
   settings_notify_rx_desc: string;
   settings_notify_timezone: string;
+  settings_notify_timezone_desc: string;
+  settings_notify_timezone_device: string;
   settings_notify_enable_device: string;
+  rx_pet_tag_hint: string;
+  rx_plan_start: string;
+  rx_plan_duration: string;
+  rx_plan_duration_value: string;
   settings_notify_permission_denied: string;
   settings_notify_test_email: string;
   settings_notify_test_email_sent: string;
@@ -469,8 +475,16 @@ const es_dict: TranslationDict = {
   settings_notify_tasks_desc: 'Incluir entradas de proyecto (no solo recetario).',
   settings_notify_rx: 'Tomas del recetario',
   settings_notify_rx_desc: 'Incluir dosis de medicamentos (humano y mascota).',
-  settings_notify_timezone: 'Zona horaria (correo)',
+  settings_notify_timezone: 'Zona horaria',
+  settings_notify_timezone_desc:
+    'Define tu horario civil para correos y recordatorios («mañana», minutos antes, seguimiento). Debe coincidir con donde vives o trabajas.',
+  settings_notify_timezone_device: 'Usar zona del dispositivo',
   settings_notify_enable_device: 'Permitir notificaciones',
+  rx_pet_tag_hint:
+    'Se guarda como etiqueta reutilizable (también puedes escribir #Nombre en el título).',
+  rx_plan_start: 'Inicio del tratamiento',
+  rx_plan_duration: 'Duración (según fases)',
+  rx_plan_duration_value: '{days} días · hasta {end}',
   settings_notify_permission_denied:
     'Permiso denegado. Actívalo en los ajustes del sistema o del navegador.',
   settings_notify_test_email: 'Enviar correo de prueba',
@@ -727,8 +741,16 @@ const en_dict: TranslationDict = {
   settings_notify_tasks_desc: 'Include project entries (not only prescriptions).',
   settings_notify_rx: 'Prescription doses',
   settings_notify_rx_desc: 'Include medication doses (human and pet).',
-  settings_notify_timezone: 'Timezone (email)',
+  settings_notify_timezone: 'Timezone',
+  settings_notify_timezone_desc:
+    'Your civil timezone for email and reminders (tomorrow, minutes before, follow-ups). Should match where you live or work.',
+  settings_notify_timezone_device: 'Use device timezone',
   settings_notify_enable_device: 'Allow notifications',
+  rx_pet_tag_hint:
+    'Saved as a reusable tag (you can also type #Name in the title).',
+  rx_plan_start: 'Treatment start',
+  rx_plan_duration: 'Duration (from phases)',
+  rx_plan_duration_value: '{days} days · until {end}',
   settings_notify_permission_denied:
     'Permission denied. Enable it in system or browser settings.',
   settings_notify_test_email: 'Send test email',

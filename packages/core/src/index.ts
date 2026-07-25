@@ -20,6 +20,7 @@ export * from './lib/taskPresence';
 export * from './lib/schedule';
 export * from './lib/rx';
 export * from './lib/notifications';
+export * from './lib/tags';
 export * from './lib/network';
 export * from './lib/taskCache';
 export * from './lib/offlineQueue';

@@ -126,6 +126,22 @@ export function buildRxMetaForOccurrence(
   };
 }
 
+/** Suma de días de tratamiento del plan (todas las fases). */
+export function totalRxPlanDays(phases: RxPhase[] | null | undefined): number {
+  if (!phases?.length) return 0;
+  return phases.reduce((s, p) => s + Math.max(0, Math.floor(p.days || 0)), 0);
+}
+
+/**
+ * Día de fin inclusive del plan: start + totalDays - 1.
+ * Si no hay fases, devuelve startDayId.
+ */
+export function rxPlanEndDayId(startDayId: string, phases: RxPhase[] | null | undefined): string {
+  const total = totalRxPlanDays(phases);
+  if (total <= 1) return startDayId;
+  return format(addDays(parseISO(startDayId), total - 1), 'yyyy-MM-dd');
+}
+
 export function parseRxMeta(raw: unknown): RxMeta | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;

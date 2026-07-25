@@ -31,7 +31,9 @@ import { useWeek } from '@core/hooks/useWeek';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
-import { isRxKind, validateRxPhases } from '@core/lib/rx';
+import { isRxKind, rxPlanEndDayId, totalRxPlanDays, validateRxPhases } from '@core/lib/rx';
+import { extractHashtags, mergeTags } from '@core/lib/tags';
+import { DecimalInput } from '@/components/ui/decimal-input';
 import type {
   DoseUnit,
   Importance,
@@ -336,21 +338,28 @@ function TaskDetailInner({
     setSaving(true);
     try {
       if (isRx) {
+        const subject = draft.rxSubject.trim() || null;
+        const tags = mergeTags(
+          draft.tags,
+          extractHashtags(title),
+          task.kind === 'rx_pet' && subject ? subject : null
+        );
         // Metadata de esta toma / serie (sin rehacer plan)
+        // Recetario: sin proyecto; siempre urgente e importante.
         await editTask(task.id, {
           title,
           notes: draft.notes,
-          tags: draft.tags,
-          priority: draft.priority,
-          urgency: draft.urgency,
-          importance: draft.importance,
+          tags,
+          priority: 'high',
+          urgency: 'urgent',
+          importance: 'important',
           color: draft.color,
-          projectId: draft.projectId,
+          projectId: null,
           startTime: planDirty ? undefined : draft.startTime || null,
           endTime: planDirty ? undefined : draft.endTime || null,
           rxAmount: draft.rxAmount,
           rxUnit: draft.rxUnit,
-          rxSubject: draft.rxSubject.trim() || null,
+          rxSubject: subject,
           applyTo: isSeries ? applyTo : 'instance',
         });
 
@@ -358,7 +367,7 @@ function TaskDetailInner({
           const result = await rematerializeRx(task.id, {
             title,
             rxPhases: draft.rxPhases,
-            rxSubject: draft.rxSubject.trim() || null,
+            rxSubject: subject,
             fromDayId: dayId,
             color: draft.color,
           });
@@ -375,10 +384,11 @@ function TaskDetailInner({
           );
         }
       } else {
+        const tags = mergeTags(draft.tags, extractHashtags(title));
         await editTask(task.id, {
           title,
           notes: draft.notes,
-          tags: draft.tags,
+          tags,
           kind: draft.kind,
           priority: draft.priority,
           urgency: draft.urgency,
@@ -568,16 +578,10 @@ function TaskDetailInner({
               <div className="flex flex-wrap items-end gap-2">
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                   <span>{t('rx_amount')}</span>
-                  <input
-                    type="number"
-                    min={0.1}
-                    step="any"
+                  <DecimalInput
                     value={draft.rxAmount}
-                    onChange={e =>
-                      patchDraft({
-                        rxAmount: Math.max(0.1, Number(e.target.value) || 0),
-                      })
-                    }
+                    min={0.01}
+                    onChange={rxAmount => patchDraft({ rxAmount })}
                     className="w-24 rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
                   />
                 </label>
@@ -608,6 +612,20 @@ function TaskDetailInner({
               )}
             </Field>
 
+            {draft.rxPhases.length > 0 && (
+              <p className="mb-3 text-[11px] text-text-muted">
+                {t('rx_plan_duration_value')
+                  .replace('{days}', String(totalRxPlanDays(draft.rxPhases)))
+                  .replace(
+                    '{end}',
+                    rxPlanEndDayId(
+                      task.rx?.planStartDayId || dayId,
+                      draft.rxPhases
+                    )
+                  )}
+              </p>
+            )}
+
             <Field label={t('rx_phases_hint')}>
               <div className="space-y-2">
                 {draft.rxPhases.map((phase, pi) => (
@@ -632,16 +650,10 @@ function TaskDetailInner({
                     <div className="flex flex-wrap items-end gap-2">
                       <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                         <span>{t('rx_amount')}</span>
-                        <input
-                          type="number"
-                          min={0.1}
-                          step="any"
+                        <DecimalInput
                           value={phase.amount}
-                          onChange={e =>
-                            updatePhase(pi, {
-                              amount: Math.max(0.1, Number(e.target.value) || 0),
-                            })
-                          }
+                          min={0.01}
+                          onChange={amount => updatePhase(pi, { amount })}
                           className="w-20 rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
                         />
                       </label>
@@ -813,77 +825,81 @@ function TaskDetailInner({
           </>
         )}
 
-        <Field label={t('task_priority_label')}>
-          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-            {PRIORITIES.map(p => (
-              <button
-                key={p.value}
-                type="button"
-                onClick={() => patchDraft({ priority: p.value })}
-                className={cn(
-                  'rounded px-3 py-1 text-xs font-medium transition-colors',
-                  draft.priority === p.value
-                    ? `bg-surface ${p.color}`
-                    : 'text-text-muted hover:text-text-primary'
-                )}
-              >
-                {t(p.key)}
-              </button>
-            ))}
-          </div>
-        </Field>
+        {!isRx && (
+          <>
+            <Field label={t('task_priority_label')}>
+              <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+                {PRIORITIES.map(p => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    onClick={() => patchDraft({ priority: p.value })}
+                    className={cn(
+                      'rounded px-3 py-1 text-xs font-medium transition-colors',
+                      draft.priority === p.value
+                        ? `bg-surface ${p.color}`
+                        : 'text-text-muted hover:text-text-primary'
+                    )}
+                  >
+                    {t(p.key)}
+                  </button>
+                ))}
+              </div>
+            </Field>
 
-        <Field label={t('board_filter_urgency')}>
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                { v: null, label: t('board_filter_all') },
-                { v: 'urgent', label: t('urgency_urgent') },
-                { v: 'not_urgent', label: t('urgency_not_urgent') },
-              ] as Array<{ v: Urgency | null; label: string }>
-            ).map(opt => (
-              <button
-                key={String(opt.v)}
-                type="button"
-                onClick={() => patchDraft({ urgency: opt.v })}
-                className={cn(
-                  'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
-                  draft.urgency === opt.v
-                    ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
-                    : 'border-border text-text-muted hover:text-text-primary'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </Field>
+            <Field label={t('board_filter_urgency')}>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { v: null, label: t('board_filter_all') },
+                    { v: 'urgent', label: t('urgency_urgent') },
+                    { v: 'not_urgent', label: t('urgency_not_urgent') },
+                  ] as Array<{ v: Urgency | null; label: string }>
+                ).map(opt => (
+                  <button
+                    key={String(opt.v)}
+                    type="button"
+                    onClick={() => patchDraft({ urgency: opt.v })}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                      draft.urgency === opt.v
+                        ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
+                        : 'border-border text-text-muted hover:text-text-primary'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
 
-        <Field label={t('board_filter_importance')}>
-          <div className="flex flex-wrap gap-1.5">
-            {(
-              [
-                { v: null, label: t('board_filter_all') },
-                { v: 'important', label: t('importance_important') },
-                { v: 'not_important', label: t('importance_not_important') },
-              ] as Array<{ v: Importance | null; label: string }>
-            ).map(opt => (
-              <button
-                key={String(opt.v)}
-                type="button"
-                onClick={() => patchDraft({ importance: opt.v })}
-                className={cn(
-                  'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
-                  draft.importance === opt.v
-                    ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
-                    : 'border-border text-text-muted hover:text-text-primary'
-                )}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </Field>
+            <Field label={t('board_filter_importance')}>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    { v: null, label: t('board_filter_all') },
+                    { v: 'important', label: t('importance_important') },
+                    { v: 'not_important', label: t('importance_not_important') },
+                  ] as Array<{ v: Importance | null; label: string }>
+                ).map(opt => (
+                  <button
+                    key={String(opt.v)}
+                    type="button"
+                    onClick={() => patchDraft({ importance: opt.v })}
+                    className={cn(
+                      'rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                      draft.importance === opt.v
+                        ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
+                        : 'border-border text-text-muted hover:text-text-primary'
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          </>
+        )}
 
         <Field label={t('task_color')}>
           <div className="flex flex-wrap items-center gap-2">
@@ -913,20 +929,22 @@ function TaskDetailInner({
           </div>
         </Field>
 
-        <Field label={t('task_project_label')}>
-          <select
-            value={draft.projectId ?? ''}
-            onChange={e => patchDraft({ projectId: e.target.value || null })}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="">{t('task_no_project')}</option>
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.icon} {p.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {!isRx && (
+          <Field label={t('task_project_label')}>
+            <select
+              value={draft.projectId ?? ''}
+              onChange={e => patchDraft({ projectId: e.target.value || null })}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">{t('task_no_project')}</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.icon} {p.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <Field
           label={

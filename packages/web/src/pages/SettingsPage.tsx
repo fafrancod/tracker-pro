@@ -24,12 +24,16 @@ import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import { skinsByMode, type SkinDefinition } from '@/lib/skins';
 import {
-  getDeviceTimezone,
   getLocalPermissionState,
   requestLocalPermission,
   rescheduleLocalNotifications,
   type LocalPermissionState,
 } from '@/lib/localNotifications';
+import {
+  formatTimezoneLabel,
+  getDeviceTimezone,
+  listTimezoneOptions,
+} from '@/lib/timezones';
 
 interface BackendVersionInfo {
   service: string;
@@ -250,9 +254,33 @@ export function SettingsPage() {
               <Bell className="h-4 w-4 text-accent-teal" />
               {t('settings_notifications')}
             </h2>
-            <p className="mb-3 text-[11px] text-text-muted">
-              {settings.timezone || getDeviceTimezone()}
-            </p>
+
+            <div className="mb-4 rounded-md border border-border bg-background p-3">
+              <label className="mb-1 block text-xs font-medium text-text-primary">
+                {t('settings_notify_timezone')}
+              </label>
+              <p className="mb-2 text-[11px] text-text-muted">
+                {t('settings_notify_timezone_desc')}
+              </p>
+              <select
+                value={settings.timezone || getDeviceTimezone()}
+                onChange={e => void updateSettings({ timezone: e.target.value })}
+                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {listTimezoneOptions().map(tz => (
+                  <option key={tz} value={tz}>
+                    {formatTimezoneLabel(tz)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="mt-2 text-[11px] text-accent-teal hover:underline"
+                onClick={() => void updateSettings({ timezone: getDeviceTimezone() })}
+              >
+                {t('settings_notify_timezone_device')}
+              </button>
+            </div>
 
             <SettingRow
               title={t('settings_notify_local')}

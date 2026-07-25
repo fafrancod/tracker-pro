@@ -25,6 +25,7 @@ import {
   validateRxPhases,
   type RxPhase,
 } from '../lib/rx.js';
+import { extractHashtags, mergeTags, mergeTagsForRx } from '../lib/tags.js';
 
 export const tasksRouter = Router();
 
@@ -261,6 +262,10 @@ tasksRouter.post('/', async (req, res, next) => {
         orderByDay.set(occ.dayId, count ?? 0);
       }
 
+      // Recetario: sin proyecto; se asume urgente e importante.
+      // Mascota (rxSubject) y #hashtags del título → tags reutilizables.
+      const rxTags = mergeTagsForRx(title, tags, taskKind, rxSubject ?? null);
+
       for (const occ of occurrences) {
         const occWeekId =
           occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId);
@@ -281,17 +286,17 @@ tasksRouter.post('/', async (req, res, next) => {
           title,
           completed: false,
           completed_at: null,
-          project_id: projectId ?? null,
-          priority: priority ?? 'high',
+          project_id: null,
+          priority: 'high',
           notes: notes ?? '',
           order,
-          tags: tags ?? [],
+          tags: rxTags,
           moved_from: null,
           series_id: seriesId,
           recurrence_frequency: 'none',
           recurrence_interval: 1,
-          urgency: urgency ?? null,
-          importance: importance ?? null,
+          urgency: 'urgent',
+          importance: 'important',
           kind: taskKind,
           color: color ?? (taskKind === 'rx_pet' ? '#d29922' : '#a371f7'),
           start_time: occ.startTime,
@@ -352,6 +357,9 @@ tasksRouter.post('/', async (req, res, next) => {
         orderByDay.set(range.dayId, count ?? 0);
       }
 
+      // #hashtags en el título se convierten en tags reutilizables
+      const mergedTags = mergeTags(tags, extractHashtags(title));
+
       for (const range of occurrenceRanges) {
         const occWeekId =
           range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId);
@@ -370,7 +378,7 @@ tasksRouter.post('/', async (req, res, next) => {
           priority: priority ?? 'medium',
           notes: notes ?? '',
           order,
-          tags: tags ?? [],
+          tags: mergedTags,
           moved_from: null,
           series_id: recurrence.frequency === 'none' ? null : seriesId,
           recurrence_frequency: recurrence.frequency,
@@ -729,8 +737,8 @@ tasksRouter.post(
           title,
           completed: false,
           completed_at: null,
-          project_id: (existing.project_id as string | null) ?? null,
-          priority: (existing.priority as string) ?? 'high',
+          project_id: null,
+          priority: 'high',
           notes: (existing.notes as string) ?? '',
           order,
           tags: Array.isArray(existing.tags) ? existing.tags : [],
@@ -738,8 +746,8 @@ tasksRouter.post(
           series_id: seriesId,
           recurrence_frequency: 'none',
           recurrence_interval: 1,
-          urgency: (existing.urgency as string | null) ?? null,
-          importance: (existing.importance as string | null) ?? null,
+          urgency: 'urgent',
+          importance: 'important',
           kind,
           color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
           start_time: occ.startTime,

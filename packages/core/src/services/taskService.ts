@@ -15,6 +15,7 @@ import type {
   Recurrence,
 } from '../types';
 import { isRxKind, materializeRxOccurrences, buildRxMetaForOccurrence, parseRxMeta } from '../lib/rx';
+import { extractHashtags, mergeTags } from '../lib/tags';
 import { findTaskLocation, useStore } from '../store';
 import { getISOWeek, format } from 'date-fns';
 
@@ -247,6 +248,11 @@ function materializeDemoCreate(
 
   if (isRxKind(kind) && payload.rxPhases?.length) {
     const occs = materializeRxOccurrences(dayId, payload.rxPhases);
+    const rxTags = mergeTags(
+      payload.tags,
+      extractHashtags(payload.title),
+      kind === 'rx_pet' ? payload.rxSubject : null
+    );
     const instances = occs.map((occ, index) => {
       const id = index === 0 ? firstId : `${firstId}-${index}`;
       const rx = buildRxMetaForOccurrence(
@@ -260,17 +266,17 @@ function materializeDemoCreate(
         title: payload.title,
         completed: false,
         completedAt: null,
-        projectId: payload.projectId ?? null,
-        priority: payload.priority ?? 'high',
+        projectId: null,
+        priority: 'high',
         notes: payload.notes ?? '',
         order: 0,
-        tags: payload.tags ?? [],
+        tags: rxTags,
         movedFrom: null,
         seriesId: firstId,
         recurrence: { frequency: 'none', interval: 1 },
         endDayId: occ.dayId,
-        urgency: payload.urgency ?? null,
-        importance: payload.importance ?? null,
+        urgency: 'urgent',
+        importance: 'important',
         kind,
         color:
           payload.color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
@@ -299,6 +305,7 @@ function materializeDemoCreate(
     recurrence.interval
   );
   const seriesId = recurrence.frequency === 'none' ? null : firstId;
+  const mergedTags = mergeTags(payload.tags, extractHashtags(payload.title));
   const instances = ranges.map((range, index) => {
     const id = index === 0 ? firstId : `${firstId}-${index}`;
     const task: Task & { weekId: string; dayId: string } = {
@@ -310,7 +317,7 @@ function materializeDemoCreate(
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: 0,
-      tags: payload.tags ?? [],
+      tags: mergedTags,
       movedFrom: null,
       seriesId,
       recurrence,

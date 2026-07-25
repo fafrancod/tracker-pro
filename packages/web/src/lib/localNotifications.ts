@@ -10,6 +10,9 @@ import {
 } from '@core/lib/notifications';
 import type { Task, UserSettings } from '@core/types';
 import { isNativePlatform } from './capacitor';
+import { getDeviceTimezone as detectTimezone } from './timezones';
+
+export { getDeviceTimezone } from './timezones';
 
 const CHANNEL_ID = 'daily-tracker-reminders';
 const MAX_SCHEDULED = 64;
@@ -17,18 +20,6 @@ const MAX_SCHEDULED = 64;
 const HORIZON_DAYS = 7;
 
 export type LocalPermissionState = 'granted' | 'denied' | 'prompt' | 'unsupported';
-
-function detectTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-  } catch {
-    return 'UTC';
-  }
-}
-
-export function getDeviceTimezone(): string {
-  return detectTimezone();
-}
 
 export async function getLocalPermissionState(): Promise<LocalPermissionState> {
   if (isNativePlatform()) {
@@ -133,10 +124,10 @@ export function buildUpcomingOccurrences(
   settings: Partial<UserSettings>,
   language: 'es' | 'en' = 'es'
 ): NotifiableOccurrence[] {
+  // Preferir la zona declarada en ajustes; si no hay, la del dispositivo.
   const prefs = prefsFromSettings({
     ...settings,
-    // Local always uses device TZ for scheduling accuracy on the phone/browser
-    timezone: detectTimezone(),
+    timezone: settings.timezone?.trim() || detectTimezone(),
   });
   if (!prefs.notifyLocal) return [];
 

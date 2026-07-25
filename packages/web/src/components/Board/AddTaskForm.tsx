@@ -30,7 +30,10 @@ import type {
   DoseUnit,
 } from '@core/types';
 import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
-import { isRxKind, validateRxPhases } from '@core/lib/rx';
+import { isRxKind, rxPlanEndDayId, totalRxPlanDays, validateRxPhases } from '@core/lib/rx';
+import { extractHashtags, mergeTags, normalizeTag } from '@core/lib/tags';
+import { DecimalInput } from '@/components/ui/decimal-input';
+import { useStore } from '@core/store';
 
 const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
@@ -119,6 +122,33 @@ export function AddTaskForm({
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
+  const tasksByDay = useStore(s => s.tasksByDay);
+
+  /** Tags de mascotas ya usados (rx_pet subjects + tags en store). */
+  const knownPetTags = useMemo(() => {
+    const set = new Map<string, string>();
+    for (const days of Object.values(tasksByDay)) {
+      for (const list of Object.values(days)) {
+        for (const t of list) {
+          if (t.kind === 'rx_pet' && t.rx?.subject) {
+            const n = normalizeTag(t.rx.subject);
+            if (n) set.set(n.toLocaleLowerCase(), n);
+          }
+          for (const tag of t.tags ?? []) {
+            const n = normalizeTag(tag);
+            if (n) set.set(n.toLocaleLowerCase(), n);
+          }
+        }
+      }
+    }
+    return Array.from(set.values()).sort((a, b) => a.localeCompare(b));
+  }, [tasksByDay]);
+
+  const rxPlanDays = useMemo(() => totalRxPlanDays(rxPhases), [rxPhases]);
+  const rxEndDayId = useMemo(() => {
+    if (!startDayId || !isRx) return '';
+    return rxPlanEndDayId(startDayId, rxPhases);
+  }, [startDayId, isRx, rxPhases]);
 
   useEffect(() => {
     if (startDayId) setEndDayId(prev => (prev && prev >= startDayId ? prev : startDayId));
@@ -216,19 +246,26 @@ export function AddTaskForm({
         alert(err);
         return;
       }
+      const subject = rxSubject.trim() || null;
+      const tags = mergeTags(
+        [],
+        extractHashtags(trimmed),
+        kind === 'rx_pet' && subject ? subject : null
+      );
       setSubmitting(true);
       try {
         await onAdd({
           title: trimmed,
-          projectId,
-          priority: priority || 'high',
+          projectId: null,
+          priority: 'high',
           kind,
-          urgency,
-          importance,
+          urgency: 'urgent',
+          importance: 'important',
           color,
-          notes: notesFromRx(rxSubject, rxPhases),
+          notes: notesFromRx(subject ?? '', rxPhases),
           rxPhases,
-          rxSubject: rxSubject.trim() || null,
+          rxSubject: subject,
+          tags,
         });
         resetForm();
         inputRef.current?.focus();
@@ -245,6 +282,8 @@ export function AddTaskForm({
       frequency = 'none';
     }
 
+    const tags = mergeTags([], extractHashtags(trimmed));
+
     setSubmitting(true);
     try {
       await onAdd({
@@ -260,6 +299,7 @@ export function AddTaskForm({
         color,
         startTime: startTime || null,
         endTime: endTime || null,
+        tags,
       });
       resetForm();
       inputRef.current?.focus();
@@ -395,7 +435,18 @@ export function AddTaskForm({
                 kind === 'rx_pet' ? t('rx_pet_placeholder') : t('rx_patient_placeholder')
               }
               className="h-9 text-sm"
+              list={kind === 'rx_pet' ? 'rx-pet-tags-list' : undefined}
             />
+            {kind === 'rx_pet' && (
+              <>
+                <datalist id="rx-pet-tags-list">
+                  {knownPetTags.map(tag => (
+                    <option key={tag} value={tag} />
+                  ))}
+                </datalist>
+                <p className="text-[10px] text-text-muted">{t('rx_pet_tag_hint')}</p>
+              </>
+            )}
           </label>
 
           <p className="text-[11px] text-text-muted">{t('rx_phases_hint')}</p>
@@ -422,14 +473,10 @@ export function AddTaskForm({
               <div className="flex flex-wrap items-end gap-2">
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                   <span>{t('rx_amount')}</span>
-                  <input
-                    type="number"
-                    min={0.1}
-                    step="any"
+                  <DecimalInput
                     value={phase.amount}
-                    onChange={e =>
-                      updatePhase(pi, { amount: Math.max(0.1, Number(e.target.value) || 0) })
-                    }
+                    min={0.01}
+                    onChange={amount => updatePhase(pi, { amount })}
                     className="w-20 rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
                   />
                 </label>
@@ -507,105 +554,108 @@ export function AddTaskForm({
         </div>
       )}
 
-      {/* Project + priority — oculto en recetario compacto opcional; en modal se mantiene proyecto opcional */}
-      <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3', isRx && !isModal && 'hidden')}>
-        <select
-          value={projectId ?? ''}
-          onChange={e => setProjectId(e.target.value || null)}
-          className={cn(
-            'min-w-0 flex-1 rounded-lg border border-border bg-background text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-            isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
-          )}
-        >
-          <option value="">{t('task_no_project')}</option>
-          {projects.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.icon} {p.name}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex gap-1">
-          {PRIORITY_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setPriority(opt.value)}
+      {/* Project + priority + Eisenhower — no aplica a recetario */}
+      {!isRx && (
+        <>
+          <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
+            <select
+              value={projectId ?? ''}
+              onChange={e => setProjectId(e.target.value || null)}
               className={cn(
-                'rounded-lg px-2 py-1 text-xs font-medium transition-colors',
-                isModal && 'px-3 py-1.5',
-                priority === opt.value
-                  ? 'bg-border ' + opt.color
-                  : 'text-text-muted hover:text-text-primary'
+                'min-w-0 flex-1 rounded-lg border border-border bg-background text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+                isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
               )}
             >
-              {t(opt.labelKey)}
-            </button>
-          ))}
-        </div>
-      </div>
+              <option value="">{t('task_no_project')}</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.icon} {p.name}
+                </option>
+              ))}
+            </select>
 
-      {/* Eisenhower: urgency + importance — skip for rx in compact */}
-      <div className={cn('grid gap-3', isModal ? 'sm:grid-cols-2' : 'gap-2', isRx && !isModal && 'hidden')}>
-        <div className="space-y-1.5">
-          <p
-            className={cn(
-              'font-medium text-text-muted',
-              isModal ? 'text-xs uppercase tracking-wide' : 'text-[10px]'
-            )}
-          >
-            {t('board_filter_urgency')}
-          </p>
-          <div className="grid grid-cols-2 gap-1.5">
-            <ToggleChip
-              active={urgency === 'urgent'}
-              onClick={() => setUrgency(u => (u === 'urgent' ? null : 'urgent'))}
-              icon={<Flame className="h-3.5 w-3.5" />}
-              label={t('urgency_urgent')}
-              activeClass="border-accent-red/40 bg-accent-red/15 text-accent-red"
-              compact={!isModal}
-            />
-            <ToggleChip
-              active={urgency === 'not_urgent'}
-              onClick={() => setUrgency(u => (u === 'not_urgent' ? null : 'not_urgent'))}
-              icon={<Snowflake className="h-3.5 w-3.5" />}
-              label={t('urgency_not_urgent')}
-              activeClass="border-accent-teal/40 bg-accent-teal/15 text-accent-teal"
-              compact={!isModal}
-            />
+            <div className="flex gap-1">
+              {PRIORITY_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPriority(opt.value)}
+                  className={cn(
+                    'rounded-lg px-2 py-1 text-xs font-medium transition-colors',
+                    isModal && 'px-3 py-1.5',
+                    priority === opt.value
+                      ? 'bg-border ' + opt.color
+                      : 'text-text-muted hover:text-text-primary'
+                  )}
+                >
+                  {t(opt.labelKey)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="space-y-1.5">
-          <p
-            className={cn(
-              'font-medium text-text-muted',
-              isModal ? 'text-xs uppercase tracking-wide' : 'text-[10px]'
-            )}
-          >
-            {t('board_filter_importance')}
-          </p>
-          <div className="grid grid-cols-2 gap-1.5">
-            <ToggleChip
-              active={importance === 'important'}
-              onClick={() => setImportance(i => (i === 'important' ? null : 'important'))}
-              icon={<Star className="h-3.5 w-3.5" />}
-              label={t('importance_important')}
-              activeClass="border-amber-400/40 bg-amber-400/15 text-amber-300"
-              compact={!isModal}
-            />
-            <ToggleChip
-              active={importance === 'not_important'}
-              onClick={() =>
-                setImportance(i => (i === 'not_important' ? null : 'not_important'))
-              }
-              icon={<CircleDashed className="h-3.5 w-3.5" />}
-              label={t('importance_not_important')}
-              activeClass="border-border bg-surface text-text-primary"
-              compact={!isModal}
-            />
+
+          <div className={cn('grid gap-3', isModal ? 'sm:grid-cols-2' : 'gap-2')}>
+            <div className="space-y-1.5">
+              <p
+                className={cn(
+                  'font-medium text-text-muted',
+                  isModal ? 'text-xs uppercase tracking-wide' : 'text-[10px]'
+                )}
+              >
+                {t('board_filter_urgency')}
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <ToggleChip
+                  active={urgency === 'urgent'}
+                  onClick={() => setUrgency(u => (u === 'urgent' ? null : 'urgent'))}
+                  icon={<Flame className="h-3.5 w-3.5" />}
+                  label={t('urgency_urgent')}
+                  activeClass="border-accent-red/40 bg-accent-red/15 text-accent-red"
+                  compact={!isModal}
+                />
+                <ToggleChip
+                  active={urgency === 'not_urgent'}
+                  onClick={() => setUrgency(u => (u === 'not_urgent' ? null : 'not_urgent'))}
+                  icon={<Snowflake className="h-3.5 w-3.5" />}
+                  label={t('urgency_not_urgent')}
+                  activeClass="border-accent-teal/40 bg-accent-teal/15 text-accent-teal"
+                  compact={!isModal}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <p
+                className={cn(
+                  'font-medium text-text-muted',
+                  isModal ? 'text-xs uppercase tracking-wide' : 'text-[10px]'
+                )}
+              >
+                {t('board_filter_importance')}
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <ToggleChip
+                  active={importance === 'important'}
+                  onClick={() => setImportance(i => (i === 'important' ? null : 'important'))}
+                  icon={<Star className="h-3.5 w-3.5" />}
+                  label={t('importance_important')}
+                  activeClass="border-amber-400/40 bg-amber-400/15 text-amber-300"
+                  compact={!isModal}
+                />
+                <ToggleChip
+                  active={importance === 'not_important'}
+                  onClick={() =>
+                    setImportance(i => (i === 'not_important' ? null : 'not_important'))
+                  }
+                  icon={<CircleDashed className="h-3.5 w-3.5" />}
+                  label={t('importance_not_important')}
+                  activeClass="border-border bg-surface text-text-primary"
+                  compact={!isModal}
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
 
       {/* Color */}
       <div className="space-y-1.5">
@@ -646,7 +696,7 @@ export function AddTaskForm({
         </div>
       </div>
 
-      {/* Dates */}
+      {/* Dates — recetario: solo inicio; el fin sale de los N días de fases */}
       {startDayId && (
         <div
           className={cn(
@@ -656,7 +706,7 @@ export function AddTaskForm({
         >
           <CalendarRange className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
           <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
-            <span>{t('task_start_date')}</span>
+            <span>{isRx ? t('rx_plan_start') : t('task_start_date')}</span>
             <input
               type="date"
               value={startDayId}
@@ -665,17 +715,30 @@ export function AddTaskForm({
               aria-label={t('task_start_date')}
             />
           </label>
-          <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
-            <span>{t('task_end_date')}</span>
-            <input
-              type="date"
-              value={endDayId || startDayId}
-              min={startDayId}
-              onChange={e => setEndDayId(e.target.value || startDayId)}
-              className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              aria-label={t('task_end_date')}
-            />
-          </label>
+          {isRx ? (
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('rx_plan_duration')}</span>
+              <p className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary">
+                {rxPlanDays > 0
+                  ? t('rx_plan_duration_value')
+                      .replace('{days}', String(rxPlanDays))
+                      .replace('{end}', rxEndDayId)
+                  : '—'}
+              </p>
+            </div>
+          ) : (
+            <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('task_end_date')}</span>
+              <input
+                type="date"
+                value={endDayId || startDayId}
+                min={startDayId}
+                onChange={e => setEndDayId(e.target.value || startDayId)}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                aria-label={t('task_end_date')}
+              />
+            </label>
+          )}
         </div>
       )}
 
