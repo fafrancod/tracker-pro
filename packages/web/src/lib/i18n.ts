@@ -19,6 +19,7 @@ export interface TranslationDict {
   nav_notifications: string;
   nav_memento: string;
   nav_life_goals: string;
+  nav_reflections: string;
 
   // Memento mori
   memento_title: string;
@@ -78,6 +79,35 @@ export interface TranslationDict {
   life_goal_saving: string;
   life_goal_need_birthdate: string;
   life_goal_off_map: string;
+
+  // Reflexiones y ánimo
+  reflections_title: string;
+  reflections_subtitle: string;
+  reflections_prev_day: string;
+  reflections_next_day: string;
+  reflections_go_today: string;
+  reflections_week_strip: string;
+  reflections_day_avg: string;
+  reflections_hours_logged: string;
+  mood_hourly_title: string;
+  mood_hourly_hint: string;
+  mood_pick_for_hour: string;
+  mood_hour_note: string;
+  mood_hour_note_placeholder: string;
+  mood_level_1: string;
+  mood_level_2: string;
+  mood_level_3: string;
+  mood_level_4: string;
+  mood_level_5: string;
+  reflection_daily_title: string;
+  reflection_daily_placeholder: string;
+  reflection_gratitude_title: string;
+  reflection_gratitude_placeholder: string;
+  reflections_saved: string;
+  reflections_save_error: string;
+  reflections_unsaved: string;
+  reflections_synced: string;
+
   settings_birth_date: string;
   settings_birth_date_desc: string;
   settings_lifespan: string;
@@ -374,6 +404,7 @@ const es_dict: TranslationDict = {
   nav_notifications: 'Avisos',
   nav_memento: 'Memento mori',
   nav_life_goals: 'Metas de vida',
+  nav_reflections: 'Reflexiones',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Cada cuadrado es una semana de tu vida. Vive con intención.',
@@ -438,6 +469,36 @@ const es_dict: TranslationDict = {
   life_goal_need_birthdate:
     'Para ubicar las metas en el mapa de semanas, configura tu fecha de nacimiento.',
   life_goal_off_map: 'Fuera del mapa',
+
+  reflections_title: 'Reflexiones diarias',
+  reflections_subtitle:
+    'Registra tu estado de ánimo hora a hora y cierra el día con una reflexión y gratitud.',
+  reflections_prev_day: 'Día anterior',
+  reflections_next_day: 'Día siguiente',
+  reflections_go_today: 'Ir a hoy',
+  reflections_week_strip: 'Últimos 7 días',
+  reflections_day_avg: 'Media del día',
+  reflections_hours_logged: 'horas registradas',
+  mood_hourly_title: 'Estado de ánimo por hora',
+  mood_hourly_hint: 'Toca una hora y elige cómo te sientes. Vuelve a pulsar el mismo nivel para borrar.',
+  mood_pick_for_hour: 'Ánimo a las {hour}',
+  mood_hour_note: 'Nota de esta hora (opcional)',
+  mood_hour_note_placeholder: '¿Qué estaba pasando?',
+  mood_level_1: 'Muy mal',
+  mood_level_2: 'Bajo',
+  mood_level_3: 'Neutro',
+  mood_level_4: 'Bien',
+  mood_level_5: 'Excelente',
+  reflection_daily_title: 'Reflexión del día',
+  reflection_daily_placeholder:
+    '¿Qué aprendí hoy? ¿Qué cuidé? ¿Qué soltaría? Escribe sin filtro…',
+  reflection_gratitude_title: 'Gratitud',
+  reflection_gratitude_placeholder: 'Tres cosas por las que das gracias hoy…',
+  reflections_saved: 'Reflexión guardada.',
+  reflections_save_error: 'No se pudo guardar el diario.',
+  reflections_unsaved: 'Hay cambios sin guardar.',
+  reflections_synced: 'Guardado.',
+
   settings_birth_date: 'Fecha de nacimiento',
   settings_birth_date_desc:
     'Se usa en Memento mori para calcular las semanas que has vivido y las que quedan.',
@@ -741,6 +802,7 @@ const en_dict: TranslationDict = {
   nav_notifications: 'Alerts',
   nav_memento: 'Memento mori',
   nav_life_goals: 'Life goals',
+  nav_reflections: 'Reflections',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Each square is one week of your life. Live with intention.',
@@ -805,6 +867,36 @@ const en_dict: TranslationDict = {
   life_goal_need_birthdate:
     'To place goals on the week map, set your birth date in Settings.',
   life_goal_off_map: 'Off map',
+
+  reflections_title: 'Daily reflections',
+  reflections_subtitle:
+    'Log your mood hour by hour and close the day with a reflection and gratitude.',
+  reflections_prev_day: 'Previous day',
+  reflections_next_day: 'Next day',
+  reflections_go_today: 'Go to today',
+  reflections_week_strip: 'Last 7 days',
+  reflections_day_avg: 'Day average',
+  reflections_hours_logged: 'hours logged',
+  mood_hourly_title: 'Mood by hour',
+  mood_hourly_hint: 'Tap an hour and pick how you feel. Tap the same level again to clear.',
+  mood_pick_for_hour: 'Mood at {hour}',
+  mood_hour_note: 'Note for this hour (optional)',
+  mood_hour_note_placeholder: 'What was going on?',
+  mood_level_1: 'Very low',
+  mood_level_2: 'Low',
+  mood_level_3: 'Neutral',
+  mood_level_4: 'Good',
+  mood_level_5: 'Great',
+  reflection_daily_title: 'Daily reflection',
+  reflection_daily_placeholder:
+    'What did I learn? What did I care for? What would I let go? Write freely…',
+  reflection_gratitude_title: 'Gratitude',
+  reflection_gratitude_placeholder: 'Three things you are grateful for today…',
+  reflections_saved: 'Reflection saved.',
+  reflections_save_error: 'Could not save the journal.',
+  reflections_unsaved: 'Unsaved changes.',
+  reflections_synced: 'Saved.',
+
   settings_birth_date: 'Birth date',
   settings_birth_date_desc:
     'Used by Memento mori to calculate weeks lived and weeks remaining.',

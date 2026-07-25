@@ -126,6 +126,32 @@ export interface UserSettings {
    * Se marcan en la matriz semanal por `targetDate`.
    */
   lifeGoals: LifeGoal[];
+  /**
+   * Diario: reflexiones diarias + estado de ánimo por hora.
+   * Se poda en cliente a los últimos ~90 días.
+   */
+  dailyJournal: DailyJournalEntry[];
+}
+
+/** 1 = muy mal … 5 = excelente */
+export type MoodLevel = 1 | 2 | 3 | 4 | 5;
+
+export interface HourlyMoodEntry {
+  /** Hora local 0–23 */
+  hour: number;
+  mood: MoodLevel;
+  /** Nota breve opcional de esa hora */
+  note: string;
+}
+
+/** Un día del diario de ánimo / reflexión. */
+export interface DailyJournalEntry {
+  /** YYYY-MM-DD */
+  dayId: string;
+  reflection: string;
+  gratitude: string;
+  moods: HourlyMoodEntry[];
+  updatedAt: string;
 }
 
 /** Tipo de meta de vida (visión / manifestación / hito). */

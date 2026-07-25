@@ -53,6 +53,7 @@ const DEFAULTS: UserSettings = {
   birthDate: null,
   expectedLifespanYears: 80,
   lifeGoals: [],
+  dailyJournal: [],
 };
 
 function loadLocal(): Partial<UserSettings> | null {
