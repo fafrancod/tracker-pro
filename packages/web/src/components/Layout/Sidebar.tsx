@@ -9,6 +9,7 @@ import {
   Shield,
   Grid2x2,
   Bell,
+  Hourglass,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/board', labelKey: 'nav_tasks', icon: ListChecks },
   { to: '/notifications', labelKey: 'nav_notifications', icon: Bell },
   { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
+  { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass },
   { to: '/projects', labelKey: 'nav_projects', icon: FolderKanban },
   { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart3 },
   { to: '/activity', labelKey: 'nav_activity', icon: ScrollText },

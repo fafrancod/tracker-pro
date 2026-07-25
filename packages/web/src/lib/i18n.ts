@@ -17,6 +17,29 @@ export interface TranslationDict {
   nav_admin: string;
   nav_eisenhower: string;
   nav_notifications: string;
+  nav_memento: string;
+
+  // Memento mori
+  memento_title: string;
+  memento_subtitle: string;
+  memento_weeks_lived: string;
+  memento_weeks_left: string;
+  memento_weeks_short: string;
+  memento_age: string;
+  memento_years: string;
+  memento_percent: string;
+  memento_no_birthdate: string;
+  memento_go_settings: string;
+  memento_quote_title: string;
+  memento_legend_lived: string;
+  memento_legend_current: string;
+  memento_legend_left: string;
+  memento_lifespan_note: string;
+  memento_past_expectation: string;
+  settings_birth_date: string;
+  settings_birth_date_desc: string;
+  settings_lifespan: string;
+  settings_lifespan_desc: string;
 
   // Acciones generales
   action_add_task: string;
@@ -306,6 +329,30 @@ const es_dict: TranslationDict = {
   nav_admin: 'Admin',
   nav_eisenhower: 'Eisenhower',
   nav_notifications: 'Avisos',
+  nav_memento: 'Memento mori',
+
+  memento_title: 'Memento mori',
+  memento_subtitle: 'Cada cuadrado es una semana de tu vida. Vive con intención.',
+  memento_weeks_lived: 'Semanas vividas',
+  memento_weeks_left: 'Semanas restantes',
+  memento_weeks_short: 'sem.',
+  memento_age: 'Edad',
+  memento_years: 'años',
+  memento_percent: '% vida estimada',
+  memento_no_birthdate:
+    'Configura tu fecha de nacimiento en Config para ver el mapa de semanas vividas y por vivir.',
+  memento_go_settings: 'Ir a Config',
+  memento_quote_title: 'Frase estoica del día',
+  memento_legend_lived: 'Vividas',
+  memento_legend_current: 'Esta semana',
+  memento_legend_left: 'Por vivir',
+  memento_lifespan_note: 'Basado en {years} años de esperanza de vida (ajustable en Config).',
+  memento_past_expectation: 'Has superado la esperanza configurada: celebra cada semana extra.',
+  settings_birth_date: 'Fecha de nacimiento',
+  settings_birth_date_desc:
+    'Se usa en Memento mori para calcular las semanas que has vivido y las que quedan.',
+  settings_lifespan: 'Esperanza de vida (años)',
+  settings_lifespan_desc: 'Solo para dibujar el mapa de semanas (por defecto 80).',
 
   action_add_task: 'Añadir tarea',
   action_add_reminder: 'Añadir recordatorio',
@@ -601,6 +648,30 @@ const en_dict: TranslationDict = {
   nav_admin: 'Admin',
   nav_eisenhower: 'Eisenhower',
   nav_notifications: 'Alerts',
+  nav_memento: 'Memento mori',
+
+  memento_title: 'Memento mori',
+  memento_subtitle: 'Each square is one week of your life. Live with intention.',
+  memento_weeks_lived: 'Weeks lived',
+  memento_weeks_left: 'Weeks remaining',
+  memento_weeks_short: 'wk',
+  memento_age: 'Age',
+  memento_years: 'years',
+  memento_percent: '% of estimated life',
+  memento_no_birthdate:
+    'Set your birth date in Settings to see the map of weeks lived and weeks left.',
+  memento_go_settings: 'Go to Settings',
+  memento_quote_title: 'Stoic quote of the day',
+  memento_legend_lived: 'Lived',
+  memento_legend_current: 'This week',
+  memento_legend_left: 'Remaining',
+  memento_lifespan_note: 'Based on {years} years of life expectancy (adjustable in Settings).',
+  memento_past_expectation: 'You have passed the configured expectancy — celebrate every extra week.',
+  settings_birth_date: 'Birth date',
+  settings_birth_date_desc:
+    'Used by Memento mori to calculate weeks lived and weeks remaining.',
+  settings_lifespan: 'Life expectancy (years)',
+  settings_lifespan_desc: 'Only used to draw the week map (default 80).',
 
   action_add_task: 'Add task',
   action_add_reminder: 'Add reminder',

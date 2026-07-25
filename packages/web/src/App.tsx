@@ -29,6 +29,9 @@ const ActivityPage = lazy(() =>
 const NotificationsPage = lazy(() =>
   import('@/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage }))
 );
+const MementoMoriPage = lazy(() =>
+  import('@/pages/MementoMoriPage').then(m => ({ default: m.MementoMoriPage }))
+);
 
 function PageFallback() {
   return (
@@ -83,6 +86,7 @@ function App() {
                   <Route path="/dashboard" element={lazyRoute(DashboardPage)} />
                   <Route path="/notifications" element={lazyRoute(NotificationsPage)} />
                   <Route path="/eisenhower" element={lazyRoute(EisenhowerPage)} />
+                  <Route path="/memento-mori" element={lazyRoute(MementoMoriPage)} />
                   <Route path="/projects" element={lazyRoute(ProjectsPage)} />
                   <Route path="/analytics" element={lazyRoute(AnalyticsPage)} />
                   <Route path="/settings" element={lazyRoute(SettingsPage)} />

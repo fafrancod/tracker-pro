@@ -50,6 +50,8 @@ const DEFAULTS: UserSettings = {
   notifyTasks: true,
   notifyRx: true,
   timezone: detectTimezone(),
+  birthDate: null,
+  expectedLifespanYears: 80,
 };
 
 function loadLocal(): Partial<UserSettings> | null {

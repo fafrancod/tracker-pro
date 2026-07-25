@@ -79,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             typeof Intl !== 'undefined'
               ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
               : 'UTC',
+          birthDate: null,
+          expectedLifespanYears: 80,
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;

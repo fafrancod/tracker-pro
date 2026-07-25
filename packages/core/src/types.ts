@@ -111,6 +111,16 @@ export interface UserSettings {
    * Usado por el worker de email; el dispositivo nativo usa su reloj local.
    */
   timezone: string;
+  /**
+   * Fecha de nacimiento (YYYY-MM-DD) para el mapa Memento mori.
+   * null = no configurada.
+   */
+  birthDate: string | null;
+  /**
+   * Esperanza de vida en años para dibujar semanas restantes.
+   * Default 80 (calendario clásico de semanas de vida).
+   */
+  expectedLifespanYears: number;
 }
 
 export interface Project {

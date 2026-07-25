@@ -24,6 +24,12 @@ import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import { skinsByMode, type SkinDefinition } from '@/lib/skins';
 import {
+  DEFAULT_LIFESPAN_YEARS,
+  MAX_LIFESPAN_YEARS,
+  MIN_LIFESPAN_YEARS,
+  clampLifespanYears,
+} from '@/lib/mementoMori';
+import {
   getLocalPermissionState,
   requestLocalPermission,
   rescheduleLocalNotifications,
@@ -461,6 +467,46 @@ export function SettingsPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Memento mori: fecha de nacimiento + esperanza de vida */}
+            <div className="mb-4 border-b border-border pb-4">
+              <label className="mb-1.5 block text-sm font-medium text-text-primary" htmlFor="birth-date">
+                {t('settings_birth_date')}
+              </label>
+              <p className="mb-2 text-[11px] text-text-muted">{t('settings_birth_date_desc')}</p>
+              <input
+                id="birth-date"
+                type="date"
+                max={new Date().toISOString().slice(0, 10)}
+                min="1900-01-01"
+                value={settings.birthDate ?? ''}
+                onChange={e => {
+                  const v = e.target.value || null;
+                  void updateSettings({ birthDate: v });
+                }}
+                className="w-full max-w-xs rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <label
+                className="mb-1.5 mt-3 block text-xs font-medium text-text-muted"
+                htmlFor="lifespan-years"
+              >
+                {t('settings_lifespan')}
+              </label>
+              <p className="mb-2 text-[11px] text-text-muted">{t('settings_lifespan_desc')}</p>
+              <input
+                id="lifespan-years"
+                type="number"
+                min={MIN_LIFESPAN_YEARS}
+                max={MAX_LIFESPAN_YEARS}
+                step={1}
+                value={settings.expectedLifespanYears ?? DEFAULT_LIFESPAN_YEARS}
+                onChange={e => {
+                  const n = clampLifespanYears(Number(e.target.value));
+                  void updateSettings({ expectedLifespanYears: n });
+                }}
+                className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              />
             </div>
 
             <SettingRow
