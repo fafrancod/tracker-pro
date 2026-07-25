@@ -133,6 +133,26 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
     } as T;
   }
 
+  // Círculo (contactos) — solo en memoria en demo
+  if (method === 'POST' && path === '/api/contacts') {
+    return {
+      id: randomId(),
+      kind: json?.kind ?? 'person',
+      name: json?.name ?? '',
+      tags: Array.isArray(json?.tags) ? json.tags : [],
+      relationship: json?.relationship ?? null,
+      relationPulse: json?.relationPulse ?? null,
+      order: 0,
+      created_at: nowIso(),
+    } as T;
+  }
+  if (method === 'PATCH' && path.startsWith('/api/contacts/')) {
+    return { id: path.split('/').pop(), ...(json ?? {}) } as T;
+  }
+  if (method === 'DELETE' && path.startsWith('/api/contacts/')) {
+    return undefined as T;
+  }
+
   return undefined as T;
 }
 

@@ -28,25 +28,37 @@ export function useContacts() {
 
   const addContact = useCallback(
     async (payload: CreateContactPayload) => {
-      if (!uid) return;
+      if (!uid) {
+        throw new Error('Sesión no lista. Recarga la página e inténtalo de nuevo.');
+      }
       const created = await createContact(payload);
       addContactOptimistic(created as Contact);
+      return created;
     },
     [uid, addContactOptimistic]
   );
 
   const editContact = useCallback(
     async (contactId: string, payload: UpdateContactPayload) => {
-      if (!uid) return;
+      if (!uid) {
+        throw new Error('Sesión no lista. Recarga la página e inténtalo de nuevo.');
+      }
       updateContactOptimistic(contactId, payload);
-      await updateContact(contactId, payload);
+      try {
+        await updateContact(contactId, payload);
+      } catch (err) {
+        // Recargar lista si el patch falla (evita UI desfasada)
+        throw err;
+      }
     },
     [uid, updateContactOptimistic]
   );
 
   const removeContact = useCallback(
     async (contactId: string) => {
-      if (!uid) return;
+      if (!uid) {
+        throw new Error('Sesión no lista. Recarga la página e inténtalo de nuevo.');
+      }
       removeContactOptimistic(contactId);
       await deleteContact(contactId);
     },

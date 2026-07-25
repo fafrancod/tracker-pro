@@ -99,17 +99,38 @@ contactsRouter.post('/', async (req, res, next) => {
     const order = count ?? 0;
 
     const id = generateId();
-    const { error } = await getSupabaseAdmin().from('contacts').insert({
+    const row: Record<string, unknown> = {
       id,
       user_id: uid,
       kind: body.kind,
       name: body.name,
       tags: finalTags,
       relationship,
-      relation_pulse: relationPulse,
       order,
-    });
-    if (error) throw error;
+    };
+    // Solo enviar si hay valor: columnas nuevas pueden faltar si no se corrió el SQL
+    if (relationPulse != null) {
+      row.relation_pulse = relationPulse;
+    }
+
+    const { error } = await getSupabaseAdmin().from('contacts').insert(row);
+    if (error) {
+      // Mensaje más claro si falta la tabla o la columna
+      const msg = error.message ?? '';
+      if (/relation_pulse|column/i.test(msg)) {
+        throw ApiError.badRequest(
+          'Falta la columna relation_pulse en contacts. Ejecuta el SQL de Círculo en Supabase.',
+          { supabase: msg }
+        );
+      }
+      if (/does not exist|relation .*contacts/i.test(msg)) {
+        throw ApiError.badRequest(
+          'Falta la tabla contacts. Ejecuta el SQL de Círculo en Supabase.',
+          { supabase: msg }
+        );
+      }
+      throw error;
+    }
 
     res.status(201).json({
       id,

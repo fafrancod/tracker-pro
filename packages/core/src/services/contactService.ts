@@ -48,16 +48,32 @@ export function subscribeContacts(
   uid: string,
   cb: (contacts: Contact[]) => void
 ): ContactsUnsubscribe {
-  if (isDemoMode()) return () => undefined;
+  if (isDemoMode()) {
+    // Demo: no hay tabla remota; el store se alimenta solo con optimistic writes.
+    cb([]);
+    return () => undefined;
+  }
 
-  void fetchContacts(uid).then(cb).catch(() => cb([]));
+  void fetchContacts(uid)
+    .then(cb)
+    .catch(err => {
+      console.error('[contacts] fetch inicial falló', err);
+      // No borrar contactos locales: solo avisar con lista vacía si aún no hay nada.
+      cb([]);
+    });
 
   return subscribeTable({
     topic: `contacts:${uid}`,
     table: 'contacts',
     filter: `user_id=eq.${uid}`,
     onChange: () => {
-      void fetchContacts(uid).then(cb).catch(() => cb([]));
+      void fetchContacts(uid)
+        .then(cb)
+        .catch(err => {
+          // Importante: no hacer cb([]) aquí — borraría la lista en pantalla
+          // si un refetch fallido llega tras un alta optimista.
+          console.error('[contacts] refetch falló', err);
+        });
     },
   });
 }
@@ -77,6 +93,9 @@ interface ContactApiResponse {
 
 export async function createContact(payload: CreateContactPayload): Promise<Contact> {
   const res = await api.post<ContactApiResponse>('/api/contacts', payload);
+  if (!res || typeof res !== 'object' || !('id' in res) || !res.id) {
+    throw new Error('Respuesta inválida del servidor al crear el contacto');
+  }
   return mapContact(res.id, res as unknown as Record<string, unknown>);
 }
 

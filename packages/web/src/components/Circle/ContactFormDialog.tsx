@@ -82,9 +82,10 @@ export function ContactFormDialog({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || submitting) return;
+    // Solo coma/punto y coma: permite tags multi-palabra («compañero trabajo»).
     const tags = tagsText
-      .split(/[,;\s]+/)
+      .split(/[,;]+/)
       .map(normalizeTag)
       .filter(Boolean);
     try {
@@ -97,6 +98,8 @@ export function ContactFormDialog({
         relationPulse: relationPulse || null,
       });
       onOpenChange(false);
+    } catch {
+      // El padre ya muestra toast; no cerramos el diálogo.
     } finally {
       setSubmitting(false);
     }

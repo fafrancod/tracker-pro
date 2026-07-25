@@ -193,7 +193,16 @@ export const useStore = create<AppStore>()(
     setContacts: contacts => set(state => { state.contacts = contacts; }),
 
     addContactOptimistic: contact =>
-      set(state => { state.contacts.push(contact); }),
+      set(state => {
+        // Evitar duplicados si realtime y optimistic llegan juntos
+        if (state.contacts.some((c: Contact) => c.id === contact.id)) {
+          state.contacts = state.contacts.map((c: Contact) =>
+            c.id === contact.id ? contact : c
+          );
+        } else {
+          state.contacts.push(contact);
+        }
+      }),
 
     updateContactOptimistic: (contactId, patch) =>
       set(state => {

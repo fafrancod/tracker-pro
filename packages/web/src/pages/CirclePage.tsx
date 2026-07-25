@@ -82,6 +82,8 @@ export function CirclePage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Contact | null>(null);
+  /** Fuerza remount del formulario en cada apertura (evita estado residual). */
+  const [formKey, setFormKey] = useState(0);
   const [filter, setFilter] = useState<Filter>('all');
   const [commitmentsFor, setCommitmentsFor] = useState<Contact | null>(null);
   const [commitments, setCommitments] = useState<LocatedTaskRow[]>([]);
@@ -135,11 +137,13 @@ export function CirclePage() {
 
   function openCreate() {
     setEditing(null);
+    setFormKey(k => k + 1);
     setDialogOpen(true);
   }
 
   function openEdit(contact: Contact) {
     setEditing(contact);
+    setFormKey(k => k + 1);
     setDialogOpen(true);
   }
 
@@ -154,7 +158,11 @@ export function CirclePage() {
       }
     } catch (err) {
       const msg =
-        err instanceof ApiClientError ? err.message : t('circle_save_error');
+        err instanceof ApiClientError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : t('circle_save_error');
       showToast(msg, 'error');
       throw err;
     }
@@ -337,8 +345,12 @@ export function CirclePage() {
       </div>
 
       <ContactFormDialog
+        key={formKey}
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={open => {
+          setDialogOpen(open);
+          if (!open) setEditing(null);
+        }}
         initial={editing}
         onSubmit={handleSubmit}
       />
