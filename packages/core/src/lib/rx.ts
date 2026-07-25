@@ -20,6 +20,10 @@ export function isRxKind(kind: TaskKind | string | null | undefined): boolean {
   return kind === 'rx_human' || kind === 'rx_pet';
 }
 
+export function isPossibleEventKind(kind: TaskKind | string | null | undefined): boolean {
+  return kind === 'possible_event';
+}
+
 export function isProjectKind(kind: TaskKind | string | null | undefined): boolean {
   return kind === 'task' || kind === 'reminder' || !kind;
 }

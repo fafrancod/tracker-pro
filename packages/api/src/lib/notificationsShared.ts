@@ -238,7 +238,9 @@ export function buildModeCopy(
 
 function shouldIncludeKind(kind: string, prefs: NotificationPrefs): boolean {
   if (isRxKind(kind)) return prefs.notifyRx;
-  if (kind === 'task' || kind === 'reminder') return prefs.notifyTasks;
+  if (kind === 'task' || kind === 'reminder' || kind === 'possible_event') {
+    return prefs.notifyTasks;
+  }
   return false;
 }
 

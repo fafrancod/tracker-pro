@@ -88,6 +88,7 @@ export const taskHistory = {
       startTime: payload.startTime ?? null,
       endTime: payload.endTime ?? null,
       rx: null,
+      involvedContactIds: payload.involvedContactIds ?? [],
       createdAt: now,
       updatedAt: now,
     };
@@ -147,6 +148,7 @@ export const taskHistory = {
           startTime: instance.startTime,
           endTime: instance.endTime,
           rx: instance.rx,
+          involvedContactIds: instance.involvedContactIds ?? [],
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

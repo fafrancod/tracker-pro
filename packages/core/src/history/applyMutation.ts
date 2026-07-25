@@ -28,6 +28,7 @@ function taskToUpdatePayload(task: Task): UpdateTaskPayload {
     color: task.color,
     startTime: task.startTime,
     endTime: task.endTime,
+    involvedContactIds: task.involvedContactIds,
   };
 }
 
@@ -44,6 +45,7 @@ function seriesSharedPatch(task: Task): UpdateTaskPayload {
     color: task.color,
     startTime: task.startTime,
     endTime: task.endTime,
+    involvedContactIds: task.involvedContactIds,
   };
 }
 
@@ -63,6 +65,9 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
   if (payload.color !== undefined) patch.color = payload.color;
   if (payload.startTime !== undefined) patch.startTime = payload.startTime;
   if (payload.endTime !== undefined) patch.endTime = payload.endTime;
+  if (payload.involvedContactIds !== undefined) {
+    patch.involvedContactIds = payload.involvedContactIds;
+  }
   if (payload.completed !== undefined) {
     patch.completed = payload.completed;
     patch.completedAt = payload.completed ? new Date().toISOString() : null;
@@ -162,6 +167,7 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           color: instance.color,
           startTime: instance.startTime,
           endTime: instance.endTime,
+          involvedContactIds: instance.involvedContactIds ?? [],
           rx: instance.rx,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,

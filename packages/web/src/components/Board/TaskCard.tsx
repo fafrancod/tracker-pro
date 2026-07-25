@@ -275,6 +275,14 @@ export function TaskCard({
                 🔔
               </span>
             )}
+            {task.kind === 'possible_event' && (
+              <span className="inline-flex items-center rounded-full bg-fuchsia-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200">
+                ✨{' '}
+                {(task.involvedContactIds?.length ?? 0) > 0
+                  ? `${task.involvedContactIds.length}`
+                  : 'Posible'}
+              </span>
+            )}
             {task.recurrence.frequency !== 'none' && (
               <span
                 className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-teal"

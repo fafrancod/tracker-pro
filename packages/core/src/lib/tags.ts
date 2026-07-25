@@ -79,9 +79,18 @@ export function taskMatchesContact(
     notes?: string | null;
     tags?: string[] | null;
     rx?: { subject?: string | null } | null;
+    involvedContactIds?: string[] | null;
   },
-  contact: { name: string; tags: string[] | null | undefined }
+  contact: { id?: string; name: string; tags: string[] | null | undefined }
 ): boolean {
+  if (
+    contact.id &&
+    Array.isArray(task.involvedContactIds) &&
+    task.involvedContactIds.includes(contact.id)
+  ) {
+    return true;
+  }
+
   const handles = contactHandles(contact);
   if (handles.length === 0) return false;
   const keys = new Set(handles.map(h => h.toLocaleLowerCase()));

@@ -122,6 +122,7 @@ interface DraftState {
   rxAmount: number;
   rxUnit: DoseUnit;
   rxPhases: RxPhase[];
+  involvedContactIds: string[];
 }
 
 function taskToDraft(task: Task, fallbackDayId: string): DraftState {
@@ -142,6 +143,7 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     rxAmount: task.rx?.amount ?? 1,
     rxUnit: task.rx?.unit ?? 'pills',
     rxPhases: clonePhases(task.rx?.phases),
+    involvedContactIds: [...(task.involvedContactIds ?? [])],
   };
 }
 
@@ -163,7 +165,8 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.rxSubject !== base.rxSubject ||
     draft.rxAmount !== base.rxAmount ||
     draft.rxUnit !== base.rxUnit ||
-    !phasesEqual(draft.rxPhases, base.rxPhases)
+    !phasesEqual(draft.rxPhases, base.rxPhases) ||
+    draft.involvedContactIds.join('\0') !== base.involvedContactIds.join('\0')
   );
 }
 
@@ -239,6 +242,7 @@ function TaskDetailInner({
     dayId
   );
   const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });
+  const contacts = useStore(s => s.contacts);
 
   const task = useMemo(() => tasks.find(x => x.id === taskId) ?? null, [tasks, taskId]);
 
@@ -266,6 +270,7 @@ function TaskDetailInner({
   const planDirty = isRxKind(task.kind) && isPlanDirty(draft, task);
   const isSeries = Boolean(task.seriesId);
   const isRx = isRxKind(task.kind);
+  const isPossible = task.kind === 'possible_event';
   const rxPlanStart = task.rx?.planStartDayId || dayId;
   const rxPlanDays = isRx ? totalRxPlanDays(draft.rxPhases) : 0;
   const rxPlanEnd = isRx ? rxPlanEndDayId(rxPlanStart, draft.rxPhases) : '';
@@ -441,11 +446,13 @@ function TaskDetailInner({
           tags,
           kind: draft.kind,
           priority: draft.priority,
-          urgency: draft.urgency,
-          importance: draft.importance,
+          urgency: draft.kind === 'possible_event' ? null : draft.urgency,
+          importance: draft.kind === 'possible_event' ? null : draft.importance,
           color: draft.color,
-          projectId: draft.projectId,
+          projectId: draft.kind === 'possible_event' ? null : draft.projectId,
           endDayId: draft.endDayId,
+          involvedContactIds:
+            draft.kind === 'possible_event' ? draft.involvedContactIds : draft.involvedContactIds,
           startTime: startN,
           endTime: endN,
           applyTo: isSeries ? applyTo : 'instance',
@@ -588,6 +595,46 @@ function TaskDetailInner({
             ✓ {t('task_completed_at')}{' '}
             {format(parseISO(task.completedAt), `EEE ${shortDateFormat} · HH:mm`, { locale })}
           </p>
+        )}
+
+        {isPossible && (
+          <Field label={t('task_involved_contacts')}>
+            <p className="mb-1.5 text-[10px] text-text-muted">{t('task_involved_contacts_hint')}</p>
+            {contacts.length === 0 ? (
+              <p className="text-[11px] text-text-muted">{t('circle_empty')}</p>
+            ) : (
+              <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border bg-background p-1.5">
+                {contacts.map(c => {
+                  const active = draft.involvedContactIds.includes(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className={cn(
+                        'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs',
+                        active ? 'bg-fuchsia-500/15' : 'hover:bg-surface'
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 accent-fuchsia-500"
+                        checked={active}
+                        onChange={() => {
+                          patchDraft({
+                            involvedContactIds: active
+                              ? draft.involvedContactIds.filter(id => id !== c.id)
+                              : [...draft.involvedContactIds, c.id],
+                          });
+                        }}
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        {c.kind === 'pet' ? '🐾' : '👤'} {c.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </Field>
         )}
 
         {/* Recetario: tipo fijo + sujeto + dosis de esta toma + plan de fases */}

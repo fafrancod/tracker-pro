@@ -13,6 +13,7 @@ import {
   Pill,
   PawPrint,
   User,
+  CalendarHeart,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,7 @@ import type {
 import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
 import {
   expandIntervalTimes,
+  isPossibleEventKind,
   isRxKind,
   resolvePhaseScheduleMode,
   rxPhaseDateRanges,
@@ -145,9 +147,11 @@ export function AddTaskForm({
   const [endTime, setEndTime] = useState('');
   const [rxSubject, setRxSubject] = useState('');
   const [rxPhases, setRxPhases] = useState<RxPhase[]>([{ ...DEFAULT_RX_PHASE, times: ['08:00'] }]);
+  const [involvedContactIds, setInvolvedContactIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
+  const isPossible = isPossibleEventKind(kind);
   const tasksByDay = useStore(s => s.tasksByDay);
   const contacts = useStore(s => s.contacts);
 
@@ -224,7 +228,14 @@ export function AddTaskForm({
     setEndTime('');
     setRxSubject('');
     setRxPhases([{ ...DEFAULT_RX_PHASE, times: ['08:00'] }]);
+    setInvolvedContactIds([]);
     if (startDayId) setEndDayId(startDayId);
+  }
+
+  function toggleInvolvedContact(id: string) {
+    setInvolvedContactIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   }
 
   function updatePhase(index: number, patch: Partial<RxPhase>) {
@@ -334,7 +345,17 @@ export function AddTaskForm({
       frequency = 'none';
     }
 
-    const tags = mergeTags([], extractHashtags(trimmed), extractMentions(trimmed));
+    const contactTagHandles = isPossible
+      ? contacts
+          .filter(c => involvedContactIds.includes(c.id))
+          .flatMap(c => contactHandles(c))
+      : [];
+    const tags = mergeTags(
+      [],
+      extractHashtags(trimmed),
+      extractMentions(trimmed),
+      contactTagHandles
+    );
     const startN = normalizeTimeInput(startTime);
     const endN = normalizeTimeInput(endTime);
     if (startN && endN && endN < startN) {
@@ -346,18 +367,19 @@ export function AddTaskForm({
     try {
       await onAdd({
         title: trimmed,
-        projectId,
+        projectId: isPossible ? null : projectId,
         priority,
         endDayId: safeEnd,
         recurrenceFrequency: frequency,
         recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
         kind,
-        urgency,
-        importance,
-        color,
+        urgency: isPossible ? null : urgency,
+        importance: isPossible ? null : importance,
+        color: color ?? (isPossible ? '#a371f7' : null),
         startTime: startN,
         endTime: endN,
         tags,
+        involvedContactIds: isPossible ? involvedContactIds : [],
       });
       resetForm();
       inputRef.current?.focus();
@@ -470,14 +492,19 @@ export function AddTaskForm({
         />
       )}
 
-      {/* Kind: Tarea | Recordatorio | Rx humano | Rx mascota */}
-      <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-4', !isModal && 'gap-1')}>
+      {/* Kind: Tarea | Recordatorio | Rx | Evento posible */}
+      <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5', !isModal && 'gap-1')}>
         {(
           [
             { value: 'task' as const, icon: CheckSquare, label: t('task_kind_task') },
             { value: 'reminder' as const, icon: Bell, label: t('task_kind_reminder') },
             { value: 'rx_human' as const, icon: Pill, label: t('task_kind_rx_human') },
             { value: 'rx_pet' as const, icon: PawPrint, label: t('task_kind_rx_pet') },
+            {
+              value: 'possible_event' as const,
+              icon: CalendarHeart,
+              label: t('task_kind_possible_event'),
+            },
           ] as const
         ).map(opt => {
           const Icon = opt.icon;
@@ -517,9 +544,11 @@ export function AddTaskForm({
           placeholder={
             isRx
               ? t('rx_medicine_placeholder')
-              : kind === 'reminder'
-                ? t('task_reminder_placeholder')
-                : t('task_title_placeholder')
+              : isPossible
+                ? t('task_possible_event_placeholder')
+                : kind === 'reminder'
+                  ? t('task_reminder_placeholder')
+                  : t('task_title_placeholder')
           }
           list="circle-mention-suggestions"
           className={cn(
@@ -767,8 +796,8 @@ export function AddTaskForm({
         </div>
       )}
 
-      {/* Project + priority + Eisenhower — no aplica a recetario */}
-      {!isRx && (
+      {/* Project + priority + Eisenhower — no aplica a recetario ni eventos posibles */}
+      {!isRx && !isPossible && (
         <>
           <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
             <select
@@ -868,6 +897,54 @@ export function AddTaskForm({
             </div>
           </div>
         </>
+      )}
+
+      {/* Evento posible: contactos del Círculo */}
+      {isPossible && (
+        <div className="space-y-1.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+            {t('task_involved_contacts')}
+          </p>
+          <p className="text-[10px] text-text-muted">{t('task_involved_contacts_hint')}</p>
+          {contacts.length === 0 ? (
+            <p className="text-[11px] text-text-muted">{t('circle_empty')}</p>
+          ) : (
+            <div className="flex max-h-36 flex-col gap-1 overflow-y-auto">
+              {contacts.map(c => {
+                const active = involvedContactIds.includes(c.id);
+                return (
+                  <label
+                    key={c.id}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
+                      active
+                        ? 'bg-fuchsia-500/15 text-text-primary'
+                        : 'text-text-muted hover:bg-background'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-3.5 w-3.5 accent-fuchsia-500"
+                      checked={active}
+                      onChange={() => toggleInvolvedContact(c.id)}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {c.kind === 'pet' ? '🐾' : '👤'} {c.name}
+                    </span>
+                    <span className="shrink-0 text-[10px] text-accent-teal">
+                      {contactHandles(c)
+                        .map(h => `@${h}`)
+                        .join(' ')}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+          {involvedContactIds.length === 0 && (
+            <p className="text-[10px] text-text-muted">{t('task_involved_none')}</p>
+          )}
+        </div>
       )}
 
       {/* Color */}

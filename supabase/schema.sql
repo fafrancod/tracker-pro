@@ -59,6 +59,8 @@ create table if not exists public.tasks (
   end_time text check (end_time is null or end_time ~ '^[0-2][0-9]:[0-5][0-9]$'),
   -- Recetario: snapshot de la toma (amount/unit/phases). null en tareas normales.
   rx_meta jsonb,
+  -- Círculo: personas/mascotas involucradas (ids de contacts).
+  involved_contact_ids text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (end_day_id >= day_id)
@@ -161,7 +163,7 @@ begin
   ) then
     alter table public.tasks
       add constraint tasks_kind_check
-      check (kind in ('task', 'reminder', 'rx_human', 'rx_pet'));
+      check (kind in ('task', 'reminder', 'rx_human', 'rx_pet', 'possible_event'));
   end if;
   if not exists (
     select 1 from pg_constraint
@@ -174,7 +176,7 @@ begin
   end if;
 end $$;
 
--- Expand kind check for existing DBs (task|reminder → + rx_*)
+-- Expand kind check for existing DBs (+ rx_* + possible_event)
 do $$
 begin
   if exists (
@@ -186,9 +188,13 @@ begin
   end if;
   alter table public.tasks
     add constraint tasks_kind_check
-    check (kind in ('task', 'reminder', 'rx_human', 'rx_pet'));
+    check (kind in ('task', 'reminder', 'rx_human', 'rx_pet', 'possible_event'));
 exception when duplicate_object then null;
 end $$;
+
+alter table public.tasks add column if not exists involved_contact_ids text[] not null default '{}';
+create index if not exists tasks_user_involved_contacts_idx
+  on public.tasks using gin (involved_contact_ids);
 
 -- Horarios opcionales (HH:mm)
 alter table public.tasks add column if not exists start_time text;

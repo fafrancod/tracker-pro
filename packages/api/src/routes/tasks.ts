@@ -41,7 +41,13 @@ const prioritySchema = z.enum(['low', 'medium', 'high']);
 const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']);
 const urgencySchema = z.enum(['urgent', 'not_urgent']);
 const importanceSchema = z.enum(['important', 'not_important']);
-const kindSchema = z.enum(['task', 'reminder', 'rx_human', 'rx_pet']);
+const kindSchema = z.enum([
+  'task',
+  'reminder',
+  'rx_human',
+  'rx_pet',
+  'possible_event',
+]);
 const colorSchema = z
   .string()
   .regex(/^#[0-9A-Fa-f]{6}$/, 'color hex #RRGGBB')
@@ -151,6 +157,7 @@ const createSchema = taskLocation.extend({
   endTime: timeSchema,
   rxPhases: z.array(rxPhaseSchema).min(1).max(12).optional(),
   rxSubject: z.string().max(120).nullable().optional(),
+  involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
 });
 
 const updateSchema = z
@@ -176,6 +183,7 @@ const updateSchema = z
     rxAmount: z.number().positive().max(10000).optional(),
     rxUnit: z.enum(['pills', 'ml']).optional(),
     rxSubject: z.string().max(120).nullable().optional(),
+    involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -230,6 +238,11 @@ function toClientTask(
     startTime: (row.start_time as string | null | undefined) ?? null,
     endTime: (row.end_time as string | null | undefined) ?? null,
     rx: parseRxMeta(row.rx_meta ?? row.rx),
+    involvedContactIds: Array.isArray(row.involved_contact_ids)
+      ? (row.involved_contact_ids as string[])
+      : Array.isArray(row.involvedContactIds)
+        ? (row.involvedContactIds as string[])
+        : [],
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -237,10 +250,11 @@ function toClientTask(
 
 function normalizeKind(
   raw: unknown
-): 'task' | 'reminder' | 'rx_human' | 'rx_pet' {
+): 'task' | 'reminder' | 'rx_human' | 'rx_pet' | 'possible_event' {
   if (raw === 'reminder') return 'reminder';
   if (raw === 'rx_human') return 'rx_human';
   if (raw === 'rx_pet') return 'rx_pet';
+  if (raw === 'possible_event') return 'possible_event';
   return 'task';
 }
 
@@ -267,6 +281,7 @@ tasksRouter.post('/', async (req, res, next) => {
       endTime,
       rxPhases,
       rxSubject,
+      involvedContactIds,
     } = createSchema.parse(req.body);
 
     assertTimeRange(startTime, endTime);
@@ -275,6 +290,9 @@ tasksRouter.post('/', async (req, res, next) => {
     const now = new Date().toISOString();
     const seriesId = generateId();
     const rows: Record<string, unknown>[] = [];
+    const involvedIds = Array.isArray(involvedContactIds)
+      ? Array.from(new Set(involvedContactIds.map(s => s.trim()).filter(Boolean))).slice(0, 40)
+      : [];
 
     // ——— Recetario: materializa 1 fila por (día × horario) con plan por fases ———
     if (isRxKind(taskKind)) {
@@ -361,6 +379,7 @@ tasksRouter.post('/', async (req, res, next) => {
           start_time: occ.startTime,
           end_time: null,
           rx_meta: rxMeta,
+          involved_contact_ids: [],
           created_at: now,
           updated_at: now,
         });
@@ -433,7 +452,7 @@ tasksRouter.post('/', async (req, res, next) => {
           title,
           completed: false,
           completed_at: null,
-          project_id: projectId ?? null,
+          project_id: taskKind === 'possible_event' ? null : (projectId ?? null),
           priority: priority ?? 'medium',
           notes: notes ?? '',
           order,
@@ -442,13 +461,14 @@ tasksRouter.post('/', async (req, res, next) => {
           series_id: recurrence.frequency === 'none' ? null : seriesId,
           recurrence_frequency: recurrence.frequency,
           recurrence_interval: recurrence.interval,
-          urgency: urgency ?? null,
-          importance: importance ?? null,
+          urgency: taskKind === 'possible_event' ? null : (urgency ?? null),
+          importance: taskKind === 'possible_event' ? null : (importance ?? null),
           kind: taskKind,
-          color: color ?? null,
+          color: color ?? (taskKind === 'possible_event' ? '#a371f7' : null),
           start_time: startTime ?? null,
           end_time: endTime ?? null,
           rx_meta: null,
+          involved_contact_ids: involvedIds,
           created_at: now,
           updated_at: now,
         });
@@ -539,6 +559,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.color !== undefined) seriesUpdate.color = patch.color;
     if (patch.startTime !== undefined) seriesUpdate.start_time = patch.startTime;
     if (patch.endTime !== undefined) seriesUpdate.end_time = patch.endTime;
+    if (patch.involvedContactIds !== undefined) {
+      seriesUpdate.involved_contact_ids = patch.involvedContactIds;
+    }
 
     // Campos solo de instancia (nunca se propagan a la serie).
     const instanceUpdate: Record<string, unknown> = { updated_at: now };
@@ -636,6 +659,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       if (patch.color !== undefined) update.color = patch.color;
       if (patch.startTime !== undefined) update.start_time = patch.startTime;
       if (patch.endTime !== undefined) update.end_time = patch.endTime;
+      if (patch.involvedContactIds !== undefined) {
+        update.involved_contact_ids = patch.involvedContactIds;
+      }
       if (
         patch.rxAmount !== undefined ||
         patch.rxUnit !== undefined ||

@@ -1,8 +1,17 @@
 export type Plan = 'free' | 'pro';
 export type Priority = 'low' | 'medium' | 'high';
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
-/** task/reminder = proyectos y pendientes; rx_* = recetario. */
-export type TaskKind = 'task' | 'reminder' | 'rx_human' | 'rx_pet';
+/**
+ * task/reminder = proyectos y pendientes;
+ * rx_* = recetario;
+ * possible_event = evento posible (día o rango, con personas/mascotas).
+ */
+export type TaskKind =
+  | 'task'
+  | 'reminder'
+  | 'rx_human'
+  | 'rx_pet'
+  | 'possible_event';
 export type Urgency = 'urgent' | 'not_urgent';
 export type Importance = 'important' | 'not_important';
 export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
@@ -10,8 +19,11 @@ export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
 export type ScheduleLayout = 'list' | 'schedule';
 /** Unidad de dosis por sesión. */
 export type DoseUnit = 'pills' | 'ml';
-/** Filtro de categoría en el tablero: todo / solo proyectos / solo recetarios. */
-export type BoardCategoryFilter = 'all' | 'projects' | 'rx';
+/**
+ * Filtro de categoría en el tablero:
+ * all | projects (tarea/recordatorio) | rx | possible (eventos posibles).
+ */
+export type BoardCategoryFilter = 'all' | 'projects' | 'rx' | 'possible';
 
 /**
  * Cómo se definen los horarios de la fase:
@@ -299,6 +311,11 @@ export interface Task {
    * null en tareas normales.
    */
   rx: RxMeta | null;
+  /**
+   * Contactos del Círculo involucrados (ids).
+   * Especialmente útil en possible_event; también se reflejan en tags (@handles).
+   */
+  involvedContactIds: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -343,6 +360,8 @@ export interface CreateTaskPayload {
   rxPhases?: RxPhase[];
   /** Paciente / nombre de mascota (recetario). */
   rxSubject?: string | null;
+  /** Personas/mascotas del Círculo involucradas (p. ej. evento posible). */
+  involvedContactIds?: string[];
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -370,6 +389,7 @@ export interface UpdateTaskPayload {
   rxAmount?: number;
   rxUnit?: DoseUnit;
   rxSubject?: string | null;
+  involvedContactIds?: string[];
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (título, color, …) a toda la serie.
@@ -400,6 +420,7 @@ export type SeriesSharedTaskFields = Pick<
   | 'color'
   | 'startTime'
   | 'endTime'
+  | 'involvedContactIds'
 >;
 
 /** Filtros del tablero (week / month / continuous / day). */
@@ -409,8 +430,9 @@ export interface BoardTaskFilters {
   importance?: Importance | 'all';
   /**
    * all = todo;
-   * projects = tareas/recordatorios (no recetario);
-   * rx = solo recetarios (humano + mascota).
+   * projects = tareas/recordatorios (no recetario ni eventos posibles);
+   * rx = solo recetarios;
+   * possible = solo eventos posibles.
    */
   category?: BoardCategoryFilter;
 }
@@ -422,9 +444,13 @@ export function taskMatchesFilters(
   if (filters.category && filters.category !== 'all') {
     const kind = task.kind ?? 'task';
     if (filters.category === 'projects') {
-      if (kind === 'rx_human' || kind === 'rx_pet') return false;
+      if (kind === 'rx_human' || kind === 'rx_pet' || kind === 'possible_event') {
+        return false;
+      }
     } else if (filters.category === 'rx') {
       if (kind !== 'rx_human' && kind !== 'rx_pet') return false;
+    } else if (filters.category === 'possible') {
+      if (kind !== 'possible_event') return false;
     }
   }
   if (filters.projectId && filters.projectId !== 'all') {

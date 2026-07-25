@@ -213,6 +213,7 @@ export async function createTask(
     endTime: payload.endTime ?? null,
     rxPhases: payload.rxPhases,
     rxSubject: payload.rxSubject ?? null,
+    involvedContactIds: payload.involvedContactIds ?? [],
     eventId,
   });
 
@@ -283,6 +284,7 @@ function materializeDemoCreate(
         startTime: occ.startTime,
         endTime: null,
         rx,
+        involvedContactIds: [],
         createdAt: now,
         updatedAt: now,
         weekId: occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId),
@@ -306,6 +308,7 @@ function materializeDemoCreate(
   );
   const seriesId = recurrence.frequency === 'none' ? null : firstId;
   const mergedTags = mergeTags(payload.tags, extractHashtags(payload.title));
+  const involved = payload.involvedContactIds ?? [];
   const instances = ranges.map((range, index) => {
     const id = index === 0 ? firstId : `${firstId}-${index}`;
     const task: Task & { weekId: string; dayId: string } = {
@@ -329,6 +332,7 @@ function materializeDemoCreate(
       startTime: payload.startTime ?? null,
       endTime: payload.endTime ?? null,
       rx: null,
+      involvedContactIds: involved,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -415,6 +419,7 @@ export async function rematerializeRxSeries(
       startTime: instance.startTime,
       endTime: instance.endTime,
       rx: instance.rx,
+      involvedContactIds: instance.involvedContactIds ?? [],
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
     });
@@ -513,6 +518,7 @@ function rematerializeDemoRx(
       urgency: existing.urgency,
       importance: existing.importance,
       kind,
+      involvedContactIds: [],
       color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
       startTime: occ.startTime,
       endTime: null,
@@ -601,6 +607,9 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     startTime: normalizeTimeField(raw.start_time ?? raw.startTime),
     endTime: normalizeTimeField(raw.end_time ?? raw.endTime),
     rx: parseRxMeta(raw.rx_meta ?? raw.rx),
+    involvedContactIds: normalizeInvolvedContactIds(
+      raw.involved_contact_ids ?? raw.involvedContactIds
+    ),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
@@ -610,7 +619,22 @@ function normalizeTaskKind(raw: unknown): Task['kind'] {
   if (raw === 'reminder') return 'reminder';
   if (raw === 'rx_human') return 'rx_human';
   if (raw === 'rx_pet') return 'rx_pet';
+  if (raw === 'possible_event') return 'possible_event';
   return 'task';
+}
+
+function normalizeInvolvedContactIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const id of raw) {
+    if (typeof id !== 'string') continue;
+    const t = id.trim();
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out.slice(0, 40);
 }
 
 function normalizeTimeField(value: unknown): string | null {
