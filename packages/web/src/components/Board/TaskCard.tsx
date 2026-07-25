@@ -182,32 +182,20 @@ export function TaskCard({
             : undefined
       }
     >
-      <div className={cn('flex items-start', dense ? 'gap-1' : 'gap-2')}>
-        {/* Drag handle — absolute in dense mode to reclaim horizontal space */}
+      <div className={cn('flex items-start', dense ? 'gap-1 pr-5' : 'gap-2')}>
+        {/*
+          Checkbox SIEMPRE a la izquierda del título (también en semana dense).
+          Antes el grip iba absolute left-0 z-10 y tapaba el check en columnas estrechas.
+        */}
         <button
           type="button"
-          {...dragHandleProps}
+          onClick={e => {
+            e.stopPropagation();
+            onToggle();
+          }}
           className={cn(
-            'cursor-grab touch-none text-text-muted transition-opacity active:cursor-grabbing',
-            // Always visible enough on touch; stronger on hover/desktop
-            'opacity-40 group-hover:opacity-100',
-            dense
-              ? 'absolute left-0 top-0.5 z-10 flex h-8 w-6 items-center justify-center rounded bg-surface/90'
-              : 'mt-0.5 flex h-8 w-6 items-center justify-center'
-          )}
-          tabIndex={-1}
-          aria-label="Arrastrar"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
-
-        {/* Checkbox — hábitos: casilla cuadrada más visible */}
-        <button
-          type="button"
-          onClick={onToggle}
-          className={cn(
-            'flex shrink-0 items-center justify-center border transition-colors',
-            dense ? 'mt-0.5 h-5 w-5' : isHabit ? 'mt-0.5 h-6 w-6' : 'mt-0.5 h-5 w-5',
+            'relative z-[2] flex shrink-0 items-center justify-center border transition-colors',
+            dense ? 'mt-0.5 h-4 w-4' : isHabit ? 'mt-0.5 h-6 w-6' : 'mt-0.5 h-5 w-5',
             isHabit ? 'rounded-md' : 'rounded-full',
             task.completed
               ? habitQuit
@@ -217,7 +205,7 @@ export function TaskCard({
                 ? 'border-emerald-500/50 hover:border-emerald-400'
                 : habitQuit
                   ? 'border-red-500/50 hover:border-red-400'
-                  : 'border-border hover:border-accent-green'
+                  : 'border-border bg-background hover:border-accent-green'
           )}
           aria-label={
             isHabit
@@ -233,11 +221,31 @@ export function TaskCard({
               ? task.completed
                 ? t('habit_done')
                 : t('habit_not_done')
-              : undefined
+              : task.completed
+                ? 'Desmarcar'
+                : 'Completar'
           }
         >
-          {task.completed && <Check className={cn(isHabit ? 'h-3.5 w-3.5' : 'h-3 w-3')} />}
+          {task.completed && (
+            <Check
+              className={cn(dense ? 'h-2.5 w-2.5' : isHabit ? 'h-3.5 w-3.5' : 'h-3 w-3')}
+              strokeWidth={3}
+            />
+          )}
         </button>
+
+        {/* Grip: en día (no dense) junto al check; en semana dense → esquina inferior derecha */}
+        {!dense && (
+          <button
+            type="button"
+            {...dragHandleProps}
+            className="mt-0.5 flex h-8 w-6 shrink-0 cursor-grab items-center justify-center touch-none text-text-muted opacity-40 transition-opacity active:cursor-grabbing group-hover:opacity-100"
+            tabIndex={-1}
+            aria-label="Arrastrar"
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        )}
 
         {/* Content */}
         <div className="min-w-0 flex-1">
@@ -440,6 +448,18 @@ export function TaskCard({
             </button>
           )}
         </div>
+
+        {dense && (
+          <button
+            type="button"
+            {...dragHandleProps}
+            className="absolute bottom-0.5 right-0.5 z-[1] flex h-5 w-5 cursor-grab items-center justify-center rounded touch-none text-text-muted opacity-40 transition-opacity active:cursor-grabbing group-hover:opacity-100"
+            tabIndex={-1}
+            aria-label="Arrastrar"
+          >
+            <GripVertical className="h-3 w-3" />
+          </button>
+        )}
 
         {/* Actions — visible on touch devices (hover alone is useless) */}
         <div
