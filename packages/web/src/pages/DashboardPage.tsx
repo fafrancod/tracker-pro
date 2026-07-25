@@ -22,6 +22,7 @@ import { getDayId } from '@core/services/taskService';
 import { formatDose, isRxKind } from '@core/lib/rx';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
+import { WellbeingAnalyticsPanel } from '@/components/Dashboard/WellbeingAnalyticsPanel';
 import type { Task } from '@core/types';
 
 export function DashboardPage() {
@@ -114,6 +115,9 @@ export function DashboardPage() {
               accent="text-accent-teal"
             />
           </div>
+
+          {/* Bienestar: ánimo, energía, sueño + mensajes */}
+          <WellbeingAnalyticsPanel />
 
           {/* Próximas tomas del día (recetario) */}
           <section className="rounded-lg border border-border bg-surface p-4">

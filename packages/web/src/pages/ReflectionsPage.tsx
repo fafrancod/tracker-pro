@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Battery,
   BookHeart,
   ChevronLeft,
   ChevronRight,
   CloudSun,
   Heart,
+  Moon,
   PenLine,
   Smile,
 } from 'lucide-react';
@@ -16,19 +18,24 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useT } from '@/hooks/useT';
 import {
+  ENERGY_COLORS,
   MOOD_COLORS,
-  MOOD_LEVELS,
+  SCALE_LEVELS,
   addDaysToDayId,
+  averageEnergy,
   averageMood,
+  energyAtHour,
   formatDayId,
   getJournalEntry,
   moodAtHour,
   recentDayIds,
+  setHourEnergy,
   setHourMood,
+  setSleepHours,
   upsertJournalEntry,
 } from '@/lib/dailyJournal';
 import { cn } from '@/lib/utils';
-import type { DailyJournalEntry, MoodLevel } from '@core/types';
+import type { DailyJournalEntry, EnergyLevel, MoodLevel } from '@core/types';
 import type { TKey } from '@/lib/i18n';
 
 const MOOD_LABEL_KEYS: Record<MoodLevel, TKey> = {
@@ -39,6 +46,14 @@ const MOOD_LABEL_KEYS: Record<MoodLevel, TKey> = {
   5: 'mood_level_5',
 };
 
+const ENERGY_LABEL_KEYS: Record<EnergyLevel, TKey> = {
+  1: 'energy_level_1',
+  2: 'energy_level_2',
+  3: 'energy_level_3',
+  4: 'energy_level_4',
+  5: 'energy_level_5',
+};
+
 const MOOD_EMOJI: Record<MoodLevel, string> = {
   1: '😔',
   2: '😕',
@@ -46,6 +61,19 @@ const MOOD_EMOJI: Record<MoodLevel, string> = {
   4: '🙂',
   5: '😄',
 };
+
+const ENERGY_EMOJI: Record<EnergyLevel, string> = {
+  1: '🪫',
+  2: '🔸',
+  3: '🔹',
+  4: '⚡',
+  5: '🔥',
+};
+
+const SLEEP_OPTIONS: number[] = [];
+for (let h = 0; h <= 14; h += 0.5) SLEEP_OPTIONS.push(h);
+
+type HourMetric = 'mood' | 'energy';
 
 export function ReflectionsPage() {
   const { settings, updateSettings } = useSettings();
@@ -57,18 +85,21 @@ export function ReflectionsPage() {
     getJournalEntry(settings.dailyJournal, todayId)
   );
   const [selectedHour, setSelectedHour] = useState<number>(() => new Date().getHours());
+  const [hourMetric, setHourMetric] = useState<HourMetric>('mood');
   const [hourNote, setHourNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  // Sincronizar borrador al cambiar de día o al cargar journal
   useEffect(() => {
     const entry = getJournalEntry(settings.dailyJournal, dayId);
     setDraft(entry);
     setDirty(false);
-    const m = moodAtHour(entry, selectedHour);
-    setHourNote(m?.note ?? '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar dayId / fuente journal
+    if (hourMetric === 'mood') {
+      setHourNote(moodAtHour(entry, selectedHour)?.note ?? '');
+    } else {
+      setHourNote(energyAtHour(entry, selectedHour)?.note ?? '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayId, settings.dailyJournal]);
 
   const dayLabel = useMemo(() => {
@@ -80,9 +111,9 @@ export function ReflectionsPage() {
   }, [dayId, locale, shortDateFormat]);
 
   const isToday = dayId === todayId;
-  const avg = averageMood(draft);
+  const avgMood = averageMood(draft);
+  const avgEnergy = averageEnergy(draft);
   const currentHour = new Date().getHours();
-
   const weekIds = useMemo(() => recentDayIds(dayId, 7), [dayId]);
 
   const markDirty = useCallback((next: DailyJournalEntry) => {
@@ -98,37 +129,23 @@ export function ReflectionsPage() {
 
   function selectHour(hour: number) {
     setSelectedHour(hour);
-    const m = moodAtHour(draft, hour);
-    setHourNote(m?.note ?? '');
-  }
-
-  function applyHourNote(note: string) {
-    setHourNote(note);
-    const existing = moodAtHour(draft, selectedHour);
-    if (!existing) return;
-    const next = setHourMood(draft, selectedHour, existing.mood, note);
-    markDirty(next);
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      const nextJournal = upsertJournalEntry(settings.dailyJournal, {
-        ...draft,
-        updatedAt: new Date().toISOString(),
-      });
-      await updateSettings({ dailyJournal: nextJournal });
-      setDirty(false);
-      showToast(t('reflections_saved'), 'success');
-    } catch {
-      showToast(t('reflections_save_error'), 'error');
-    } finally {
-      setSaving(false);
+    if (hourMetric === 'mood') {
+      setHourNote(moodAtHour(draft, hour)?.note ?? '');
+    } else {
+      setHourNote(energyAtHour(draft, hour)?.note ?? '');
     }
   }
 
-  // Auto-guardar mood al elegir (mejor UX); reflexión con botón Guardar
-  async function saveMoodNow(next: DailyJournalEntry) {
+  function switchMetric(metric: HourMetric) {
+    setHourMetric(metric);
+    if (metric === 'mood') {
+      setHourNote(moodAtHour(draft, selectedHour)?.note ?? '');
+    } else {
+      setHourNote(energyAtHour(draft, selectedHour)?.note ?? '');
+    }
+  }
+
+  async function saveEntryNow(next: DailyJournalEntry) {
     setDraft(next);
     setDirty(false);
     try {
@@ -143,12 +160,66 @@ export function ReflectionsPage() {
     }
   }
 
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await saveEntryNow({
+        ...draft,
+        updatedAt: new Date().toISOString(),
+      });
+      showToast(t('reflections_saved'), 'success');
+    } catch {
+      showToast(t('reflections_save_error'), 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function pickMoodAndSave(mood: MoodLevel | null) {
-    const next = setHourMood(draft, selectedHour, mood, hourNote);
-    void saveMoodNow(next);
+    void saveEntryNow(setHourMood(draft, selectedHour, mood, hourNote));
+  }
+
+  function pickEnergyAndSave(energy: EnergyLevel | null) {
+    void saveEntryNow(setHourEnergy(draft, selectedHour, energy, hourNote));
+  }
+
+  function applyHourNote(note: string) {
+    setHourNote(note);
+    if (hourMetric === 'mood') {
+      const existing = moodAtHour(draft, selectedHour);
+      if (!existing) return;
+      markDirty(setHourMood(draft, selectedHour, existing.mood, note));
+    } else {
+      const existing = energyAtHour(draft, selectedHour);
+      if (!existing) return;
+      markDirty(setHourEnergy(draft, selectedHour, existing.energy, note));
+    }
+  }
+
+  function commitHourNote() {
+    if (hourMetric === 'mood') {
+      const existing = moodAtHour(draft, selectedHour);
+      if (!existing) return;
+      void saveEntryNow(setHourMood(draft, selectedHour, existing.mood, hourNote));
+    } else {
+      const existing = energyAtHour(draft, selectedHour);
+      if (!existing) return;
+      void saveEntryNow(setHourEnergy(draft, selectedHour, existing.energy, hourNote));
+    }
+  }
+
+  function onSleepChange(value: string) {
+    if (value === '') {
+      void saveEntryNow(setSleepHours(draft, null));
+      return;
+    }
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    void saveEntryNow(setSleepHours(draft, n));
   }
 
   const selectedMood = moodAtHour(draft, selectedHour)?.mood ?? null;
+  const selectedEnergy = energyAtHour(draft, selectedHour)?.energy ?? null;
 
   return (
     <Layout title={t('nav_reflections')} showFab={false}>
@@ -162,7 +233,7 @@ export function ReflectionsPage() {
             <p className="text-sm text-text-muted">{t('reflections_subtitle')}</p>
           </header>
 
-          {/* Navegación de día */}
+          {/* Día */}
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
             <Button
               type="button"
@@ -201,7 +272,38 @@ export function ReflectionsPage() {
             </Button>
           </section>
 
-          {/* Semana: mini heatmap */}
+          {/* Sueño del día */}
+          <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+            <div className="mb-2 flex items-center gap-2">
+              <Moon className="h-4 w-4 text-accent-teal" />
+              <h2 className="text-sm font-semibold text-text-primary">{t('sleep_title')}</h2>
+            </div>
+            <p className="mb-3 text-xs text-text-muted">{t('sleep_hint')}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-text-muted">
+                <span>{t('sleep_hours_label')}</span>
+                <select
+                  value={draft.sleepHours === null ? '' : String(draft.sleepHours)}
+                  onChange={e => onSleepChange(e.target.value)}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  <option value="">{t('sleep_not_set')}</option>
+                  {SLEEP_OPTIONS.map(h => (
+                    <option key={h} value={String(h)}>
+                      {h % 1 === 0 ? `${h} h` : `${h.toFixed(1)} h`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {draft.sleepHours !== null && (
+                <span className="text-xs font-medium text-text-primary">
+                  {t('sleep_recorded').replace('{h}', String(draft.sleepHours))}
+                </span>
+              )}
+            </div>
+          </section>
+
+          {/* Strip semanal */}
           <section className="rounded-xl border border-border bg-surface p-3 sm:p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
               {t('reflections_week_strip')}
@@ -241,25 +343,76 @@ export function ReflectionsPage() {
                 );
               })}
             </div>
-            {avg !== null && (
-              <p className="mt-2 text-center text-[11px] text-text-muted">
-                {t('reflections_day_avg')}: {avg.toFixed(1)} / 5 · {draft.moods.length}{' '}
-                {t('reflections_hours_logged')}
-              </p>
-            )}
+            <div className="mt-2 flex flex-wrap justify-center gap-3 text-[11px] text-text-muted">
+              {avgMood !== null && (
+                <span>
+                  {t('reflections_day_avg')}: {avgMood.toFixed(1)}/5 · {draft.moods.length}{' '}
+                  {t('reflections_hours_logged')}
+                </span>
+              )}
+              {avgEnergy !== null && (
+                <span>
+                  {t('energy_day_avg')}: {avgEnergy.toFixed(1)}/5 · {draft.energies.length}{' '}
+                  {t('reflections_hours_logged')}
+                </span>
+              )}
+            </div>
           </section>
 
-          {/* Estado de ánimo por hora */}
+          {/* Ánimo + Energía por hora */}
           <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <CloudSun className="h-4 w-4 text-accent-teal" />
-              <h2 className="text-sm font-semibold text-text-primary">{t('mood_hourly_title')}</h2>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                {hourMetric === 'mood' ? (
+                  <CloudSun className="h-4 w-4 text-accent-teal" />
+                ) : (
+                  <Battery className="h-4 w-4 text-accent-pink" />
+                )}
+                <h2 className="text-sm font-semibold text-text-primary">
+                  {hourMetric === 'mood' ? t('mood_hourly_title') : t('energy_hourly_title')}
+                </h2>
+              </div>
+              <div className="inline-flex rounded-lg border border-border bg-background p-0.5">
+                <button
+                  type="button"
+                  onClick={() => switchMetric('mood')}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+                    hourMetric === 'mood'
+                      ? 'bg-accent-teal/15 text-accent-teal'
+                      : 'text-text-muted hover:text-text-primary'
+                  )}
+                >
+                  {t('metric_mood')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMetric('energy')}
+                  className={cn(
+                    'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+                    hourMetric === 'energy'
+                      ? 'bg-accent-pink/15 text-accent-pink'
+                      : 'text-text-muted hover:text-text-primary'
+                  )}
+                >
+                  {t('metric_energy')}
+                </button>
+              </div>
             </div>
-            <p className="mb-3 text-xs text-text-muted">{t('mood_hourly_hint')}</p>
+            <p className="mb-3 text-xs text-text-muted">
+              {hourMetric === 'mood' ? t('mood_hourly_hint') : t('energy_hourly_hint')}
+            </p>
 
             <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8 md:grid-cols-12">
               {Array.from({ length: 24 }, (_, hour) => {
-                const m = moodAtHour(draft, hour);
+                const m =
+                  hourMetric === 'mood' ? moodAtHour(draft, hour) : energyAtHour(draft, hour);
+                const level =
+                  hourMetric === 'mood'
+                    ? (m as ReturnType<typeof moodAtHour>)?.mood
+                    : (m as ReturnType<typeof energyAtHour>)?.energy;
+                const colors = hourMetric === 'mood' ? MOOD_COLORS : ENERGY_COLORS;
+                const emoji = hourMetric === 'mood' ? MOOD_EMOJI : ENERGY_EMOJI;
                 const active = selectedHour === hour;
                 const isNow = isToday && hour === currentHour;
                 return (
@@ -287,53 +440,64 @@ export function ReflectionsPage() {
                     <span
                       className="flex h-6 w-full items-center justify-center rounded-md text-sm"
                       style={
-                        m
-                          ? { backgroundColor: MOOD_COLORS[m.mood], color: '#fff' }
+                        level
+                          ? { backgroundColor: colors[level], color: '#fff' }
                           : { backgroundColor: 'var(--color-background)' }
                       }
                     >
-                      {m ? MOOD_EMOJI[m.mood] : '·'}
+                      {level ? emoji[level] : '·'}
                     </span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Selector de ánimo para la hora activa */}
             <div className="mt-4 rounded-xl border border-border bg-background p-3">
               <p className="mb-2 text-xs font-medium text-text-primary">
-                {t('mood_pick_for_hour').replace(
+                {(hourMetric === 'mood' ? t('mood_pick_for_hour') : t('energy_pick_for_hour')).replace(
                   '{hour}',
                   `${String(selectedHour).padStart(2, '0')}:00`
                 )}
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {MOOD_LEVELS.map(level => {
-                  const active = selectedMood === level;
+                {SCALE_LEVELS.map(level => {
+                  const active =
+                    hourMetric === 'mood' ? selectedMood === level : selectedEnergy === level;
+                  const colors = hourMetric === 'mood' ? MOOD_COLORS : ENERGY_COLORS;
+                  const emoji = hourMetric === 'mood' ? MOOD_EMOJI : ENERGY_EMOJI;
+                  const labelKey =
+                    hourMetric === 'mood' ? MOOD_LABEL_KEYS[level] : ENERGY_LABEL_KEYS[level];
                   return (
                     <button
                       key={level}
                       type="button"
-                      onClick={() => pickMoodAndSave(active ? null : level)}
+                      onClick={() => {
+                        if (hourMetric === 'mood') {
+                          pickMoodAndSave(active ? null : level);
+                        } else {
+                          pickEnergyAndSave(active ? null : level);
+                        }
+                      }}
                       className={cn(
                         'flex min-w-[4.5rem] flex-1 flex-col items-center gap-0.5 rounded-xl border px-2 py-2 text-center transition-transform hover:scale-[1.02]',
                         active ? 'border-2' : 'border-border'
                       )}
                       style={{
-                        borderColor: active ? MOOD_COLORS[level] : undefined,
-                        backgroundColor: active ? `${MOOD_COLORS[level]}22` : undefined,
-                        boxShadow: active ? `0 0 0 2px ${MOOD_COLORS[level]}44` : undefined,
+                        borderColor: active ? colors[level] : undefined,
+                        backgroundColor: active ? `${colors[level]}22` : undefined,
+                        boxShadow: active ? `0 0 0 2px ${colors[level]}44` : undefined,
                       }}
                     >
-                      <span className="text-lg">{MOOD_EMOJI[level]}</span>
+                      <span className="text-lg">{emoji[level]}</span>
                       <span className="text-[10px] font-medium text-text-primary">
-                        {t(MOOD_LABEL_KEYS[level])}
+                        {t(labelKey)}
                       </span>
                     </button>
                   );
                 })}
               </div>
-              {selectedMood !== null && (
+              {((hourMetric === 'mood' && selectedMood !== null) ||
+                (hourMetric === 'energy' && selectedEnergy !== null)) && (
                 <label className="mt-3 block space-y-1">
                   <span className="text-[11px] text-text-muted">{t('mood_hour_note')}</span>
                   <input
@@ -341,11 +505,7 @@ export function ReflectionsPage() {
                     value={hourNote}
                     maxLength={200}
                     onChange={e => applyHourNote(e.target.value)}
-                    onBlur={() => {
-                      if (selectedMood !== null) {
-                        void saveMoodNow(setHourMood(draft, selectedHour, selectedMood, hourNote));
-                      }
-                    }}
+                    onBlur={() => commitHourNote()}
                     placeholder={t('mood_hour_note_placeholder')}
                     className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-ring"
                   />
@@ -354,7 +514,7 @@ export function ReflectionsPage() {
             </div>
           </section>
 
-          {/* Reflexión diaria */}
+          {/* Reflexión */}
           <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
             <div className="mb-3 flex items-center gap-2">
               <PenLine className="h-4 w-4 text-accent-teal" />

@@ -133,8 +133,9 @@ export interface UserSettings {
   dailyJournal: DailyJournalEntry[];
 }
 
-/** 1 = muy mal … 5 = excelente */
+/** 1 = muy bajo … 5 = excelente (ánimo o energía). */
 export type MoodLevel = 1 | 2 | 3 | 4 | 5;
+export type EnergyLevel = MoodLevel;
 
 export interface HourlyMoodEntry {
   /** Hora local 0–23 */
@@ -144,13 +145,27 @@ export interface HourlyMoodEntry {
   note: string;
 }
 
-/** Un día del diario de ánimo / reflexión. */
+export interface HourlyEnergyEntry {
+  /** Hora local 0–23 */
+  hour: number;
+  energy: EnergyLevel;
+  note: string;
+}
+
+/** Un día del diario de ánimo / energía / sueño / reflexión. */
 export interface DailyJournalEntry {
   /** YYYY-MM-DD */
   dayId: string;
   reflection: string;
   gratitude: string;
   moods: HourlyMoodEntry[];
+  /** Nivel de energía por hora (categoría aparte del ánimo). */
+  energies: HourlyEnergyEntry[];
+  /**
+   * Horas de sueño aproximadas del día (0–24).
+   * null = no registrado.
+   */
+  sleepHours: number | null;
   updatedAt: string;
 }
 

@@ -113,6 +113,44 @@ export interface TranslationDict {
   reflections_save_error: string;
   reflections_unsaved: string;
   reflections_synced: string;
+  metric_mood: string;
+  metric_energy: string;
+  energy_hourly_title: string;
+  energy_hourly_hint: string;
+  energy_pick_for_hour: string;
+  energy_day_avg: string;
+  energy_level_1: string;
+  energy_level_2: string;
+  energy_level_3: string;
+  energy_level_4: string;
+  energy_level_5: string;
+  sleep_title: string;
+  sleep_hint: string;
+  sleep_hours_label: string;
+  sleep_not_set: string;
+  sleep_recorded: string;
+  wellbeing_panel_title: string;
+  wellbeing_panel_subtitle: string;
+  wellbeing_open_journal: string;
+  wellbeing_kpi_mood: string;
+  wellbeing_kpi_energy: string;
+  wellbeing_kpi_sleep: string;
+  wellbeing_days_short: string;
+  wellbeing_chart_mood: string;
+  wellbeing_chart_energy: string;
+  wellbeing_chart_sleep: string;
+  wellbeing_messages_title: string;
+  wellbeing_start_logging: string;
+  wellbeing_msg_no_data: string;
+  wellbeing_msg_great_mood: string;
+  wellbeing_msg_mood_up: string;
+  wellbeing_msg_mood_down: string;
+  wellbeing_msg_energy_low: string;
+  wellbeing_msg_energy_high: string;
+  wellbeing_msg_sleep_low: string;
+  wellbeing_msg_sleep_good: string;
+  wellbeing_msg_balanced: string;
+  wellbeing_msg_keep_logging: string;
 
   settings_birth_date: string;
   settings_birth_date_desc: string;
@@ -500,7 +538,7 @@ const es_dict: TranslationDict = {
 
   reflections_title: 'Reflexiones diarias',
   reflections_subtitle:
-    'Registra tu estado de ánimo hora a hora y cierra el día con una reflexión y gratitud.',
+    'Ánimo y energía por hora, sueño del día, y cierra con reflexión y gratitud.',
   reflections_prev_day: 'Día anterior',
   reflections_next_day: 'Día siguiente',
   reflections_go_today: 'Ir a hoy',
@@ -526,6 +564,56 @@ const es_dict: TranslationDict = {
   reflections_save_error: 'No se pudo guardar el diario.',
   reflections_unsaved: 'Hay cambios sin guardar.',
   reflections_synced: 'Guardado.',
+  metric_mood: 'Ánimo',
+  metric_energy: 'Energía',
+  energy_hourly_title: 'Nivel de energía por hora',
+  energy_hourly_hint:
+    'Registra tu energía (aparte del ánimo). Toca una hora y el nivel; otra vez el mismo para borrar.',
+  energy_pick_for_hour: 'Energía a las {hour}',
+  energy_day_avg: 'Energía media',
+  energy_level_1: 'Agotado',
+  energy_level_2: 'Bajo',
+  energy_level_3: 'Estable',
+  energy_level_4: 'Alto',
+  energy_level_5: 'Pleno',
+  sleep_title: 'Sueño del día',
+  sleep_hint: 'Horas aproximadas que dormiste (la noche anterior a este día).',
+  sleep_hours_label: 'Horas',
+  sleep_not_set: 'Sin registrar',
+  sleep_recorded: '{h} h de sueño',
+  wellbeing_panel_title: 'Bienestar (semana)',
+  wellbeing_panel_subtitle:
+    'Resumen de ánimo, energía y sueño de los últimos 7 días, con mensajes de apoyo.',
+  wellbeing_open_journal: 'Diario',
+  wellbeing_kpi_mood: 'Ánimo',
+  wellbeing_kpi_energy: 'Energía',
+  wellbeing_kpi_sleep: 'Sueño',
+  wellbeing_days_short: 'días',
+  wellbeing_chart_mood: 'Ánimo / día',
+  wellbeing_chart_energy: 'Energía / día',
+  wellbeing_chart_sleep: 'Sueño / día',
+  wellbeing_messages_title: 'Mensajes para ti',
+  wellbeing_start_logging: 'Empezar a registrar en Reflexiones',
+  wellbeing_msg_no_data:
+    'Aún no hay datos de bienestar esta semana. Un minuto al día en Reflexiones basta para ver patrones.',
+  wellbeing_msg_great_mood:
+    'Tu ánimo de la semana es muy sólido. Celebra lo que está funcionando y cuídalo con la misma constancia.',
+  wellbeing_msg_mood_up:
+    'Tu ánimo va al alza. Sigue con lo que te sostiene: ritmo, descanso y pequeñas victorias.',
+  wellbeing_msg_mood_down:
+    'Esta semana el ánimo ha pesado más. No hace falta forzar la sonrisa: sé amable contigo y pide apoyo si lo necesitas.',
+  wellbeing_msg_energy_low:
+    'Tu energía está baja. Prioriza sueño, comida real y menos fricción: menos es más cuando el cuerpo pide recarga.',
+  wellbeing_msg_energy_high:
+    'Vienes con buena energía. Canalízala en lo importante y deja margen para no quemarte.',
+  wellbeing_msg_sleep_low:
+    'Estás durmiendo poco. Proteger el sueño es la palanca más barata para ánimo y energía.',
+  wellbeing_msg_sleep_good:
+    'Tu sueño ronda un rango saludable. Eso es base de todo lo demás: sigue cuidándolo.',
+  wellbeing_msg_balanced:
+    'Semana equilibrada. Sigue registrando: los datos te ayudan a ajustar sin juicio.',
+  wellbeing_msg_keep_logging:
+    'Cuantos más días registres, más útil será el resumen. No busques perfección: solo honestidad.',
 
   settings_birth_date: 'Fecha de nacimiento',
   settings_birth_date_desc:
@@ -923,7 +1011,7 @@ const en_dict: TranslationDict = {
 
   reflections_title: 'Daily reflections',
   reflections_subtitle:
-    'Log your mood hour by hour and close the day with a reflection and gratitude.',
+    'Mood and energy by hour, sleep for the day, then close with reflection and gratitude.',
   reflections_prev_day: 'Previous day',
   reflections_next_day: 'Next day',
   reflections_go_today: 'Go to today',
@@ -949,6 +1037,56 @@ const en_dict: TranslationDict = {
   reflections_save_error: 'Could not save the journal.',
   reflections_unsaved: 'Unsaved changes.',
   reflections_synced: 'Saved.',
+  metric_mood: 'Mood',
+  metric_energy: 'Energy',
+  energy_hourly_title: 'Energy level by hour',
+  energy_hourly_hint:
+    'Log energy separately from mood. Tap an hour and a level; tap again to clear.',
+  energy_pick_for_hour: 'Energy at {hour}',
+  energy_day_avg: 'Avg energy',
+  energy_level_1: 'Drained',
+  energy_level_2: 'Low',
+  energy_level_3: 'Steady',
+  energy_level_4: 'High',
+  energy_level_5: 'Full',
+  sleep_title: 'Sleep for the day',
+  sleep_hint: 'Approx. hours you slept (the night before this day).',
+  sleep_hours_label: 'Hours',
+  sleep_not_set: 'Not set',
+  sleep_recorded: '{h} h of sleep',
+  wellbeing_panel_title: 'Wellbeing (week)',
+  wellbeing_panel_subtitle:
+    'Mood, energy and sleep for the last 7 days, plus supportive messages.',
+  wellbeing_open_journal: 'Journal',
+  wellbeing_kpi_mood: 'Mood',
+  wellbeing_kpi_energy: 'Energy',
+  wellbeing_kpi_sleep: 'Sleep',
+  wellbeing_days_short: 'days',
+  wellbeing_chart_mood: 'Mood / day',
+  wellbeing_chart_energy: 'Energy / day',
+  wellbeing_chart_sleep: 'Sleep / day',
+  wellbeing_messages_title: 'Messages for you',
+  wellbeing_start_logging: 'Start logging in Reflections',
+  wellbeing_msg_no_data:
+    'No wellbeing data this week yet. A minute a day in Reflections is enough to see patterns.',
+  wellbeing_msg_great_mood:
+    'Your mood this week is strong. Celebrate what works and protect it with the same care.',
+  wellbeing_msg_mood_up:
+    'Mood is trending up. Keep what supports you: rhythm, rest and small wins.',
+  wellbeing_msg_mood_down:
+    'Mood has been heavier. You don’t need to force a smile — be kind to yourself and ask for support if you need it.',
+  wellbeing_msg_energy_low:
+    'Energy is low. Prioritize sleep, real food and less friction — less is more when your body needs recharge.',
+  wellbeing_msg_energy_high:
+    'Energy looks solid. Channel it into what matters and leave room so you don’t burn out.',
+  wellbeing_msg_sleep_low:
+    'You’re sleeping little. Protecting sleep is the cheapest lever for mood and energy.',
+  wellbeing_msg_sleep_good:
+    'Sleep is in a healthy range. That’s the foundation for everything else — keep guarding it.',
+  wellbeing_msg_balanced:
+    'A balanced week. Keep logging: the data helps you adjust without judgment.',
+  wellbeing_msg_keep_logging:
+    'The more days you log, the more useful the summary. Skip perfection — honesty is enough.',
 
   settings_birth_date: 'Birth date',
   settings_birth_date_desc:
