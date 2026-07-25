@@ -271,39 +271,30 @@ function TaskDetailInner({
     );
   }
 
-  const project = projects.find(p => p.id === task.projectId);
+  const project = projects.find(p => p.id === (draft.projectId ?? task.projectId));
   const dirty = isDirty(draft, task, dayId);
   const planDirty = isRxKind(task.kind) && isPlanDirty(draft, task);
   const isSeries = Boolean(task.seriesId);
+  /** El recetario no se convierte (plan de fases). */
   const isRx = isRxKind(task.kind);
-  const isPossible = task.kind === 'possible_event';
-  const isEvent = task.kind === 'event';
-  const isEventLike = isPossible || isEvent;
-  // Capture for nested async (TS no narrows after early return inside closures).
-  const currentTask = task;
-  const currentDraft = draft;
+  /**
+   * Tipo del borrador: al alternar en UI se muestran/ocultan bloques,
+   * pero los valores del draft no se borran hasta Guardar.
+   */
+  const draftKind = draft.kind;
+  const draftIsPossible = draftKind === 'possible_event';
+  const draftIsEvent = draftKind === 'event';
+  const draftIsEventLike = draftIsPossible || draftIsEvent;
+  const draftIsProjectKind = draftKind === 'task' || draftKind === 'reminder';
 
-  async function confirmAsRealEvent() {
-    if (currentTask.kind !== 'possible_event') return;
-    setSaving(true);
-    try {
-      await editTask(currentTask.id, {
-        kind: 'event',
-        color: currentDraft.color ?? currentTask.color ?? '#58a6ff',
-        projectId: null,
-        urgency: null,
-        importance: null,
-        involvedContactIds: currentDraft.involvedContactIds,
-        location: currentDraft.location.trim() || null,
-        departureTime: normalizeTimeInput(currentDraft.departureTime),
-      });
-      showToast(t('task_confirm_event_done'), 'success');
-    } catch {
-      showToast(t('task_save_error'), 'error');
-    } finally {
-      setSaving(false);
-    }
-  }
+  /** Kinds intercambiables en el menú de edición (no incluye rx). */
+  const CONVERTIBLE_KINDS: Array<{ value: TaskKind; label: string }> = [
+    { value: 'task', label: t('task_kind_task') },
+    { value: 'reminder', label: t('task_kind_reminder') },
+    { value: 'event', label: t('task_kind_event') },
+    { value: 'possible_event', label: t('task_kind_possible_event') },
+  ];
+
   const rxPlanStart = task.rx?.planStartDayId || dayId;
   const rxPlanDays = isRx ? totalRxPlanDays(draft.rxPhases) : 0;
   const rxPlanEnd = isRx ? rxPlanEndDayId(rxPlanStart, draft.rxPhases) : '';
@@ -461,6 +452,10 @@ function TaskDetailInner({
           );
         }
       } else {
+        const saveKind = draft.kind;
+        const saveEventLike =
+          saveKind === 'event' || saveKind === 'possible_event';
+        const saveIsEvent = saveKind === 'event';
         const tags = mergeTags(
           draft.tags,
           extractHashtags(title),
@@ -469,26 +464,36 @@ function TaskDetailInner({
         );
         const startN = normalizeTimeInput(draft.startTime);
         const endN = normalizeTimeInput(draft.endTime);
+        const depN = normalizeTimeInput(draft.departureTime);
         if (startN && endN && endN < startN) {
           showToast(t('task_time_range_error'), 'error');
           return;
         }
+        // Solo al guardar se materializa el tipo elegido y se anulan campos
+        // que no aplican (proyecto en eventos, etc.). El draft los conservaba.
         await editTask(task.id, {
           title,
           notes: draft.notes,
           tags,
-          kind: draft.kind,
+          kind: saveKind,
           priority: draft.priority,
-          urgency: isEventLike ? null : draft.urgency,
-          importance: isEventLike ? null : draft.importance,
-          color: draft.color,
-          projectId: isEventLike ? null : draft.projectId,
+          urgency: saveEventLike ? null : draft.urgency,
+          importance: saveEventLike ? null : draft.importance,
+          color:
+            draft.color ??
+            (saveIsEvent
+              ? '#58a6ff'
+              : saveKind === 'possible_event'
+                ? '#a371f7'
+                : null),
+          projectId: saveEventLike ? null : draft.projectId,
           endDayId: draft.endDayId,
-          involvedContactIds: isEventLike ? draft.involvedContactIds : [],
-          location: isEvent ? draft.location.trim() || null : null,
-          departureTime: isEvent
-            ? normalizeTimeInput(draft.departureTime)
-            : null,
+          involvedContactIds: saveEventLike ? draft.involvedContactIds : [],
+          location:
+            saveIsEvent || saveKind === 'possible_event'
+              ? draft.location.trim() || null
+              : null,
+          departureTime: saveIsEvent ? depN : null,
           startTime: startN,
           endTime: endN,
           applyTo: isSeries ? applyTo : 'instance',
@@ -633,24 +638,36 @@ function TaskDetailInner({
           </p>
         )}
 
-        {isPossible && (
-          <div className="mb-3 rounded-lg border border-fuchsia-500/30 bg-fuchsia-500/10 px-3 py-2">
-            <p className="mb-2 text-[11px] text-text-muted">
-              {t('board_category_possible_hint')}
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 w-full gap-1.5 text-xs"
-              disabled={saving}
-              onClick={() => void confirmAsRealEvent()}
-            >
-              {t('task_ctx_confirm_event')}
-            </Button>
-          </div>
+        {/* Tipo (tarea / recordatorio / evento / posible) — solo no-recetario */}
+        {!isRx && (
+          <Field label={t('task_kind_convert')}>
+            <p className="mb-1.5 text-[10px] text-text-muted">{t('task_kind_convert_hint')}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {CONVERTIBLE_KINDS.map(k => (
+                <button
+                  key={k.value}
+                  type="button"
+                  onClick={() => patchDraft({ kind: k.value })}
+                  className={cn(
+                    'rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
+                    draft.kind === k.value
+                      ? k.value === 'event'
+                        ? 'border-sky-500/40 bg-sky-500/15 text-sky-200'
+                        : k.value === 'possible_event'
+                          ? 'border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-200'
+                          : 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
+                      : 'border-border text-text-muted hover:text-text-primary'
+                  )}
+                >
+                  {k.label}
+                </button>
+              ))}
+            </div>
+          </Field>
         )}
 
-        {(isEvent || isPossible) && (
+        {/* Campos de evento (visibles según borrador; no se vacían al cambiar de tipo) */}
+        {!isRx && draftIsEventLike && (
           <>
             <Field label={t('task_event_location')}>
               <Input
@@ -669,57 +686,58 @@ function TaskDetailInner({
                 clearLabel={t('task_clear_time')}
               />
               <p className="mt-1 text-[10px] text-text-muted">
-                {t('task_event_departure_hint')}
+                {draftIsEvent
+                  ? t('task_event_departure_hint')
+                  : t('task_event_departure_draft_hint')}
               </p>
             </Field>
-          </>
-        )}
-
-        {isEventLike && (
-          <Field label={t('task_involved_contacts')}>
-            <p className="mb-1.5 text-[10px] text-text-muted">{t('task_involved_contacts_hint')}</p>
-            {contacts.length === 0 ? (
-              <p className="text-[11px] text-text-muted">{t('circle_empty')}</p>
-            ) : (
-              <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border bg-background p-1.5">
-                {contacts.map(c => {
-                  const active = draft.involvedContactIds.includes(c.id);
-                  return (
-                    <label
-                      key={c.id}
-                      className={cn(
-                        'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs',
-                        active
-                          ? isEvent
-                            ? 'bg-sky-500/15'
-                            : 'bg-fuchsia-500/15'
-                          : 'hover:bg-surface'
-                      )}
-                    >
-                      <input
-                        type="checkbox"
+            <Field label={t('task_involved_contacts')}>
+              <p className="mb-1.5 text-[10px] text-text-muted">
+                {t('task_involved_contacts_hint')}
+              </p>
+              {contacts.length === 0 ? (
+                <p className="text-[11px] text-text-muted">{t('circle_empty')}</p>
+              ) : (
+                <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border bg-background p-1.5">
+                  {contacts.map(c => {
+                    const active = draft.involvedContactIds.includes(c.id);
+                    return (
+                      <label
+                        key={c.id}
                         className={cn(
-                          'h-3.5 w-3.5',
-                          isEvent ? 'accent-sky-500' : 'accent-fuchsia-500'
+                          'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs',
+                          active
+                            ? draftIsEvent
+                              ? 'bg-sky-500/15'
+                              : 'bg-fuchsia-500/15'
+                            : 'hover:bg-surface'
                         )}
-                        checked={active}
-                        onChange={() => {
-                          patchDraft({
-                            involvedContactIds: active
-                              ? draft.involvedContactIds.filter(id => id !== c.id)
-                              : [...draft.involvedContactIds, c.id],
-                          });
-                        }}
-                      />
-                      <span className="min-w-0 flex-1 truncate">
-                        {c.kind === 'pet' ? '🐾' : '👤'} {c.name}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </Field>
+                      >
+                        <input
+                          type="checkbox"
+                          className={cn(
+                            'h-3.5 w-3.5',
+                            draftIsEvent ? 'accent-sky-500' : 'accent-fuchsia-500'
+                          )}
+                          checked={active}
+                          onChange={() => {
+                            patchDraft({
+                              involvedContactIds: active
+                                ? draft.involvedContactIds.filter(id => id !== c.id)
+                                : [...draft.involvedContactIds, c.id],
+                            });
+                          }}
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {c.kind === 'pet' ? '🐾' : '👤'} {c.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </Field>
+          </>
         )}
 
         {/* Recetario: tipo fijo + sujeto + dosis de esta toma + plan de fases */}
@@ -1107,29 +1125,10 @@ function TaskDetailInner({
               </div>
             </Field>
 
-            <Field label={`${t('task_kind_task')} / ${t('task_kind_reminder')}`}>
-              <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-                {(['task', 'reminder'] as const).map(k => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => patchDraft({ kind: k })}
-                    className={cn(
-                      'rounded px-3 py-1 text-xs font-medium transition-colors',
-                      draft.kind === k
-                        ? 'bg-accent-teal/15 text-accent-teal'
-                        : 'text-text-muted hover:text-text-primary'
-                    )}
-                  >
-                    {k === 'task' ? t('task_kind_task') : t('task_kind_reminder')}
-                  </button>
-                ))}
-              </div>
-            </Field>
           </>
         )}
 
-        {!isRx && (
+        {!isRx && draftIsProjectKind && (
           <>
             <Field label={t('task_priority_label')}>
               <div className="inline-flex rounded-md border border-border bg-background p-0.5">
@@ -1233,7 +1232,7 @@ function TaskDetailInner({
           </div>
         </Field>
 
-        {!isRx && (
+        {!isRx && draftIsProjectKind && (
           <Field label={t('task_project_label')}>
             <select
               value={draft.projectId ?? ''}

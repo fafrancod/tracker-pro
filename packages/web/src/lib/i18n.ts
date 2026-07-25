@@ -246,6 +246,9 @@ export interface TranslationDict {
   task_ctx_delete: string;
   task_ctx_confirm_event: string;
   task_confirm_event_done: string;
+  task_kind_convert: string;
+  task_kind_convert_hint: string;
+  task_event_departure_draft_hint: string;
 
   // Tarea
   task_title_placeholder: string;
@@ -802,6 +805,11 @@ const es_dict: TranslationDict = {
   task_ctx_delete: 'Eliminar',
   task_ctx_confirm_event: 'Convertir en evento real',
   task_confirm_event_done: 'Ahora es un evento confirmado.',
+  task_kind_convert: 'Tipo de entrada',
+  task_kind_convert_hint:
+    'Puedes cambiar entre tarea, recordatorio, evento y evento posible. Los campos que no aplican se ocultan pero se conservan hasta que pulses Guardar.',
+  task_event_departure_draft_hint:
+    'La salida prevista se usa al guardar como evento real. Si dejas «evento posible», no se aplica a notificaciones.',
 
   task_title_placeholder: '¿Qué quieres hacer?',
   task_title_label: 'Título',
@@ -1385,6 +1393,11 @@ const en_dict: TranslationDict = {
   task_ctx_delete: 'Delete',
   task_ctx_confirm_event: 'Convert to real event',
   task_confirm_event_done: 'Now it’s a confirmed event.',
+  task_kind_convert: 'Entry type',
+  task_kind_convert_hint:
+    'Switch between task, reminder, event and possible event. Fields that don’t apply are hidden but kept until you Save.',
+  task_event_departure_draft_hint:
+    'Planned departure applies when saved as a real event. As a possible event it is not used for notifications.',
 
   task_title_placeholder: 'What do you want to do?',
   task_title_label: 'Title',
