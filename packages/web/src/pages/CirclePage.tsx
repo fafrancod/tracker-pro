@@ -22,6 +22,7 @@ import {
   RELATION_PULSES,
   type ContactFormValue,
 } from '@/components/Circle/ContactFormDialog';
+import { TaskDetailSheet } from '@/components/Board';
 import type { Contact, ContactKind, RelationPulse, Task } from '@core/types';
 import { ApiClientError } from '@core/lib/api';
 import { cn } from '@/lib/utils';
@@ -412,6 +413,8 @@ export function CirclePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <TaskDetailSheet />
     </Layout>
   );
 }
