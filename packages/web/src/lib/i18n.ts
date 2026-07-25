@@ -130,6 +130,31 @@ export interface TranslationDict {
   energy_level_3: string;
   energy_level_4: string;
   energy_level_5: string;
+  energy_feel_title: string;
+  energy_feel_hint: string;
+  energy_feel_tense: string;
+  energy_feel_relaxed: string;
+  energy_feel_vigorous: string;
+  reflections_tab_day: string;
+  reflections_tab_life: string;
+  life_journal_title: string;
+  life_journal_subtitle: string;
+  life_journal_period_week: string;
+  life_journal_period_month: string;
+  life_journal_period_quarter: string;
+  life_journal_mood_evolution: string;
+  life_journal_energy_evolution: string;
+  life_journal_entries: string;
+  life_journal_empty: string;
+  life_journal_no_text: string;
+  life_journal_open_day: string;
+  life_journal_avg_mood: string;
+  life_journal_avg_energy: string;
+  life_journal_days_logged: string;
+  life_journal_trend_up: string;
+  life_journal_trend_down: string;
+  life_journal_trend_flat: string;
+  life_journal_trend_unknown: string;
   sleep_title: string;
   sleep_hint: string;
   sleep_hours_label: string;
@@ -695,7 +720,7 @@ const es_dict: TranslationDict = {
 
   reflections_title: 'Reflexiones diarias',
   reflections_subtitle:
-    'Ánimo y energía por hora, sueño del día, y cierra con reflexión y gratitud.',
+    'Ánimo, energía y tono por hora; sueño, reflexión y gratitud del día. El diario de vida muestra tu evolución.',
   reflections_prev_day: 'Día anterior',
   reflections_next_day: 'Día siguiente',
   reflections_go_today: 'Ir a hoy',
@@ -707,7 +732,7 @@ const es_dict: TranslationDict = {
     'Sueño, resumen de la semana, reflexión y gratitud: lo que resume la jornada entera.',
   reflections_section_hourly: 'Por hora',
   reflections_section_hourly_hint:
-    'Ánimo y energía a la vez en cada franja. Toca una hora y registra ambos niveles.',
+    'Ánimo, energía y tono (tenso / relajado / vigoroso) en cada franja. Toca una hora y registra cómo estás.',
   mood_hourly_title: 'Estado de ánimo por hora',
   mood_hourly_hint: 'Toca una hora y elige cómo te sientes. Vuelve a pulsar el mismo nivel para borrar.',
   mood_pick_for_hour: 'Ánimo a las {hour}',
@@ -741,6 +766,34 @@ const es_dict: TranslationDict = {
   energy_level_3: 'Estable',
   energy_level_4: 'Alto',
   energy_level_5: 'Pleno',
+  energy_feel_title: 'Cómo se siente',
+  energy_feel_hint:
+    'Complemento al nivel: puedes tener energía alta y estar tenso, o baja y relajado.',
+  energy_feel_tense: 'Tenso',
+  energy_feel_relaxed: 'Relajado',
+  energy_feel_vigorous: 'Vigoroso',
+  reflections_tab_day: 'Día',
+  reflections_tab_life: 'Diario de vida',
+  life_journal_title: 'Diario de vida',
+  life_journal_subtitle:
+    'Reflexiones, gratitudes y evolución del ánimo en la semana, el mes o los últimos 3 meses.',
+  life_journal_period_week: 'Semana',
+  life_journal_period_month: 'Mes',
+  life_journal_period_quarter: '3 meses',
+  life_journal_mood_evolution: 'Evolución del ánimo',
+  life_journal_energy_evolution: 'Evolución de la energía',
+  life_journal_entries: 'Reflexiones y gratitudes',
+  life_journal_empty:
+    'Aún no hay entradas en este periodo. Escribe una reflexión o gratitud en la pestaña Día.',
+  life_journal_no_text: 'Sin texto ese día',
+  life_journal_open_day: 'Abrir día',
+  life_journal_avg_mood: 'Ánimo medio',
+  life_journal_avg_energy: 'Energía media',
+  life_journal_days_logged: 'días con datos',
+  life_journal_trend_up: 'Al alza',
+  life_journal_trend_down: 'A la baja',
+  life_journal_trend_flat: 'Estable',
+  life_journal_trend_unknown: 'Sin tendencia aún',
   sleep_title: 'Sueño del día',
   sleep_hint: 'Horas aproximadas que dormiste (la noche anterior a este día).',
   sleep_hours_label: 'Horas',
@@ -1338,7 +1391,7 @@ const en_dict: TranslationDict = {
 
   reflections_title: 'Daily reflections',
   reflections_subtitle:
-    'Mood and energy by hour, sleep for the day, then close with reflection and gratitude.',
+    'Mood, energy and body feel by hour; sleep, reflection and gratitude for the day. Life journal shows your evolution.',
   reflections_prev_day: 'Previous day',
   reflections_next_day: 'Next day',
   reflections_go_today: 'Go to today',
@@ -1350,7 +1403,7 @@ const en_dict: TranslationDict = {
     'Sleep, week summary, reflection and gratitude — what covers the whole day.',
   reflections_section_hourly: 'By hour',
   reflections_section_hourly_hint:
-    'Mood and energy together for each slot. Tap an hour and set both levels.',
+    'Mood, energy level and feel (tense / relaxed / vigorous) per hour. Tap a slot and log how you are.',
   mood_hourly_title: 'Mood by hour',
   mood_hourly_hint: 'Tap an hour and pick how you feel. Tap the same level again to clear.',
   mood_pick_for_hour: 'Mood at {hour}',
@@ -1384,6 +1437,34 @@ const en_dict: TranslationDict = {
   energy_level_3: 'Steady',
   energy_level_4: 'High',
   energy_level_5: 'Full',
+  energy_feel_title: 'How it feels',
+  energy_feel_hint:
+    'Complements the level: you can have high energy and feel tense, or low energy and feel relaxed.',
+  energy_feel_tense: 'Tense',
+  energy_feel_relaxed: 'Relaxed',
+  energy_feel_vigorous: 'Vigorous',
+  reflections_tab_day: 'Day',
+  reflections_tab_life: 'Life journal',
+  life_journal_title: 'Life journal',
+  life_journal_subtitle:
+    'Reflections, gratitudes and mood evolution over the week, month or last 3 months.',
+  life_journal_period_week: 'Week',
+  life_journal_period_month: 'Month',
+  life_journal_period_quarter: '3 months',
+  life_journal_mood_evolution: 'Mood evolution',
+  life_journal_energy_evolution: 'Energy evolution',
+  life_journal_entries: 'Reflections and gratitudes',
+  life_journal_empty:
+    'No entries in this period yet. Write a reflection or gratitude in the Day tab.',
+  life_journal_no_text: 'No text that day',
+  life_journal_open_day: 'Open day',
+  life_journal_avg_mood: 'Avg mood',
+  life_journal_avg_energy: 'Avg energy',
+  life_journal_days_logged: 'days with data',
+  life_journal_trend_up: 'Trending up',
+  life_journal_trend_down: 'Trending down',
+  life_journal_trend_flat: 'Steady',
+  life_journal_trend_unknown: 'No trend yet',
   sleep_title: 'Sleep for the day',
   sleep_hint: 'Approx. hours you slept (the night before this day).',
   sleep_hours_label: 'Hours',

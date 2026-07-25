@@ -182,6 +182,12 @@ export interface UserSettings {
 export type MoodLevel = 1 | 2 | 3 | 4 | 5;
 export type EnergyLevel = MoodLevel;
 
+/**
+ * Calidad / tono corporal de la energía (complemento al nivel 1–5).
+ * Ejemplo: energía alta + tenso, o energía baja + relajado.
+ */
+export type EnergyFeel = 'tense' | 'relaxed' | 'vigorous';
+
 export interface HourlyMoodEntry {
   /** Hora local 0–23 */
   hour: number;
@@ -193,7 +199,15 @@ export interface HourlyMoodEntry {
 export interface HourlyEnergyEntry {
   /** Hora local 0–23 */
   hour: number;
-  energy: EnergyLevel;
+  /**
+   * Nivel de energía (cantidad). null = solo se registró el tono (`feel`).
+   */
+  energy: EnergyLevel | null;
+  /**
+   * Tono corporal: tenso / relajado / vigoroso.
+   * Complemento independiente del nivel numérico.
+   */
+  feel: EnergyFeel | null;
   note: string;
 }
 

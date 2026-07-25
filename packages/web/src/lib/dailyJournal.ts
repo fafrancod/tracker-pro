@@ -1,5 +1,6 @@
 import type {
   DailyJournalEntry,
+  EnergyFeel,
   EnergyLevel,
   HourlyEnergyEntry,
   HourlyMoodEntry,
@@ -11,6 +12,8 @@ export const JOURNAL_RETENTION_DAYS = 90;
 export const SCALE_LEVELS: MoodLevel[] = [1, 2, 3, 4, 5];
 /** @deprecated use SCALE_LEVELS */
 export const MOOD_LEVELS = SCALE_LEVELS;
+
+export const ENERGY_FEELS: EnergyFeel[] = ['tense', 'relaxed', 'vigorous'];
 
 /** Colores de ánimo. */
 export const MOOD_COLORS: Record<MoodLevel, string> = {
@@ -30,11 +33,22 @@ export const ENERGY_COLORS: Record<EnergyLevel, string> = {
   5: '#ffa657',
 };
 
+/** Colores del tono corporal de la energía. */
+export const ENERGY_FEEL_COLORS: Record<EnergyFeel, string> = {
+  tense: '#e3b341',
+  relaxed: '#3fb950',
+  vigorous: '#f78166',
+};
+
 export function isMoodLevel(n: unknown): n is MoodLevel {
   return n === 1 || n === 2 || n === 3 || n === 4 || n === 5;
 }
 
 export const isEnergyLevel = isMoodLevel;
+
+export function isEnergyFeel(v: unknown): v is EnergyFeel {
+  return v === 'tense' || v === 'relaxed' || v === 'vigorous';
+}
 
 export function emptyDayEntry(dayId: string): DailyJournalEntry {
   return {
@@ -111,27 +125,63 @@ export function setHourMood(
   };
 }
 
+function patchHourEnergy(
+  entry: DailyJournalEntry,
+  hour: number,
+  patch: {
+    energy?: EnergyLevel | null;
+    feel?: EnergyFeel | null;
+    note?: string;
+  }
+): DailyJournalEntry {
+  const e = normalizeJournalEntry(entry);
+  const prev = e.energies.find(m => m.hour === hour) ?? null;
+  const nextEnergy = patch.energy !== undefined ? patch.energy : (prev?.energy ?? null);
+  const nextFeel = patch.feel !== undefined ? patch.feel : (prev?.feel ?? null);
+  const nextNote = (
+    patch.note !== undefined
+      ? patch.note
+      : (prev?.note ?? '')
+  ).slice(0, 200);
+
+  const energies = e.energies.filter(m => m.hour !== hour);
+  if (nextEnergy !== null || nextFeel !== null) {
+    energies.push({
+      hour,
+      energy: nextEnergy,
+      feel: nextFeel,
+      note: nextNote,
+    });
+    energies.sort((a, b) => a.hour - b.hour);
+  }
+
+  return {
+    ...e,
+    energies,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/** Actualiza el nivel numérico de energía (1–5). null lo borra; conserva el tono si existe. */
 export function setHourEnergy(
   entry: DailyJournalEntry,
   hour: number,
   energy: EnergyLevel | null,
   note?: string
 ): DailyJournalEntry {
-  const e = normalizeJournalEntry(entry);
-  const energies = e.energies.filter(m => m.hour !== hour);
-  if (energy !== null) {
-    energies.push({
-      hour,
-      energy,
-      note: (note ?? e.energies.find(m => m.hour === hour)?.note ?? '').slice(0, 200),
-    });
-    energies.sort((a, b) => a.hour - b.hour);
-  }
-  return {
-    ...e,
-    energies,
-    updatedAt: new Date().toISOString(),
-  };
+  return patchHourEnergy(entry, hour, {
+    energy,
+    ...(note !== undefined ? { note } : {}),
+  });
+}
+
+/** Actualiza el tono corporal (tenso / relajado / vigoroso). null lo borra; conserva el nivel. */
+export function setHourEnergyFeel(
+  entry: DailyJournalEntry,
+  hour: number,
+  feel: EnergyFeel | null
+): DailyJournalEntry {
+  return patchHourEnergy(entry, hour, { feel });
 }
 
 export function setSleepHours(
@@ -159,12 +209,19 @@ function cleanMoods(moods: HourlyMoodEntry[]): HourlyMoodEntry[] {
 
 function cleanEnergies(energies: HourlyEnergyEntry[]): HourlyEnergyEntry[] {
   return (energies ?? [])
-    .filter(m => m.hour >= 0 && m.hour <= 23 && isEnergyLevel(m.energy))
-    .map(m => ({
-      hour: m.hour,
-      energy: m.energy,
-      note: (m.note ?? '').slice(0, 200),
-    }))
+    .filter(m => m.hour >= 0 && m.hour <= 23)
+    .map(m => {
+      // Legacy: solo había `energy` numérico; `feel` puede faltar.
+      const energy = isEnergyLevel(m.energy) ? m.energy : null;
+      const feel = isEnergyFeel(m.feel) ? m.feel : null;
+      return {
+        hour: m.hour,
+        energy,
+        feel,
+        note: (m.note ?? '').slice(0, 200),
+      };
+    })
+    .filter(m => m.energy !== null || m.feel !== null)
     .sort((a, b) => a.hour - b.hour);
 }
 
@@ -250,9 +307,30 @@ export function averageMood(entry: DailyJournalEntry): number | null {
 }
 
 export function averageEnergy(entry: DailyJournalEntry): number | null {
-  const energies = entry.energies ?? [];
-  if (!energies.length) return null;
-  return energies.reduce((a, m) => a + m.energy, 0) / energies.length;
+  const levels = (entry.energies ?? [])
+    .map(m => m.energy)
+    .filter((n): n is EnergyLevel => n !== null && n !== undefined && isEnergyLevel(n));
+  if (!levels.length) return null;
+  return levels.reduce((a, n) => a + n, 0) / levels.length;
+}
+
+/** Tono de energía más frecuente del día (empate → el más reciente por hora). */
+export function dominantEnergyFeel(entry: DailyJournalEntry): EnergyFeel | null {
+  const feels = (entry.energies ?? [])
+    .filter(m => isEnergyFeel(m.feel))
+    .map(m => m.feel as EnergyFeel);
+  if (!feels.length) return null;
+  const counts: Record<EnergyFeel, number> = { tense: 0, relaxed: 0, vigorous: 0 };
+  for (const f of feels) counts[f] += 1;
+  let best: EnergyFeel = feels[feels.length - 1];
+  let bestN = -1;
+  for (const f of ENERGY_FEELS) {
+    if (counts[f] >= bestN) {
+      bestN = counts[f];
+      best = f;
+    }
+  }
+  return bestN > 0 ? best : null;
 }
 
 export function recentDayIds(fromDayId: string, count: number): string[] {
@@ -270,6 +348,9 @@ export interface DayWellbeingStats {
   sleepHours: number | null;
   moodSamples: number;
   energySamples: number;
+  dominantFeel: EnergyFeel | null;
+  hasReflection: boolean;
+  hasGratitude: boolean;
 }
 
 export interface WeekWellbeingSummary {
@@ -282,6 +363,25 @@ export interface WeekWellbeingSummary {
   daysWithSleep: number;
   moodTrend: 'up' | 'down' | 'flat' | 'unknown';
   energyTrend: 'up' | 'down' | 'flat' | 'unknown';
+}
+
+/** Periodos del diario de vida (retención máxima = 90 días). */
+export type LifeJournalPeriod = 'week' | 'month' | 'quarter';
+
+export const LIFE_JOURNAL_PERIOD_DAYS: Record<LifeJournalPeriod, number> = {
+  week: 7,
+  month: 30,
+  quarter: 90,
+};
+
+export interface LifeJournalDayEntry {
+  dayId: string;
+  reflection: string;
+  gratitude: string;
+  avgMood: number | null;
+  avgEnergy: number | null;
+  dominantFeel: EnergyFeel | null;
+  sleepHours: number | null;
 }
 
 function mean(nums: number[]): number | null {
@@ -308,13 +408,19 @@ export function computeWeekWellbeing(
   const dayIds = recentDayIds(endDayId, dayCount);
   const days: DayWellbeingStats[] = dayIds.map(dayId => {
     const entry = getJournalEntry(journal, dayId);
+    const energySamples = (entry.energies ?? []).filter(
+      m => m.energy !== null && m.energy !== undefined && isEnergyLevel(m.energy)
+    ).length;
     return {
       dayId,
       avgMood: averageMood(entry),
       avgEnergy: averageEnergy(entry),
       sleepHours: entry.sleepHours,
       moodSamples: entry.moods?.length ?? 0,
-      energySamples: entry.energies?.length ?? 0,
+      energySamples,
+      dominantFeel: dominantEnergyFeel(entry),
+      hasReflection: Boolean(entry.reflection?.trim()),
+      hasGratitude: Boolean(entry.gratitude?.trim()),
     };
   });
 
@@ -333,6 +439,55 @@ export function computeWeekWellbeing(
     moodTrend: trendOf(moodVals),
     energyTrend: trendOf(energyVals),
   };
+}
+
+export function computePeriodWellbeing(
+  journal: DailyJournalEntry[] | null | undefined,
+  endDayId: string,
+  period: LifeJournalPeriod
+): WeekWellbeingSummary {
+  return computeWeekWellbeing(journal, endDayId, LIFE_JOURNAL_PERIOD_DAYS[period]);
+}
+
+/**
+ * Entradas del diario de vida con texto (reflexión o gratitud), más recientes primero.
+ * Incluye también días con solo métricas si `includeMetricsOnly` es true.
+ */
+export function listLifeJournalEntries(
+  journal: DailyJournalEntry[] | null | undefined,
+  endDayId: string,
+  period: LifeJournalPeriod,
+  opts?: { includeMetricsOnly?: boolean }
+): LifeJournalDayEntry[] {
+  const dayCount = LIFE_JOURNAL_PERIOD_DAYS[period];
+  const dayIds = recentDayIds(endDayId, dayCount);
+  const includeMetricsOnly = opts?.includeMetricsOnly ?? false;
+  const out: LifeJournalDayEntry[] = [];
+
+  for (const dayId of dayIds) {
+    const entry = getJournalEntry(journal, dayId);
+    const reflection = (entry.reflection ?? '').trim();
+    const gratitude = (entry.gratitude ?? '').trim();
+    const avgMood = averageMood(entry);
+    const avgEnergy = averageEnergy(entry);
+    const hasText = Boolean(reflection || gratitude);
+    const hasMetrics =
+      avgMood !== null || avgEnergy !== null || entry.sleepHours !== null;
+
+    if (!hasText && !(includeMetricsOnly && hasMetrics)) continue;
+
+    out.push({
+      dayId,
+      reflection,
+      gratitude,
+      avgMood,
+      avgEnergy,
+      dominantFeel: dominantEnergyFeel(entry),
+      sleepHours: entry.sleepHours,
+    });
+  }
+
+  return out.sort((a, b) => b.dayId.localeCompare(a.dayId));
 }
 
 export type EncouragementTone = 'celebrate' | 'support' | 'nudge' | 'rest' | 'neutral';
