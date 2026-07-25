@@ -1,7 +1,7 @@
 # Roadmap de optimización — tiempos de carga y mutaciones
 
 **Fecha (actualizado):** 2026-07-25  
-**Versión de producto de referencia:** **v2.7.5**  
+**Versión de producto de referencia:** **v2.7.9**  
 **Archivo:** `roadmap_optimization.md` (repo root)
 
 **Contexto original:** Al guardar o editar tareas, eventos, hábitos, recetarios, etc. la UI se siente lenta.  
@@ -245,19 +245,22 @@ create index if not exists tasks_user_kind_day_idx on public.tasks (user_id, kin
 
 ---
 
-### Fase 2 — Modelo lazy de series / hábitos (1–2 semanas)
+### Fase 2 — Modelo lazy de series / hábitos ✅ (v2.7.9)
 
-Hoy: materializar **N filas físicas** por ocurrencia.
+**Estado:** aplicada para `habit_good` / `habit_quit`.
 
-Propuesta:
+| # | Acción | Detalle |
+|---|--------|---------|
+| 2.1 | Create = 1 seed | API inserta solo el día de inicio; siempre `series_id`. |
+| 2.2 | `POST /api/tasks/habit-ensure` | Clona seed al día pedido (opcional `completed`). |
+| 2.3 | Virtuales en board | `collectTasksCovering` expande `vh:{seriesId}:{dayId}` si no hay fila física. |
+| 2.4 | Toggle / edit | `updateTask` + `taskHistory` materializan virtual → real antes del patch. |
+| 2.5 | Fetch seeds | `fetchTasksCoveringDay` / `fetchTasksInRange` traen hábitos con `series_id` hasta el tope del rango (presencia tras recarga). |
+| 2.6 | Demo | `materializeDemoCreate` y `demoFetch` también seed-only. |
 
-1. Serie canónica (reglas de recurrencia + steps plantilla + color).  
-2. Instancias **on demand** (ventana visible + al completar un día).  
-3. Completar hábito = upsert del día, no precrear 90 filas.
+**Migración:** hábitos **nuevos** lazy; series viejas ya materializadas se siguen leyendo (y no generan virtual en días con fila física).
 
-**Aplica a:** `habit_good`, `habit_quit`, y opcionalmente daily/weekly de tareas.
-
-**Migración:** hábitos nuevos lazy; series viejas materializadas se siguen leyendo.
+**Pendiente opcional:** lazy para daily/weekly de tareas no-hábito; offline queue de `habit-ensure`.
 
 ---
 
@@ -417,3 +420,4 @@ Las features de **v2.6–2.7** (hábitos, pasos, eventos, Círculo, resumen con 
 | 2026-07-25 | **Actualización v2.7.5:** mapa de features (hábitos, pasos, checks, orden por hora, resumen, reflexiones, eventos/Círculo); riesgos amplificados; fases 0.3 checkbox, 1.5–1.7 hábitos/pasos; referencias de código al día |
 | 2026-07-25 | **Fase 0 aplicada (parcial, v2.7.6):** `loadOrderCounters` (1 query batch por chunks, sin N COUNT secuenciales); plan+usage en `Promise.all`; `bumpUsage` post-respuesta; create form cierra sin await; Realtime debounce 200 ms en `subscribeTasks`; cache JWT en `api.ts` + clear en signOut |
 | 2026-07-25 | **Fase 1 aplicada (v2.7.7):** respuesta create compacta (`instances` = id/weekId/dayId/endDayId/seriesId + `createdCount`); cliente `expandCreateInstances`; horizonte daily **28** / weekly **26** (api+core); steps solo en instancia (no seriesUpdate); tests verdes |
+| 2026-07-25 | **Fase 2 aplicada (v2.7.9):** hábitos lazy — create 1 seed + `habit-ensure` + virtuales `vh:` en `collectTasksCovering` + materialize en toggle/edit; fetch de seeds en covering/range; tests `habit-lazy.test.ts` |

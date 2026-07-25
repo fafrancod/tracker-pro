@@ -129,8 +129,13 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
   if (method === 'POST' && path === '/api/tasks') {
     const frequency = (json?.recurrenceFrequency as string) ?? 'none';
     const interval = typeof json?.recurrenceInterval === 'number' ? json.recurrenceInterval : 1;
+    const kind = (json?.kind as string) ?? 'task';
+    const isHabit = kind === 'habit_good' || kind === 'habit_quit';
+    const id = randomId();
+    // Hábitos lazy: seed único con seriesId = id (espejo del API).
+    const seriesId = isHabit || frequency !== 'none' ? id : null;
     return {
-      id: randomId(),
+      id,
       weekId: json?.weekId,
       dayId: json?.dayId,
       title: json?.title,
@@ -142,15 +147,28 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
       order: 0,
       tags: json?.tags ?? [],
       movedFrom: null,
-      seriesId: frequency === 'none' ? null : randomId(),
-      recurrence: { frequency, interval },
+      seriesId,
+      recurrence: {
+        frequency: isHabit && frequency === 'none' ? 'daily' : frequency,
+        interval,
+      },
       startTime: json?.startTime ?? null,
       endTime: json?.endTime ?? null,
-      endDayId: json?.endDayId ?? json?.dayId,
-      kind: json?.kind ?? 'task',
+      endDayId: isHabit ? json?.dayId : (json?.endDayId ?? json?.dayId),
+      kind,
       color: json?.color ?? null,
       urgency: json?.urgency ?? null,
       importance: json?.importance ?? null,
+      createdCount: 1,
+      instances: [
+        {
+          id,
+          weekId: json?.weekId,
+          dayId: json?.dayId,
+          endDayId: isHabit ? json?.dayId : (json?.endDayId ?? json?.dayId),
+          seriesId,
+        },
+      ],
     } as T;
   }
 

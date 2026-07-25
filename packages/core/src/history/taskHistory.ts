@@ -29,6 +29,7 @@ import { shouldQueueMutation } from '../lib/network';
 import { enqueueOfflineMutation } from '../lib/offlineQueue';
 import { notifyOfflineQueueChanged } from '../offline/bootstrap';
 import { isDemoMode } from '../lib/demoMode';
+import { isVirtualHabitId, parseVirtualHabitId } from '../lib/habits';
 
 function truncateTitle(title: string, max = 40): string {
   const t = title.trim();
@@ -266,6 +267,19 @@ export const taskHistory = {
     label?: string
   ): Promise<void> {
     const store = useStore.getState();
+
+    // Hábito virtual (lazy): no está en buckets del store; materializa vía API.
+    if (isVirtualHabitId(taskId)) {
+      const parsed = parseVirtualHabitId(taskId);
+      await updateTask(
+        weekId,
+        parsed?.dayId ?? dayId,
+        taskId,
+        payload
+      );
+      return;
+    }
+
     const loc = findTaskLocation(taskId);
     const locWeekId = loc?.weekId ?? weekId;
     const locDayId = loc?.dayId ?? dayId;

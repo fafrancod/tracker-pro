@@ -15,6 +15,11 @@ import type {
   Recurrence,
 } from '../types';
 import { isRxKind, materializeRxOccurrences, buildRxMetaForOccurrence, parseRxMeta } from '../lib/rx';
+import {
+  isHabitKind,
+  isVirtualHabitId,
+  parseVirtualHabitId,
+} from '../lib/habits';
 import { kindSupportsSteps, normalizeTaskSteps } from '../lib/steps';
 import { extractHashtags, mergeTags } from '../lib/tags';
 import { findTaskLocation, useStore } from '../store';
@@ -50,9 +55,50 @@ export async function fetchTasks(uid: string, weekId: string, dayId: string): Pr
   return (data ?? []).map(row => mapTask(row.id as string, row));
 }
 
+function mapLocatedRow(row: Record<string, unknown>): LocatedTaskRow {
+  return {
+    ...mapTask(row.id as string, row),
+    weekId: (row.week_id as string) ?? getWeekIdFromDayId(row.day_id as string),
+    dayId: row.day_id as string,
+  };
+}
+
+function mergeLocatedById(...lists: LocatedTaskRow[][]): LocatedTaskRow[] {
+  const map = new Map<string, LocatedTaskRow>();
+  for (const list of lists) {
+    for (const row of list) {
+      if (!map.has(row.id)) map.set(row.id, row);
+    }
+  }
+  return Array.from(map.values());
+}
+
+/**
+ * Hábitos con series_id con day_id <= upToDayId (seed + materializadas).
+ * Necesario para expandir virtuales en collectTasksCovering tras recarga
+ * (el seed puede estar fuera de la ventana de solape multi-día).
+ */
+async function fetchHabitSeriesUpTo(
+  uid: string,
+  upToDayId: string
+): Promise<LocatedTaskRow[]> {
+  const { data, error } = await getSupabase()
+    .from('tasks')
+    .select('*')
+    .eq('user_id', uid)
+    .in('kind', ['habit_good', 'habit_quit'])
+    .not('series_id', 'is', null)
+    .lte('day_id', upToDayId)
+    .order('day_id', { ascending: true })
+    .order('order', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(row => mapLocatedRow(row as Record<string, unknown>));
+}
+
 /**
  * Overlap fetch for a single day: day_id <= dayId AND end_day_id >= dayId.
  * Returns rows bucketed by **start** day (dayId field = start).
+ * Incluye seeds de hábitos lazy para presencia virtual en el día.
  */
 export async function fetchTasksCoveringDay(
   uid: string,
@@ -60,7 +106,7 @@ export async function fetchTasksCoveringDay(
 ): Promise<LocatedTaskRow[]> {
   if (isDemoMode()) return [];
 
-  const { data, error } = await getSupabase()
+  const coveringPromise = getSupabase()
     .from('tasks')
     .select('*')
     .eq('user_id', uid)
@@ -68,18 +114,23 @@ export async function fetchTasksCoveringDay(
     .gte('end_day_id', dayId)
     .order('day_id', { ascending: true })
     .order('order', { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map(row => ({
-    ...mapTask(row.id as string, row),
-    weekId: (row.week_id as string) ?? getWeekIdFromDayId(row.day_id as string),
-    dayId: row.day_id as string,
-  }));
+
+  const [coveringRes, habits] = await Promise.all([
+    coveringPromise,
+    fetchHabitSeriesUpTo(uid, dayId),
+  ]);
+  if (coveringRes.error) throw coveringRes.error;
+  const covering = (coveringRes.data ?? []).map(row =>
+    mapLocatedRow(row as Record<string, unknown>)
+  );
+  return mergeLocatedById(covering, habits);
 }
 
 /**
  * Overlap range load for month/calendar:
  * day_id <= to AND end_day_id >= from (includes spans that start before the window).
  * Rows are keyed by **start** day only.
+ * Incluye seeds de hábitos lazy hasta `toDayId`.
  */
 export async function fetchTasksInRange(
   uid: string,
@@ -88,7 +139,7 @@ export async function fetchTasksInRange(
 ): Promise<LocatedTaskRow[]> {
   if (isDemoMode()) return [];
 
-  const { data, error } = await getSupabase()
+  const rangePromise = getSupabase()
     .from('tasks')
     .select('*')
     .eq('user_id', uid)
@@ -96,12 +147,16 @@ export async function fetchTasksInRange(
     .gte('end_day_id', fromDayId)
     .order('day_id', { ascending: true })
     .order('order', { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map(row => ({
-    ...mapTask(row.id as string, row),
-    weekId: (row.week_id as string) ?? getWeekIdFromDayId(row.day_id as string),
-    dayId: row.day_id as string,
-  }));
+
+  const [rangeRes, habits] = await Promise.all([
+    rangePromise,
+    fetchHabitSeriesUpTo(uid, toDayId),
+  ]);
+  if (rangeRes.error) throw rangeRes.error;
+  const covering = (rangeRes.data ?? []).map(row =>
+    mapLocatedRow(row as Record<string, unknown>)
+  );
+  return mergeLocatedById(covering, habits);
 }
 
 /**
@@ -233,13 +288,17 @@ function expandCreateInstances(
   res: CreateTaskResponse
 ): Array<Task & { weekId: string; dayId: string }> {
   const kind = payload.kind ?? (res.kind as Task['kind']) ?? 'task';
+  const isHabit = kind === 'habit_good' || kind === 'habit_quit';
+  const isEventLike = kind === 'event' || kind === 'possible_event';
+  const rawFreq =
+    payload.recurrenceFrequency ?? res.recurrence?.frequency;
   const recurrence = normalizeRecurrence(
-    payload.recurrenceFrequency ?? res.recurrence?.frequency,
+    isHabit && (!rawFreq || rawFreq === 'none') ? 'daily' : rawFreq,
     payload.recurrenceInterval ?? res.recurrence?.interval
   );
   const seriesId =
     (res.seriesId as string | null | undefined) ??
-    (recurrence.frequency === 'none' ? null : (res.id as string));
+    (isHabit || recurrence.frequency !== 'none' ? (res.id as string) : null);
   const now = new Date().toISOString();
   const stubs = Array.isArray(res.instances)
     ? res.instances
@@ -253,8 +312,6 @@ function expandCreateInstances(
         },
       ];
 
-  const isHabit = kind === 'habit_good' || kind === 'habit_quit';
-  const isEventLike = kind === 'event' || kind === 'possible_event';
   const steps =
     kindSupportsSteps(kind) && payload.steps?.length
       ? normalizeTaskSteps(payload.steps)
@@ -449,13 +506,17 @@ function materializeDemoCreate(
     payload.recurrenceInterval
   );
   const endDayId = isHabit ? dayId : (payload.endDayId ?? dayId);
-  const ranges = materializeOccurrenceRanges(
-    dayId,
-    endDayId,
-    recurrence.frequency,
-    recurrence.interval
-  );
-  const seriesId = recurrence.frequency === 'none' ? null : firstId;
+  // Hábitos lazy (Fase 2): solo seed; el resto es virtual en collectTasksCovering.
+  const ranges = isHabit
+    ? [{ dayId, endDayId: dayId }]
+    : materializeOccurrenceRanges(
+        dayId,
+        endDayId,
+        recurrence.frequency,
+        recurrence.interval
+      );
+  const seriesId =
+    isHabit || recurrence.frequency !== 'none' ? firstId : null;
   const mergedTags = mergeTags(payload.tags, extractHashtags(payload.title));
   const involved = payload.involvedContactIds ?? [];
   const instances = ranges.map((range, index) => {
@@ -505,12 +566,110 @@ function materializeDemoCreate(
   return { task: instances[0], instances };
 }
 
+/**
+ * Materializa una instancia de hábito lazy (virtual → fila real).
+ * POST /api/tasks/habit-ensure
+ */
+export async function ensureHabitInstance(opts: {
+  seriesId: string;
+  dayId: string;
+  completed?: boolean;
+}): Promise<Task & { weekId: string; dayId: string }> {
+  if (isDemoMode()) {
+    // Demo: clonar seed del store
+    const store = useStore.getState();
+    let seed: (Task & { weekId: string; dayId: string }) | null = null;
+    for (const [w, days] of Object.entries(store.tasksByDay)) {
+      for (const [d, list] of Object.entries(days)) {
+        for (const t of list) {
+          if (t.seriesId === opts.seriesId && isHabitKind(t.kind)) {
+            if (!seed || d < seed.dayId) {
+              seed = { ...t, weekId: w, dayId: d };
+            }
+          }
+        }
+      }
+    }
+    if (!seed) throw new Error('Serie de hábito no encontrada (demo)');
+    const now = new Date().toISOString();
+    const id = `demo-habit-${opts.seriesId}-${opts.dayId}`;
+    const task: Task & { weekId: string; dayId: string } = {
+      ...seed,
+      id,
+      dayId: opts.dayId,
+      weekId: getWeekIdFromDayId(opts.dayId),
+      endDayId: opts.dayId,
+      completed: opts.completed ?? false,
+      completedAt: opts.completed ? now : null,
+      updatedAt: now,
+      createdAt: now,
+    };
+    store.addTaskOptimistic(task.weekId, task.dayId, task);
+    return task;
+  }
+
+  const res = await api.post<Record<string, unknown>>('/api/tasks/habit-ensure', {
+    seriesId: opts.seriesId,
+    dayId: opts.dayId,
+    completed: opts.completed,
+  });
+  const mapped = mapTask((res.id as string) ?? '', res);
+  const w =
+    (res.weekId as string) ??
+    (res.week_id as string) ??
+    getWeekIdFromDayId(opts.dayId);
+  const d = (res.dayId as string) ?? (res.day_id as string) ?? opts.dayId;
+  const located = { ...mapped, weekId: w, dayId: d };
+  useStore.getState().addTaskOptimistic(w, d, located);
+  return located;
+}
+
 export async function updateTask(
   weekId: string,
   dayId: string,
   taskId: string,
   payload: UpdateTaskPayload
 ): Promise<void> {
+  // Hábito virtual: materializar primero, luego patch si hace falta.
+  if (isVirtualHabitId(taskId)) {
+    const parsed = parseVirtualHabitId(taskId);
+    if (!parsed) throw new Error('Id de hábito virtual inválido');
+    const ensured = await ensureHabitInstance({
+      seriesId: parsed.seriesId,
+      dayId: parsed.dayId,
+      completed: payload.completed,
+    });
+    // Si solo era completed, ensure ya lo aplicó.
+    const rest: UpdateTaskPayload = { ...payload };
+    delete rest.completed;
+    delete rest.applyTo;
+    const keys = Object.keys(rest).filter(
+      k => (rest as Record<string, unknown>)[k] !== undefined
+    );
+    if (keys.length === 0) return;
+
+    if (isDemoMode()) {
+      const partial: Partial<Task> = { updatedAt: new Date().toISOString() };
+      for (const k of keys) {
+        (partial as Record<string, unknown>)[k] = (rest as Record<string, unknown>)[k];
+      }
+      if (payload.applyTo === 'series' && ensured.seriesId) {
+        useStore.getState().patchSeriesOptimistic(ensured.seriesId, partial);
+      } else {
+        useStore
+          .getState()
+          .updateTaskOptimistic(ensured.weekId, ensured.dayId, ensured.id, partial);
+      }
+      return;
+    }
+
+    await api.patch<void>(
+      `/api/tasks/${encodeURIComponent(ensured.weekId)}/${encodeURIComponent(ensured.dayId)}/${encodeURIComponent(ensured.id)}`,
+      { ...rest, applyTo: payload.applyTo }
+    );
+    return;
+  }
+
   await api.patch<void>(
     `/api/tasks/${encodeURIComponent(weekId)}/${encodeURIComponent(dayId)}/${encodeURIComponent(taskId)}`,
     payload

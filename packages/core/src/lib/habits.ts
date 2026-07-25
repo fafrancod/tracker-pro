@@ -1,3 +1,6 @@
+import type { Recurrence, Task } from '../types';
+import { getWeekIdFromDayId } from './recurrence';
+
 export type HabitKind = 'habit_good' | 'habit_quit';
 
 export function isHabitKind(kind: string | null | undefined): kind is HabitKind {
@@ -15,4 +18,93 @@ export function isHabitQuit(kind: string | null | undefined): boolean {
 /** Color por defecto del hábito. */
 export function defaultHabitColor(kind: HabitKind): string {
   return kind === 'habit_good' ? '#3fb950' : '#f85149';
+}
+
+/** Prefijo de ids virtuales: vh:{seriesId}:{dayId} */
+export const VIRTUAL_HABIT_PREFIX = 'vh:';
+
+export function isVirtualHabitId(id: string | null | undefined): boolean {
+  return typeof id === 'string' && id.startsWith(VIRTUAL_HABIT_PREFIX);
+}
+
+export function makeVirtualHabitId(seriesId: string, dayId: string): string {
+  return `${VIRTUAL_HABIT_PREFIX}${seriesId}:${dayId}`;
+}
+
+export function parseVirtualHabitId(
+  id: string
+): { seriesId: string; dayId: string } | null {
+  if (!isVirtualHabitId(id)) return null;
+  const rest = id.slice(VIRTUAL_HABIT_PREFIX.length);
+  const idx = rest.lastIndexOf(':');
+  if (idx <= 0) return null;
+  const seriesId = rest.slice(0, idx);
+  const dayId = rest.slice(idx + 1);
+  if (!seriesId || !/^\d{4}-\d{2}-\d{2}$/.test(dayId)) return null;
+  return { seriesId, dayId };
+}
+
+function parseDay(dayId: string): Date {
+  const [y, m, d] = dayId.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function dayDiff(startDayId: string, dayId: string): number {
+  const a = parseDay(startDayId).getTime();
+  const b = parseDay(dayId).getTime();
+  return Math.round((b - a) / 86400000);
+}
+
+/**
+ * ¿El hábito (seed) debe mostrarse en dayId según su recurrencia?
+ * Solo días >= inicio del seed.
+ */
+export function habitShouldAppearOnDay(
+  seedStartDayId: string,
+  dayId: string,
+  recurrence: Recurrence | null | undefined
+): boolean {
+  if (dayId < seedStartDayId) return false;
+  const freq = recurrence?.frequency ?? 'daily';
+  const interval = Math.max(1, recurrence?.interval ?? 1);
+  const diff = dayDiff(seedStartDayId, dayId);
+  if (diff < 0) return false;
+  if (freq === 'daily' || freq === 'none') {
+    return diff % interval === 0;
+  }
+  if (freq === 'weekly') {
+    return diff % (7 * interval) === 0;
+  }
+  // monthly/yearly: solo si ya hay fila física (no expandimos virtual por mes)
+  return dayId === seedStartDayId;
+}
+
+export type HabitSeed = Task & {
+  weekId: string;
+  startDayId: string;
+  seriesId: string;
+};
+
+/**
+ * Construye una instancia virtual de hábito para un día (sin fila en DB).
+ */
+export function buildVirtualHabitForDay(
+  seed: HabitSeed,
+  dayId: string
+): Task & { weekId: string; startDayId: string } {
+  const seriesId = seed.seriesId;
+  return {
+    ...seed,
+    id: makeVirtualHabitId(seriesId, dayId),
+    completed: false,
+    completedAt: null,
+    endDayId: dayId,
+    startTime: null,
+    endTime: null,
+    weekId: getWeekIdFromDayId(dayId),
+    startDayId: dayId,
+    // El “orden” virtual no importa; se reordena al materializar
+    order: seed.order,
+    updatedAt: seed.updatedAt,
+  };
 }

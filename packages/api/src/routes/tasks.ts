@@ -534,12 +534,16 @@ tasksRouter.post('/', async (req, res, next) => {
         );
       }
 
-      const occurrenceRanges = materializeOccurrenceRanges(
-        dayId,
-        endDayId,
-        recurrence.frequency,
-        recurrence.interval
-      );
+      // Hábitos lazy (roadmap Fase 2): solo seed del día de inicio.
+      // El resto de días se materializa al completar o se muestra virtual en cliente.
+      const occurrenceRanges = isHabit
+        ? [{ dayId, endDayId: dayId }]
+        : materializeOccurrenceRanges(
+            dayId,
+            endDayId,
+            recurrence.frequency,
+            recurrence.interval
+          );
 
       const [plan, usage] = await Promise.all([
         readProfilePlan(uid),
@@ -589,7 +593,9 @@ tasksRouter.post('/', async (req, res, next) => {
           order,
           tags: mergedTags,
           moved_from: null,
-          series_id: recurrence.frequency === 'none' ? null : seriesId,
+          // Hábitos siempre con series_id (plantilla de recurrencia lazy).
+          series_id:
+            isHabit || recurrence.frequency !== 'none' ? seriesId : null,
           recurrence_frequency: recurrence.frequency,
           recurrence_interval: recurrence.interval,
           urgency: isEventLike || isHabit ? null : (urgency ?? null),
@@ -1053,6 +1059,123 @@ tasksRouter.post(
     }
   }
 );
+
+/**
+ * Materializa (o devuelve) la instancia de un hábito en un día concreto.
+ * Fase 2 lazy: create solo deja seed; al completar/editar un día virtual se llama aquí.
+ */
+const habitEnsureSchema = z.object({
+  seriesId: z.string().min(1).max(80),
+  dayId: z.string().refine(isValidDayId, 'dayId formato YYYY-MM-DD'),
+  completed: z.boolean().optional(),
+});
+
+tasksRouter.post('/habit-ensure', async (req, res, next) => {
+  try {
+    const uid = req.user!.uid;
+    const body = habitEnsureSchema.parse(req.body);
+    const { seriesId, dayId: targetDayId } = body;
+    const now = new Date().toISOString();
+
+    const { data: seriesRows, error: seriesErr } = await getSupabaseAdmin()
+      .from('tasks')
+      .select('*')
+      .eq('user_id', uid)
+      .eq('series_id', seriesId)
+      .order('day_id', { ascending: true })
+      .limit(40);
+    if (seriesErr) throw seriesErr;
+    if (!seriesRows?.length) {
+      throw ApiError.notFound('Serie de hábito no encontrada');
+    }
+
+    const template = seriesRows.find(r => isHabitKind(normalizeKind(r.kind))) ?? seriesRows[0];
+    if (!isHabitKind(normalizeKind(template.kind))) {
+      throw ApiError.badRequest('La serie no es un hábito');
+    }
+
+    const existing = seriesRows.find(r => r.day_id === targetDayId);
+    if (existing) {
+      if (body.completed !== undefined) {
+        const { error: upErr } = await getSupabaseAdmin()
+          .from('tasks')
+          .update({
+            completed: body.completed,
+            completed_at: body.completed ? now : null,
+            updated_at: now,
+          })
+          .eq('id', existing.id)
+          .eq('user_id', uid);
+        if (upErr) throw upErr;
+        existing.completed = body.completed;
+        existing.completed_at = body.completed ? now : null;
+        existing.updated_at = now;
+      }
+      res.json(toClientTask(existing as Record<string, unknown>));
+      return;
+    }
+
+    const seedDay = (template.day_id as string) ?? targetDayId;
+    if (targetDayId < seedDay) {
+      throw ApiError.badRequest('dayId anterior al inicio del hábito');
+    }
+
+    const { count } = await getSupabaseAdmin()
+      .from('tasks')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', uid)
+      .eq('day_id', targetDayId);
+
+    const newId = generateId();
+    const weekId = getWeekIdFromDayId(targetDayId);
+    const row: Record<string, unknown> = {
+      id: newId,
+      user_id: uid,
+      week_id: weekId,
+      day_id: targetDayId,
+      end_day_id: targetDayId,
+      title: template.title,
+      completed: body.completed ?? false,
+      completed_at: body.completed ? now : null,
+      project_id: null,
+      priority: template.priority ?? 'medium',
+      notes: (template.notes as string) ?? '',
+      order: count ?? 0,
+      tags: Array.isArray(template.tags) ? template.tags : [],
+      moved_from: null,
+      series_id: seriesId,
+      recurrence_frequency: template.recurrence_frequency ?? 'daily',
+      recurrence_interval:
+        typeof template.recurrence_interval === 'number'
+          ? template.recurrence_interval
+          : 1,
+      urgency: null,
+      importance: null,
+      kind: template.kind,
+      color: template.color ?? null,
+      start_time: null,
+      end_time: null,
+      rx_meta: null,
+      involved_contact_ids: [],
+      location: null,
+      departure_time: null,
+      steps: Array.isArray(template.steps) ? template.steps : [],
+      created_at: now,
+      updated_at: now,
+    };
+
+    const { error: insErr } = await getSupabaseAdmin().from('tasks').insert(row);
+    if (insErr) throw insErr;
+
+    res.status(201).json(toClientTask(row));
+
+    void bumpUsage(uid, { tasksCreated: 1 }).catch(err => {
+      logger.warn({ err, uid }, 'bumpUsage after habit-ensure failed');
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 tasksRouter.delete('/:weekId/:dayId/:taskId', async (req, res, next) => {
   try {
