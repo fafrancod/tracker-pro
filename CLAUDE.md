@@ -20,10 +20,14 @@ Project monorepo: `packages/web` (React + Vite + PWA + Capacitor), `packages/api
 | PRs | Optional; only if the user asks. Default delivery is **direct to main**. |
 | Force push | Forbidden on `main` unless the user explicitly orders it. |
 | Commits | Conventional commits only. **Never** add `Co-Authored-By` or AI attribution footers. |
+| Version | SemVer **MAJOR.MINOR.PATCH** on every ship. See **Versioning** below. |
 
 ```text
 git checkout main
 git merge --ff-only <feature-branch>   # if needed
+npm run version:patch   # or version:minor / version:major
+git add package.json packages/*/package.json
+git commit -m "chore(release): vX.Y.Z"
 git push tracker-pro main
 git push origin main
 ```
@@ -92,9 +96,27 @@ These features are **shipped product** on `main` and must exist on **both** remo
 - Strict TDD for **API**: `npm run test --workspace=packages/api`
 - Typecheck packages after non-trivial changes (`packages/core` has no DOM lib).
 
+## Versioning (SemVer — mandatory)
+
+**Format:** `MAJOR.MINOR.PATCH` (example: **2.1.3**).
+
+| Position | Example | Meaning |
+|----------|---------|---------|
+| **MAJOR** | **2**.x.x | Cambio **estructural grande** (breaking, arquitectura, rediseño fuerte de shell/datos). |
+| **MINOR** | x.**1**.x | **Feature grande** (nueva capacidad de producto / dominio nuevo). |
+| **PATCH** | x.x.**3** | **Mejora pequeña** (fix, polish, copy, hardening menor). |
+
+Rules:
+
+- Keep **the same version** in root + `packages/web` + `packages/api` + `packages/core`.
+- Bump on **every deploy to main**: `npm run version:patch|minor|major` or `npm run version:set -- 2.1.3` (`scripts/bump-version.mjs`).
+- Frontend shows it via Vite `__APP_VERSION__`; API via `/api/version`.
+- **PRs** must include a **Version** block: `**vX.Y.Z** (major|minor|patch) — reason`.
+- On session close / “done”, report the published version to the user.
+
 ## Deploy notes
 
 - After schema changes, run the SQL migration on Supabase **before** relying on new columns in production.
 - Railway serves API + SPA from **tracker-pro** deploy pipeline; keep `main` equal on **origin** too.
 - Prod DB should include: multi-day, series, recurrence, Eisenhower, kind, color, **start_time/end_time**.
-- After finishing work: push both remotes; if schema or Android shell changed, tell the user what to run (SQL / `npm run build:android`).
+- After finishing work: **bump version**, push both remotes; if schema or Android shell changed, tell the user what to run (SQL / `npm run build:android`).

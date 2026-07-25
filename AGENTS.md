@@ -15,14 +15,57 @@ This file applies to **all coding agents** working in this repository (Claude Co
 | PRs | Optional; only if the user asks. Default delivery is **direct to main**. |
 | Force push | Forbidden on `main` unless the user explicitly requests it. |
 | Commits | Conventional commits. No AI co-author trailers. |
+| Version | SemVer **MAJOR.MINOR.PATCH** on every ship (see below). Bump before push. |
 
 ```text
 # Typical finish sequence (always both remotes)
 git checkout main
 git merge --ff-only <feature-branch>   # if you used a temp branch
+# Bump version according to change size (see Versioning)
+npm run version:patch   # or version:minor / version:major / version:set x.y.z
+git add package.json packages/*/package.json
+git commit -m "chore(release): vX.Y.Z"
 git push tracker-pro main
 git push origin main
 git status -sb   # confirm main is not ahead of remotes
+```
+
+## Versioning (SemVer — mandatory on every deploy)
+
+**Format:** `MAJOR.MINOR.PATCH` (example: **2.1.3**).
+
+| Position | Example | Meaning | When to bump |
+|----------|---------|---------|--------------|
+| **MAJOR** | **2**.1.3 | Cambio **estructural grande** | Breaking change, rediseño fuerte de arquitectura, shell/navegación global, modelo de datos que obliga migración pesada, cambio de producto que rompe flujos existentes. Resets MINOR y PATCH a 0. |
+| **MINOR** | 2.**1**.3 | **Feature grande** | Nueva capacidad de producto visible (pantalla/flujo nuevo, dominio nuevo: recetario, memento, reflexiones, etc.). Resets PATCH a 0. |
+| **PATCH** | 2.1.**3** | **Mejora pequeña** | Fix, polish UI, copy, performance menor, docs, hardening PWA, ajustes sin feature nueva grande. |
+
+### Source of truth
+
+- Root `package.json` **and** `packages/web`, `packages/api`, `packages/core` must share the **same** version.
+- Frontend: injected at build (`__APP_VERSION__` from `packages/web/package.json`).
+- Backend: `/api/version` reads monorepo version (`packages/api` config).
+- Bump helper: `npm run version:patch` | `version:minor` | `version:major` | `version:set -- 2.1.3` → `node scripts/bump-version.mjs …`
+
+### Agent / ship rules
+
+1. **Every completed feature that ships to `main` must bump the version** (at least PATCH). Do not leave the app stuck on the previous number.
+2. Choose the **smallest** level that honestly describes the change (prefer PATCH unless it is clearly a big feature or structural change).
+3. Include the version in the **release commit** message: `chore(release): v2.1.3`.
+4. When creating a **PR**, the description **must** include a **Version** section (see template).
+5. Tell the user the new version when saying “done” (e.g. “publicado **v2.1.3**”).
+
+### PR description template (include always)
+
+```markdown
+## Version
+**vX.Y.Z** (`major` | `minor` | `patch`) — one-line reason for the bump level.
+
+## Summary
+What changed and why.
+
+## Test plan
+- [ ] …
 ```
 
 Remotes:
@@ -117,7 +160,9 @@ supabase/        → schema.sql (source of truth for DB DDL)
 Before saying done on a feature the user expects live:
 
 1. Confirm `main` has the commits.
-2. **`git push tracker-pro main` and `git push origin main`.**
-3. Confirm neither remote is behind `main`.
-4. Mention any pending Supabase SQL if schema changed.
-5. Mention Android rebuild (`npm run build:android`) if native shell assets need sync.
+2. **Bump SemVer** (`version:patch` / `minor` / `major`) and commit `chore(release): vX.Y.Z` if not already bumped with the feature.
+3. **`git push tracker-pro main` and `git push origin main`.**
+4. Confirm neither remote is behind `main`.
+5. Report the **new version** (e.g. v2.1.3).
+6. Mention any pending Supabase SQL if schema changed.
+7. Mention Android rebuild (`npm run build:android`) if native shell assets need sync.
