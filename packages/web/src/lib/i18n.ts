@@ -359,6 +359,8 @@ export interface TranslationDict {
   time_now: string;
   task_time_range_error: string;
   task_created_ok: string;
+  /** Toast corto inmediato al guardar (create/edit). */
+  task_saved_ok: string;
 
   // Centralizador de notificaciones
   notify_hub_title: string;
@@ -988,6 +990,7 @@ const es_dict: TranslationDict = {
   task_time_range_error:
     'La hora de fin debe ser posterior o igual a la de inicio (en el mismo día). En varios días se permite acabar al día siguiente (ej. 20:00 → 03:00).',
   task_created_ok: 'Tarea guardada.',
+  task_saved_ok: 'Guardado.',
   notify_hub_title: 'Central de avisos',
   notify_hub_intro:
     'Consulta y programa recordatorios de tareas, recetarios, recordatorios y proyectos. Los avisos usan tu zona horaria y los modos de antelación, mañana y seguimiento.',
@@ -1630,6 +1633,7 @@ const en_dict: TranslationDict = {
   task_time_range_error:
     'End time must be greater than or equal to start time on the same day. Multi-day spans may end after midnight (e.g. 20:00 → 03:00).',
   task_created_ok: 'Task saved.',
+  task_saved_ok: 'Saved.',
   notify_hub_title: 'Alerts hub',
   notify_hub_intro:
     'View and schedule reminders for tasks, prescriptions, reminders and projects. Alerts use your timezone and the before / tomorrow / follow-up modes.',

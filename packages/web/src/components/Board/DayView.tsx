@@ -37,7 +37,7 @@ import {
   MobileSheetHeader,
   MobileSheetTitle,
 } from '@/components/ui/mobile-sheet';
-import { useToast } from '@/contexts/ToastContext';
+
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { ScheduleGrid } from './ScheduleGrid';
@@ -151,7 +151,6 @@ export function DayView({
   onLayoutChange,
 }: DayViewProps) {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
-  const { showToast } = useToast();
   const { projects } = useProjects();
   const selectedDayId = useStore(s => s.selectedDayId);
   const setSelectedDay = useStore(s => s.setSelectedDay);
@@ -553,9 +552,8 @@ export function DayView({
               onCancel={() => setSlotCreate(null)}
               onAdd={async payload => {
                 setSlotCreate(null);
-                void addTask(payload)
-                  .then(() => showToast(t('task_created_ok'), 'success'))
-                  .catch(() => showToast(t('task_save_error'), 'error'));
+                // Toast lo da AddTaskForm (Fase 4.1); aquí solo persiste.
+                await addTask(payload);
               }}
             />
           )}

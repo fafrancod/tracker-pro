@@ -6,6 +6,10 @@ import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 
+/**
+ * Editor de pasos controlado (solo estado local del form/detalle).
+ * No escribe al store hasta que el padre llama a Guardar (Fase 4.4).
+ */
 interface TaskStepsEditorProps {
   steps: TaskStep[];
   onChange: (steps: TaskStep[]) => void;

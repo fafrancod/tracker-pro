@@ -44,7 +44,7 @@ import type {
   ScheduleLayout,
   Urgency,
 } from '@core/types';
-import { useToast } from '@/contexts/ToastContext';
+
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
@@ -76,7 +76,6 @@ export function BoardPage() {
   const [focusTodayNonce, setFocusTodayNonce] = useState(0);
 
   const { projects } = useProjects();
-  const { showToast } = useToast();
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { canUndo, canRedo, undo, redo } = useTaskHistory();
 
@@ -519,13 +518,9 @@ export function BoardPage() {
             }
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {
-              // Cerrar al instante; la red va en background (roadmap §0.2).
+              // Cerrar al instante; toast lo da AddTaskForm (Fase 4.1).
               setFabOpen(false);
-              void addTask(payload)
-                .then(() => showToast(t('task_created_ok'), 'success'))
-                .catch(() =>
-                  showToast(t('task_save_error'), 'error')
-                );
+              await addTask(payload);
             }}
           />
         </MobileSheetContent>

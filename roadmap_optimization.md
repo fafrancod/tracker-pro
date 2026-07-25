@@ -1,7 +1,7 @@
 # Roadmap de optimización — tiempos de carga y mutaciones
 
 **Fecha (actualizado):** 2026-07-25  
-**Versión de producto de referencia:** **v2.7.10**  
+**Versión de producto de referencia:** **v2.7.11**  
 **Archivo:** `roadmap_optimization.md` (repo root)
 
 **Contexto original:** Al guardar o editar tareas, eventos, hábitos, recetarios, etc. la UI se siente lenta.  
@@ -276,15 +276,15 @@ create index if not exists tasks_user_kind_day_idx on public.tasks (user_id, kin
 
 ---
 
-### Fase 4 — UX y cargas de pantalla (2–4 días)
+### Fase 4 — UX y cargas de pantalla ✅ (v2.7.11)
 
-| # | Acción |
-|---|--------|
-| 4.1 | Toast “Guardado” inmediato |
-| 4.2 | Prefetch semana actual en idle (Resumen + Board) |
-| 4.3 | Continuo: ventana de meses más estrecha + infinite scroll (ya hay load chunk; afinar) |
-| 4.4 | Form pasos: no re-render masivo del board al tipear un paso (estado local hasta Guardar — ya es draft en detalle) |
-| 4.5 | Skeleton solo en primer fetch de rango, no en toggles |
+| # | Acción | Detalle |
+|---|--------|---------|
+| 4.1 | Toast “Guardado” inmediato | `AddTaskForm` + `TaskDetailSheet` cierran/toast al click; red en background |
+| 4.2 | Prefetch semana idle | `AppShell` `requestIdleCallback` → `ensureTasksRangeLoaded` semana ISO |
+| 4.3 | Continuo más estrecho | Inicial ±1 mes; `LOAD_CHUNK=1`; `EDGE_PX=220` |
+| 4.4 | Pasos en draft local | `TaskStepsEditor` controlado; no escribe store hasta Guardar |
+| 4.5 | Skeleton solo 1.er fetch | `MonthView` solo si `!isTasksRangeFresh` |
 
 ---
 
@@ -422,3 +422,4 @@ Las features de **v2.6–2.7** (hábitos, pasos, eventos, Círculo, resumen con 
 | 2026-07-25 | **Fase 1 aplicada (v2.7.7):** respuesta create compacta (`instances` = id/weekId/dayId/endDayId/seriesId + `createdCount`); cliente `expandCreateInstances`; horizonte daily **28** / weekly **26** (api+core); steps solo en instancia (no seriesUpdate); tests verdes |
 | 2026-07-25 | **Fase 2 aplicada (v2.7.9):** hábitos lazy — create 1 seed + `habit-ensure` + virtuales `vh:` en `collectTasksCovering` + materialize en toggle/edit; fetch de seeds en covering/range; tests `habit-lazy.test.ts` |
 | 2026-07-25 | **Fase 3 aplicada (v2.7.10):** Realtime 1 canal/uid + delta al store + eco 2s; `ensureTasksRangeLoaded` + caché 45s; Board/Continuo/Mes/Resumen sin tormenta de refetch |
+| 2026-07-25 | **Fase 4 aplicada (v2.7.11):** toast Guardado inmediato; prefetch idle semana; continuo ±1 mes; pasos draft local; skeleton solo primer fetch |

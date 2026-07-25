@@ -15,6 +15,7 @@ import { useStore } from '@core/store';
 import {
   ensureTasksRangeLoaded,
   getDayId,
+  isTasksRangeFresh,
 } from '@core/services/taskService';
 import { taskHistory } from '@core/history/taskHistory';
 import {
@@ -228,7 +229,9 @@ export function MonthView({
     const fromDayId = getDayId(gridStart);
     const toDayId = getDayId(gridEnd);
 
-    setLoadingRange(true);
+    // Fase 4.5: skeleton/indicador solo en el primer fetch del rango (no en toggles ni si está fresco).
+    const needsNetwork = !isTasksRangeFresh(fromDayId, toDayId);
+    if (needsNetwork) setLoadingRange(true);
     void ensureTasksRangeLoaded(uid, fromDayId, toDayId)
       .catch(() => {
         /* store conserva lo que haya */

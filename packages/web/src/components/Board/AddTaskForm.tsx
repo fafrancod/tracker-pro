@@ -187,7 +187,7 @@ export function AddTaskForm({
   const [location, setLocation] = useState('');
   const [departureTime, setDepartureTime] = useState('');
   const [steps, setSteps] = useState<TaskStep[]>([]);
-  const [submitting, setSubmitting] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
   const isPossible = isPossibleEventKind(kind);
@@ -359,7 +359,7 @@ export function AddTaskForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = title.trim();
-    if (!trimmed || submitting) return;
+    if (!trimmed) return;
 
     if (isRxKind(kind)) {
       const err = validateRxPhases(rxPhases);
@@ -375,28 +375,26 @@ export function AddTaskForm({
         extractMentions(subject ?? ''),
         kind === 'rx_pet' && subject ? subject : null
       );
-      setSubmitting(true);
-      try {
-        await onAdd({
-          title: trimmed,
-          projectId: null,
-          priority: 'high',
-          kind,
-          urgency: 'urgent',
-          importance: 'important',
-          color,
-          notes: notesFromRx(subject ?? '', rxPhases),
-          rxPhases,
-          rxSubject: subject,
-          tags,
-        });
-        resetForm();
-        inputRef.current?.focus();
-      } catch (err) {
+      const payload = {
+        title: trimmed,
+        projectId: null,
+        priority: 'high' as const,
+        kind,
+        urgency: 'urgent' as const,
+        importance: 'important' as const,
+        color,
+        notes: notesFromRx(subject ?? '', rxPhases),
+        rxPhases,
+        rxSubject: subject,
+        tags,
+      };
+      // Fase 4.1: toast + reset al instante; red en background.
+      resetForm();
+      showToast(t('task_saved_ok'), 'success');
+      inputRef.current?.focus();
+      void Promise.resolve(onAdd(payload)).catch(err => {
         showToast(formatCreateError(err), 'error');
-      } finally {
-        setSubmitting(false);
-      }
+      });
       return;
     }
 
@@ -436,49 +434,47 @@ export function AddTaskForm({
       return;
     }
 
-    setSubmitting(true);
-    try {
-      await onAdd({
-        title: trimmed,
-        projectId: isEventLike || isHabit ? null : projectId,
-        priority,
-        endDayId: safeEnd,
-        recurrenceFrequency: frequency,
-        recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
-        kind,
-        urgency: isEventLike || isHabit ? null : urgency,
-        importance: isEventLike || isHabit ? null : importance,
-        color:
-          color ??
-          (isEvent
-            ? '#58a6ff'
-            : isPossible
-              ? '#a371f7'
-              : isHabit
-                ? defaultHabitColor(kind)
-                : null),
-        startTime: startN,
-        endTime: endN,
-        tags,
-        involvedContactIds: isEventLike ? involvedContactIds : [],
-        location: isEventLike ? location.trim() || null : null,
-        departureTime: isEvent ? depN : null,
-        steps: supportsSteps
-          ? steps
-              .map(s => ({
-                ...s,
-                title: s.title.trim(),
-              }))
-              .filter(s => s.title.length > 0)
-          : undefined,
-      });
-      resetForm();
-      inputRef.current?.focus();
-    } catch (err) {
+    const payload = {
+      title: trimmed,
+      projectId: isEventLike || isHabit ? null : projectId,
+      priority,
+      endDayId: safeEnd,
+      recurrenceFrequency: frequency,
+      recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
+      kind,
+      urgency: isEventLike || isHabit ? null : urgency,
+      importance: isEventLike || isHabit ? null : importance,
+      color:
+        color ??
+        (isEvent
+          ? '#58a6ff'
+          : isPossible
+            ? '#a371f7'
+            : isHabit
+              ? defaultHabitColor(kind)
+              : null),
+      startTime: startN,
+      endTime: endN,
+      tags,
+      involvedContactIds: isEventLike ? involvedContactIds : [],
+      location: isEventLike ? location.trim() || null : null,
+      departureTime: isEvent ? depN : null,
+      steps: supportsSteps
+        ? steps
+            .map(s => ({
+              ...s,
+              title: s.title.trim(),
+            }))
+            .filter(s => s.title.length > 0)
+        : undefined,
+    };
+    // Fase 4.1: toast + reset al instante; red en background.
+    resetForm();
+    showToast(t('task_saved_ok'), 'success');
+    inputRef.current?.focus();
+    void Promise.resolve(onAdd(payload)).catch(err => {
       showToast(formatCreateError(err), 'error');
-    } finally {
-      setSubmitting(false);
-    }
+    });
   }
 
   function formatCreateError(err: unknown): string {
@@ -1377,7 +1373,7 @@ export function AddTaskForm({
             isModal && 'min-w-[140px] rounded-xl bg-accent-teal text-background hover:bg-accent-teal/90',
             !isModal && 'h-7 px-2 text-xs'
           )}
-          disabled={!title.trim() || submitting}
+          disabled={!title.trim()}
         >
           {isEventLike
             ? t('action_save_event')

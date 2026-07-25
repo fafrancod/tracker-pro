@@ -30,11 +30,14 @@ interface ContinuousMonthsViewProps {
   focusTodayNonce?: number;
 }
 
-/** Inclusive month offsets relative to "today" month. Start: current-2 .. current+2 */
-const INITIAL_PAST = 2;
-const INITIAL_FUTURE = 2;
-const LOAD_CHUNK = 2;
-const EDGE_PX = 160;
+/**
+ * Ventana inicial más estrecha (Fase 4.3): mes actual ±1.
+ * El infinite scroll carga 1 mes extra al acercarse al borde.
+ */
+const INITIAL_PAST = 1;
+const INITIAL_FUTURE = 1;
+const LOAD_CHUNK = 1;
+const EDGE_PX = 220;
 
 function monthKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}`;

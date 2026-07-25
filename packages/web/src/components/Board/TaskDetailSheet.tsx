@@ -262,7 +262,7 @@ function TaskDetailInner({
 
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [tagInput, setTagInput] = useState('');
-  const [saving, setSaving] = useState(false);
+  const saving = false;
 
   useEffect(() => {
     if (task) {
@@ -397,7 +397,7 @@ function TaskDetailInner({
     });
   }
 
-  async function handleSave(applyTo: TaskApplyTo) {
+  function handleSave(applyTo: TaskApplyTo) {
     if (!task || !draft) return;
     const title = draft.title.trim();
     if (!title) {
@@ -413,137 +413,156 @@ function TaskDetailInner({
       }
     }
 
-    setSaving(true);
-    try {
-      if (isRx) {
-        const subject = draft.rxSubject.trim() || null;
-        const tags = mergeTags(
-          draft.tags,
-          extractHashtags(title),
-          extractMentions(title),
-          extractMentions(draft.notes),
-          extractMentions(subject ?? ''),
-          task.kind === 'rx_pet' && subject ? subject : null
-        );
-        // Metadata de esta toma / serie (sin rehacer plan)
-        // Recetario: sin proyecto; siempre urgente e importante.
-        await editTask(task.id, {
-          title,
-          notes: draft.notes,
-          tags,
-          priority: 'high',
-          urgency: 'urgent',
-          importance: 'important',
-          color: draft.color,
-          projectId: null,
-          startTime: planDirty ? undefined : normalizeTimeInput(draft.startTime),
-          endTime: planDirty ? undefined : normalizeTimeInput(draft.endTime),
-          rxAmount: draft.rxAmount,
-          rxUnit: draft.rxUnit,
-          rxSubject: subject,
-          applyTo: isSeries ? applyTo : 'instance',
-        });
+    // Validar horarios antes de cerrar (no-async).
+    if (!isRx) {
+      const saveKind = draft.kind;
+      const saveIsHabit =
+        saveKind === 'habit_good' || saveKind === 'habit_quit';
+      const startN = saveIsHabit ? null : normalizeTimeInput(draft.startTime);
+      const endN = saveIsHabit ? null : normalizeTimeInput(draft.endTime);
+      if (
+        !saveIsHabit &&
+        !isValidTaskTimeRange(startN, endN, dayId, draft.endDayId || dayId)
+      ) {
+        showToast(t('task_time_range_error'), 'error');
+        return;
+      }
+    }
 
-        if (planDirty) {
-          const result = await rematerializeRx(task.id, {
+    // Snapshot del draft: el sheet se cierra al instante (Fase 4.1).
+    const snap = draft;
+    const taskSnap = task;
+    const successMsg =
+      isRx && planDirty
+        ? t('rx_plan_saved').replace('{n}', '…')
+        : applyTo === 'series' && isSeries
+          ? t('task_saved_series')
+          : t('task_saved_ok');
+
+    onClose();
+    showToast(successMsg, 'success');
+
+    void (async () => {
+      try {
+        if (isRxKind(taskSnap.kind)) {
+          const subject = snap.rxSubject.trim() || null;
+          const tags = mergeTags(
+            snap.tags,
+            extractHashtags(title),
+            extractMentions(title),
+            extractMentions(snap.notes),
+            extractMentions(subject ?? ''),
+            taskSnap.kind === 'rx_pet' && subject ? subject : null
+          );
+          const planWasDirty = !phasesEqual(
+            snap.rxPhases,
+            clonePhases(taskSnap.rx?.phases)
+          );
+          await editTask(taskSnap.id, {
             title,
-            rxPhases: draft.rxPhases,
+            notes: snap.notes,
+            tags,
+            priority: 'high',
+            urgency: 'urgent',
+            importance: 'important',
+            color: snap.color,
+            projectId: null,
+            startTime: planWasDirty
+              ? undefined
+              : normalizeTimeInput(snap.startTime),
+            endTime: planWasDirty
+              ? undefined
+              : normalizeTimeInput(snap.endTime),
+            rxAmount: snap.rxAmount,
+            rxUnit: snap.rxUnit,
             rxSubject: subject,
-            fromDayId: dayId,
-            color: draft.color,
+            applyTo: taskSnap.seriesId ? applyTo : 'instance',
           });
-          showToast(
-            t('rx_plan_saved').replace('{n}', String(result?.created ?? 0)),
-            'success'
-          );
+
+          if (planWasDirty) {
+            const result = await rematerializeRx(taskSnap.id, {
+              title,
+              rxPhases: snap.rxPhases,
+              rxSubject: subject,
+              fromDayId: dayId,
+              color: snap.color,
+            });
+            showToast(
+              t('rx_plan_saved').replace(
+                '{n}',
+                String(result?.created ?? 0)
+              ),
+              'success'
+            );
+          }
         } else {
-          showToast(
-            applyTo === 'series' && isSeries
-              ? t('task_saved_series')
-              : t('task_saved_instance'),
-            'success'
+          const saveKind = snap.kind;
+          const saveEventLike =
+            saveKind === 'event' || saveKind === 'possible_event';
+          const saveIsEvent = saveKind === 'event';
+          const saveIsHabit =
+            saveKind === 'habit_good' || saveKind === 'habit_quit';
+          const tags = mergeTags(
+            snap.tags,
+            extractHashtags(title),
+            extractMentions(title),
+            extractMentions(snap.notes)
           );
+          const startN = saveIsHabit
+            ? null
+            : normalizeTimeInput(snap.startTime);
+          const endN = saveIsHabit ? null : normalizeTimeInput(snap.endTime);
+          const depN = normalizeTimeInput(snap.departureTime);
+          await editTask(taskSnap.id, {
+            title,
+            notes: snap.notes,
+            tags,
+            kind: saveKind,
+            priority: snap.priority,
+            urgency: saveEventLike || saveIsHabit ? null : snap.urgency,
+            importance:
+              saveEventLike || saveIsHabit ? null : snap.importance,
+            color:
+              snap.color ??
+              (saveIsEvent
+                ? '#58a6ff'
+                : saveKind === 'possible_event'
+                  ? '#a371f7'
+                  : saveKind === 'habit_good'
+                    ? '#3fb950'
+                    : saveKind === 'habit_quit'
+                      ? '#f85149'
+                      : null),
+            projectId: saveEventLike || saveIsHabit ? null : snap.projectId,
+            endDayId: saveIsHabit ? dayId : snap.endDayId,
+            involvedContactIds: saveEventLike
+              ? snap.involvedContactIds
+              : [],
+            location:
+              saveIsEvent || saveKind === 'possible_event'
+                ? snap.location.trim() || null
+                : null,
+            departureTime: saveIsEvent ? depN : null,
+            startTime: startN,
+            endTime: endN,
+            steps: kindSupportsSteps(saveKind)
+              ? snap.steps
+                  .map(s => ({ ...s, title: s.title.trim() }))
+                  .filter(s => s.title.length > 0)
+              : [],
+            applyTo: taskSnap.seriesId ? applyTo : 'instance',
+          });
         }
-      } else {
-        const saveKind = draft.kind;
-        const saveEventLike =
-          saveKind === 'event' || saveKind === 'possible_event';
-        const saveIsEvent = saveKind === 'event';
-        const saveIsHabit =
-          saveKind === 'habit_good' || saveKind === 'habit_quit';
-        const tags = mergeTags(
-          draft.tags,
-          extractHashtags(title),
-          extractMentions(title),
-          extractMentions(draft.notes)
-        );
-        const startN = saveIsHabit ? null : normalizeTimeInput(draft.startTime);
-        const endN = saveIsHabit ? null : normalizeTimeInput(draft.endTime);
-        const depN = normalizeTimeInput(draft.departureTime);
-        // Multi-día: se permite 20:00 → 03:00 (cruce de medianoche).
-        if (
-          !saveIsHabit &&
-          !isValidTaskTimeRange(
-            startN,
-            endN,
-            dayId,
-            draft.endDayId || dayId
-          )
-        ) {
-          showToast(t('task_time_range_error'), 'error');
-          return;
-        }
-        // Solo al guardar se materializa el tipo elegido y se anulan campos
-        // que no aplican (proyecto en eventos, etc.). El draft los conservaba.
-        await editTask(task.id, {
-          title,
-          notes: draft.notes,
-          tags,
-          kind: saveKind,
-          priority: draft.priority,
-          urgency: saveEventLike || saveIsHabit ? null : draft.urgency,
-          importance: saveEventLike || saveIsHabit ? null : draft.importance,
-          color:
-            draft.color ??
-            (saveIsEvent
-              ? '#58a6ff'
-              : saveKind === 'possible_event'
-                ? '#a371f7'
-                : saveKind === 'habit_good'
-                  ? '#3fb950'
-                  : saveKind === 'habit_quit'
-                    ? '#f85149'
-                    : null),
-          projectId: saveEventLike || saveIsHabit ? null : draft.projectId,
-          endDayId: saveIsHabit ? dayId : draft.endDayId,
-          involvedContactIds: saveEventLike ? draft.involvedContactIds : [],
-          location:
-            saveIsEvent || saveKind === 'possible_event'
-              ? draft.location.trim() || null
-              : null,
-          departureTime: saveIsEvent ? depN : null,
-          startTime: startN,
-          endTime: endN,
-          steps: kindSupportsSteps(saveKind)
-            ? draft.steps
-                .map(s => ({ ...s, title: s.title.trim() }))
-                .filter(s => s.title.length > 0)
-            : [],
-          applyTo: isSeries ? applyTo : 'instance',
-        });
+      } catch {
+        const wasPlan =
+          isRxKind(taskSnap.kind) &&
+          !phasesEqual(snap.rxPhases, clonePhases(taskSnap.rx?.phases));
         showToast(
-          applyTo === 'series' && isSeries
-            ? t('task_saved_series')
-            : t('task_saved_instance'),
-          'success'
+          wasPlan ? t('rx_plan_error') : t('task_save_error'),
+          'error'
         );
       }
-      onClose();
-    } catch {
-      showToast(planDirty ? t('rx_plan_error') : t('task_save_error'), 'error');
-    } finally {
-      setSaving(false);
-    }
+    })();
   }
 
   function handleTagKeydown(e: KeyboardEvent<HTMLInputElement>) {
