@@ -1,11 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { addMonths, endOfMonth, endOfWeek, startOfMonth, startOfWeek } from 'date-fns';
+import {
+  addDays,
+  addMonths,
+  endOfMonth,
+  endOfWeek,
+  format,
+  startOfMonth,
+  startOfWeek,
+} from 'date-fns';
 import { useStore } from '@core/store';
 import { fetchTasksInRange, getDayId } from '@core/services/taskService';
 import { isDemoMode } from '@core/lib/demoMode';
 import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
 import type { BoardTaskFilters, Task } from '@core/types';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useT } from '@/hooks/useT';
+import { capitalize } from '@/lib/i18n';
 import { MonthView } from './MonthView';
 
 interface ContinuousMonthsViewProps {
@@ -33,6 +43,7 @@ export function ContinuousMonthsView({
   focusTodayNonce = 0,
 }: ContinuousMonthsViewProps) {
   const { settings } = useSettings();
+  const { locale } = useT();
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const uid = useStore(s => s.uid);
   const setDayTasks = useStore(s => s.setDayTasks);
@@ -44,13 +55,28 @@ export function ContinuousMonthsView({
   const [fromOffset, setFromOffset] = useState(-INITIAL_PAST);
   const [toOffset, setToOffset] = useState(INITIAL_FUTURE);
 
+  const dayHeaders = useMemo(() => {
+    const start = startOfWeek(new Date(), { weekStartsOn });
+    return Array.from({ length: 7 }, (_, i) =>
+      capitalize(format(addDays(start, i), 'EEE', { locale }))
+    );
+  }, [weekStartsOn, locale]);
+
   const scrollToCurrentMonth = useCallback(() => {
     const key = monthKey(startOfMonth(new Date()));
     requestAnimationFrame(() => {
-      const el = scrollRef.current?.querySelector(
+      const scroller = scrollRef.current;
+      if (!scroller) return;
+      const el = scroller.querySelector(
         `[data-month-key="${key}"]`
       ) as HTMLElement | null;
-      el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      if (!el) return;
+      // Scroll solo dentro del contenedor (no usa scrollIntoView del viewport,
+      // que a veces metía el mes bajo la barra de filtros del board).
+      const elTop = el.getBoundingClientRect().top;
+      const scrollerTop = scroller.getBoundingClientRect().top;
+      const next = scroller.scrollTop + (elTop - scrollerTop);
+      scroller.scrollTo({ top: Math.max(0, next), behavior: 'smooth' });
     });
   }, []);
 
@@ -146,28 +172,48 @@ export function ContinuousMonthsView({
   }
 
   return (
-    <div
-      ref={scrollRef}
-      onScroll={handleScroll}
-      className="flex h-full flex-col overflow-y-auto bg-background"
-    >
-      {months.map(m => (
-        <div
-          key={monthKey(m)}
-          data-month-key={monthKey(m)}
-          className="border-b border-border last:border-b-0"
-        >
-          <MonthView
-            onPickDay={onPickDay}
-            onViewDay={onViewDay}
-            mode="continuous"
-            monthDate={m}
-            hideChrome
-            filter={filter}
-            skipFetch
-          />
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+      {/*
+        Franja fija de días de la semana: queda SIEMPRE bajo los combobox del board
+        y por encima del scroll de meses (no se tapa al desplazar).
+      */}
+      <div className="z-10 shrink-0 border-b border-border bg-background px-2 pb-1.5 pt-2 md:px-4">
+        <div className="grid grid-cols-7 gap-1">
+          {dayHeaders.map(h => (
+            <div
+              key={h}
+              className="text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted"
+            >
+              {h}
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
+
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="min-h-0 flex-1 overflow-y-auto"
+      >
+        {months.map(m => (
+          <div
+            key={monthKey(m)}
+            data-month-key={monthKey(m)}
+            className="border-b border-border last:border-b-0"
+          >
+            <MonthView
+              onPickDay={onPickDay}
+              onViewDay={onViewDay}
+              mode="continuous"
+              monthDate={m}
+              hideChrome
+              hideDayHeaders
+              filter={filter}
+              skipFetch
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

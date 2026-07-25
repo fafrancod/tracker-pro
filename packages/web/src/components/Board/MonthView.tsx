@@ -43,6 +43,11 @@ export interface MonthViewProps {
   monthDate?: Date;
   /** Hide month navigation chrome (used inside continuous scroll). */
   hideChrome?: boolean;
+  /**
+   * Oculta la fila L M X J… (vista continuo usa una franja sticky compartida
+   * para que los filtros del board no la tapen).
+   */
+  hideDayHeaders?: boolean;
   filter?: BoardTaskFilters;
   /** Skip independent range fetch when parent already loaded the range. */
   skipFetch?: boolean;
@@ -148,6 +153,7 @@ export function MonthView({
   mode = 'single',
   monthDate,
   hideChrome = false,
+  hideDayHeaders = false,
   filter,
   skipFetch = false,
   focusTodayNonce = 0,
@@ -396,16 +402,23 @@ export function MonthView({
       <div
         className={cn(
           'flex flex-col p-2 md:p-4',
-          mode === 'single' ? 'flex-1 overflow-hidden' : ''
+          mode === 'single' ? 'flex-1 overflow-hidden' : '',
+          // En continuo, un poco más de aire bajo el título del mes.
+          mode === 'continuous' && 'pt-1 md:pt-2'
         )}
       >
-        <div className="grid grid-cols-7 gap-1 pb-2">
-          {dayHeaders.map(h => (
-            <div key={h} className="text-center text-[11px] font-medium text-text-muted">
-              {h}
-            </div>
-          ))}
-        </div>
+        {!hideDayHeaders && (
+          <div className="grid grid-cols-7 gap-1 pb-2">
+            {dayHeaders.map(h => (
+              <div
+                key={h}
+                className="text-center text-[11px] font-medium text-text-muted"
+              >
+                {h}
+              </div>
+            ))}
+          </div>
+        )}
 
         <div
           className={cn(

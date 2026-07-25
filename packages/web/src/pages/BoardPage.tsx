@@ -200,6 +200,11 @@ export function BoardPage() {
       onFabClick={() => setFabOpen(true)}
       showFab
     >
+      {/*
+        Contenedor flex: las filas de filtros se quedan arriba y el calendario
+        ocupa el resto (min-h-0). Evita que la grilla se solape con proyecto/urgencia.
+      */}
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       {/* Fila 1: vista + undo */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-1.5 md:px-3">
         <div className="inline-flex rounded-md border border-border bg-surface p-0.5">
@@ -428,40 +433,42 @@ export function BoardPage() {
         )}
       </div>
 
-      {view === 'day' && (
-        <DayView
-          filter={filters}
-          dayStartHour={settings.dayStartHour ?? 7}
-          dayEndHour={settings.dayEndHour ?? 22}
-          layout={scheduleLayout}
-          onLayoutChange={setScheduleLayout}
-        />
-      )}
-      {view === 'week' && (
-        <BoardLayout
-          filter={filters}
-          dayStartHour={settings.dayStartHour ?? 7}
-          dayEndHour={settings.dayEndHour ?? 22}
-          layout={scheduleLayout}
-          onLayoutChange={setScheduleLayout}
-        />
-      )}
-      {view === 'month' && (
-        <MonthView
-          onPickDay={handlePickDay}
-          onViewDay={handleViewDay}
-          filter={filters}
-          focusTodayNonce={focusTodayNonce}
-        />
-      )}
-      {view === 'continuous' && (
-        <ContinuousMonthsView
-          onPickDay={handlePickDay}
-          onViewDay={handleViewDay}
-          filter={filters}
-          focusTodayNonce={focusTodayNonce}
-        />
-      )}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {view === 'day' && (
+          <DayView
+            filter={filters}
+            dayStartHour={settings.dayStartHour ?? 7}
+            dayEndHour={settings.dayEndHour ?? 22}
+            layout={scheduleLayout}
+            onLayoutChange={setScheduleLayout}
+          />
+        )}
+        {view === 'week' && (
+          <BoardLayout
+            filter={filters}
+            dayStartHour={settings.dayStartHour ?? 7}
+            dayEndHour={settings.dayEndHour ?? 22}
+            layout={scheduleLayout}
+            onLayoutChange={setScheduleLayout}
+          />
+        )}
+        {view === 'month' && (
+          <MonthView
+            onPickDay={handlePickDay}
+            onViewDay={handleViewDay}
+            filter={filters}
+            focusTodayNonce={focusTodayNonce}
+          />
+        )}
+        {view === 'continuous' && (
+          <ContinuousMonthsView
+            onPickDay={handlePickDay}
+            onViewDay={handleViewDay}
+            filter={filters}
+            focusTodayNonce={focusTodayNonce}
+          />
+        )}
+      </div>
 
       <TaskDetailSheet />
 
@@ -499,6 +506,7 @@ export function BoardPage() {
           />
         </MobileSheetContent>
       </MobileSheet>
+      </div>
     </Layout>
   );
 }
