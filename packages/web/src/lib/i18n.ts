@@ -214,6 +214,10 @@ export interface TranslationDict {
   layout_list: string;
   layout_schedule: string;
   schedule_all_day: string;
+  /** Doble clic en hueco del horario */
+  schedule_slot_dblclick_hint: string;
+  schedule_create_at: string;
+  schedule_create_pick: string;
   day_sort_label: string;
   day_sort_time: string;
   day_sort_name: string;
@@ -791,6 +795,9 @@ const es_dict: TranslationDict = {
   layout_list: 'Lista',
   layout_schedule: 'Horario',
   schedule_all_day: 'Sin hora',
+  schedule_slot_dblclick_hint: 'Doble clic en un hueco para crear',
+  schedule_create_at: 'Crear a las {time}',
+  schedule_create_pick: '¿Qué quieres crear?',
   day_sort_label: 'Ordenar',
   day_sort_time: 'Hora',
   day_sort_name: 'Nombre',
@@ -1388,6 +1395,9 @@ const en_dict: TranslationDict = {
   layout_list: 'List',
   layout_schedule: 'Schedule',
   schedule_all_day: 'No time',
+  schedule_slot_dblclick_hint: 'Double-click an empty slot to create',
+  schedule_create_at: 'Create at {time}',
+  schedule_create_pick: 'What do you want to create?',
   day_sort_label: 'Sort',
   day_sort_time: 'Time',
   day_sort_name: 'Name',

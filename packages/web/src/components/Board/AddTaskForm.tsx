@@ -120,7 +120,21 @@ interface AddTaskFormProps {
   variant?: 'compact' | 'modal';
   /** Kind inicial (p. ej. rx_human al abrir desde pestaña Recetario). */
   initialKind?: TaskKind;
+  /** Hora de inicio pre-rellenada (doble clic en grilla horaria). */
+  initialStartTime?: string;
+  /** Hora de fin pre-rellenada (por defecto start+1h si hay initialStartTime). */
+  initialEndTime?: string;
   onCancel?: () => void;
+}
+
+function defaultEndFromStart(start: string): string {
+  const m = start.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+  if (!m) return '';
+  const total = Number(m[1]) * 60 + Number(m[2]) + 60;
+  const capped = Math.min(total, 23 * 60 + 59);
+  const h = Math.floor(capped / 60);
+  const min = capped % 60;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
 export function AddTaskForm({
@@ -130,10 +144,14 @@ export function AddTaskForm({
   startDayId,
   variant = 'compact',
   initialKind = 'task',
+  initialStartTime = '',
+  initialEndTime,
   onCancel,
 }: AddTaskFormProps) {
   const { t } = useT();
   const { showToast } = useToast();
+  const resolvedInitialEnd =
+    initialEndTime ?? (initialStartTime ? defaultEndFromStart(initialStartTime) : '');
   const [open, setOpen] = useState(startOpen);
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -145,10 +163,15 @@ export function AddTaskForm({
   const [urgency, setUrgency] = useState<Urgency | null>(null);
   const [importance, setImportance] = useState<Importance | null>(null);
   const [color, setColor] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [startTime, setStartTime] = useState(initialStartTime);
+  const [endTime, setEndTime] = useState(resolvedInitialEnd);
   const [rxSubject, setRxSubject] = useState('');
-  const [rxPhases, setRxPhases] = useState<RxPhase[]>([{ ...DEFAULT_RX_PHASE, times: ['08:00'] }]);
+  const [rxPhases, setRxPhases] = useState<RxPhase[]>([
+    {
+      ...DEFAULT_RX_PHASE,
+      times: [initialStartTime && /^\d{2}:\d{2}$/.test(initialStartTime) ? initialStartTime : '08:00'],
+    },
+  ]);
   const [involvedContactIds, setInvolvedContactIds] = useState<string[]>([]);
   const [location, setLocation] = useState('');
   const [departureTime, setDepartureTime] = useState('');
@@ -230,10 +253,19 @@ export function AddTaskForm({
     setUrgency(null);
     setImportance(null);
     setColor(null);
-    setStartTime('');
-    setEndTime('');
+    setStartTime(initialStartTime);
+    setEndTime(resolvedInitialEnd);
     setRxSubject('');
-    setRxPhases([{ ...DEFAULT_RX_PHASE, times: ['08:00'] }]);
+    setRxPhases([
+      {
+        ...DEFAULT_RX_PHASE,
+        times: [
+          initialStartTime && /^\d{2}:\d{2}$/.test(initialStartTime)
+            ? initialStartTime
+            : '08:00',
+        ],
+      },
+    ]);
     setInvolvedContactIds([]);
     setLocation('');
     setDepartureTime('');

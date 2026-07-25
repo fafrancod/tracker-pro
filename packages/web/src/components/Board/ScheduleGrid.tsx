@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, type MouseEvent } from 'react';
 import { useStore } from '@core/store';
 import { collectTasksCovering } from '@core/lib/taskPresence';
 import {
   formatHourLabel,
+  formatMinutes,
   hasSchedule,
   hourLabels,
   layoutInGrid,
@@ -14,6 +15,7 @@ import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 
 const HOUR_HEIGHT = 48;
+const SNAP_MINUTES = 15;
 
 export interface ScheduleDayCol {
   weekId: string;
@@ -21,6 +23,12 @@ export interface ScheduleDayCol {
   label: string;
   dateLabel: string;
   isToday?: boolean;
+}
+
+export interface ScheduleEmptySlot {
+  weekId: string;
+  dayId: string;
+  startTime: string;
 }
 
 interface ScheduleGridProps {
@@ -34,8 +42,25 @@ interface ScheduleGridProps {
     dayId: string;
     task: Task;
   }) => void;
+  /** Doble clic en hueco vacío de la grilla horaria (snap 15 min). */
+  onEmptyDoubleClick?: (slot: ScheduleEmptySlot) => void;
   /** Single-day mode uses wider blocks. */
   compact?: boolean;
+}
+
+function snapYToStartTime(
+  clientY: number,
+  columnTop: number,
+  rangeStartHour: number,
+  rangeEndHour: number
+): string {
+  const y = Math.max(0, clientY - columnTop);
+  const rawMinutes = rangeStartHour * 60 + (y / HOUR_HEIGHT) * 60;
+  const snapped = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+  const minM = rangeStartHour * 60;
+  const maxM = Math.max(minM, rangeEndHour * 60 - SNAP_MINUTES);
+  const clamped = Math.min(maxM, Math.max(minM, snapped));
+  return formatMinutes(clamped);
 }
 
 export function ScheduleGrid({
@@ -45,6 +70,7 @@ export function ScheduleGrid({
   filter,
   onOpenTask,
   onToggleTask,
+  onEmptyDoubleClick,
   compact = false,
 }: ScheduleGridProps) {
   const { t } = useT();
@@ -56,6 +82,28 @@ export function ScheduleGrid({
   );
   const hours = useMemo(() => hourLabels(range), [range]);
   const gridHeight = hours.length * HOUR_HEIGHT;
+
+  function handleColumnDoubleClick(
+    e: MouseEvent<HTMLDivElement>,
+    day: ScheduleDayCol
+  ) {
+    if (!onEmptyDoubleClick) return;
+    // Clic en una tarea: el botón ya hace stopPropagation en su propio double-click.
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button')) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const startTime = snapYToStartTime(
+      e.clientY,
+      rect.top,
+      range.startHour,
+      range.endHour
+    );
+    onEmptyDoubleClick({
+      weekId: day.weekId,
+      dayId: day.dayId,
+      startTime,
+    });
+  }
 
   const columns = useMemo(() => {
     return days.map(day => {
@@ -182,14 +230,19 @@ export function ScheduleGrid({
                 key={`g-${day.dayId}`}
                 className={cn(
                   'relative border-r border-border last:border-r-0',
-                  day.isToday && 'bg-accent-teal/[0.03]'
+                  day.isToday && 'bg-accent-teal/[0.03]',
+                  onEmptyDoubleClick && 'cursor-cell'
                 )}
                 style={{ height: gridHeight }}
+                onDoubleClick={e => handleColumnDoubleClick(e, day)}
+                title={
+                  onEmptyDoubleClick ? t('schedule_slot_dblclick_hint') : undefined
+                }
               >
                 {hours.map(h => (
                   <div
                     key={h}
-                    className="border-b border-border/40"
+                    className="pointer-events-none border-b border-border/40"
                     style={{ height: HOUR_HEIGHT }}
                   />
                 ))}

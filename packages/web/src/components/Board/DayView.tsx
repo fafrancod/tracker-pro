@@ -3,11 +3,15 @@ import {
   ArrowDownAZ,
   ArrowUpDown,
   Calendar,
+  CalendarHeart,
+  CheckSquare,
   ChevronLeft,
   ChevronRight,
   Clock,
   Flame,
   List,
+  MapPin,
+  Pill,
   Star,
 } from 'lucide-react';
 import { addDays, format, parseISO } from 'date-fns';
@@ -22,15 +26,60 @@ import {
   type BoardTaskFilters,
   type Importance,
   type ScheduleLayout,
+  type TaskKind,
   type Urgency,
 } from '@core/types';
 import { Button } from '@/components/ui/button';
+import {
+  MobileSheet,
+  MobileSheetContent,
+  MobileSheetDescription,
+  MobileSheetHeader,
+  MobileSheetTitle,
+} from '@/components/ui/mobile-sheet';
+import { useToast } from '@/contexts/ToastContext';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { ScheduleGrid } from './ScheduleGrid';
 import { TaskCard } from './TaskCard';
 import { AddTaskForm } from './AddTaskForm';
 import { ProgressRing } from './ProgressRing';
+
+const SLOT_KIND_OPTIONS: Array<{
+  kind: TaskKind;
+  labelKey:
+    | 'task_kind_task'
+    | 'task_kind_event'
+    | 'task_kind_possible_event'
+    | 'task_kind_rx_human';
+  icon: typeof CheckSquare;
+  className: string;
+}> = [
+  {
+    kind: 'task',
+    labelKey: 'task_kind_task',
+    icon: CheckSquare,
+    className: 'border-accent-teal/30 bg-accent-teal/10 text-accent-teal hover:bg-accent-teal/20',
+  },
+  {
+    kind: 'event',
+    labelKey: 'task_kind_event',
+    icon: MapPin,
+    className: 'border-sky-500/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20',
+  },
+  {
+    kind: 'possible_event',
+    labelKey: 'task_kind_possible_event',
+    icon: CalendarHeart,
+    className: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200 hover:bg-fuchsia-500/20',
+  },
+  {
+    kind: 'rx_human',
+    labelKey: 'task_kind_rx_human',
+    icon: Pill,
+    className: 'border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20',
+  },
+];
 
 /** Criterios de orden en vista día → lista. */
 export type DayListSortKey = 'time' | 'name' | 'importance' | 'urgency';
@@ -101,6 +150,7 @@ export function DayView({
   onLayoutChange,
 }: DayViewProps) {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
+  const { showToast } = useToast();
   const { projects } = useProjects();
   const selectedDayId = useStore(s => s.selectedDayId);
   const setSelectedDay = useStore(s => s.setSelectedDay);
@@ -111,6 +161,12 @@ export function DayView({
   /** Orden multi-criterio: el primero es el principal; se pueden acumular. */
   const [sortKeys, setSortKeys] = useState<DayListSortKey[]>(['time']);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  /** Doble clic en hueco: primero elige tipo, luego abre el formulario. */
+  const [slotKindPicker, setSlotKindPicker] = useState<string | null>(null);
+  const [slotCreate, setSlotCreate] = useState<{
+    startTime: string;
+    kind: TaskKind;
+  } | null>(null);
 
   const { todayDayId, days: weekDays, nextWeekId } = useWeek({
     locale,
@@ -284,6 +340,10 @@ export function DayView({
             void w;
             void d;
           }}
+          onEmptyDoubleClick={({ startTime }) => {
+            setSlotCreate(null);
+            setSlotKindPicker(startTime);
+          }}
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -414,6 +474,86 @@ export function DayView({
           </div>
         </div>
       )}
+
+      {/* Elegir tipo al crear desde hueco del horario */}
+      <MobileSheet
+        open={Boolean(slotKindPicker)}
+        onOpenChange={open => {
+          if (!open) setSlotKindPicker(null);
+        }}
+      >
+        <MobileSheetContent className="sm:max-w-md">
+          <MobileSheetHeader>
+            <MobileSheetTitle>
+              {slotKindPicker
+                ? t('schedule_create_at').replace('{time}', slotKindPicker)
+                : t('schedule_create_pick')}
+            </MobileSheetTitle>
+            <MobileSheetDescription>{t('schedule_create_pick')}</MobileSheetDescription>
+          </MobileSheetHeader>
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {SLOT_KIND_OPTIONS.map(opt => {
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.kind}
+                  type="button"
+                  onClick={() => {
+                    if (!slotKindPicker) return;
+                    setSlotCreate({ startTime: slotKindPicker, kind: opt.kind });
+                    setSlotKindPicker(null);
+                  }}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold transition-colors',
+                    opt.className
+                  )}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  {t(opt.labelKey)}
+                </button>
+              );
+            })}
+          </div>
+        </MobileSheetContent>
+      </MobileSheet>
+
+      {/* Formulario de creación con hora pre-rellenada */}
+      <MobileSheet
+        open={Boolean(slotCreate)}
+        onOpenChange={open => {
+          if (!open) setSlotCreate(null);
+        }}
+      >
+        <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">
+          <MobileSheetHeader className="pr-8">
+            <MobileSheetTitle className="text-lg">
+              {slotCreate
+                ? t('schedule_create_at').replace('{time}', slotCreate.startTime)
+                : t('task_create_title')}
+            </MobileSheetTitle>
+            <MobileSheetDescription>
+              {label}, {dateLabel}.
+            </MobileSheetDescription>
+          </MobileSheetHeader>
+          {slotCreate && (
+            <AddTaskForm
+              key={`${dayId}-${slotCreate.startTime}-${slotCreate.kind}`}
+              projects={projects}
+              startOpen
+              variant="modal"
+              startDayId={dayId}
+              initialKind={slotCreate.kind}
+              initialStartTime={slotCreate.startTime}
+              onCancel={() => setSlotCreate(null)}
+              onAdd={async payload => {
+                await addTask(payload);
+                showToast(t('task_created_ok'), 'success');
+                setSlotCreate(null);
+              }}
+            />
+          )}
+        </MobileSheetContent>
+      </MobileSheet>
     </div>
   );
 }

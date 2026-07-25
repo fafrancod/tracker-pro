@@ -197,6 +197,8 @@ export function BoardPage() {
     <Layout
       title={t('nav_tasks')}
       primaryAction={{ label: t('action_add_task'), onClick: () => setFabOpen(true) }}
+      onFabClick={() => setFabOpen(true)}
+      showFab
     >
       {/* Fila 1: vista + undo */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-1.5 md:px-3">

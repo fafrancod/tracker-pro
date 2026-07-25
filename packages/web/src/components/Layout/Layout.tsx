@@ -47,14 +47,24 @@ export function Layout({
   fabRef.current = onFabClick;
 
   // Deps solo strings/flags → no bucle Maximum update depth (#185).
-  // set + cleanup en el MISMO useLayoutEffect: al cambiar de ruta el cleanup
-  // de la página saliente corre ANTES del set de la entrante (no al revés).
-  // Antes el reset iba en useEffect y borraba el FAB de la página nueva.
+  // SIN cleanup/reset: un reset en unmount corría DESPUÉS del set de la
+  // página siguiente (o lo anulaba) y el FAB desaparecía al cambiar de pestaña.
+  // Cada página publica su chrome completo al montar; showFab=false lo apaga.
   useLayoutEffect(() => {
     if (!chromeApi) return;
+    // Si hay primaryAction pero no onFabClick, el FAB reutiliza la acción primaria.
+    const resolveFab = hasFabClick
+      ? () => {
+          fabRef.current?.();
+        }
+      : hasPrimary
+        ? () => {
+            primaryRef.current?.onClick();
+          }
+        : null;
     chromeApi.setChrome({
       title: titleKey,
-      showFab,
+      showFab: showFab && Boolean(hasPrimary || hasFabClick),
       primaryAction: hasPrimary
         ? {
             label: actionLabel,
@@ -63,15 +73,8 @@ export function Layout({
             },
           }
         : null,
-      onFabClick: hasFabClick
-        ? () => {
-            fabRef.current?.();
-          }
-        : null,
+      onFabClick: resolveFab,
     });
-    return () => {
-      chromeApi.resetChrome();
-    };
   }, [chromeApi, titleKey, showFab, actionLabel, hasPrimary, hasFabClick]);
 
   if (chromeApi) {

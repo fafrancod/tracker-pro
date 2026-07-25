@@ -38,8 +38,13 @@ function AppShellInner() {
     chrome.title || (matched ? t(matched.labelKey) : '') || t('nav_tasks');
 
   const primaryAction = chrome.primaryAction;
-  const showFab = chrome.showFab;
-  const fabHandler = chrome.onFabClick ?? primaryAction?.onClick ?? null;
+  // FAB si la página lo pidió O si hay acción primaria / handler (fallback robusto).
+  // Evita que el + desaparezca si showFab llega un frame tarde al cambiar de pestaña.
+  const fabHandler =
+    chrome.onFabClick ?? primaryAction?.onClick ?? null;
+  const showFab =
+    Boolean(fabHandler) &&
+    (chrome.showFab || Boolean(chrome.primaryAction) || Boolean(chrome.onFabClick));
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-background overscroll-none">
