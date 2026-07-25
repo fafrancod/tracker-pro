@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Bell, Mail, RefreshCw, Sparkles } from 'lucide-react';
+import { Bell, Download, Mail, RefreshCw, Sparkles } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,6 +41,11 @@ import {
   listTimezoneOptions,
 } from '@/lib/timezones';
 import { TimeInput } from '@/components/ui/time-input';
+import {
+  checkForPwaUpdate,
+  hardResetPwaAndReload,
+  isStandaloneDisplay,
+} from '@/lib/pwaUpdate';
 
 interface BackendVersionInfo {
   service: string;
@@ -66,7 +71,10 @@ export function SettingsPage() {
   const [apiState, setApiState] = useState<ApiState>('checking');
   const [localPerm, setLocalPerm] = useState<LocalPermissionState>('prompt');
   const [testingEmail, setTestingEmail] = useState(false);
+  const [checkingPwa, setCheckingPwa] = useState(false);
+  const [resettingPwa, setResettingPwa] = useState(false);
   const tasksByDay = useStore(s => s.tasksByDay);
+  const isInstalledApp = isStandaloneDisplay();
 
   useEffect(() => {
     void getLocalPermissionState().then(setLocalPerm);
@@ -655,6 +663,65 @@ export function SettingsPage() {
               onSelect={id => void handleSkin(id)}
               className="mt-5"
             />
+          </section>
+
+          {/* App instalada / PWA updates */}
+          <section className="rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <Download className="h-4 w-4 text-accent-teal" />
+              {t('pwa_settings_title')}
+            </h2>
+            <p className="mb-3 text-[11px] text-text-muted">{t('pwa_settings_desc')}</p>
+            {isInstalledApp && (
+              <p className="mb-3 rounded-md border border-accent-teal/30 bg-accent-teal/10 px-2.5 py-1.5 text-[11px] text-accent-teal">
+                {t('pwa_installed_badge')
+                  .replace('{version}', appVersion.version)
+                  .replace('{build}', appVersion.buildId.slice(0, 10))}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={checkingPwa}
+                onClick={() => {
+                  void (async () => {
+                    setCheckingPwa(true);
+                    try {
+                      const found = await checkForPwaUpdate();
+                      showToast(
+                        found ? t('pwa_check_updates_found') : t('pwa_check_updates_ok'),
+                        found ? 'info' : 'success'
+                      );
+                    } catch {
+                      showToast(t('pwa_check_updates_error'), 'error');
+                    } finally {
+                      setCheckingPwa(false);
+                    }
+                  })();
+                }}
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', checkingPwa && 'animate-spin')} />
+                {t('pwa_check_updates')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="gap-1.5"
+                disabled={resettingPwa}
+                onClick={() => {
+                  if (!confirm(t('pwa_hard_reset_confirm'))) return;
+                  setResettingPwa(true);
+                  void hardResetPwaAndReload();
+                }}
+              >
+                <Download className="h-3.5 w-3.5" />
+                {resettingPwa ? t('pwa_hard_reset_running') : t('pwa_hard_reset')}
+              </Button>
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">{t('pwa_hard_reset_desc')}</p>
           </section>
 
           {/* Estado */}

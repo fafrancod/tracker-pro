@@ -12,8 +12,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // Manual register vía virtual:pwa-register (banner + check periódico).
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['favicon.svg'],
       manifest: {
         name: 'Daily Tracker',
@@ -69,6 +70,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        // Con registerType prompt, el nuevo SW espera; applyUpdate() llama skipWaiting.
+        skipWaiting: false,
         navigateFallback: '/index.html',
         runtimeCaching: [
           {

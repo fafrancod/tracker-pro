@@ -105,13 +105,31 @@ export function buildApp(): Express {
 
   if (serveSpa && webDist) {
     logger.info({ webDist }, 'serving SPA from web dist');
+    // Assets con hash: cache largo. SW / index / manifest: siempre revalidar
+    // para que la PWA de escritorio detecte nuevas versiones.
     app.use(
       express.static(webDist, {
         index: false,
-        maxAge: config.nodeEnv === 'production' ? '1h' : 0,
+        maxAge: config.nodeEnv === 'production' ? '7d' : 0,
+        setHeaders(res, filePath) {
+          const base = path.basename(filePath);
+          const noCache =
+            base === 'index.html' ||
+            base === 'sw.js' ||
+            base === 'registerSW.js' ||
+            base === 'manifest.webmanifest' ||
+            base.startsWith('workbox-') ||
+            base.endsWith('.webmanifest');
+          if (noCache) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+          }
+        },
       })
     );
     app.get(/^(?!\/api).*/, (_req, res) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
       res.sendFile(path.join(webDist, 'index.html'));
     });
   } else {

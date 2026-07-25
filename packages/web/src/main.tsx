@@ -29,6 +29,10 @@ async function main() {
   const { initNativeShell } = await import('./lib/capacitor');
   await initNativeShell();
 
+  // PWA: detectar builds nuevos y avisar (app de escritorio / móvil instalada)
+  const { initPwaUpdates } = await import('./lib/pwaUpdate');
+  await initPwaUpdates();
+
   // Dev-only: expose the Zustand store en window para debugging desde la consola.
   if (import.meta.env.DEV) {
     (window as unknown as { __dailyTrackerStore__: typeof useStore }).__dailyTrackerStore__ = useStore;

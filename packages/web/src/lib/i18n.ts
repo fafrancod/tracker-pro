@@ -130,6 +130,21 @@ export interface TranslationDict {
   pwa_install_title: string;
   pwa_install_desc: string;
   pwa_install_action: string;
+  pwa_update_title: string;
+  pwa_update_desc: string;
+  pwa_update_action: string;
+  pwa_update_applying: string;
+  pwa_settings_title: string;
+  pwa_settings_desc: string;
+  pwa_check_updates: string;
+  pwa_check_updates_ok: string;
+  pwa_check_updates_found: string;
+  pwa_check_updates_error: string;
+  pwa_hard_reset: string;
+  pwa_hard_reset_desc: string;
+  pwa_hard_reset_confirm: string;
+  pwa_hard_reset_running: string;
+  pwa_installed_badge: string;
   offline_banner: string;
   offline_pending: string;
   offline_sync_now: string;
@@ -521,6 +536,24 @@ const es_dict: TranslationDict = {
   pwa_install_title: 'Instalar Daily Tracker',
   pwa_install_desc: 'Ábrela como app desde tu pantalla de inicio.',
   pwa_install_action: 'Instalar',
+  pwa_update_title: 'Nueva versión lista',
+  pwa_update_desc: 'Hay actualizaciones (funciones y correcciones). Reinicia para aplicarlas.',
+  pwa_update_action: 'Actualizar ahora',
+  pwa_update_applying: 'Actualizando…',
+  pwa_settings_title: 'App instalada (PWA)',
+  pwa_settings_desc:
+    'Si la app del escritorio no muestra las últimas funciones, busca actualizaciones o reinstala la caché local.',
+  pwa_check_updates: 'Buscar actualizaciones',
+  pwa_check_updates_ok: 'Ya tienes la última versión cargada en este dispositivo.',
+  pwa_check_updates_found: 'Hay una versión nueva. Pulsa «Actualizar ahora» en el aviso.',
+  pwa_check_updates_error: 'No se pudo comprobar actualizaciones. Prueba a reabrir la app.',
+  pwa_hard_reset: 'Reinstalar última versión',
+  pwa_hard_reset_desc:
+    'Borra la caché y el service worker de este dispositivo y recarga la app. Tus datos en la nube no se pierden.',
+  pwa_hard_reset_confirm:
+    '¿Borrar caché local y recargar la app? Se descargará de nuevo la última versión. Tus tareas en la cuenta se mantienen.',
+  pwa_hard_reset_running: 'Reinstalando…',
+  pwa_installed_badge: 'Modo app instalada · v{version} · {build}',
   offline_banner: 'Sin conexión. Los cambios se guardan y se envían al volver.',
   offline_pending: '{n} cambio(s) pendientes de sincronizar',
   offline_sync_now: 'Sincronizar',
@@ -919,6 +952,24 @@ const en_dict: TranslationDict = {
   pwa_install_title: 'Install Daily Tracker',
   pwa_install_desc: 'Open it like an app from your home screen.',
   pwa_install_action: 'Install',
+  pwa_update_title: 'New version ready',
+  pwa_update_desc: 'Updates are available (features and fixes). Restart to apply them.',
+  pwa_update_action: 'Update now',
+  pwa_update_applying: 'Updating…',
+  pwa_settings_title: 'Installed app (PWA)',
+  pwa_settings_desc:
+    'If the desktop app is missing the latest features, check for updates or reinstall the local cache.',
+  pwa_check_updates: 'Check for updates',
+  pwa_check_updates_ok: 'You already have the latest version on this device.',
+  pwa_check_updates_found: 'A new version is available. Tap «Update now» on the banner.',
+  pwa_check_updates_error: 'Could not check for updates. Try reopening the app.',
+  pwa_hard_reset: 'Reinstall latest version',
+  pwa_hard_reset_desc:
+    'Clears this device’s cache and service worker, then reloads. Cloud data is kept.',
+  pwa_hard_reset_confirm:
+    'Clear local cache and reload? The latest version will download again. Account tasks are kept.',
+  pwa_hard_reset_running: 'Reinstalling…',
+  pwa_installed_badge: 'Installed app mode · v{version} · {build}',
   offline_banner: 'You are offline. Changes are saved and will sync when you reconnect.',
   offline_pending: '{n} change(s) waiting to sync',
   offline_sync_now: 'Sync now',

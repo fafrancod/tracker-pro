@@ -12,6 +12,7 @@ import { Placeholder } from '@/pages/Placeholder';
 import { BoardPage } from '@/pages/BoardPage';
 import { LoginPage } from '@/pages/Login';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
+import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { NotificationBootstrap } from '@/components/NotificationBootstrap';
 
@@ -64,6 +65,7 @@ function App() {
               <TooltipProvider>
                 <NotificationBootstrap />
                 <OfflineBanner />
+                <PwaUpdateBanner />
                 <PwaInstallBanner />
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
