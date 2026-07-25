@@ -94,6 +94,8 @@ interface AddTaskFormProps {
   startDayId?: string;
   /** compact = columna semana; modal = sheet/dialog grande. */
   variant?: 'compact' | 'modal';
+  /** Kind inicial (p. ej. rx_human al abrir desde pestaña Recetario). */
+  initialKind?: TaskKind;
   onCancel?: () => void;
 }
 
@@ -103,6 +105,7 @@ export function AddTaskForm({
   startOpen = false,
   startDayId,
   variant = 'compact',
+  initialKind = 'task',
   onCancel,
 }: AddTaskFormProps) {
   const { t } = useT();
@@ -113,7 +116,7 @@ export function AddTaskForm({
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('none');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
   const [endDayId, setEndDayId] = useState(startDayId ?? '');
-  const [kind, setKind] = useState<TaskKind>('task');
+  const [kind, setKind] = useState<TaskKind>(initialKind);
   const [urgency, setUrgency] = useState<Urgency | null>(null);
   const [importance, setImportance] = useState<Importance | null>(null);
   const [color, setColor] = useState<string | null>(null);
@@ -157,6 +160,10 @@ export function AddTaskForm({
   }, [startDayId]);
 
   useEffect(() => {
+    setKind(initialKind);
+  }, [initialKind]);
+
+  useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
 
@@ -178,7 +185,7 @@ export function AddTaskForm({
     setPriority('medium');
     setRecurrenceFrequency('none');
     setRecurrenceInterval(1);
-    setKind('task');
+    setKind(initialKind);
     setUrgency(null);
     setImportance(null);
     setColor(null);

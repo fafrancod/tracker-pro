@@ -61,6 +61,7 @@ export interface TranslationDict {
   board_filter_category_all: string;
   board_filter_category_projects: string;
   board_filter_category_rx: string;
+  board_category_rx_hint: string;
 
   // Context menu tareas
   task_ctx_mark_complete: string;
@@ -347,6 +348,8 @@ const es_dict: TranslationDict = {
   board_filter_category_all: 'Todo',
   board_filter_category_projects: 'Proyectos',
   board_filter_category_rx: 'Recetario',
+  board_category_rx_hint:
+    'Solo tomas de recetario. Los remedios no usan proyecto ni Eisenhower.',
 
   task_ctx_mark_complete: 'Marcar como completada',
   task_ctx_mark_pending: 'Marcar como pendiente',
@@ -640,6 +643,8 @@ const en_dict: TranslationDict = {
   board_filter_category_all: 'All',
   board_filter_category_projects: 'Projects',
   board_filter_category_rx: 'Prescriptions',
+  board_category_rx_hint:
+    'Prescription doses only. Remedies skip project and Eisenhower fields.',
 
   task_ctx_mark_complete: 'Mark as completed',
   task_ctx_mark_pending: 'Mark as pending',

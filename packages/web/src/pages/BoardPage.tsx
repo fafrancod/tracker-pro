@@ -6,6 +6,9 @@ import {
   Redo2,
   Undo2,
   Sun,
+  LayoutGrid,
+  FolderKanban,
+  Pill,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -110,11 +113,24 @@ export function BoardPage() {
     setFabOpen(true);
   }
 
-  const categoryOptions = [
-    { value: 'all', label: t('board_filter_category_all') },
-    { value: 'projects', label: t('board_filter_category_projects') },
-    { value: 'rx', label: t('board_filter_category_rx') },
+  const category = filters.category ?? 'all';
+  const isRxCategory = category === 'rx';
+  const isProjectsCategory = category === 'projects';
+
+  const categoryTabs: Array<{
+    value: BoardCategoryFilter;
+    label: string;
+    icon: typeof LayoutGrid;
+  }> = [
+    { value: 'all', label: t('board_filter_category_all'), icon: LayoutGrid },
+    {
+      value: 'projects',
+      label: t('board_filter_category_projects'),
+      icon: FolderKanban,
+    },
+    { value: 'rx', label: t('board_filter_category_rx'), icon: Pill },
   ];
+
   const projectOptions = [
     { value: 'all', label: t('board_filter_all') },
     ...projects.map(p => ({ value: p.id, label: `${p.icon} ${p.name}` })),
@@ -135,6 +151,7 @@ export function BoardPage() {
       title={t('nav_tasks')}
       primaryAction={{ label: t('action_add_task'), onClick: () => setFabOpen(true) }}
     >
+      {/* Fila 1: vista + undo */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-1.5 md:px-3">
         <div className="inline-flex rounded-md border border-border bg-surface p-0.5">
           <button
@@ -221,75 +238,117 @@ export function BoardPage() {
             <Redo2 className="h-3.5 w-3.5" />
           </button>
         </div>
+      </div>
 
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          <div className="flex items-center gap-1">
-            <span className="hidden text-[10px] text-text-muted sm:inline">
-              {t('board_filter_category')}
-            </span>
-            <CycleSelect
-              aria-label={t('board_filter_category')}
-              value={filters.category ?? 'all'}
-              options={categoryOptions}
-              onChange={v =>
-                setFilters(f => ({
-                  ...f,
-                  category: v as BoardCategoryFilter,
-                }))
-              }
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="hidden text-[10px] text-text-muted sm:inline">
-              {t('board_filter_project')}
-            </span>
-            <CycleSelect
-              aria-label={t('board_filter_project')}
-              value={
-                filters.projectId === 'all' || !filters.projectId ? 'all' : filters.projectId
-              }
-              options={projectOptions}
-              onChange={v =>
-                setFilters(f => ({
-                  ...f,
-                  projectId: v === 'all' ? 'all' : v,
-                }))
-              }
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="hidden text-[10px] text-text-muted sm:inline">
-              {t('board_filter_urgency')}
-            </span>
-            <CycleSelect
-              aria-label={t('board_filter_urgency')}
-              value={filters.urgency ?? 'all'}
-              options={urgencyOptions}
-              onChange={v =>
-                setFilters(f => ({
-                  ...f,
-                  urgency: v as Urgency | 'all',
-                }))
-              }
-            />
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="hidden text-[10px] text-text-muted sm:inline">
-              {t('board_filter_importance')}
-            </span>
-            <CycleSelect
-              aria-label={t('board_filter_importance')}
-              value={filters.importance ?? 'all'}
-              options={importanceOptions}
-              onChange={v =>
-                setFilters(f => ({
-                  ...f,
-                  importance: v as Importance | 'all',
-                }))
-              }
-            />
-          </div>
+      {/* Fila 2: categorías visibles (Todo / Proyectos / Recetario) + filtros contextuales */}
+      <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-surface/60 px-2 py-2 md:flex-row md:items-center md:px-3">
+        <div
+          className="inline-flex w-full rounded-lg border border-border bg-background p-0.5 sm:w-auto"
+          role="tablist"
+          aria-label={t('board_filter_category')}
+        >
+          {categoryTabs.map(tab => {
+            const Icon = tab.icon;
+            const active = category === tab.value;
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() =>
+                  setFilters(f => ({
+                    ...f,
+                    category: tab.value,
+                    // Al entrar en recetario, limpia filtros de proyecto/Eisenhower
+                    ...(tab.value === 'rx'
+                      ? { projectId: 'all', urgency: 'all', importance: 'all' }
+                      : {}),
+                  }))
+                }
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition-colors sm:flex-none sm:py-1.5',
+                  active
+                    ? tab.value === 'rx'
+                      ? 'bg-violet-500/20 text-violet-200'
+                      : tab.value === 'projects'
+                        ? 'bg-accent-teal/15 text-accent-teal'
+                        : 'bg-accent-teal/15 text-accent-teal'
+                    : 'text-text-muted hover:bg-surface hover:text-text-primary'
+                )}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Filtros secundarios: solo donde aplican */}
+        {!isRxCategory && (
+          <div className="flex flex-wrap items-center gap-1.5 md:ml-auto">
+            {(isProjectsCategory || category === 'all') && (
+              <div className="flex items-center gap-1">
+                <span className="hidden text-[10px] text-text-muted sm:inline">
+                  {t('board_filter_project')}
+                </span>
+                <CycleSelect
+                  aria-label={t('board_filter_project')}
+                  value={
+                    filters.projectId === 'all' || !filters.projectId
+                      ? 'all'
+                      : filters.projectId
+                  }
+                  options={projectOptions}
+                  onChange={v =>
+                    setFilters(f => ({
+                      ...f,
+                      projectId: v === 'all' ? 'all' : v,
+                    }))
+                  }
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <span className="hidden text-[10px] text-text-muted sm:inline">
+                {t('board_filter_urgency')}
+              </span>
+              <CycleSelect
+                aria-label={t('board_filter_urgency')}
+                value={filters.urgency ?? 'all'}
+                options={urgencyOptions}
+                onChange={v =>
+                  setFilters(f => ({
+                    ...f,
+                    urgency: v as Urgency | 'all',
+                  }))
+                }
+              />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="hidden text-[10px] text-text-muted sm:inline">
+                {t('board_filter_importance')}
+              </span>
+              <CycleSelect
+                aria-label={t('board_filter_importance')}
+                value={filters.importance ?? 'all'}
+                options={importanceOptions}
+                onChange={v =>
+                  setFilters(f => ({
+                    ...f,
+                    importance: v as Importance | 'all',
+                  }))
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {isRxCategory && (
+          <p className="text-[11px] text-text-muted md:ml-auto">
+            {t('board_category_rx_hint')}
+          </p>
+        )}
       </div>
 
       {view === 'day' && (
@@ -333,6 +392,7 @@ export function BoardPage() {
             startOpen
             variant="modal"
             startDayId={targetDayId}
+            initialKind={isRxCategory ? 'rx_human' : 'task'}
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {
               await addTask(payload);
