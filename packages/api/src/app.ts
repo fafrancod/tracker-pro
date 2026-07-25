@@ -11,6 +11,7 @@ import { versionRouter } from './routes/version.js';
 import { publicConfigRouter } from './routes/publicConfig.js';
 import { tasksRouter } from './routes/tasks.js';
 import { projectsRouter } from './routes/projects.js';
+import { contactsRouter } from './routes/contacts.js';
 import { authRouter } from './routes/auth.js';
 import { notificationsRouter } from './routes/notifications.js';
 
@@ -78,6 +79,7 @@ export function buildApp(): Express {
   app.use('/api/auth', authRouter);
   app.use('/api/tasks', tasksRouter);
   app.use('/api/projects', projectsRouter);
+  app.use('/api/contacts', contactsRouter);
   app.use('/api/notifications', notificationsRouter);
 
   app.get('/api', (_req, res) => {
@@ -96,6 +98,7 @@ export function buildApp(): Express {
         '/api/auth/bootstrap',
         '/api/tasks',
         '/api/projects',
+        '/api/contacts',
         '/api/notifications/status',
         '/api/notifications/test-email',
         '/api/notifications/dispatch',

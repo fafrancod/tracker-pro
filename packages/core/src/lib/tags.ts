@@ -1,16 +1,30 @@
 /**
- * Hashtags y etiquetas reutilizables (p. ej. mascotas #Ragnar).
+ * Hashtags (#) y menciones (@) reutilizables.
+ * #Ragnar / @Ana → tags normalizados sin prefijo.
  */
 
 const HASHTAG_RE = /#([\p{L}\p{N}_-]{1,40})/gu;
+const MENTION_RE = /@([\p{L}\p{N}_-]{1,40})/gu;
 
 /** Extrae #tags del texto (sin el #, capitalización original). */
 export function extractHashtags(text: string | null | undefined): string[] {
+  return extractPrefixedTokens(text, HASHTAG_RE);
+}
+
+/** Extrae @menciones del texto (sin el @). */
+export function extractMentions(text: string | null | undefined): string[] {
+  return extractPrefixedTokens(text, MENTION_RE);
+}
+
+function extractPrefixedTokens(
+  text: string | null | undefined,
+  pattern: RegExp
+): string[] {
   if (!text) return [];
   const out: string[] = [];
   const seen = new Set<string>();
   let m: RegExpExecArray | null;
-  const re = new RegExp(HASHTAG_RE.source, HASHTAG_RE.flags);
+  const re = new RegExp(pattern.source, pattern.flags);
   while ((m = re.exec(text)) !== null) {
     const tag = m[1].trim();
     if (!tag) continue;
@@ -22,9 +36,37 @@ export function extractHashtags(text: string | null | undefined): string[] {
   return out;
 }
 
-/** Normaliza etiqueta: quita # inicial y espacios. */
+/** Normaliza etiqueta: quita # / @ inicial y espacios. */
 export function normalizeTag(raw: string): string {
-  return raw.trim().replace(/^#+/, '').trim();
+  return raw.trim().replace(/^[#@]+/, '').trim();
+}
+
+/**
+ * Handles de un contacto del Círculo (tags + fallback del nombre).
+ * Sin @; listos para mergeTags o autocompletar @Nombre.
+ */
+export function contactHandles(contact: {
+  name: string;
+  tags: string[] | null | undefined;
+}): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string) => {
+    const t = normalizeTag(raw);
+    if (!t) return;
+    const key = t.toLocaleLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(t);
+  };
+  for (const t of contact.tags ?? []) push(t);
+  if (out.length === 0) {
+    // Primera palabra del nombre o nombre compacto
+    const parts = contact.name.trim().split(/\s+/).filter(Boolean);
+    if (parts[0]) push(parts[0]);
+    else push(contact.name.replace(/\s+/g, ''));
+  }
+  return out;
 }
 
 /**

@@ -40,7 +40,7 @@ import {
   totalRxPlanDays,
   validateRxPhases,
 } from '@core/lib/rx';
-import { extractHashtags, mergeTags } from '@core/lib/tags';
+import { extractHashtags, extractMentions, mergeTags } from '@core/lib/tags';
 import { normalizeTimeInput } from '@core/lib/time';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
@@ -378,6 +378,9 @@ function TaskDetailInner({
         const tags = mergeTags(
           draft.tags,
           extractHashtags(title),
+          extractMentions(title),
+          extractMentions(draft.notes),
+          extractMentions(subject ?? ''),
           task.kind === 'rx_pet' && subject ? subject : null
         );
         // Metadata de esta toma / serie (sin rehacer plan)
@@ -420,7 +423,12 @@ function TaskDetailInner({
           );
         }
       } else {
-        const tags = mergeTags(draft.tags, extractHashtags(title));
+        const tags = mergeTags(
+          draft.tags,
+          extractHashtags(title),
+          extractMentions(title),
+          extractMentions(draft.notes)
+        );
         const startN = normalizeTimeInput(draft.startTime);
         const endN = normalizeTimeInput(draft.endTime);
         if (startN && endN && endN < startN) {

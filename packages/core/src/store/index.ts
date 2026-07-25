@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { Task, Project, UserProfile, AnalyticsData } from '../types';
+import type { Task, Project, Contact, UserProfile, AnalyticsData } from '../types';
 import { getWeekId, getDayId } from '../services/taskService';
 
 interface TasksState {
@@ -10,6 +10,10 @@ interface TasksState {
 
 interface ProjectsState {
   projects: Project[];
+}
+
+interface ContactsState {
+  contacts: Contact[];
 }
 
 interface UIState {
@@ -49,6 +53,12 @@ interface Actions {
   updateProjectOptimistic: (projectId: string, patch: Partial<Project>) => void;
   removeProjectOptimistic: (projectId: string) => void;
 
+  // contacts (Círculo)
+  setContacts: (contacts: Contact[]) => void;
+  addContactOptimistic: (contact: Contact) => void;
+  updateContactOptimistic: (contactId: string, patch: Partial<Contact>) => void;
+  removeContactOptimistic: (contactId: string) => void;
+
   // ui
   setCurrentWeek: (weekId: string) => void;
   setSelectedDay: (dayId: string | null) => void;
@@ -66,7 +76,13 @@ interface Actions {
   setAnalytics: (weekId: string, data: AnalyticsData) => void;
 }
 
-type AppStore = TasksState & ProjectsState & UIState & AuthState & AnalyticsState & Actions;
+type AppStore = TasksState &
+  ProjectsState &
+  ContactsState &
+  UIState &
+  AuthState &
+  AnalyticsState &
+  Actions;
 
 const today = new Date();
 
@@ -77,6 +93,9 @@ export const useStore = create<AppStore>()(
 
     // projects
     projects: [],
+
+    // contacts
+    contacts: [],
 
     // ui
     currentWeekId: getWeekId(today),
@@ -169,6 +188,23 @@ export const useStore = create<AppStore>()(
 
     removeProjectOptimistic: (projectId) =>
       set(state => { state.projects = state.projects.filter((p: Project) => p.id !== projectId); }),
+
+    // --- contact actions ---
+    setContacts: contacts => set(state => { state.contacts = contacts; }),
+
+    addContactOptimistic: contact =>
+      set(state => { state.contacts.push(contact); }),
+
+    updateContactOptimistic: (contactId, patch) =>
+      set(state => {
+        const idx = state.contacts.findIndex((c: Contact) => c.id === contactId);
+        if (idx !== -1) Object.assign(state.contacts[idx], patch);
+      }),
+
+    removeContactOptimistic: contactId =>
+      set(state => {
+        state.contacts = state.contacts.filter((c: Contact) => c.id !== contactId);
+      }),
 
     // --- ui actions ---
     setCurrentWeek: (weekId) => set(state => { state.currentWeekId = weekId; }),

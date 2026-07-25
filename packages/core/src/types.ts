@@ -221,6 +221,32 @@ export interface Project {
   order: number;
 }
 
+/** Persona o mascota del Círculo (mencionable con @tag en tareas). */
+export type ContactKind = 'person' | 'pet';
+
+/** Relación solo para personas. */
+export type PersonRelationship =
+  | 'father'
+  | 'mother'
+  | 'son'
+  | 'daughter'
+  | 'niece'
+  | 'nephew'
+  | 'friend'
+  | 'coworker';
+
+export interface Contact {
+  id: string;
+  kind: ContactKind;
+  name: string;
+  /** Handles sin @ (p. ej. Ana, Ragnar). Se usan como @Ana en títulos/notas. */
+  tags: string[];
+  /** Solo personas; null en mascotas o si no se indica. */
+  relationship: PersonRelationship | null;
+  order: number;
+  createdAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -409,6 +435,21 @@ export interface UpdateProjectPayload {
   name?: string;
   color?: string;
   icon?: string;
+  order?: number;
+}
+
+export interface CreateContactPayload {
+  kind: ContactKind;
+  name: string;
+  tags: string[];
+  relationship?: PersonRelationship | null;
+}
+
+export interface UpdateContactPayload {
+  kind?: ContactKind;
+  name?: string;
+  tags?: string[];
+  relationship?: PersonRelationship | null;
   order?: number;
 }
 

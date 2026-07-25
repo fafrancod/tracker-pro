@@ -7,6 +7,7 @@ import { FAB } from './FAB';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { isDemoMode } from '@core/lib/demoMode';
+import { useContacts } from '@core/hooks/useContacts';
 import { useT } from '@/hooks/useT';
 import {
   PageChromeProvider,
@@ -29,6 +30,8 @@ function AppShellInner() {
   const location = useLocation();
   const { t } = useT();
   const chrome = usePageChromeState();
+  // Precarga Círculo para @menciones en tareas/recetarios en cualquier vista.
+  useContacts();
 
   const matched = NAV_ITEMS.find(i => location.pathname.startsWith(i.to));
   const headerTitle =

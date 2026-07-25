@@ -13,6 +13,7 @@ import { Placeholder } from '@/pages/Placeholder';
 import { BoardPage } from '@/pages/BoardPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
+import { CirclePage } from '@/pages/CirclePage';
 import { AnalyticsPage } from '@/pages/AnalyticsPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { EisenhowerPage } from '@/pages/EisenhowerPage';
@@ -148,6 +149,14 @@ function App() {
                         element={
                           <RouteErrorBoundary>
                             <ProjectsPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="circle"
+                        element={
+                          <RouteErrorBoundary>
+                            <CirclePage />
                           </RouteErrorBoundary>
                         }
                       />

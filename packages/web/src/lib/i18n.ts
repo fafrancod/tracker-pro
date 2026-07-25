@@ -11,6 +11,7 @@ export interface TranslationDict {
   nav_summary: string;
   nav_tasks: string;
   nav_projects: string;
+  nav_circle: string;
   nav_analytics: string;
   nav_activity: string;
   nav_settings: string;
@@ -477,12 +478,50 @@ export interface TranslationDict {
   // Generales
   empty_no_tasks: string;
   empty_no_projects: string;
+
+  // Círculo (personas y mascotas)
+  circle_title: string;
+  circle_subtitle: string;
+  circle_new: string;
+  circle_edit: string;
+  circle_create: string;
+  circle_form_desc: string;
+  circle_kind: string;
+  circle_kind_person: string;
+  circle_kind_pet: string;
+  circle_name: string;
+  circle_name_ph_person: string;
+  circle_name_ph_pet: string;
+  circle_tags: string;
+  circle_tags_ph: string;
+  circle_tags_hint: string;
+  circle_relationship: string;
+  circle_relationship_none: string;
+  circle_rel_father: string;
+  circle_rel_mother: string;
+  circle_rel_son: string;
+  circle_rel_daughter: string;
+  circle_rel_niece: string;
+  circle_rel_nephew: string;
+  circle_rel_friend: string;
+  circle_rel_coworker: string;
+  circle_filter_all: string;
+  circle_empty: string;
+  circle_empty_hint: string;
+  circle_created: string;
+  circle_updated: string;
+  circle_deleted: string;
+  circle_save_error: string;
+  circle_delete_error: string;
+  circle_delete_confirm: string;
+  circle_mention_hint: string;
 }
 
 const es_dict: TranslationDict = {
   nav_summary: 'Resumen',
   nav_tasks: 'Tareas',
   nav_projects: 'Proyectos',
+  nav_circle: 'Círculo',
   nav_analytics: 'Analytics',
   nav_activity: 'Bitácora',
   nav_settings: 'Config',
@@ -979,12 +1018,53 @@ const es_dict: TranslationDict = {
 
   empty_no_tasks: 'Aún no hay tareas.',
   empty_no_projects: 'Aún no hay proyectos.',
+
+  circle_title: 'Círculo',
+  circle_subtitle:
+    'Personas y mascotas cercanas. En tareas y recetarios escribe @tag para etiquetarlas (p. ej. @Ana, @Ragnar).',
+  circle_new: 'Añadir al círculo',
+  circle_edit: 'Editar contacto',
+  circle_create: 'Añadir',
+  circle_form_desc:
+    'Define un nombre y uno o más tags. En el tablero usa @tag para asociar tareas o dosis.',
+  circle_kind: 'Tipo',
+  circle_kind_person: 'Persona',
+  circle_kind_pet: 'Mascota',
+  circle_name: 'Nombre',
+  circle_name_ph_person: 'Ej. Ana, Carlos…',
+  circle_name_ph_pet: 'Ej. Ragnar, Luna…',
+  circle_tags: 'Tags (para @)',
+  circle_tags_ph: 'Ana, mamá (separados por coma)',
+  circle_tags_hint:
+    'Si no indicas tags, se usa la primera palabra del nombre. Escribe @tag en el título de la tarea.',
+  circle_relationship: 'Relación',
+  circle_relationship_none: 'Sin indicar',
+  circle_rel_father: 'Padre',
+  circle_rel_mother: 'Madre',
+  circle_rel_son: 'Hijo',
+  circle_rel_daughter: 'Hija',
+  circle_rel_niece: 'Sobrina',
+  circle_rel_nephew: 'Sobrino',
+  circle_rel_friend: 'Amigo/a',
+  circle_rel_coworker: 'Compañero/a de trabajo',
+  circle_filter_all: 'Todos',
+  circle_empty: 'Tu círculo está vacío',
+  circle_empty_hint:
+    'Añade personas y mascotas para etiquetarlas con @ en tareas y recetarios.',
+  circle_created: 'Contacto añadido al círculo.',
+  circle_updated: 'Contacto actualizado.',
+  circle_deleted: 'Contacto eliminado.',
+  circle_save_error: 'No pudimos guardar el contacto.',
+  circle_delete_error: 'No pudimos eliminar el contacto.',
+  circle_delete_confirm: '¿Eliminar a «{name}» del círculo?',
+  circle_mention_hint: 'Usa @tag para etiquetar a alguien del Círculo.',
 };
 
 const en_dict: TranslationDict = {
   nav_summary: 'Summary',
   nav_tasks: 'Tasks',
   nav_projects: 'Projects',
+  nav_circle: 'Circle',
   nav_analytics: 'Analytics',
   nav_activity: 'Activity',
   nav_settings: 'Settings',
@@ -1481,6 +1561,45 @@ const en_dict: TranslationDict = {
 
   empty_no_tasks: 'No tasks yet.',
   empty_no_projects: 'No projects yet.',
+
+  circle_title: 'Circle',
+  circle_subtitle:
+    'People and pets close to you. In tasks and prescriptions type @tag to tag them (e.g. @Ana, @Ragnar).',
+  circle_new: 'Add to circle',
+  circle_edit: 'Edit contact',
+  circle_create: 'Add',
+  circle_form_desc:
+    'Set a name and one or more tags. On the board use @tag to link tasks or doses.',
+  circle_kind: 'Type',
+  circle_kind_person: 'Person',
+  circle_kind_pet: 'Pet',
+  circle_name: 'Name',
+  circle_name_ph_person: 'e.g. Ana, Carlos…',
+  circle_name_ph_pet: 'e.g. Ragnar, Luna…',
+  circle_tags: 'Tags (for @)',
+  circle_tags_ph: 'Ana, mom (comma-separated)',
+  circle_tags_hint:
+    'If empty, the first word of the name is used. Type @tag in the task title.',
+  circle_relationship: 'Relationship',
+  circle_relationship_none: 'Not set',
+  circle_rel_father: 'Father',
+  circle_rel_mother: 'Mother',
+  circle_rel_son: 'Son',
+  circle_rel_daughter: 'Daughter',
+  circle_rel_niece: 'Niece',
+  circle_rel_nephew: 'Nephew',
+  circle_rel_friend: 'Friend',
+  circle_rel_coworker: 'Coworker',
+  circle_filter_all: 'All',
+  circle_empty: 'Your circle is empty',
+  circle_empty_hint: 'Add people and pets so you can tag them with @ in tasks and prescriptions.',
+  circle_created: 'Contact added to circle.',
+  circle_updated: 'Contact updated.',
+  circle_deleted: 'Contact removed.',
+  circle_save_error: 'Could not save the contact.',
+  circle_delete_error: 'Could not delete the contact.',
+  circle_delete_confirm: 'Remove “{name}” from the circle?',
+  circle_mention_hint: 'Use @tag to mention someone in your Circle.',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

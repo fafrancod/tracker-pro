@@ -40,7 +40,13 @@ import {
   totalRxPlanDays,
   validateRxPhases,
 } from '@core/lib/rx';
-import { extractHashtags, mergeTags, normalizeTag } from '@core/lib/tags';
+import {
+  contactHandles,
+  extractHashtags,
+  extractMentions,
+  mergeTags,
+  normalizeTag,
+} from '@core/lib/tags';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
 import { normalizeTimeInput } from '@core/lib/time';
@@ -143,18 +149,24 @@ export function AddTaskForm({
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
   const tasksByDay = useStore(s => s.tasksByDay);
+  const contacts = useStore(s => s.contacts);
 
-  /** Tags de mascotas ya usados (rx_pet subjects + tags en store). */
-  const knownPetTags = useMemo(() => {
+  /** Handles @ del Círculo + tags/mascotas ya usados en el store. */
+  const mentionSuggestions = useMemo(() => {
     const set = new Map<string, string>();
+    for (const c of contacts) {
+      for (const h of contactHandles(c)) {
+        set.set(h.toLocaleLowerCase(), h);
+      }
+    }
     for (const days of Object.values(tasksByDay)) {
       for (const list of Object.values(days)) {
-        for (const t of list) {
-          if (t.kind === 'rx_pet' && t.rx?.subject) {
-            const n = normalizeTag(t.rx.subject);
+        for (const task of list) {
+          if (task.kind === 'rx_pet' && task.rx?.subject) {
+            const n = normalizeTag(task.rx.subject);
             if (n) set.set(n.toLocaleLowerCase(), n);
           }
-          for (const tag of t.tags ?? []) {
+          for (const tag of task.tags ?? []) {
             const n = normalizeTag(tag);
             if (n) set.set(n.toLocaleLowerCase(), n);
           }
@@ -162,7 +174,7 @@ export function AddTaskForm({
       }
     }
     return Array.from(set.values()).sort((a, b) => a.localeCompare(b));
-  }, [tasksByDay]);
+  }, [contacts, tasksByDay]);
 
   const rxPlanDays = useMemo(() => totalRxPlanDays(rxPhases), [rxPhases]);
   const rxEndDayId = useMemo(() => {
@@ -286,6 +298,8 @@ export function AddTaskForm({
       const tags = mergeTags(
         [],
         extractHashtags(trimmed),
+        extractMentions(trimmed),
+        extractMentions(subject ?? ''),
         kind === 'rx_pet' && subject ? subject : null
       );
       setSubmitting(true);
@@ -320,7 +334,7 @@ export function AddTaskForm({
       frequency = 'none';
     }
 
-    const tags = mergeTags([], extractHashtags(trimmed));
+    const tags = mergeTags([], extractHashtags(trimmed), extractMentions(trimmed));
     const startN = normalizeTimeInput(startTime);
     const endN = normalizeTimeInput(endTime);
     if (startN && endN && endN < startN) {
@@ -507,12 +521,23 @@ export function AddTaskForm({
                 ? t('task_reminder_placeholder')
                 : t('task_title_placeholder')
           }
+          list="circle-mention-suggestions"
           className={cn(
             isModal
               ? 'h-12 rounded-xl border-border bg-background px-4 text-base focus-visible:ring-accent-teal/40'
               : 'h-8 border-none bg-transparent px-1 text-sm focus-visible:ring-0 focus-visible:ring-offset-0'
           )}
         />
+        {mentionSuggestions.length > 0 && (
+          <datalist id="circle-mention-suggestions">
+            {mentionSuggestions.map(tag => (
+              <option key={tag} value={`@${tag}`} />
+            ))}
+          </datalist>
+        )}
+        {isModal && (
+          <p className="text-[10px] text-text-muted">{t('circle_mention_hint')}</p>
+        )}
       </div>
 
       {/* Recetario: sujeto + fases */}
@@ -530,18 +555,31 @@ export function AddTaskForm({
                 kind === 'rx_pet' ? t('rx_pet_placeholder') : t('rx_patient_placeholder')
               }
               className="h-9 text-sm"
-              list={kind === 'rx_pet' ? 'rx-pet-tags-list' : undefined}
+              list="circle-subject-suggestions"
             />
-            {kind === 'rx_pet' && (
-              <>
-                <datalist id="rx-pet-tags-list">
-                  {knownPetTags.map(tag => (
+            {mentionSuggestions.length > 0 && (
+              <datalist id="circle-subject-suggestions">
+                {mentionSuggestions
+                  .filter(tag => {
+                    if (kind !== 'rx_pet' && kind !== 'rx_human') return true;
+                    const contact = contacts.find(c =>
+                      contactHandles(c).some(
+                        h => h.toLocaleLowerCase() === tag.toLocaleLowerCase()
+                      )
+                    );
+                    if (!contact) return true;
+                    return kind === 'rx_pet'
+                      ? contact.kind === 'pet'
+                      : contact.kind === 'person';
+                  })
+                  .map(tag => (
                     <option key={tag} value={tag} />
                   ))}
-                </datalist>
-                <p className="text-[10px] text-text-muted">{t('rx_pet_tag_hint')}</p>
-              </>
+              </datalist>
             )}
+            <p className="text-[10px] text-text-muted">
+              {kind === 'rx_pet' ? t('rx_pet_tag_hint') : t('circle_mention_hint')}
+            </p>
           </label>
 
           <p className="text-[11px] text-text-muted">{t('rx_phases_hint')}</p>
