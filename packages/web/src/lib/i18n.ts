@@ -45,6 +45,12 @@ export interface TranslationDict {
   memento_tab_goals: string;
   memento_goals_on_map: string;
   memento_manage_goals: string;
+  memento_goal_hover_hint: string;
+  memento_goal_preview_title: string;
+  memento_goal_preview_title_multi: string;
+  memento_goal_preview_desc: string;
+  memento_goal_preview_aria: string;
+  memento_goal_preview_no_manifestation: string;
   life_goals_title: string;
   life_goals_subtitle: string;
   life_goals_empty: string;
@@ -445,6 +451,13 @@ const es_dict: TranslationDict = {
   memento_tab_goals: 'Metas de vida',
   memento_goals_on_map: '{n} semana(s) con meta marcada en el mapa.',
   memento_manage_goals: 'Gestionar metas',
+  memento_goal_hover_hint:
+    'Pasa el ratón o toca un cuadrado de meta para ver la foto, manifestación y fecha.',
+  memento_goal_preview_title: 'Meta de vida',
+  memento_goal_preview_title_multi: '{n} metas en esta semana',
+  memento_goal_preview_desc: 'Lo que definiste para este hito en el mapa de semanas.',
+  memento_goal_preview_aria: 'Ver meta: {title}',
+  memento_goal_preview_no_manifestation: 'Sin texto de manifestación.',
   life_goals_title: 'Metas de vida',
   life_goals_subtitle:
     'Define visiones, manifestaciones e hitos con fecha. Cada una se pinta en tu mapa de semanas.',
@@ -861,6 +874,13 @@ const en_dict: TranslationDict = {
   memento_tab_goals: 'Life goals',
   memento_goals_on_map: '{n} week(s) with a goal on the map.',
   memento_manage_goals: 'Manage goals',
+  memento_goal_hover_hint:
+    'Hover or tap a goal square to see the photo, manifestation and date.',
+  memento_goal_preview_title: 'Life goal',
+  memento_goal_preview_title_multi: '{n} goals in this week',
+  memento_goal_preview_desc: 'What you defined for this milestone on the week map.',
+  memento_goal_preview_aria: 'View goal: {title}',
+  memento_goal_preview_no_manifestation: 'No manifestation text.',
   life_goals_title: 'Life goals',
   life_goals_subtitle:
     'Define visions, manifestations and milestones with a date. Each one is painted on your week map.',

@@ -1,8 +1,15 @@
-import { useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Hourglass, Settings, Sparkles, Map } from 'lucide-react';
+import { Calendar, Hourglass, Settings, Sparkles, Map as MapIcon } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { LifeGoalsPanel } from '@/components/Memento/LifeGoalsPanel';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
@@ -18,8 +25,17 @@ import {
   type WeekCellState,
 } from '@/lib/mementoMori';
 import { cn } from '@/lib/utils';
+import type { LifeGoal, LifeGoalKind } from '@core/types';
+import type { TKey } from '@/lib/i18n';
 
 type TabId = 'map' | 'goals';
+
+const KIND_LABEL_KEY: Record<LifeGoalKind, TKey> = {
+  goal: 'life_goal_kind_goal',
+  manifestation: 'life_goal_kind_manifestation',
+  milestone: 'life_goal_kind_milestone',
+  vision: 'life_goal_kind_vision',
+};
 
 /**
  * Colores sólidos con CSS vars (Tailwind /opacity NO funciona con var(--color-*)).
@@ -69,15 +85,48 @@ function cellStyle(
 function LifeGrid({
   snap,
   goalsByWeek,
+  goalsById,
 }: {
   snap: LifeWeeksSnapshot;
   goalsByWeek: Map<number, LifeGoalMarker[]>;
+  goalsById: Map<string, LifeGoal>;
 }) {
+  const { t } = useT();
   const years = snap.lifespanYears;
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [previewGoals, setPreviewGoals] = useState<LifeGoal[] | null>(null);
+
   const milestones = useMemo(
     () => milestoneWeekMap(snap.ageYears, snap.lifespanYears),
     [snap.ageYears, snap.lifespanYears]
   );
+
+  const openGoals = useCallback(
+    (markers: LifeGoalMarker[]) => {
+      const goals = markers
+        .map(m => goalsById.get(m.goalId))
+        .filter((g): g is LifeGoal => Boolean(g));
+      if (goals.length === 0) return;
+      setPreviewGoals(goals);
+    },
+    [goalsById]
+  );
+
+  const scheduleOpen = useCallback(
+    (markers: LifeGoalMarker[]) => {
+      if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      // Pequeño delay para no abrir al pasar rápido sobre la grilla
+      hoverTimer.current = setTimeout(() => openGoals(markers), 220);
+    },
+    [openGoals]
+  );
+
+  const cancelOpen = useCallback(() => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+  }, []);
 
   const cells: ReactNode[] = [];
 
@@ -101,6 +150,7 @@ function LifeGrid({
       const goalsHere = goalsByWeek.get(index);
       const primaryGoal = goalsHere?.[0] ?? null;
       const goalColor = primaryGoal?.color ?? null;
+      const hasGoals = Boolean(goalsHere?.length);
 
       const titleParts: string[] = [];
       if (primaryGoal) {
@@ -113,41 +163,187 @@ function LifeGrid({
       if (isMilestone) titleParts.push(`Cumples ${milestoneAge}`);
       titleParts.push(`Año ${y}, sem. ${w + 1}`);
 
-      cells.push(
-        <span
-          key={index}
-          title={titleParts.join(' · ')}
-          data-state={state}
-          data-milestone={isMilestone ? milestoneAge : undefined}
-          data-goal={primaryGoal?.goalId}
-          className={cn(
-            'box-border aspect-square w-full min-w-0 rounded-[2px] border',
-            state === 'current' &&
-              !goalColor &&
-              'relative z-[1] ring-2 ring-[var(--color-accent-red)] ring-offset-1 ring-offset-[var(--color-surface)]',
-            goalColor && 'relative z-[1]'
-          )}
-          style={cellStyle(state, isMilestone, goalColor)}
-        />
+      const cellClass = cn(
+        'box-border aspect-square w-full min-w-0 rounded-[2px] border',
+        state === 'current' &&
+          !goalColor &&
+          'relative z-[1] ring-2 ring-[var(--color-accent-red)] ring-offset-1 ring-offset-[var(--color-surface)]',
+        goalColor && 'relative z-[1] cursor-pointer transition-transform hover:scale-150 hover:z-[2]',
+        hasGoals && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-teal'
       );
+
+      if (hasGoals && goalsHere) {
+        cells.push(
+          <button
+            key={index}
+            type="button"
+            title={titleParts.join(' · ')}
+            data-state={state}
+            data-milestone={isMilestone ? milestoneAge : undefined}
+            data-goal={primaryGoal?.goalId}
+            className={cellClass}
+            style={cellStyle(state, isMilestone, goalColor)}
+            aria-label={t('memento_goal_preview_aria').replace(
+              '{title}',
+              goalsHere.map(g => g.title).join(', ')
+            )}
+            onMouseEnter={() => scheduleOpen(goalsHere)}
+            onMouseLeave={cancelOpen}
+            onFocus={() => scheduleOpen(goalsHere)}
+            onClick={() => {
+              cancelOpen();
+              openGoals(goalsHere);
+            }}
+          />
+        );
+      } else {
+        cells.push(
+          <span
+            key={index}
+            title={titleParts.join(' · ')}
+            data-state={state}
+            data-milestone={isMilestone ? milestoneAge : undefined}
+            className={cellClass}
+            style={cellStyle(state, isMilestone, goalColor)}
+          />
+        );
+      }
     }
   }
 
   return (
-    <div className="flex w-full justify-center">
-      <div
-        className="w-full max-w-5xl"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `2rem repeat(${WEEKS_PER_YEAR}, minmax(0, 1fr))`,
-          gap: '3px',
-        }}
-        role="img"
-        aria-label={`${snap.weeksLived} semanas vividas, ${snap.weeksRemaining} restantes`}
-      >
-        {cells}
+    <>
+      <div className="flex w-full justify-center">
+        <div
+          className="w-full max-w-5xl"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `2rem repeat(${WEEKS_PER_YEAR}, minmax(0, 1fr))`,
+            gap: '3px',
+          }}
+          role="img"
+          aria-label={`${snap.weeksLived} semanas vividas, ${snap.weeksRemaining} restantes`}
+        >
+          {cells}
+        </div>
       </div>
-    </div>
+
+      <LifeGoalPreviewModal
+        goals={previewGoals}
+        open={previewGoals !== null && previewGoals.length > 0}
+        onOpenChange={open => {
+          if (!open) setPreviewGoals(null);
+        }}
+      />
+    </>
+  );
+}
+
+function LifeGoalPreviewModal({
+  goals,
+  open,
+  onOpenChange,
+}: {
+  goals: LifeGoal[] | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useT();
+  const list = goals ?? [];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto p-0 sm:rounded-xl">
+        <DialogHeader className="border-b border-border px-5 py-4 text-left">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Sparkles className="h-4 w-4 text-accent-teal" />
+            {list.length > 1
+              ? t('memento_goal_preview_title_multi').replace('{n}', String(list.length))
+              : t('memento_goal_preview_title')}
+          </DialogTitle>
+          <DialogDescription className="text-xs text-text-muted">
+            {t('memento_goal_preview_desc')}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 px-5 py-4">
+          {list.map(goal => {
+            const color =
+              goal.color && /^#[0-9A-Fa-f]{6}$/.test(goal.color) ? goal.color : '#a371f7';
+            const kindKey = KIND_LABEL_KEY[goal.kind] ?? KIND_LABEL_KEY.goal;
+            return (
+              <article
+                key={goal.id}
+                className="overflow-hidden rounded-xl border border-border bg-background"
+              >
+                <div className="relative h-44 w-full bg-surface">
+                  {goal.imageDataUrl ? (
+                    <img
+                      src={goal.imageDataUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-full w-full items-center justify-center"
+                      style={{
+                        background: `linear-gradient(135deg, ${color}44, transparent 70%)`,
+                      }}
+                    >
+                      <Sparkles className="h-12 w-12 opacity-50" style={{ color }} />
+                    </div>
+                  )}
+                  <span
+                    className="absolute left-3 top-3 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow"
+                    style={{ backgroundColor: color }}
+                  >
+                    {t(kindKey)}
+                  </span>
+                </div>
+                <div className="space-y-2 p-4">
+                  <h3 className="text-base font-semibold leading-snug text-text-primary">
+                    {goal.title}
+                  </h3>
+                  {goal.description ? (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-muted">
+                      {goal.description}
+                    </p>
+                  ) : (
+                    <p className="text-xs italic text-text-muted">
+                      {t('memento_goal_preview_no_manifestation')}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3 text-xs text-text-muted">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <time dateTime={goal.targetDate}>{goal.targetDate}</time>
+                    </span>
+                    <span
+                      className="inline-flex items-center gap-1.5"
+                      title={t('life_goal_color')}
+                    >
+                      <span
+                        className="h-3 w-3 rounded-full border border-border"
+                        style={{ backgroundColor: color }}
+                      />
+                      {t('life_goal_color')}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="border-t border-border px-5 py-3">
+          <Button type="button" size="sm" className="w-full sm:w-auto" asChild>
+            <Link to="/memento-mori?tab=goals" onClick={() => onOpenChange(false)}>
+              {t('memento_manage_goals')}
+            </Link>
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -173,15 +369,26 @@ export function MementoMoriPage() {
 
   const quote = useMemo(() => getStoicQuoteForDate(new Date()), []);
 
+  const lifeGoals = useMemo(
+    () => (Array.isArray(settings.lifeGoals) ? settings.lifeGoals : []),
+    [settings.lifeGoals]
+  );
+
   const goalsByWeek = useMemo(
     () =>
       lifeGoalsByWeekIndex(
         settings.birthDate,
         settings.expectedLifespanYears,
-        Array.isArray(settings.lifeGoals) ? settings.lifeGoals : []
+        lifeGoals
       ),
-    [settings.birthDate, settings.expectedLifespanYears, settings.lifeGoals]
+    [settings.birthDate, settings.expectedLifespanYears, lifeGoals]
   );
+
+  const goalsById = useMemo(() => {
+    const map = new Map<string, LifeGoal>();
+    for (const g of lifeGoals) map.set(g.id, g);
+    return map;
+  }, [lifeGoals]);
 
   const milestoneList = useMemo(() => {
     if (!snap) return [];
@@ -209,7 +416,7 @@ export function MementoMoriPage() {
                 <TabButton
                   active={tab === 'map'}
                   onClick={() => setTab('map')}
-                  icon={<Map className="h-3.5 w-3.5" />}
+                  icon={<MapIcon className="h-3.5 w-3.5" />}
                   label={t('memento_tab_map')}
                 />
                 <TabButton
@@ -304,20 +511,23 @@ export function MementoMoriPage() {
                   />
                 </div>
 
-                <LifeGrid snap={snap} goalsByWeek={goalsByWeek} />
+                <LifeGrid snap={snap} goalsByWeek={goalsByWeek} goalsById={goalsById} />
 
                 {goalCount > 0 && (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-                    <p className="text-[11px] text-text-muted">
-                      {t('memento_goals_on_map').replace('{n}', String(goalsByWeek.size))}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setTab('goals')}
-                      className="text-[11px] font-medium text-accent-teal hover:underline"
-                    >
-                      {t('memento_manage_goals')} →
-                    </button>
+                  <div className="mt-4 space-y-1.5 border-t border-border pt-3">
+                    <p className="text-[11px] text-text-muted">{t('memento_goal_hover_hint')}</p>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[11px] text-text-muted">
+                        {t('memento_goals_on_map').replace('{n}', String(goalsByWeek.size))}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setTab('goals')}
+                        className="text-[11px] font-medium text-accent-teal hover:underline"
+                      >
+                        {t('memento_manage_goals')} →
+                      </button>
+                    </div>
                   </div>
                 )}
 
