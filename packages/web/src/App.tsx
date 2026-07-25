@@ -26,6 +26,9 @@ const EisenhowerPage = lazy(() =>
 const ActivityPage = lazy(() =>
   import('@/pages/ActivityPage').then(m => ({ default: m.ActivityPage }))
 );
+const NotificationsPage = lazy(() =>
+  import('@/pages/NotificationsPage').then(m => ({ default: m.NotificationsPage }))
+);
 
 function PageFallback() {
   return (
@@ -78,6 +81,7 @@ function App() {
                   />
 
                   <Route path="/dashboard" element={lazyRoute(DashboardPage)} />
+                  <Route path="/notifications" element={lazyRoute(NotificationsPage)} />
                   <Route path="/eisenhower" element={lazyRoute(EisenhowerPage)} />
                   <Route path="/projects" element={lazyRoute(ProjectsPage)} />
                   <Route path="/analytics" element={lazyRoute(AnalyticsPage)} />

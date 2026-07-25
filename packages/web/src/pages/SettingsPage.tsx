@@ -251,10 +251,18 @@ export function SettingsPage() {
 
           {/* Notificaciones */}
           <section className="rounded-lg border border-border bg-surface p-4">
-            <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-text-primary">
-              <Bell className="h-4 w-4 text-accent-teal" />
-              {t('settings_notifications')}
-            </h2>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                <Bell className="h-4 w-4 text-accent-teal" />
+                {t('settings_notifications')}
+              </h2>
+              <a
+                href="/notifications"
+                className="text-[11px] font-medium text-accent-teal hover:underline"
+              >
+                {t('nav_notifications')} →
+              </a>
+            </div>
 
             <div className="mb-4 rounded-md border border-border bg-background p-3">
               <label className="mb-1 block text-xs font-medium text-text-primary">

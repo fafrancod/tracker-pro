@@ -16,6 +16,7 @@ export interface TranslationDict {
   nav_settings: string;
   nav_admin: string;
   nav_eisenhower: string;
+  nav_notifications: string;
 
   // Acciones generales
   action_add_task: string;
@@ -129,6 +130,29 @@ export interface TranslationDict {
   task_clear_time: string;
   time_now: string;
   task_time_range_error: string;
+
+  // Centralizador de notificaciones
+  notify_hub_title: string;
+  notify_hub_intro: string;
+  notify_hub_upcoming: string;
+  notify_hub_reschedule: string;
+  notify_hub_loading: string;
+  notify_hub_empty: string;
+  notify_hub_load_error: string;
+  notify_hub_prefs_saved: string;
+  notify_hub_program_title: string;
+  notify_hub_scope: string;
+  notify_hub_hint: string;
+  notify_hub_filter_all: string;
+  notify_hub_filter_tasks: string;
+  notify_hub_filter_rx: string;
+  notify_hub_filter_projects: string;
+  notify_hub_any_project: string;
+  notify_hub_fires_at: string;
+  notify_hub_event_at: string;
+  notify_mode_before: string;
+  notify_mode_day_before: string;
+  notify_mode_past: string;
   task_continues: string;
   task_span_recurrence_hint: string;
   task_create_title: string;
@@ -280,6 +304,7 @@ const es_dict: TranslationDict = {
   nav_settings: 'Config',
   nav_admin: 'Admin',
   nav_eisenhower: 'Eisenhower',
+  nav_notifications: 'Avisos',
 
   action_add_task: 'Añadir tarea',
   action_add_reminder: 'Añadir recordatorio',
@@ -391,6 +416,30 @@ const es_dict: TranslationDict = {
   task_clear_time: 'Quitar hora',
   time_now: 'Ahora',
   task_time_range_error: 'La hora de fin debe ser posterior o igual a la de inicio.',
+  notify_hub_title: 'Central de avisos',
+  notify_hub_intro:
+    'Consulta y programa recordatorios de tareas, recetarios, recordatorios y proyectos. Los avisos usan tu zona horaria y los modos de antelación, mañana y seguimiento.',
+  notify_hub_upcoming: 'Próximos avisos',
+  notify_hub_reschedule: 'Reprogramar en dispositivo',
+  notify_hub_loading: 'Cargando avisos…',
+  notify_hub_empty:
+    'No hay avisos programados en los próximos días. Añade horas a tareas o tomas de recetario y activa los modos de recordatorio.',
+  notify_hub_load_error: 'No se pudieron cargar las tareas para avisos.',
+  notify_hub_prefs_saved: 'Preferencias de avisos guardadas.',
+  notify_hub_program_title: 'Programar avisos',
+  notify_hub_scope: 'Qué incluir',
+  notify_hub_hint:
+    'Tip: al completar una toma o tarea, sus avisos pendientes dejan de listarse. El correo se envía desde el servidor según estas preferencias.',
+  notify_hub_filter_all: 'Todo',
+  notify_hub_filter_tasks: 'Tareas',
+  notify_hub_filter_rx: 'Recetario',
+  notify_hub_filter_projects: 'Proyectos',
+  notify_hub_any_project: 'Cualquier proyecto',
+  notify_hub_fires_at: 'Avisa',
+  notify_hub_event_at: 'evento',
+  notify_mode_before: 'Antes',
+  notify_mode_day_before: 'Mañana',
+  notify_mode_past: 'Seguimiento',
   task_continues: 'Continúa',
   task_span_recurrence_hint:
     'En rangos de varios días solo puedes repetir cada mes, cada año o no repetir.',
@@ -548,6 +597,7 @@ const en_dict: TranslationDict = {
   nav_settings: 'Settings',
   nav_admin: 'Admin',
   nav_eisenhower: 'Eisenhower',
+  nav_notifications: 'Alerts',
 
   action_add_task: 'Add task',
   action_add_reminder: 'Add reminder',
@@ -659,6 +709,30 @@ const en_dict: TranslationDict = {
   task_clear_time: 'Clear time',
   time_now: 'Now',
   task_time_range_error: 'End time must be greater than or equal to start time.',
+  notify_hub_title: 'Alerts hub',
+  notify_hub_intro:
+    'View and schedule reminders for tasks, prescriptions, reminders and projects. Alerts use your timezone and the before / tomorrow / follow-up modes.',
+  notify_hub_upcoming: 'Upcoming alerts',
+  notify_hub_reschedule: 'Reschedule on device',
+  notify_hub_loading: 'Loading alerts…',
+  notify_hub_empty:
+    'No alerts scheduled in the next days. Add times to tasks or doses and enable reminder modes.',
+  notify_hub_load_error: 'Could not load tasks for alerts.',
+  notify_hub_prefs_saved: 'Alert preferences saved.',
+  notify_hub_program_title: 'Schedule alerts',
+  notify_hub_scope: 'What to include',
+  notify_hub_hint:
+    'Tip: completing a dose or task removes its pending alerts. Email is sent by the server using these preferences.',
+  notify_hub_filter_all: 'All',
+  notify_hub_filter_tasks: 'Tasks',
+  notify_hub_filter_rx: 'Prescriptions',
+  notify_hub_filter_projects: 'Projects',
+  notify_hub_any_project: 'Any project',
+  notify_hub_fires_at: 'Fires',
+  notify_hub_event_at: 'event',
+  notify_mode_before: 'Before',
+  notify_mode_day_before: 'Tomorrow',
+  notify_mode_past: 'Follow-up',
   task_continues: 'Continues',
   task_span_recurrence_hint:
     'Multi-day ranges only support monthly, yearly, or no recurrence.',
