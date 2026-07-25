@@ -113,6 +113,7 @@ export interface TranslationDict {
   reflections_save_error: string;
   reflections_unsaved: string;
   reflections_synced: string;
+  reflections_discard_confirm: string;
   metric_mood: string;
   metric_energy: string;
   energy_hourly_title: string;
@@ -563,7 +564,9 @@ const es_dict: TranslationDict = {
   reflections_saved: 'Reflexión guardada.',
   reflections_save_error: 'No se pudo guardar el diario.',
   reflections_unsaved: 'Hay cambios sin guardar.',
-  reflections_synced: 'Guardado.',
+  reflections_synced: 'Todo guardado.',
+  reflections_discard_confirm:
+    'Tienes cambios sin guardar. ¿Descartarlos y cambiar de día?',
   metric_mood: 'Ánimo',
   metric_energy: 'Energía',
   energy_hourly_title: 'Nivel de energía por hora',
@@ -1036,7 +1039,9 @@ const en_dict: TranslationDict = {
   reflections_saved: 'Reflection saved.',
   reflections_save_error: 'Could not save the journal.',
   reflections_unsaved: 'Unsaved changes.',
-  reflections_synced: 'Saved.',
+  reflections_synced: 'All saved.',
+  reflections_discard_confirm:
+    'You have unsaved changes. Discard them and change day?',
   metric_mood: 'Mood',
   metric_energy: 'Energy',
   energy_hourly_title: 'Energy level by hour',

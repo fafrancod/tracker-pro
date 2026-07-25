@@ -121,10 +121,22 @@ export function ReflectionsPage() {
     setDirty(true);
   }, []);
 
+  function confirmLeaveIfDirty(): boolean {
+    if (!dirty) return true;
+    return window.confirm(t('reflections_discard_confirm'));
+  }
+
   function goDay(delta: number) {
     const next = addDaysToDayId(dayId, delta);
     if (next > todayId) return;
+    if (!confirmLeaveIfDirty()) return;
     setDayId(next);
+  }
+
+  function goToday() {
+    if (dayId === todayId) return;
+    if (!confirmLeaveIfDirty()) return;
+    setDayId(todayId);
   }
 
   function selectHour(hour: number) {
@@ -145,28 +157,17 @@ export function ReflectionsPage() {
     }
   }
 
-  async function saveEntryNow(next: DailyJournalEntry) {
-    setDraft(next);
-    setDirty(false);
-    try {
-      const nextJournal = upsertJournalEntry(settings.dailyJournal, {
-        ...next,
-        updatedAt: new Date().toISOString(),
-      });
-      await updateSettings({ dailyJournal: nextJournal });
-    } catch {
-      setDirty(true);
-      showToast(t('reflections_save_error'), 'error');
-    }
-  }
-
+  /** Solo persiste al pulsar Guardar. */
   async function handleSave() {
+    if (!dirty || saving) return;
     setSaving(true);
     try {
-      await saveEntryNow({
+      const nextJournal = upsertJournalEntry(settings.dailyJournal, {
         ...draft,
         updatedAt: new Date().toISOString(),
       });
+      await updateSettings({ dailyJournal: nextJournal });
+      setDirty(false);
       showToast(t('reflections_saved'), 'success');
     } catch {
       showToast(t('reflections_save_error'), 'error');
@@ -175,12 +176,12 @@ export function ReflectionsPage() {
     }
   }
 
-  function pickMoodAndSave(mood: MoodLevel | null) {
-    void saveEntryNow(setHourMood(draft, selectedHour, mood, hourNote));
+  function pickMood(mood: MoodLevel | null) {
+    markDirty(setHourMood(draft, selectedHour, mood, hourNote));
   }
 
-  function pickEnergyAndSave(energy: EnergyLevel | null) {
-    void saveEntryNow(setHourEnergy(draft, selectedHour, energy, hourNote));
+  function pickEnergy(energy: EnergyLevel | null) {
+    markDirty(setHourEnergy(draft, selectedHour, energy, hourNote));
   }
 
   function applyHourNote(note: string) {
@@ -196,26 +197,14 @@ export function ReflectionsPage() {
     }
   }
 
-  function commitHourNote() {
-    if (hourMetric === 'mood') {
-      const existing = moodAtHour(draft, selectedHour);
-      if (!existing) return;
-      void saveEntryNow(setHourMood(draft, selectedHour, existing.mood, hourNote));
-    } else {
-      const existing = energyAtHour(draft, selectedHour);
-      if (!existing) return;
-      void saveEntryNow(setHourEnergy(draft, selectedHour, existing.energy, hourNote));
-    }
-  }
-
   function onSleepChange(value: string) {
     if (value === '') {
-      void saveEntryNow(setSleepHours(draft, null));
+      markDirty(setSleepHours(draft, null));
       return;
     }
     const n = Number(value);
     if (!Number.isFinite(n)) return;
-    void saveEntryNow(setSleepHours(draft, n));
+    markDirty(setSleepHours(draft, n));
   }
 
   const selectedMood = moodAtHour(draft, selectedHour)?.mood ?? null;
@@ -253,7 +242,7 @@ export function ReflectionsPage() {
                 <button
                   type="button"
                   className="text-[11px] text-accent-teal hover:underline"
-                  onClick={() => setDayId(todayId)}
+                  onClick={goToday}
                 >
                   {t('reflections_go_today')}
                 </button>
@@ -322,7 +311,12 @@ export function ReflectionsPage() {
                   <button
                     key={id}
                     type="button"
-                    onClick={() => setDayId(id <= todayId ? id : todayId)}
+                    onClick={() => {
+                      const target = id <= todayId ? id : todayId;
+                      if (target === dayId) return;
+                      if (!confirmLeaveIfDirty()) return;
+                      setDayId(target);
+                    }}
                     title={id}
                     className={cn(
                       'flex flex-col items-center gap-1 rounded-lg border px-1 py-2 transition-colors',
@@ -473,9 +467,9 @@ export function ReflectionsPage() {
                       type="button"
                       onClick={() => {
                         if (hourMetric === 'mood') {
-                          pickMoodAndSave(active ? null : level);
+                          pickMood(active ? null : level);
                         } else {
-                          pickEnergyAndSave(active ? null : level);
+                          pickEnergy(active ? null : level);
                         }
                       }}
                       className={cn(
@@ -505,7 +499,6 @@ export function ReflectionsPage() {
                     value={hourNote}
                     maxLength={200}
                     onChange={e => applyHourNote(e.target.value)}
-                    onBlur={() => commitHourNote()}
                     placeholder={t('mood_hour_note_placeholder')}
                     className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-ring"
                   />
@@ -553,23 +546,47 @@ export function ReflectionsPage() {
                 maxLength={2000}
               />
             </div>
-
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] text-text-muted">
-                {dirty ? t('reflections_unsaved') : t('reflections_synced')}
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                disabled={saving || !dirty}
-                onClick={() => void handleSave()}
-                className="gap-1.5"
-              >
-                <Smile className="h-3.5 w-3.5" />
-                {saving ? t('life_goal_saving') : t('action_save')}
-              </Button>
-            </div>
           </section>
+
+          {/* Espacio para la barra sticky de guardar */}
+          <div className="h-16" aria-hidden />
+        </div>
+      </div>
+
+      {/* Barra de guardar: se ilumina solo con cambios pendientes */}
+      <div
+        className={cn(
+          'pointer-events-none sticky bottom-0 z-20 border-t px-4 py-3 transition-all',
+          'pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+          dirty
+            ? 'border-accent-teal/50 bg-surface/95 shadow-[0_-8px_24px_rgba(0,0,0,0.25)] backdrop-blur-sm'
+            : 'border-border/60 bg-surface/80'
+        )}
+      >
+        <div className="pointer-events-auto mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
+          <p
+            className={cn(
+              'text-xs font-medium',
+              dirty ? 'text-accent-teal' : 'text-text-muted'
+            )}
+          >
+            {dirty ? t('reflections_unsaved') : t('reflections_synced')}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            disabled={saving || !dirty}
+            onClick={() => void handleSave()}
+            className={cn(
+              'gap-1.5 min-w-[8.5rem] transition-all',
+              dirty &&
+                !saving &&
+                'bg-accent-teal text-white shadow-md shadow-accent-teal/30 ring-2 ring-accent-teal/40 hover:brightness-110'
+            )}
+          >
+            <Smile className="h-3.5 w-3.5" />
+            {saving ? t('life_goal_saving') : t('action_save')}
+          </Button>
         </div>
       </div>
     </Layout>
