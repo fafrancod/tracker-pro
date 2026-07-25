@@ -4,11 +4,13 @@ import {
   BookHeart,
   ChevronLeft,
   ChevronRight,
+  Clock,
   CloudSun,
   Heart,
   Moon,
   PenLine,
   Smile,
+  Sun,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Layout } from '@/components/Layout';
@@ -73,8 +75,6 @@ const ENERGY_EMOJI: Record<EnergyLevel, string> = {
 const SLEEP_OPTIONS: number[] = [];
 for (let h = 0; h <= 14; h += 0.5) SLEEP_OPTIONS.push(h);
 
-type HourMetric = 'mood' | 'energy';
-
 export function ReflectionsPage() {
   const { settings, updateSettings } = useSettings();
   const { showToast } = useToast();
@@ -85,7 +85,6 @@ export function ReflectionsPage() {
     getJournalEntry(settings.dailyJournal, todayId)
   );
   const [selectedHour, setSelectedHour] = useState<number>(() => new Date().getHours());
-  const [hourMetric, setHourMetric] = useState<HourMetric>('mood');
   const [hourNote, setHourNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -94,11 +93,10 @@ export function ReflectionsPage() {
     const entry = getJournalEntry(settings.dailyJournal, dayId);
     setDraft(entry);
     setDirty(false);
-    if (hourMetric === 'mood') {
-      setHourNote(moodAtHour(entry, selectedHour)?.note ?? '');
-    } else {
-      setHourNote(energyAtHour(entry, selectedHour)?.note ?? '');
-    }
+    // Nota de la hora: prioriza la del ánimo; si no hay, la de energía.
+    const mNote = moodAtHour(entry, selectedHour)?.note ?? '';
+    const eNote = energyAtHour(entry, selectedHour)?.note ?? '';
+    setHourNote(mNote || eNote);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dayId, settings.dailyJournal]);
 
@@ -141,20 +139,9 @@ export function ReflectionsPage() {
 
   function selectHour(hour: number) {
     setSelectedHour(hour);
-    if (hourMetric === 'mood') {
-      setHourNote(moodAtHour(draft, hour)?.note ?? '');
-    } else {
-      setHourNote(energyAtHour(draft, hour)?.note ?? '');
-    }
-  }
-
-  function switchMetric(metric: HourMetric) {
-    setHourMetric(metric);
-    if (metric === 'mood') {
-      setHourNote(moodAtHour(draft, selectedHour)?.note ?? '');
-    } else {
-      setHourNote(energyAtHour(draft, selectedHour)?.note ?? '');
-    }
+    const mNote = moodAtHour(draft, hour)?.note ?? '';
+    const eNote = energyAtHour(draft, hour)?.note ?? '';
+    setHourNote(mNote || eNote);
   }
 
   /** Solo persiste al pulsar Guardar. */
@@ -177,23 +164,37 @@ export function ReflectionsPage() {
   }
 
   function pickMood(mood: MoodLevel | null) {
-    markDirty(setHourMood(draft, selectedHour, mood, hourNote));
+    const existingNote =
+      hourNote ||
+      moodAtHour(draft, selectedHour)?.note ||
+      energyAtHour(draft, selectedHour)?.note ||
+      '';
+    markDirty(setHourMood(draft, selectedHour, mood, existingNote));
   }
 
   function pickEnergy(energy: EnergyLevel | null) {
-    markDirty(setHourEnergy(draft, selectedHour, energy, hourNote));
+    const existingNote =
+      hourNote ||
+      energyAtHour(draft, selectedHour)?.note ||
+      moodAtHour(draft, selectedHour)?.note ||
+      '';
+    markDirty(setHourEnergy(draft, selectedHour, energy, existingNote));
   }
 
+  /** Nota compartida: se aplica a ánimo y energía de esa hora si existen. */
   function applyHourNote(note: string) {
     setHourNote(note);
-    if (hourMetric === 'mood') {
-      const existing = moodAtHour(draft, selectedHour);
-      if (!existing) return;
-      markDirty(setHourMood(draft, selectedHour, existing.mood, note));
-    } else {
-      const existing = energyAtHour(draft, selectedHour);
-      if (!existing) return;
-      markDirty(setHourEnergy(draft, selectedHour, existing.energy, note));
+    let next = draft;
+    const mood = moodAtHour(draft, selectedHour);
+    const energy = energyAtHour(draft, selectedHour);
+    if (mood) {
+      next = setHourMood(next, selectedHour, mood.mood, note);
+    }
+    if (energy) {
+      next = setHourEnergy(next, selectedHour, energy.energy, note);
+    }
+    if (mood || energy) {
+      markDirty(next);
     }
   }
 
@@ -209,6 +210,7 @@ export function ReflectionsPage() {
 
   const selectedMood = moodAtHour(draft, selectedHour)?.mood ?? null;
   const selectedEnergy = energyAtHour(draft, selectedHour)?.energy ?? null;
+  const hourLabel = `${String(selectedHour).padStart(2, '0')}:00`;
 
   return (
     <Layout title={t('nav_reflections')} showFab={false}>
@@ -222,7 +224,7 @@ export function ReflectionsPage() {
             <p className="text-sm text-text-muted">{t('reflections_subtitle')}</p>
           </header>
 
-          {/* Día */}
+          {/* Navegación de día */}
           <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
             <Button
               type="button"
@@ -261,299 +263,335 @@ export function ReflectionsPage() {
             </Button>
           </section>
 
-          {/* Sueño del día */}
-          <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-            <div className="mb-2 flex items-center gap-2">
-              <Moon className="h-4 w-4 text-accent-teal" />
-              <h2 className="text-sm font-semibold text-text-primary">{t('sleep_title')}</h2>
-            </div>
-            <p className="mb-3 text-xs text-text-muted">{t('sleep_hint')}</p>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="flex items-center gap-2 text-xs text-text-muted">
-                <span>{t('sleep_hours_label')}</span>
-                <select
-                  value={draft.sleepHours === null ? '' : String(draft.sleepHours)}
-                  onChange={e => onSleepChange(e.target.value)}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="">{t('sleep_not_set')}</option>
-                  {SLEEP_OPTIONS.map(h => (
-                    <option key={h} value={String(h)}>
-                      {h % 1 === 0 ? `${h} h` : `${h.toFixed(1)} h`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {draft.sleepHours !== null && (
-                <span className="text-xs font-medium text-text-primary">
-                  {t('sleep_recorded').replace('{h}', String(draft.sleepHours))}
-                </span>
-              )}
-            </div>
-          </section>
-
-          {/* Strip semanal */}
-          <section className="rounded-xl border border-border bg-surface p-3 sm:p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-              {t('reflections_week_strip')}
-            </p>
-            <div className="grid grid-cols-7 gap-1.5">
-              {weekIds.map(id => {
-                const entry = id === dayId ? draft : getJournalEntry(settings.dailyJournal, id);
-                const a = averageMood(entry);
-                const color =
-                  a === null
-                    ? 'transparent'
-                    : MOOD_COLORS[Math.round(a) as MoodLevel] ?? MOOD_COLORS[3];
-                const dayNum = id.slice(8);
-                const active = id === dayId;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      const target = id <= todayId ? id : todayId;
-                      if (target === dayId) return;
-                      if (!confirmLeaveIfDirty()) return;
-                      setDayId(target);
-                    }}
-                    title={id}
-                    className={cn(
-                      'flex flex-col items-center gap-1 rounded-lg border px-1 py-2 transition-colors',
-                      active
-                        ? 'border-accent-teal bg-accent-teal/10'
-                        : 'border-border hover:border-accent-teal/40'
-                    )}
-                  >
-                    <span className="text-[10px] tabular-nums text-text-muted">{dayNum}</span>
-                    <span
-                      className="h-3 w-3 rounded-full border"
-                      style={{
-                        backgroundColor: a === null ? 'transparent' : color,
-                        borderColor: a === null ? 'var(--color-border)' : color,
-                      }}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-2 flex flex-wrap justify-center gap-3 text-[11px] text-text-muted">
-              {avgMood !== null && (
-                <span>
-                  {t('reflections_day_avg')}: {avgMood.toFixed(1)}/5 · {draft.moods.length}{' '}
-                  {t('reflections_hours_logged')}
-                </span>
-              )}
-              {avgEnergy !== null && (
-                <span>
-                  {t('energy_day_avg')}: {avgEnergy.toFixed(1)}/5 · {draft.energies.length}{' '}
-                  {t('reflections_hours_logged')}
-                </span>
-              )}
-            </div>
-          </section>
-
-          {/* Ánimo + Energía por hora */}
-          <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {hourMetric === 'mood' ? (
-                  <CloudSun className="h-4 w-4 text-accent-teal" />
-                ) : (
-                  <Battery className="h-4 w-4 text-accent-pink" />
-                )}
+          {/* ─────────── ARRIBA: cosas del día ─────────── */}
+          <div className="space-y-4">
+            <div className="flex items-start gap-2 px-0.5">
+              <Sun className="mt-0.5 h-4 w-4 shrink-0 text-accent-teal" />
+              <div>
                 <h2 className="text-sm font-semibold text-text-primary">
-                  {hourMetric === 'mood' ? t('mood_hourly_title') : t('energy_hourly_title')}
+                  {t('reflections_section_day')}
                 </h2>
-              </div>
-              <div className="inline-flex rounded-lg border border-border bg-background p-0.5">
-                <button
-                  type="button"
-                  onClick={() => switchMetric('mood')}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
-                    hourMetric === 'mood'
-                      ? 'bg-accent-teal/15 text-accent-teal'
-                      : 'text-text-muted hover:text-text-primary'
-                  )}
-                >
-                  {t('metric_mood')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMetric('energy')}
-                  className={cn(
-                    'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
-                    hourMetric === 'energy'
-                      ? 'bg-accent-pink/15 text-accent-pink'
-                      : 'text-text-muted hover:text-text-primary'
-                  )}
-                >
-                  {t('metric_energy')}
-                </button>
+                <p className="text-[11px] text-text-muted">{t('reflections_section_day_hint')}</p>
               </div>
             </div>
-            <p className="mb-3 text-xs text-text-muted">
-              {hourMetric === 'mood' ? t('mood_hourly_hint') : t('energy_hourly_hint')}
-            </p>
 
-            <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8 md:grid-cols-12">
-              {Array.from({ length: 24 }, (_, hour) => {
-                const m =
-                  hourMetric === 'mood' ? moodAtHour(draft, hour) : energyAtHour(draft, hour);
-                const level =
-                  hourMetric === 'mood'
-                    ? (m as ReturnType<typeof moodAtHour>)?.mood
-                    : (m as ReturnType<typeof energyAtHour>)?.energy;
-                const colors = hourMetric === 'mood' ? MOOD_COLORS : ENERGY_COLORS;
-                const emoji = hourMetric === 'mood' ? MOOD_EMOJI : ENERGY_EMOJI;
-                const active = selectedHour === hour;
-                const isNow = isToday && hour === currentHour;
-                return (
-                  <button
-                    key={hour}
-                    type="button"
-                    onClick={() => selectHour(hour)}
-                    className={cn(
-                      'flex flex-col items-center gap-0.5 rounded-lg border px-1 py-1.5 text-[10px] transition-all',
-                      active
-                        ? 'border-accent-teal ring-1 ring-accent-teal/50'
-                        : 'border-border hover:border-text-muted',
-                      isNow && !active && 'border-accent-red/50'
-                    )}
-                    title={`${String(hour).padStart(2, '0')}:00`}
+            {/* Sueño del día */}
+            <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <Moon className="h-4 w-4 text-accent-teal" />
+                <h3 className="text-sm font-semibold text-text-primary">{t('sleep_title')}</h3>
+              </div>
+              <p className="mb-3 text-xs text-text-muted">{t('sleep_hint')}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-xs text-text-muted">
+                  <span>{t('sleep_hours_label')}</span>
+                  <select
+                    value={draft.sleepHours === null ? '' : String(draft.sleepHours)}
+                    onChange={e => onSleepChange(e.target.value)}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
                   >
-                    <span
-                      className={cn(
-                        'tabular-nums',
-                        active ? 'font-semibold text-accent-teal' : 'text-text-muted'
-                      )}
-                    >
-                      {String(hour).padStart(2, '0')}
-                    </span>
-                    <span
-                      className="flex h-6 w-full items-center justify-center rounded-md text-sm"
-                      style={
-                        level
-                          ? { backgroundColor: colors[level], color: '#fff' }
-                          : { backgroundColor: 'var(--color-background)' }
-                      }
-                    >
-                      {level ? emoji[level] : '·'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 rounded-xl border border-border bg-background p-3">
-              <p className="mb-2 text-xs font-medium text-text-primary">
-                {(hourMetric === 'mood' ? t('mood_pick_for_hour') : t('energy_pick_for_hour')).replace(
-                  '{hour}',
-                  `${String(selectedHour).padStart(2, '0')}:00`
+                    <option value="">{t('sleep_not_set')}</option>
+                    {SLEEP_OPTIONS.map(h => (
+                      <option key={h} value={String(h)}>
+                        {h % 1 === 0 ? `${h} h` : `${h.toFixed(1)} h`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {draft.sleepHours !== null && (
+                  <span className="text-xs font-medium text-text-primary">
+                    {t('sleep_recorded').replace('{h}', String(draft.sleepHours))}
+                  </span>
                 )}
+              </div>
+            </section>
+
+            {/* Strip semanal + medias del día */}
+            <section className="rounded-xl border border-border bg-surface p-3 sm:p-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                {t('reflections_week_strip')}
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {SCALE_LEVELS.map(level => {
-                  const active =
-                    hourMetric === 'mood' ? selectedMood === level : selectedEnergy === level;
-                  const colors = hourMetric === 'mood' ? MOOD_COLORS : ENERGY_COLORS;
-                  const emoji = hourMetric === 'mood' ? MOOD_EMOJI : ENERGY_EMOJI;
-                  const labelKey =
-                    hourMetric === 'mood' ? MOOD_LABEL_KEYS[level] : ENERGY_LABEL_KEYS[level];
+              <div className="grid grid-cols-7 gap-1.5">
+                {weekIds.map(id => {
+                  const entry = id === dayId ? draft : getJournalEntry(settings.dailyJournal, id);
+                  const a = averageMood(entry);
+                  const color =
+                    a === null
+                      ? 'transparent'
+                      : MOOD_COLORS[Math.round(a) as MoodLevel] ?? MOOD_COLORS[3];
+                  const dayNum = id.slice(8);
+                  const active = id === dayId;
                   return (
                     <button
-                      key={level}
+                      key={id}
                       type="button"
                       onClick={() => {
-                        if (hourMetric === 'mood') {
-                          pickMood(active ? null : level);
-                        } else {
-                          pickEnergy(active ? null : level);
-                        }
+                        const target = id <= todayId ? id : todayId;
+                        if (target === dayId) return;
+                        if (!confirmLeaveIfDirty()) return;
+                        setDayId(target);
                       }}
+                      title={id}
                       className={cn(
-                        'flex min-w-[4.5rem] flex-1 flex-col items-center gap-0.5 rounded-xl border px-2 py-2 text-center transition-transform hover:scale-[1.02]',
-                        active ? 'border-2' : 'border-border'
+                        'flex flex-col items-center gap-1 rounded-lg border px-1 py-2 transition-colors',
+                        active
+                          ? 'border-accent-teal bg-accent-teal/10'
+                          : 'border-border hover:border-accent-teal/40'
                       )}
-                      style={{
-                        borderColor: active ? colors[level] : undefined,
-                        backgroundColor: active ? `${colors[level]}22` : undefined,
-                        boxShadow: active ? `0 0 0 2px ${colors[level]}44` : undefined,
-                      }}
                     >
-                      <span className="text-lg">{emoji[level]}</span>
-                      <span className="text-[10px] font-medium text-text-primary">
-                        {t(labelKey)}
-                      </span>
+                      <span className="text-[10px] tabular-nums text-text-muted">{dayNum}</span>
+                      <span
+                        className="h-3 w-3 rounded-full border"
+                        style={{
+                          backgroundColor: a === null ? 'transparent' : color,
+                          borderColor: a === null ? 'var(--color-border)' : color,
+                        }}
+                      />
                     </button>
                   );
                 })}
               </div>
-              {((hourMetric === 'mood' && selectedMood !== null) ||
-                (hourMetric === 'energy' && selectedEnergy !== null)) && (
-                <label className="mt-3 block space-y-1">
-                  <span className="text-[11px] text-text-muted">{t('mood_hour_note')}</span>
-                  <input
-                    type="text"
-                    value={hourNote}
-                    maxLength={200}
-                    onChange={e => applyHourNote(e.target.value)}
-                    placeholder={t('mood_hour_note_placeholder')}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </label>
-              )}
-            </div>
-          </section>
+              <div className="mt-2 flex flex-wrap justify-center gap-3 text-[11px] text-text-muted">
+                {avgMood !== null && (
+                  <span>
+                    {t('reflections_day_avg')} · {t('metric_mood')}: {avgMood.toFixed(1)}/5 ·{' '}
+                    {draft.moods.length} {t('reflections_hours_logged')}
+                  </span>
+                )}
+                {avgEnergy !== null && (
+                  <span>
+                    {t('metric_energy')}: {avgEnergy.toFixed(1)}/5 · {draft.energies.length}{' '}
+                    {t('reflections_hours_logged')}
+                  </span>
+                )}
+              </div>
+            </section>
 
-          {/* Reflexión */}
-          <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <PenLine className="h-4 w-4 text-accent-teal" />
-              <h2 className="text-sm font-semibold text-text-primary">{t('reflection_daily_title')}</h2>
-            </div>
-            <Textarea
-              value={draft.reflection}
-              onChange={e =>
-                markDirty({
-                  ...draft,
-                  reflection: e.target.value,
-                  updatedAt: new Date().toISOString(),
-                })
-              }
-              placeholder={t('reflection_daily_placeholder')}
-              className="min-h-[140px] rounded-xl text-sm leading-relaxed"
-              maxLength={8000}
-            />
-
-            <div className="mt-4 space-y-1.5">
-              <label className="flex items-center gap-1.5 text-xs font-medium text-text-primary">
-                <Heart className="h-3.5 w-3.5 text-accent-pink" />
-                {t('reflection_gratitude_title')}
-              </label>
+            {/* Reflexión + gratitud del día */}
+            <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <PenLine className="h-4 w-4 text-accent-teal" />
+                <h3 className="text-sm font-semibold text-text-primary">
+                  {t('reflection_daily_title')}
+                </h3>
+              </div>
               <Textarea
-                value={draft.gratitude}
+                value={draft.reflection}
                 onChange={e =>
                   markDirty({
                     ...draft,
-                    gratitude: e.target.value,
+                    reflection: e.target.value,
                     updatedAt: new Date().toISOString(),
                   })
                 }
-                placeholder={t('reflection_gratitude_placeholder')}
-                className="min-h-[72px] rounded-xl text-sm"
-                maxLength={2000}
+                placeholder={t('reflection_daily_placeholder')}
+                className="min-h-[140px] rounded-xl text-sm leading-relaxed"
+                maxLength={8000}
               />
+
+              <div className="mt-4 space-y-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-medium text-text-primary">
+                  <Heart className="h-3.5 w-3.5 text-accent-pink" />
+                  {t('reflection_gratitude_title')}
+                </label>
+                <Textarea
+                  value={draft.gratitude}
+                  onChange={e =>
+                    markDirty({
+                      ...draft,
+                      gratitude: e.target.value,
+                      updatedAt: new Date().toISOString(),
+                    })
+                  }
+                  placeholder={t('reflection_gratitude_placeholder')}
+                  className="min-h-[72px] rounded-xl text-sm"
+                  maxLength={2000}
+                />
+              </div>
+            </section>
+          </div>
+
+          {/* ─────────── ABAJO: por hora (ánimo + energía juntos) ─────────── */}
+          <div className="space-y-4 border-t border-border pt-6">
+            <div className="flex items-start gap-2 px-0.5">
+              <Clock className="mt-0.5 h-4 w-4 shrink-0 text-accent-pink" />
+              <div>
+                <h2 className="text-sm font-semibold text-text-primary">
+                  {t('reflections_section_hourly')}
+                </h2>
+                <p className="text-[11px] text-text-muted">
+                  {t('reflections_section_hourly_hint')}
+                </p>
+              </div>
             </div>
-          </section>
+
+            <section className="rounded-xl border border-border bg-surface p-4 sm:p-5">
+              <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-text-muted">
+                <span className="inline-flex items-center gap-1">
+                  <CloudSun className="h-3.5 w-3.5 text-accent-teal" />
+                  {t('metric_mood')}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Battery className="h-3.5 w-3.5 text-accent-pink" />
+                  {t('metric_energy')}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12">
+                {Array.from({ length: 24 }, (_, hour) => {
+                  const mood = moodAtHour(draft, hour)?.mood;
+                  const energy = energyAtHour(draft, hour)?.energy;
+                  const active = selectedHour === hour;
+                  const isNow = isToday && hour === currentHour;
+                  return (
+                    <button
+                      key={hour}
+                      type="button"
+                      onClick={() => selectHour(hour)}
+                      className={cn(
+                        'flex flex-col items-center gap-0.5 rounded-lg border px-1 py-1.5 text-[10px] transition-all',
+                        active
+                          ? 'border-accent-teal ring-1 ring-accent-teal/50'
+                          : 'border-border hover:border-text-muted',
+                        isNow && !active && 'border-accent-red/50'
+                      )}
+                      title={`${String(hour).padStart(2, '0')}:00`}
+                    >
+                      <span
+                        className={cn(
+                          'tabular-nums',
+                          active ? 'font-semibold text-accent-teal' : 'text-text-muted'
+                        )}
+                      >
+                        {String(hour).padStart(2, '0')}
+                      </span>
+                      <div className="flex w-full gap-0.5">
+                        <span
+                          className="flex h-5 min-w-0 flex-1 items-center justify-center rounded text-[11px]"
+                          style={
+                            mood
+                              ? { backgroundColor: MOOD_COLORS[mood], color: '#fff' }
+                              : { backgroundColor: 'var(--color-background)' }
+                          }
+                          title={t('metric_mood')}
+                        >
+                          {mood ? MOOD_EMOJI[mood] : '·'}
+                        </span>
+                        <span
+                          className="flex h-5 min-w-0 flex-1 items-center justify-center rounded text-[11px]"
+                          style={
+                            energy
+                              ? { backgroundColor: ENERGY_COLORS[energy], color: '#fff' }
+                              : { backgroundColor: 'var(--color-background)' }
+                          }
+                          title={t('metric_energy')}
+                        >
+                          {energy ? ENERGY_EMOJI[energy] : '·'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selector de la hora: ánimo + energía a la vez */}
+              <div className="mt-4 space-y-4 rounded-xl border border-border bg-background p-3">
+                <p className="text-xs font-medium text-text-primary">
+                  {t('mood_pick_for_hour').replace('{hour}', hourLabel)}
+                </p>
+
+                {/* Ánimo */}
+                <div>
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                    <CloudSun className="h-3.5 w-3.5 text-accent-teal" />
+                    {t('metric_mood')}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SCALE_LEVELS.map(level => {
+                      const active = selectedMood === level;
+                      return (
+                        <button
+                          key={`mood-${level}`}
+                          type="button"
+                          onClick={() => pickMood(active ? null : level)}
+                          className={cn(
+                            'flex min-w-[4rem] flex-1 flex-col items-center gap-0.5 rounded-xl border px-2 py-2 text-center transition-transform hover:scale-[1.02]',
+                            active ? 'border-2' : 'border-border'
+                          )}
+                          style={{
+                            borderColor: active ? MOOD_COLORS[level] : undefined,
+                            backgroundColor: active ? `${MOOD_COLORS[level]}22` : undefined,
+                            boxShadow: active ? `0 0 0 2px ${MOOD_COLORS[level]}44` : undefined,
+                          }}
+                        >
+                          <span className="text-lg">{MOOD_EMOJI[level]}</span>
+                          <span className="text-[10px] font-medium text-text-primary">
+                            {t(MOOD_LABEL_KEYS[level])}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Energía */}
+                <div>
+                  <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                    <Battery className="h-3.5 w-3.5 text-accent-pink" />
+                    {t('metric_energy')}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SCALE_LEVELS.map(level => {
+                      const active = selectedEnergy === level;
+                      return (
+                        <button
+                          key={`energy-${level}`}
+                          type="button"
+                          onClick={() => pickEnergy(active ? null : level)}
+                          className={cn(
+                            'flex min-w-[4rem] flex-1 flex-col items-center gap-0.5 rounded-xl border px-2 py-2 text-center transition-transform hover:scale-[1.02]',
+                            active ? 'border-2' : 'border-border'
+                          )}
+                          style={{
+                            borderColor: active ? ENERGY_COLORS[level] : undefined,
+                            backgroundColor: active ? `${ENERGY_COLORS[level]}22` : undefined,
+                            boxShadow: active
+                              ? `0 0 0 2px ${ENERGY_COLORS[level]}44`
+                              : undefined,
+                          }}
+                        >
+                          <span className="text-lg">{ENERGY_EMOJI[level]}</span>
+                          <span className="text-[10px] font-medium text-text-primary">
+                            {t(ENERGY_LABEL_KEYS[level])}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {(selectedMood !== null || selectedEnergy !== null) && (
+                  <label className="block space-y-1">
+                    <span className="text-[11px] text-text-muted">{t('mood_hour_note')}</span>
+                    <input
+                      type="text"
+                      value={hourNote}
+                      maxLength={200}
+                      onChange={e => applyHourNote(e.target.value)}
+                      placeholder={t('mood_hour_note_placeholder')}
+                      className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  </label>
+                )}
+              </div>
+            </section>
+          </div>
 
           {/* Espacio para la barra sticky de guardar */}
           <div className="h-16" aria-hidden />
         </div>
       </div>
 
-      {/* Barra de guardar: se ilumina solo con cambios pendientes */}
       <div
         className={cn(
           'pointer-events-none sticky bottom-0 z-20 border-t px-4 py-3 transition-all',

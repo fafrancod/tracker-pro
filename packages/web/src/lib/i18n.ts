@@ -96,6 +96,10 @@ export interface TranslationDict {
   reflections_week_strip: string;
   reflections_day_avg: string;
   reflections_hours_logged: string;
+  reflections_section_day: string;
+  reflections_section_day_hint: string;
+  reflections_section_hourly: string;
+  reflections_section_hourly_hint: string;
   mood_hourly_title: string;
   mood_hourly_hint: string;
   mood_pick_for_hour: string;
@@ -696,6 +700,12 @@ const es_dict: TranslationDict = {
   reflections_week_strip: 'Últimos 7 días',
   reflections_day_avg: 'Media del día',
   reflections_hours_logged: 'horas registradas',
+  reflections_section_day: 'Del día',
+  reflections_section_day_hint:
+    'Sueño, resumen de la semana, reflexión y gratitud: lo que resume la jornada entera.',
+  reflections_section_hourly: 'Por hora',
+  reflections_section_hourly_hint:
+    'Ánimo y energía a la vez en cada franja. Toca una hora y registra ambos niveles.',
   mood_hourly_title: 'Estado de ánimo por hora',
   mood_hourly_hint: 'Toca una hora y elige cómo te sientes. Vuelve a pulsar el mismo nivel para borrar.',
   mood_pick_for_hour: 'Ánimo a las {hour}',
@@ -1332,6 +1342,12 @@ const en_dict: TranslationDict = {
   reflections_week_strip: 'Last 7 days',
   reflections_day_avg: 'Day average',
   reflections_hours_logged: 'hours logged',
+  reflections_section_day: 'Of the day',
+  reflections_section_day_hint:
+    'Sleep, week summary, reflection and gratitude — what covers the whole day.',
+  reflections_section_hourly: 'By hour',
+  reflections_section_hourly_hint:
+    'Mood and energy together for each slot. Tap an hour and set both levels.',
   mood_hourly_title: 'Mood by hour',
   mood_hourly_hint: 'Tap an hour and pick how you feel. Tap the same level again to clear.',
   mood_pick_for_hour: 'Mood at {hour}',
