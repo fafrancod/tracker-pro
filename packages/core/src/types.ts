@@ -74,6 +74,24 @@ export interface UserSettings {
   dayEndHour: number;
   /** Layout por defecto en vista semana/día: lista o horario. */
   defaultScheduleLayout: ScheduleLayout;
+  /**
+   * Notificaciones locales en dispositivo (Android Capacitor + web si hay permiso).
+   * Default true en nativo; el cliente pide permiso al activar.
+   */
+  notifyLocal: boolean;
+  /** Recordatorios por correo (servidor). Requiere RESEND_API_KEY en API. */
+  notifyEmail: boolean;
+  /** Minutos de antelación (0 = en el momento). */
+  notifyMinutesBefore: number;
+  /** Incluir tareas / recordatorios con hora. */
+  notifyTasks: boolean;
+  /** Incluir tomas de recetario. */
+  notifyRx: boolean;
+  /**
+   * IANA timezone del usuario (ej. America/Santiago).
+   * Usado por el worker de email; el dispositivo nativo usa su reloj local.
+   */
+  timezone: string;
 }
 
 export interface Project {

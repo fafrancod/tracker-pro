@@ -189,6 +189,25 @@ export interface TranslationDict {
   settings_schedule_hours_desc: string;
   settings_default_schedule_layout: string;
   settings_default_schedule_layout_desc: string;
+  settings_notifications: string;
+  settings_notify_local: string;
+  settings_notify_local_desc: string;
+  settings_notify_email: string;
+  settings_notify_email_desc: string;
+  settings_notify_minutes: string;
+  settings_notify_minutes_desc: string;
+  settings_notify_tasks: string;
+  settings_notify_tasks_desc: string;
+  settings_notify_rx: string;
+  settings_notify_rx_desc: string;
+  settings_notify_timezone: string;
+  settings_notify_enable_device: string;
+  settings_notify_permission_denied: string;
+  settings_notify_test_email: string;
+  settings_notify_test_email_sent: string;
+  settings_notify_test_email_skipped: string;
+  settings_notify_test_email_error: string;
+  settings_notify_local_scheduled: string;
 
   // Urgencia / importancia
   urgency_urgent: string;
@@ -417,6 +436,29 @@ const es_dict: TranslationDict = {
   settings_default_schedule_layout: 'Layout lista / horario',
   settings_default_schedule_layout_desc:
     'Cómo se abren las vistas Día y Semana: lista de actividades o grilla por horas.',
+  settings_notifications: 'Notificaciones',
+  settings_notify_local: 'Notificaciones en el dispositivo',
+  settings_notify_local_desc:
+    'Android y navegador: avisos locales de tareas y tomas con hora. En el móvil se programan aunque cierres la app.',
+  settings_notify_email: 'Recordatorios por correo',
+  settings_notify_email_desc:
+    'El servidor te envía un email a la hora (o minutos antes). Funciona en web y Android.',
+  settings_notify_minutes: 'Antelación',
+  settings_notify_minutes_desc: 'Cuántos minutos antes del horario programado avisar.',
+  settings_notify_tasks: 'Tareas y recordatorios',
+  settings_notify_tasks_desc: 'Incluir entradas con hora (no recetario).',
+  settings_notify_rx: 'Tomas del recetario',
+  settings_notify_rx_desc: 'Incluir dosis de medicamentos (humano y mascota).',
+  settings_notify_timezone: 'Zona horaria (correo)',
+  settings_notify_enable_device: 'Permitir notificaciones',
+  settings_notify_permission_denied:
+    'Permiso denegado. Actívalo en los ajustes del sistema o del navegador.',
+  settings_notify_test_email: 'Enviar correo de prueba',
+  settings_notify_test_email_sent: 'Correo de prueba enviado. Revisa tu bandeja.',
+  settings_notify_test_email_skipped:
+    'El servidor aún no tiene RESEND_API_KEY; no se envió el correo.',
+  settings_notify_test_email_error: 'No se pudo enviar el correo de prueba.',
+  settings_notify_local_scheduled: 'Recordatorios locales reprogramados: {n}.',
 
   urgency_urgent: 'Urgente',
   urgency_not_urgent: 'No urgente',
@@ -640,6 +682,29 @@ const en_dict: TranslationDict = {
   settings_default_schedule_layout: 'List / schedule layout',
   settings_default_schedule_layout_desc:
     'How Day and Week views open: activity list or hourly grid.',
+  settings_notifications: 'Notifications',
+  settings_notify_local: 'Device notifications',
+  settings_notify_local_desc:
+    'Android and browser: local alerts for timed tasks and doses. On mobile they fire even if the app is closed.',
+  settings_notify_email: 'Email reminders',
+  settings_notify_email_desc:
+    'The server emails you at the scheduled time (or minutes before). Works on web and Android.',
+  settings_notify_minutes: 'Lead time',
+  settings_notify_minutes_desc: 'How many minutes before the scheduled time to notify.',
+  settings_notify_tasks: 'Tasks and reminders',
+  settings_notify_tasks_desc: 'Include timed entries (non-prescription).',
+  settings_notify_rx: 'Prescription doses',
+  settings_notify_rx_desc: 'Include medication doses (human and pet).',
+  settings_notify_timezone: 'Timezone (email)',
+  settings_notify_enable_device: 'Allow notifications',
+  settings_notify_permission_denied:
+    'Permission denied. Enable it in system or browser settings.',
+  settings_notify_test_email: 'Send test email',
+  settings_notify_test_email_sent: 'Test email sent. Check your inbox.',
+  settings_notify_test_email_skipped:
+    'Server has no RESEND_API_KEY yet; email was not sent.',
+  settings_notify_test_email_error: 'Could not send the test email.',
+  settings_notify_local_scheduled: 'Local reminders rescheduled: {n}.',
 
   urgency_urgent: 'Urgent',
   urgency_not_urgent: 'Not urgent',

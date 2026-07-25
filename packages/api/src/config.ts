@@ -46,7 +46,18 @@ export const config = {
     retryMaxDelayMs: Number(process.env.JOB_RETRY_MAX_DELAY_MS ?? 120000),
     runningTimeoutMs: Number(process.env.JOB_RUNNING_TIMEOUT_MS ?? 300000),
     scanLimit: Number(process.env.JOB_SCAN_LIMIT ?? 20),
+    /** Intervalo del worker de notificaciones email (ms). Default 60s. */
+    notificationsIntervalMs: Number(process.env.NOTIFICATIONS_INTERVAL_MS ?? 60_000),
   },
+  email: {
+    /** Resend API key. Sin key → email deshabilitado (local/tests). */
+    resendApiKey: process.env.RESEND_API_KEY ?? '',
+    from: process.env.EMAIL_FROM ?? 'Daily Tracker <onboarding@resend.dev>',
+    appName: process.env.APP_NAME ?? 'Daily Tracker',
+    appUrl: process.env.APP_PUBLIC_URL ?? process.env.ALLOWED_ORIGINS?.split(',')[0] ?? '',
+  },
+  /** Header x-cron-secret o Authorization Bearer para POST /api/notifications/dispatch */
+  cronSecret: process.env.CRON_SECRET ?? '',
 } as const;
 
 export type AppConfig = typeof config;

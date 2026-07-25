@@ -73,6 +73,21 @@ export async function initNativeShell(): Promise<void> {
     /* ignore */
   }
 
+  // Canal de notificaciones locales (Android 8+) — sin pedir permiso aquí
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    await LocalNotifications.createChannel({
+      id: 'daily-tracker-reminders',
+      name: 'Recordatorios',
+      description: 'Tomas y tareas con horario',
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+    });
+  } catch {
+    /* plugin missing / web / no permission yet */
+  }
+
   // Reflect skin changes on the native status bar when possible
   try {
     const { StatusBar, Style } = await import('@capacitor/status-bar');

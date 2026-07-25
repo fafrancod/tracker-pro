@@ -260,11 +260,46 @@ create table if not exists public.error_logs (
   created_at timestamptz not null default now()
 );
 
+-- Entregas de notificaciones (dedupe email / canales servidor)
+create table if not exists public.notification_deliveries (
+  id text primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  task_id text not null,
+  channel text not null check (channel in ('email')),
+  fire_key text not null,
+  scheduled_for timestamptz not null,
+  sent_at timestamptz not null default now(),
+  status text not null default 'sent'
+    check (status in ('sent', 'failed', 'skipped')),
+  error text,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists notification_deliveries_user_fire_key_idx
+  on public.notification_deliveries (user_id, fire_key);
+
+create index if not exists notification_deliveries_user_sent_idx
+  on public.notification_deliveries (user_id, sent_at desc);
+
+-- Preferencias de notificaciones en perfiles existentes (merge jsonb)
+update public.profiles
+set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object(
+  'notifyLocal', true,
+  'notifyEmail', false,
+  'notifyMinutesBefore', 10,
+  'notifyTasks', true,
+  'notifyRx', true,
+  'timezone', coalesce(settings->>'timezone', 'UTC')
+)
+where settings is null
+   or not (settings ? 'notifyEmail');
+
 -- RLS: lecturas del dueño; escrituras sensibles vía API (service role)
 alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
 alter table public.tasks enable row level security;
 alter table public.analytics enable row level security;
+alter table public.notification_deliveries enable row level security;
 
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);

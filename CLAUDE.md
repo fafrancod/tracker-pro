@@ -79,6 +79,7 @@ These features are **shipped product** on `main` and must exist on **both** remo
 
 - PWA installable (PNG any+maskable icons, install banner).
 - Capacitor app: `packages/web/android`, id `com.cerebrostudios.dailytracker`.
+- Notifications: local (Capacitor + web) + email (Resend worker). Settings: `notifyLocal`, `notifyEmail`, `notifyMinutesBefore`, `timezone`.
 - Guides: `roadmap_android.md`, `docs/ANDROID.md`, `docs/PLAY_STORE.md`.
 - Native builds need absolute `VITE_API_BASE_URL` at web build time.
 

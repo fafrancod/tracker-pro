@@ -12,6 +12,7 @@ import { publicConfigRouter } from './routes/publicConfig.js';
 import { tasksRouter } from './routes/tasks.js';
 import { projectsRouter } from './routes/projects.js';
 import { authRouter } from './routes/auth.js';
+import { notificationsRouter } from './routes/notifications.js';
 
 /**
  * Busca packages/web/dist (cwd y ubicación del bundle varían en Docker/Railway).
@@ -77,6 +78,7 @@ export function buildApp(): Express {
   app.use('/api/auth', authRouter);
   app.use('/api/tasks', tasksRouter);
   app.use('/api/projects', projectsRouter);
+  app.use('/api/notifications', notificationsRouter);
 
   app.get('/api', (_req, res) => {
     res.json({
@@ -86,6 +88,7 @@ export function buildApp(): Express {
       webDist: serveSpa ? webDist : null,
       supabaseConfigured: Boolean(config.supabase.url && config.supabase.serviceRoleKey),
       publicConfigReady: Boolean(config.supabase.url && config.supabase.anonKey),
+      emailConfigured: Boolean(config.email.resendApiKey),
       docs: 'https://github.com/fafrancod/tracker-pro',
       endpoints: [
         '/api/version',
@@ -93,6 +96,9 @@ export function buildApp(): Express {
         '/api/auth/bootstrap',
         '/api/tasks',
         '/api/projects',
+        '/api/notifications/status',
+        '/api/notifications/test-email',
+        '/api/notifications/dispatch',
       ],
     });
   });

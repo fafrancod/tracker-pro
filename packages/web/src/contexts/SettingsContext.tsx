@@ -21,6 +21,14 @@ function detectBrowserLanguage(): UserSettings['language'] {
   return lang.startsWith('es') ? 'es' : 'en';
 }
 
+function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
 const DEFAULTS: UserSettings = {
   autoRollIncomplete: false,
   defaultProjectId: null,
@@ -31,6 +39,12 @@ const DEFAULTS: UserSettings = {
   dayStartHour: 7,
   dayEndHour: 22,
   defaultScheduleLayout: 'list',
+  notifyLocal: true,
+  notifyEmail: false,
+  notifyMinutesBefore: 10,
+  notifyTasks: true,
+  notifyRx: true,
+  timezone: detectTimezone(),
 };
 
 function loadLocal(): Partial<UserSettings> | null {

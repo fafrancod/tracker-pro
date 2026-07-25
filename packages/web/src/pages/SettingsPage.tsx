@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { Bell, Mail, RefreshCw, Sparkles } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@core/lib/api';
 import { isDemoMode } from '@core/lib/demoMode';
 import { appVersion } from '@/lib/appVersion';
+import { NOTIFY_MINUTES_OPTIONS } from '@core/lib/notifications';
+import { useStore } from '@core/store';
 
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
@@ -18,6 +20,13 @@ import type { BoardViewMode, Language, ScheduleLayout } from '@core/types';
 import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import { skinsByMode, type SkinDefinition } from '@/lib/skins';
+import {
+  getDeviceTimezone,
+  getLocalPermissionState,
+  requestLocalPermission,
+  rescheduleLocalNotifications,
+  type LocalPermissionState,
+} from '@/lib/localNotifications';
 
 interface BackendVersionInfo {
   service: string;
@@ -41,6 +50,14 @@ export function SettingsPage() {
 
   const [backendInfo, setBackendInfo] = useState<BackendVersionInfo | null>(null);
   const [apiState, setApiState] = useState<ApiState>('checking');
+  const [localPerm, setLocalPerm] = useState<LocalPermissionState>('prompt');
+  const [testingEmail, setTestingEmail] = useState(false);
+  const tasksByDay = useStore(s => s.tasksByDay);
+
+  useEffect(() => {
+    void getLocalPermissionState().then(setLocalPerm);
+  }, []);
+
   async function refreshStatus() {
     if (demo) {
       setBackendInfo({
@@ -111,6 +128,63 @@ export function SettingsPage() {
     window.location.reload();
   }
 
+  async function handleEnableDeviceNotifications() {
+    const state = await requestLocalPermission();
+    setLocalPerm(state);
+    if (state === 'granted') {
+      await updateSettings({ notifyLocal: true, timezone: getDeviceTimezone() });
+      const result = await rescheduleLocalNotifications({
+        tasksByDay,
+        settings: { ...settings, notifyLocal: true },
+        language: settings.language === 'en' ? 'en' : 'es',
+      });
+      showToast(
+        t('settings_notify_local_scheduled').replace('{n}', String(result.scheduled)),
+        'success'
+      );
+    } else if (state === 'denied') {
+      showToast(t('settings_notify_permission_denied'), 'error');
+    }
+  }
+
+  async function handleToggleLocal(value: boolean) {
+    if (value) {
+      await handleEnableDeviceNotifications();
+      return;
+    }
+    await handleToggle('notifyLocal', false);
+    await rescheduleLocalNotifications({
+      tasksByDay,
+      settings: { ...settings, notifyLocal: false },
+    });
+  }
+
+  async function handleTestEmail() {
+    if (demo) {
+      showToast(t('settings_notify_test_email_skipped'), 'info');
+      return;
+    }
+    setTestingEmail(true);
+    try {
+      if (!settings.notifyEmail) {
+        await updateSettings({ notifyEmail: true });
+      }
+      const res = await api.post<{ ok: boolean; skipped?: boolean; message?: string }>(
+        '/api/notifications/test-email',
+        {}
+      );
+      if (res.skipped) {
+        showToast(t('settings_notify_test_email_skipped'), 'info');
+      } else {
+        showToast(t('settings_notify_test_email_sent'), 'success');
+      }
+    } catch {
+      showToast(t('settings_notify_test_email_error'), 'error');
+    } finally {
+      setTestingEmail(false);
+    }
+  }
+
   return (
     <Layout title={t('nav_settings')} showFab={false}>
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -165,6 +239,95 @@ export function SettingsPage() {
               <dt className="text-text-muted">Export CSV</dt>
               <dd className="text-right">{limits.canExportCsv ? '✓' : '—'}</dd>
             </dl>
+          </section>
+
+          {/* Notificaciones */}
+          <section className="rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <Bell className="h-4 w-4 text-accent-teal" />
+              {t('settings_notifications')}
+            </h2>
+            <p className="mb-3 text-[11px] text-text-muted">
+              {settings.timezone || getDeviceTimezone()}
+            </p>
+
+            <SettingRow
+              title={t('settings_notify_local')}
+              description={t('settings_notify_local_desc')}
+              value={settings.notifyLocal !== false}
+              onChange={v => void handleToggleLocal(v)}
+            />
+            {settings.notifyLocal !== false && localPerm !== 'granted' && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mb-3 w-full sm:w-auto"
+                onClick={() => void handleEnableDeviceNotifications()}
+              >
+                {t('settings_notify_enable_device')}
+              </Button>
+            )}
+            {localPerm === 'denied' && (
+              <p className="mb-3 text-[11px] text-accent-red">
+                {t('settings_notify_permission_denied')}
+              </p>
+            )}
+
+            <SettingRow
+              title={t('settings_notify_email')}
+              description={t('settings_notify_email_desc')}
+              value={Boolean(settings.notifyEmail)}
+              onChange={v => handleToggle('notifyEmail', v)}
+            />
+            {settings.notifyEmail && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mb-3 gap-1.5"
+                disabled={testingEmail}
+                onClick={() => void handleTestEmail()}
+              >
+                <Mail className="h-3.5 w-3.5" />
+                {t('settings_notify_test_email')}
+              </Button>
+            )}
+
+            <div className="mt-2 mb-3">
+              <label className="mb-1.5 block text-xs font-medium text-text-muted">
+                {t('settings_notify_minutes')}
+              </label>
+              <p className="mb-1.5 text-[11px] text-text-muted">
+                {t('settings_notify_minutes_desc')}
+              </p>
+              <select
+                value={settings.notifyMinutesBefore ?? 10}
+                onChange={e =>
+                  void updateSettings({
+                    notifyMinutesBefore: Number(e.target.value),
+                  })
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring sm:w-auto"
+              >
+                {NOTIFY_MINUTES_OPTIONS.map(m => (
+                  <option key={m} value={m}>
+                    {m === 0 ? '0 min' : `${m} min`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <SettingRow
+              title={t('settings_notify_tasks')}
+              description={t('settings_notify_tasks_desc')}
+              value={settings.notifyTasks !== false}
+              onChange={v => handleToggle('notifyTasks', v)}
+            />
+            <SettingRow
+              title={t('settings_notify_rx')}
+              description={t('settings_notify_rx_desc')}
+              value={settings.notifyRx !== false}
+              onChange={v => handleToggle('notifyRx', v)}
+            />
           </section>
 
           {/* Preferencias */}

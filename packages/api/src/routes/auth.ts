@@ -25,6 +25,12 @@ const DEFAULT_SETTINGS = {
   dayStartHour: 7,
   dayEndHour: 22,
   defaultScheduleLayout: 'list' as const,
+  notifyLocal: true,
+  notifyEmail: false,
+  notifyMinutesBefore: 10,
+  notifyTasks: true,
+  notifyRx: true,
+  timezone: 'UTC',
 };
 
 authRouter.post('/bootstrap', async (req, res, next) => {

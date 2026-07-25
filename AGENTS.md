@@ -64,6 +64,13 @@ Agents must treat the following as **in-tree product**, not optional experiments
 - **40 skins** (20 dark + 20 light) via CSS variables; `settings.skinId`.
 - Language es/en; week start; auto-roll setting; default board view / schedule layout / day hours.
 
+### Notifications
+
+- **Device (Android + browser):** Capacitor `@capacitor/local-notifications` + Web Notification API; scheduled from tasks/doses with `startTime`.
+- **Email (web + Android):** API worker + Resend (`RESEND_API_KEY`, `EMAIL_FROM`); prefs `notifyEmail`, `notifyMinutesBefore`, `timezone`.
+- Settings UI: local/email toggles, lead time, tasks vs rx, test email.
+- Schema: `notification_deliveries` dedupe table; settings keys on `profiles.settings`.
+
 ### Android / PWA / offline
 
 - PWA: PNG icons (any + maskable), install banner, safe-area, touch DnD.
@@ -75,7 +82,7 @@ Agents must treat the following as **in-tree product**, not optional experiments
 ### Data / stack
 
 - Supabase Auth + PostgreSQL (`supabase/schema.sql` is DDL source of truth).
-- Schema includes: multi-day, series, recurrence, urgency/importance, kind, color, **start_time/end_time**.
+- Schema includes: multi-day, series, recurrence, urgency/importance, kind, color, **start_time/end_time**, **notification_deliveries**.
 - After schema changes: give the user the SQL for Supabase **and** push code to both remotes.
 
 ## Stack (quick map)

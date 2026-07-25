@@ -1,5 +1,16 @@
 # Android (Capacitor) — Daily Tracker
 
+## Notificaciones (v1)
+
+| Canal | Mecanismo | Requisitos |
+|-------|-----------|------------|
+| Dispositivo | `@capacitor/local-notifications` | Permiso del sistema; se reprograman al abrir/cambiar tareas |
+| Correo | Worker API + Resend | `RESEND_API_KEY`, `EMAIL_FROM` en Railway; tabla `notification_deliveries` |
+
+UI: **Ajustes → Notificaciones**. FCM push remoto (servidor → dispositivo) queda fuera de v1.
+
+---
+
 Shell nativo sobre la SPA web. **No reescribe UI**: empaqueta `packages/web/dist` en un WebView.
 
 | | |

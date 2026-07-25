@@ -65,6 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           dayStartHour: 7,
           dayEndHour: 22,
           defaultScheduleLayout: 'list',
+          notifyLocal: true,
+          notifyEmail: false,
+          notifyMinutesBefore: 10,
+          notifyTasks: true,
+          notifyRx: true,
+          timezone:
+            typeof Intl !== 'undefined'
+              ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+              : 'UTC',
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;

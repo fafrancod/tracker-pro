@@ -1,6 +1,10 @@
 import { buildApp } from './app.js';
 import { config } from './config.js';
 import { logger } from './logger.js';
+import {
+  startNotificationsWorker,
+  stopNotificationsWorker,
+} from './worker/notificationsWorker.js';
 
 const port = Number(process.env.PORT ?? config.port ?? 4000);
 if (!Number.isFinite(port) || port <= 0) {
@@ -23,9 +27,12 @@ const server = app.listen(port, '0.0.0.0', () => {
       hasSupabaseUrl: Boolean(config.supabase.url),
       hasServiceRole: Boolean(config.supabase.serviceRoleKey),
       hasAnonKey: Boolean(config.supabase.anonKey),
+      emailConfigured: Boolean(config.email.resendApiKey),
+      notificationsWorker: config.worker.runEmbedded,
     },
     'daily-tracker-api listening'
   );
+  startNotificationsWorker();
 });
 
 server.on('error', (err: NodeJS.ErrnoException) => {
@@ -35,6 +42,7 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 
 function shutdown(signal: string) {
   logger.info({ signal }, 'shutdown signal received');
+  stopNotificationsWorker();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 5000).unref();
 }

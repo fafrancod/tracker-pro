@@ -13,6 +13,7 @@ import { BoardPage } from '@/pages/BoardPage';
 import { LoginPage } from '@/pages/Login';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { NotificationBootstrap } from '@/components/NotificationBootstrap';
 
 // Pages secundarias: lazy para chunks separados y cargar sólo si se navega.
 const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
@@ -52,6 +53,7 @@ function App() {
           <AuthProvider>
             <SettingsProvider>
               <TooltipProvider>
+                <NotificationBootstrap />
                 <OfflineBanner />
                 <PwaInstallBanner />
                 <Routes>
