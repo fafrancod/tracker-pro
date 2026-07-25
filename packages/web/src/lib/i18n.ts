@@ -214,6 +214,15 @@ export interface TranslationDict {
   layout_list: string;
   layout_schedule: string;
   schedule_all_day: string;
+  day_sort_label: string;
+  day_sort_time: string;
+  day_sort_name: string;
+  day_sort_importance: string;
+  day_sort_urgency: string;
+  day_sort_help: string;
+  day_sort_primary_hint: string;
+  day_sort_secondary_hint: string;
+  day_sort_add_hint: string;
   board_filter_project: string;
   board_filter_urgency: string;
   board_filter_importance: string;
@@ -782,6 +791,15 @@ const es_dict: TranslationDict = {
   layout_list: 'Lista',
   layout_schedule: 'Horario',
   schedule_all_day: 'Sin hora',
+  day_sort_label: 'Ordenar',
+  day_sort_time: 'Hora',
+  day_sort_name: 'Nombre',
+  day_sort_importance: 'Importancia',
+  day_sort_urgency: 'Urgencia',
+  day_sort_help: 'Clic: criterio principal. Shift+clic: sumar/quitar criterio.',
+  day_sort_primary_hint: 'Clic de nuevo para invertir asc/desc',
+  day_sort_secondary_hint: 'Shift+clic para quitar este criterio',
+  day_sort_add_hint: 'Clic para usar como principal · Shift+clic para añadir',
   board_filter_project: 'Proyecto',
   board_filter_urgency: 'Urgencia',
   board_filter_importance: 'Importancia',
@@ -1370,6 +1388,15 @@ const en_dict: TranslationDict = {
   layout_list: 'List',
   layout_schedule: 'Schedule',
   schedule_all_day: 'No time',
+  day_sort_label: 'Sort',
+  day_sort_time: 'Time',
+  day_sort_name: 'Name',
+  day_sort_importance: 'Importance',
+  day_sort_urgency: 'Urgency',
+  day_sort_help: 'Click: primary sort. Shift+click: add/remove criterion.',
+  day_sort_primary_hint: 'Click again to toggle asc/desc',
+  day_sort_secondary_hint: 'Shift+click to remove this criterion',
+  day_sort_add_hint: 'Click as primary · Shift+click to add',
   board_filter_project: 'Project',
   board_filter_urgency: 'Urgency',
   board_filter_importance: 'Importance',

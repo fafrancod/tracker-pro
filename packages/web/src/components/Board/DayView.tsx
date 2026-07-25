@@ -1,16 +1,28 @@
-import { useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, List, Clock } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  ArrowDownAZ,
+  ArrowUpDown,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Flame,
+  List,
+  Star,
+} from 'lucide-react';
 import { addDays, format, parseISO } from 'date-fns';
 import { useStore } from '@core/store';
 import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
 import { useWeek } from '@core/hooks/useWeek';
 import { getDayId, getWeekId } from '@core/services/taskService';
-import { collectTasksCovering } from '@core/lib/taskPresence';
+import { collectTasksCovering, type LocatedTask } from '@core/lib/taskPresence';
 import {
   taskMatchesFilters,
   type BoardTaskFilters,
+  type Importance,
   type ScheduleLayout,
+  type Urgency,
 } from '@core/types';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/hooks/useT';
@@ -20,6 +32,9 @@ import { TaskCard } from './TaskCard';
 import { AddTaskForm } from './AddTaskForm';
 import { ProgressRing } from './ProgressRing';
 
+/** Criterios de orden en vista día → lista. */
+export type DayListSortKey = 'time' | 'name' | 'importance' | 'urgency';
+
 interface DayViewProps {
   filter?: BoardTaskFilters;
   dayStartHour: number;
@@ -27,6 +42,55 @@ interface DayViewProps {
   layout: ScheduleLayout;
   onLayoutChange: (layout: ScheduleLayout) => void;
   onAddRequest?: () => void;
+}
+
+function urgencyRank(u: Urgency | null | undefined): number {
+  if (u === 'urgent') return 0;
+  if (u === 'not_urgent') return 1;
+  return 2; // sin clasificar al final
+}
+
+function importanceRank(i: Importance | null | undefined): number {
+  if (i === 'important') return 0;
+  if (i === 'not_important') return 1;
+  return 2;
+}
+
+function timeKey(t: string | null | undefined): string {
+  // Sin hora al final del día (ZZZ)
+  if (!t || !/^\d{2}:\d{2}/.test(t)) return '99:99';
+  return t.slice(0, 5);
+}
+
+function compareLocated(
+  a: LocatedTask,
+  b: LocatedTask,
+  keys: DayListSortKey[],
+  dir: 'asc' | 'desc'
+): number {
+  const mul = dir === 'asc' ? 1 : -1;
+  for (const key of keys) {
+    let cmp = 0;
+    switch (key) {
+      case 'time':
+        cmp = timeKey(a.startTime).localeCompare(timeKey(b.startTime));
+        break;
+      case 'name':
+        cmp = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+        break;
+      case 'importance':
+        cmp = importanceRank(a.importance) - importanceRank(b.importance);
+        break;
+      case 'urgency':
+        cmp = urgencyRank(a.urgency) - urgencyRank(b.urgency);
+        break;
+    }
+    if (cmp !== 0) return cmp * mul;
+  }
+  // Desempate estable: título, luego id
+  const byTitle = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+  if (byTitle !== 0) return byTitle;
+  return a.id.localeCompare(b.id);
 }
 
 export function DayView({
@@ -43,6 +107,10 @@ export function DayView({
   const setCurrentWeek = useStore(s => s.setCurrentWeek);
   const setDetailTask = useStore(s => s.setDetailTask);
   const tasksByDay = useStore(s => s.tasksByDay);
+
+  /** Orden multi-criterio: el primero es el principal; se pueden acumular. */
+  const [sortKeys, setSortKeys] = useState<DayListSortKey[]>(['time']);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const { todayDayId, days: weekDays, nextWeekId } = useWeek({
     locale,
@@ -64,9 +132,43 @@ export function DayView({
     return filter ? rows.filter(r => taskMatchesFilters(r, filter)) : rows;
   }, [tasksByDay, dayId, filter]);
 
+  const sortedLocated = useMemo(() => {
+    const keys = sortKeys.length > 0 ? sortKeys : (['time'] as DayListSortKey[]);
+    return [...located].sort((a, b) => {
+      // Completadas siempre al final (salvo que solo queden completadas)
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return compareLocated(a, b, keys, sortDir);
+    });
+  }, [located, sortKeys, sortDir]);
+
   const completedCount = located.filter(t => t.completed).length;
   const progress =
     located.length > 0 ? Math.round((completedCount / located.length) * 100) : 0;
+
+  function toggleSortKey(key: DayListSortKey) {
+    setSortKeys(prev => {
+      if (prev.includes(key)) {
+        // Quitar si hay más de uno; si es el único, lo dejamos
+        if (prev.length === 1) return prev;
+        return prev.filter(k => k !== key);
+      }
+      // Añadir al final (prioridad menor que los anteriores)
+      return [...prev, key];
+    });
+  }
+
+  function setPrimarySort(key: DayListSortKey) {
+    setSortKeys(prev => {
+      if (prev[0] === key) {
+        // Clic de nuevo en el principal → alternar dirección
+        setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setSortDir('asc');
+      // Poner como principal y conservar el resto detrás
+      return [key, ...prev.filter(k => k !== key)];
+    });
+  }
 
   function goDay(delta: number) {
     const next = addDays(dayDate, delta);
@@ -185,11 +287,72 @@ export function DayView({
         />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {/* Barra de ordenación (solo lista) */}
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border bg-surface/40 px-2 py-1.5 md:px-3">
+            <span className="mr-0.5 inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+              <ArrowUpDown className="h-3 w-3" />
+              {t('day_sort_label')}
+            </span>
+            {(
+              [
+                { key: 'time' as const, icon: Clock, label: t('day_sort_time') },
+                { key: 'name' as const, icon: ArrowDownAZ, label: t('day_sort_name') },
+                { key: 'importance' as const, icon: Star, label: t('day_sort_importance') },
+                { key: 'urgency' as const, icon: Flame, label: t('day_sort_urgency') },
+              ] as const
+            ).map(opt => {
+              const activeIdx = sortKeys.indexOf(opt.key);
+              const active = activeIdx >= 0;
+              const isPrimary = activeIdx === 0;
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  title={
+                    isPrimary
+                      ? t('day_sort_primary_hint')
+                      : active
+                        ? t('day_sort_secondary_hint')
+                        : t('day_sort_add_hint')
+                  }
+                  onClick={e => {
+                    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                      toggleSortKey(opt.key);
+                    } else {
+                      setPrimarySort(opt.key);
+                    }
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors',
+                    active
+                      ? isPrimary
+                        ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
+                        : 'border-border bg-background text-text-primary'
+                      : 'border-transparent text-text-muted hover:border-border hover:text-text-primary'
+                  )}
+                >
+                  <Icon className="h-3 w-3 shrink-0" />
+                  {opt.label}
+                  {active && (
+                    <span className="tabular-nums text-[10px] opacity-70">
+                      {activeIdx + 1}
+                      {isPrimary ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            <p className="w-full text-[10px] text-text-muted sm:ml-auto sm:w-auto">
+              {t('day_sort_help')}
+            </p>
+          </div>
+
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2 md:p-3">
-            {located.length === 0 ? (
+            {sortedLocated.length === 0 ? (
               <p className="py-8 text-center text-sm text-text-muted">{t('empty_no_tasks')}</p>
             ) : (
-              located.map(loc => (
+              sortedLocated.map(loc => (
                 <TaskCard
                   key={loc.id}
                   task={loc}
