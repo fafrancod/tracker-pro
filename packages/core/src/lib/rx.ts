@@ -24,6 +24,15 @@ export function isPossibleEventKind(kind: TaskKind | string | null | undefined):
   return kind === 'possible_event';
 }
 
+export function isEventKind(kind: TaskKind | string | null | undefined): boolean {
+  return kind === 'event';
+}
+
+/** Evento confirmado o posible (no son tareas de proyecto). */
+export function isAnyEventKind(kind: TaskKind | string | null | undefined): boolean {
+  return kind === 'event' || kind === 'possible_event';
+}
+
 export function isProjectKind(kind: TaskKind | string | null | undefined): boolean {
   return kind === 'task' || kind === 'reminder' || !kind;
 }

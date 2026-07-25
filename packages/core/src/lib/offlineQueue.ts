@@ -288,6 +288,8 @@ async function applyOne(mut: OfflineMutation, idMap: Map<string, string>): Promi
           endTime: instance.endTime,
           rx: instance.rx,
           involvedContactIds: instance.involvedContactIds ?? [],
+          location: instance.location ?? null,
+          departureTime: instance.departureTime ?? null,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

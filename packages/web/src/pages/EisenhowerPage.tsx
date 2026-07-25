@@ -305,7 +305,13 @@ export function EisenhowerPage() {
     const keySet = new Set(activeProjectKeys);
     return allLocated.filter(t => {
       // Recetarios no entran en la matriz de prioridades
-      if (isRxKind(t.kind) || t.kind === 'possible_event') return false;
+      if (
+        isRxKind(t.kind) ||
+        t.kind === 'possible_event' ||
+        t.kind === 'event'
+      ) {
+        return false;
+      }
       const key = t.projectId ?? NO_PROJECT;
       return keySet.has(key);
     });

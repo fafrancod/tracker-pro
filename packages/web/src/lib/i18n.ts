@@ -224,8 +224,16 @@ export interface TranslationDict {
   board_filter_category_rx: string;
   board_filter_category_possible: string;
   board_category_possible_hint: string;
+  board_filter_category_events: string;
+  board_category_events_hint: string;
   task_kind_possible_event: string;
   task_possible_event_placeholder: string;
+  task_kind_event: string;
+  task_event_placeholder: string;
+  task_event_location: string;
+  task_event_location_ph: string;
+  task_event_departure: string;
+  task_event_departure_hint: string;
   task_involved_contacts: string;
   task_involved_contacts_hint: string;
   task_involved_none: string;
@@ -777,6 +785,9 @@ const es_dict: TranslationDict = {
   board_filter_category_possible: 'Eventos posibles',
   board_category_possible_hint:
     'Planes tentativos: un día o un rango. Asocia personas o mascotas del Círculo.',
+  board_filter_category_events: 'Eventos',
+  board_category_events_hint:
+    'Eventos con lugar, fechas y salida prevista (avisos según la hora de salida).',
   board_category_rx_hint:
     'Solo tomas de recetario. Los remedios no usan proyecto ni Eisenhower.',
 
@@ -794,6 +805,13 @@ const es_dict: TranslationDict = {
   task_kind_rx_pet: 'Rx mascota',
   task_kind_possible_event: 'Evento posible',
   task_possible_event_placeholder: 'Ej. Viaje en familia, visita al veterinario…',
+  task_kind_event: 'Evento',
+  task_event_placeholder: 'Ej. Cena con Ana, partido, cita médica…',
+  task_event_location: 'Lugar',
+  task_event_location_ph: 'Ej. Casa de Ana, Teatro Colón, Zoom…',
+  task_event_departure: 'Salida prevista',
+  task_event_departure_hint:
+    'Hora a la que sales. Los avisos «X min antes» se calculan desde esta hora.',
   task_involved_contacts: 'Involucrados (Círculo)',
   task_involved_contacts_hint:
     'Elige personas o mascotas. Quedarán asociadas al evento y a sus compromisos.',
@@ -1345,6 +1363,9 @@ const en_dict: TranslationDict = {
   board_filter_category_possible: 'Possible events',
   board_category_possible_hint:
     'Tentative plans: one day or a range. Link people or pets from your Circle.',
+  board_filter_category_events: 'Events',
+  board_category_events_hint:
+    'Events with place, dates and planned departure (reminders use departure time).',
   board_category_rx_hint:
     'Prescription doses only. Remedies skip project and Eisenhower fields.',
 
@@ -1362,6 +1383,13 @@ const en_dict: TranslationDict = {
   task_kind_rx_pet: 'Rx pet',
   task_kind_possible_event: 'Possible event',
   task_possible_event_placeholder: 'e.g. Family trip, vet visit…',
+  task_kind_event: 'Event',
+  task_event_placeholder: 'e.g. Dinner with Ana, match, doctor visit…',
+  task_event_location: 'Place',
+  task_event_location_ph: "e.g. Ana's place, Colón Theatre, Zoom…",
+  task_event_departure: 'Planned departure',
+  task_event_departure_hint:
+    'Time you leave. “X min before” reminders are scheduled from this time.',
   task_involved_contacts: 'Involved (Circle)',
   task_involved_contacts_hint:
     'Pick people or pets. They will be linked to the event and their commitments.',

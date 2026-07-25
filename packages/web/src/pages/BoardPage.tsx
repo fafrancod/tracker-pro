@@ -11,6 +11,7 @@ import {
   FolderKanban,
   Pill,
   CalendarHeart,
+  MapPin,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -151,6 +152,7 @@ export function BoardPage() {
   const isRxCategory = category === 'rx';
   const isProjectsCategory = category === 'projects';
   const isPossibleCategory = category === 'possible';
+  const isEventsCategory = category === 'events';
 
   const categoryTabs: Array<{
     value: BoardCategoryFilter;
@@ -164,6 +166,11 @@ export function BoardPage() {
       icon: FolderKanban,
     },
     { value: 'rx', label: t('board_filter_category_rx'), icon: Pill },
+    {
+      value: 'events',
+      label: t('board_filter_category_events'),
+      icon: MapPin,
+    },
     {
       value: 'possible',
       label: t('board_filter_category_possible'),
@@ -312,7 +319,9 @@ export function BoardPage() {
                     ...f,
                     category: tab.value,
                     // Al entrar en recetario o eventos posibles, limpia filtros de proyecto/Eisenhower
-                    ...(tab.value === 'rx' || tab.value === 'possible'
+                    ...(tab.value === 'rx' ||
+                    tab.value === 'possible' ||
+                    tab.value === 'events'
                       ? { projectId: 'all', urgency: 'all', importance: 'all' }
                       : {}),
                   }))
@@ -324,9 +333,11 @@ export function BoardPage() {
                       ? 'bg-violet-500/20 text-violet-200'
                       : tab.value === 'possible'
                         ? 'bg-fuchsia-500/20 text-fuchsia-200'
-                        : tab.value === 'projects'
-                          ? 'bg-accent-teal/15 text-accent-teal'
-                          : 'bg-accent-teal/15 text-accent-teal'
+                        : tab.value === 'events'
+                          ? 'bg-sky-500/20 text-sky-200'
+                          : tab.value === 'projects'
+                            ? 'bg-accent-teal/15 text-accent-teal'
+                            : 'bg-accent-teal/15 text-accent-teal'
                     : 'text-text-muted hover:bg-surface hover:text-text-primary'
                 )}
               >
@@ -342,9 +353,14 @@ export function BoardPage() {
             {t('board_category_possible_hint')}
           </p>
         )}
+        {isEventsCategory && (
+          <p className="text-[11px] text-text-muted md:ml-auto">
+            {t('board_category_events_hint')}
+          </p>
+        )}
 
         {/* Filtros secundarios: solo donde aplican */}
-        {!isRxCategory && !isPossibleCategory && (
+        {!isRxCategory && !isPossibleCategory && !isEventsCategory && (
           <div className="flex flex-wrap items-center gap-1.5 md:ml-auto">
             {(isProjectsCategory || category === 'all') && (
               <div className="flex items-center gap-1">
@@ -466,9 +482,11 @@ export function BoardPage() {
             initialKind={
               isRxCategory
                 ? 'rx_human'
-                : isPossibleCategory
-                  ? 'possible_event'
-                  : 'task'
+                : isEventsCategory
+                  ? 'event'
+                  : isPossibleCategory
+                    ? 'possible_event'
+                    : 'task'
             }
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {

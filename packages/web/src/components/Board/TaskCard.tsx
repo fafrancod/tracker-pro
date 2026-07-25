@@ -283,6 +283,15 @@ export function TaskCard({
                   : 'Posible'}
               </span>
             )}
+            {task.kind === 'event' && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-200">
+                📍
+                {task.location
+                  ? ` ${task.location.length > 16 ? `${task.location.slice(0, 16)}…` : task.location}`
+                  : ' Evento'}
+                {task.departureTime ? ` · 🚗 ${task.departureTime.slice(0, 5)}` : ''}
+              </span>
+            )}
             {task.recurrence.frequency !== 'none' && (
               <span
                 className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-teal"

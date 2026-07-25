@@ -4,14 +4,16 @@ export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yea
 /**
  * task/reminder = proyectos y pendientes;
  * rx_* = recetario;
- * possible_event = evento posible (día o rango, con personas/mascotas).
+ * possible_event = evento posible (día o rango, con personas/mascotas);
+ * event = evento confirmado (lugar, fechas, horario, salida prevista).
  */
 export type TaskKind =
   | 'task'
   | 'reminder'
   | 'rx_human'
   | 'rx_pet'
-  | 'possible_event';
+  | 'possible_event'
+  | 'event';
 export type Urgency = 'urgent' | 'not_urgent';
 export type Importance = 'important' | 'not_important';
 export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
@@ -21,9 +23,14 @@ export type ScheduleLayout = 'list' | 'schedule';
 export type DoseUnit = 'pills' | 'ml';
 /**
  * Filtro de categoría en el tablero:
- * all | projects (tarea/recordatorio) | rx | possible (eventos posibles).
+ * all | projects | rx | possible | events.
  */
-export type BoardCategoryFilter = 'all' | 'projects' | 'rx' | 'possible';
+export type BoardCategoryFilter =
+  | 'all'
+  | 'projects'
+  | 'rx'
+  | 'possible'
+  | 'events';
 
 /**
  * Cómo se definen los horarios de la fase:
@@ -313,9 +320,16 @@ export interface Task {
   rx: RxMeta | null;
   /**
    * Contactos del Círculo involucrados (ids).
-   * Especialmente útil en possible_event; también se reflejan en tags (@handles).
+   * Especialmente útil en possible_event / event; también se reflejan en tags.
    */
   involvedContactIds: string[];
+  /** Lugar del evento (kind event). Vacío en otros kinds. */
+  location: string | null;
+  /**
+   * Hora de salida prevista HH:mm (kind event).
+   * Ancla de notificaciones «X min antes» si está definida.
+   */
+  departureTime: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -360,8 +374,12 @@ export interface CreateTaskPayload {
   rxPhases?: RxPhase[];
   /** Paciente / nombre de mascota (recetario). */
   rxSubject?: string | null;
-  /** Personas/mascotas del Círculo involucradas (p. ej. evento posible). */
+  /** Personas/mascotas del Círculo involucradas (p. ej. evento posible / evento). */
   involvedContactIds?: string[];
+  /** Lugar (eventos). */
+  location?: string | null;
+  /** Hora de salida prevista HH:mm (eventos → notificaciones). */
+  departureTime?: string | null;
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -390,6 +408,8 @@ export interface UpdateTaskPayload {
   rxUnit?: DoseUnit;
   rxSubject?: string | null;
   involvedContactIds?: string[];
+  location?: string | null;
+  departureTime?: string | null;
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (título, color, …) a toda la serie.
@@ -421,6 +441,8 @@ export type SeriesSharedTaskFields = Pick<
   | 'startTime'
   | 'endTime'
   | 'involvedContactIds'
+  | 'location'
+  | 'departureTime'
 >;
 
 /** Filtros del tablero (week / month / continuous / day). */
@@ -444,13 +466,20 @@ export function taskMatchesFilters(
   if (filters.category && filters.category !== 'all') {
     const kind = task.kind ?? 'task';
     if (filters.category === 'projects') {
-      if (kind === 'rx_human' || kind === 'rx_pet' || kind === 'possible_event') {
+      if (
+        kind === 'rx_human' ||
+        kind === 'rx_pet' ||
+        kind === 'possible_event' ||
+        kind === 'event'
+      ) {
         return false;
       }
     } else if (filters.category === 'rx') {
       if (kind !== 'rx_human' && kind !== 'rx_pet') return false;
     } else if (filters.category === 'possible') {
       if (kind !== 'possible_event') return false;
+    } else if (filters.category === 'events') {
+      if (kind !== 'event') return false;
     }
   }
   if (filters.projectId && filters.projectId !== 'all') {

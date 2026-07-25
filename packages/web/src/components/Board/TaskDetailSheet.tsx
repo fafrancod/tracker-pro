@@ -123,6 +123,8 @@ interface DraftState {
   rxUnit: DoseUnit;
   rxPhases: RxPhase[];
   involvedContactIds: string[];
+  location: string;
+  departureTime: string;
 }
 
 function taskToDraft(task: Task, fallbackDayId: string): DraftState {
@@ -144,6 +146,8 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     rxUnit: task.rx?.unit ?? 'pills',
     rxPhases: clonePhases(task.rx?.phases),
     involvedContactIds: [...(task.involvedContactIds ?? [])],
+    location: task.location ?? '',
+    departureTime: task.departureTime ?? '',
   };
 }
 
@@ -166,7 +170,9 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.rxAmount !== base.rxAmount ||
     draft.rxUnit !== base.rxUnit ||
     !phasesEqual(draft.rxPhases, base.rxPhases) ||
-    draft.involvedContactIds.join('\0') !== base.involvedContactIds.join('\0')
+    draft.involvedContactIds.join('\0') !== base.involvedContactIds.join('\0') ||
+    draft.location !== base.location ||
+    draft.departureTime !== base.departureTime
   );
 }
 
@@ -271,6 +277,8 @@ function TaskDetailInner({
   const isSeries = Boolean(task.seriesId);
   const isRx = isRxKind(task.kind);
   const isPossible = task.kind === 'possible_event';
+  const isEvent = task.kind === 'event';
+  const isEventLike = isPossible || isEvent;
   const rxPlanStart = task.rx?.planStartDayId || dayId;
   const rxPlanDays = isRx ? totalRxPlanDays(draft.rxPhases) : 0;
   const rxPlanEnd = isRx ? rxPlanEndDayId(rxPlanStart, draft.rxPhases) : '';
@@ -446,13 +454,16 @@ function TaskDetailInner({
           tags,
           kind: draft.kind,
           priority: draft.priority,
-          urgency: draft.kind === 'possible_event' ? null : draft.urgency,
-          importance: draft.kind === 'possible_event' ? null : draft.importance,
+          urgency: isEventLike ? null : draft.urgency,
+          importance: isEventLike ? null : draft.importance,
           color: draft.color,
-          projectId: draft.kind === 'possible_event' ? null : draft.projectId,
+          projectId: isEventLike ? null : draft.projectId,
           endDayId: draft.endDayId,
-          involvedContactIds:
-            draft.kind === 'possible_event' ? draft.involvedContactIds : draft.involvedContactIds,
+          involvedContactIds: isEventLike ? draft.involvedContactIds : [],
+          location: isEvent ? draft.location.trim() || null : null,
+          departureTime: isEvent
+            ? normalizeTimeInput(draft.departureTime)
+            : null,
           startTime: startN,
           endTime: endN,
           applyTo: isSeries ? applyTo : 'instance',
@@ -597,7 +608,32 @@ function TaskDetailInner({
           </p>
         )}
 
-        {isPossible && (
+        {isEvent && (
+          <>
+            <Field label={t('task_event_location')}>
+              <Input
+                value={draft.location}
+                onChange={e => patchDraft({ location: e.target.value })}
+                placeholder={t('task_event_location_ph')}
+                maxLength={200}
+                className="h-9 text-sm"
+              />
+            </Field>
+            <Field label={t('task_event_departure')}>
+              <TimeInput
+                value={draft.departureTime}
+                onChange={v => patchDraft({ departureTime: v })}
+                nowLabel={t('time_now')}
+                clearLabel={t('task_clear_time')}
+              />
+              <p className="mt-1 text-[10px] text-text-muted">
+                {t('task_event_departure_hint')}
+              </p>
+            </Field>
+          </>
+        )}
+
+        {isEventLike && (
           <Field label={t('task_involved_contacts')}>
             <p className="mb-1.5 text-[10px] text-text-muted">{t('task_involved_contacts_hint')}</p>
             {contacts.length === 0 ? (
@@ -611,12 +647,19 @@ function TaskDetailInner({
                       key={c.id}
                       className={cn(
                         'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs',
-                        active ? 'bg-fuchsia-500/15' : 'hover:bg-surface'
+                        active
+                          ? isEvent
+                            ? 'bg-sky-500/15'
+                            : 'bg-fuchsia-500/15'
+                          : 'hover:bg-surface'
                       )}
                     >
                       <input
                         type="checkbox"
-                        className="h-3.5 w-3.5 accent-fuchsia-500"
+                        className={cn(
+                          'h-3.5 w-3.5',
+                          isEvent ? 'accent-sky-500' : 'accent-fuchsia-500'
+                        )}
                         checked={active}
                         onChange={() => {
                           patchDraft({

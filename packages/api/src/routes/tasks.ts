@@ -47,6 +47,7 @@ const kindSchema = z.enum([
   'rx_human',
   'rx_pet',
   'possible_event',
+  'event',
 ]);
 const colorSchema = z
   .string()
@@ -158,6 +159,8 @@ const createSchema = taskLocation.extend({
   rxPhases: z.array(rxPhaseSchema).min(1).max(12).optional(),
   rxSubject: z.string().max(120).nullable().optional(),
   involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
+  location: z.string().max(200).nullable().optional(),
+  departureTime: timeSchema,
 });
 
 const updateSchema = z
@@ -184,6 +187,8 @@ const updateSchema = z
     rxUnit: z.enum(['pills', 'ml']).optional(),
     rxSubject: z.string().max(120).nullable().optional(),
     involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
+    location: z.string().max(200).nullable().optional(),
+    departureTime: timeSchema,
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -243,6 +248,14 @@ function toClientTask(
       : Array.isArray(row.involvedContactIds)
         ? (row.involvedContactIds as string[])
         : [],
+    location:
+      typeof row.location === 'string' && row.location.trim()
+        ? row.location.trim()
+        : null,
+    departureTime:
+      (row.departure_time as string | null | undefined) ??
+      (row.departureTime as string | null | undefined) ??
+      null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -250,11 +263,12 @@ function toClientTask(
 
 function normalizeKind(
   raw: unknown
-): 'task' | 'reminder' | 'rx_human' | 'rx_pet' | 'possible_event' {
+): 'task' | 'reminder' | 'rx_human' | 'rx_pet' | 'possible_event' | 'event' {
   if (raw === 'reminder') return 'reminder';
   if (raw === 'rx_human') return 'rx_human';
   if (raw === 'rx_pet') return 'rx_pet';
   if (raw === 'possible_event') return 'possible_event';
+  if (raw === 'event') return 'event';
   return 'task';
 }
 
@@ -282,6 +296,8 @@ tasksRouter.post('/', async (req, res, next) => {
       rxPhases,
       rxSubject,
       involvedContactIds,
+      location,
+      departureTime,
     } = createSchema.parse(req.body);
 
     assertTimeRange(startTime, endTime);
@@ -291,8 +307,16 @@ tasksRouter.post('/', async (req, res, next) => {
     const seriesId = generateId();
     const rows: Record<string, unknown>[] = [];
     const involvedIds = Array.isArray(involvedContactIds)
-      ? Array.from(new Set(involvedContactIds.map(s => s.trim()).filter(Boolean))).slice(0, 40)
+      ? Array.from(
+          new Set(involvedContactIds.map(s => s.trim()).filter(Boolean))
+        ).slice(0, 40)
       : [];
+    const isEventLike = taskKind === 'event' || taskKind === 'possible_event';
+    const locationValue =
+      taskKind === 'event' && typeof location === 'string' && location.trim()
+        ? location.trim().slice(0, 200)
+        : null;
+    const departureValue = taskKind === 'event' ? (departureTime ?? null) : null;
 
     // ——— Recetario: materializa 1 fila por (día × horario) con plan por fases ———
     if (isRxKind(taskKind)) {
@@ -380,12 +404,14 @@ tasksRouter.post('/', async (req, res, next) => {
           end_time: null,
           rx_meta: rxMeta,
           involved_contact_ids: [],
+          location: null,
+          departure_time: null,
           created_at: now,
           updated_at: now,
         });
       }
     } else {
-      // ——— Tarea / recordatorio normal (recurrence materialization) ———
+      // ——— Tarea / recordatorio / eventos (recurrence materialization) ———
       const endDayId = rawEndDayId ?? dayId;
       if (endDayId < dayId) {
         throw ApiError.badRequest('endDayId debe ser >= dayId');
@@ -452,7 +478,7 @@ tasksRouter.post('/', async (req, res, next) => {
           title,
           completed: false,
           completed_at: null,
-          project_id: taskKind === 'possible_event' ? null : (projectId ?? null),
+          project_id: isEventLike ? null : (projectId ?? null),
           priority: priority ?? 'medium',
           notes: notes ?? '',
           order,
@@ -461,14 +487,22 @@ tasksRouter.post('/', async (req, res, next) => {
           series_id: recurrence.frequency === 'none' ? null : seriesId,
           recurrence_frequency: recurrence.frequency,
           recurrence_interval: recurrence.interval,
-          urgency: taskKind === 'possible_event' ? null : (urgency ?? null),
-          importance: taskKind === 'possible_event' ? null : (importance ?? null),
+          urgency: isEventLike ? null : (urgency ?? null),
+          importance: isEventLike ? null : (importance ?? null),
           kind: taskKind,
-          color: color ?? (taskKind === 'possible_event' ? '#a371f7' : null),
+          color:
+            color ??
+            (taskKind === 'event'
+              ? '#58a6ff'
+              : taskKind === 'possible_event'
+                ? '#a371f7'
+                : null),
           start_time: startTime ?? null,
           end_time: endTime ?? null,
           rx_meta: null,
-          involved_contact_ids: involvedIds,
+          involved_contact_ids: isEventLike ? involvedIds : [],
+          location: locationValue,
+          departure_time: departureValue,
           created_at: now,
           updated_at: now,
         });
@@ -561,6 +595,10 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.endTime !== undefined) seriesUpdate.end_time = patch.endTime;
     if (patch.involvedContactIds !== undefined) {
       seriesUpdate.involved_contact_ids = patch.involvedContactIds;
+    }
+    if (patch.location !== undefined) seriesUpdate.location = patch.location;
+    if (patch.departureTime !== undefined) {
+      seriesUpdate.departure_time = patch.departureTime;
     }
 
     // Campos solo de instancia (nunca se propagan a la serie).
@@ -661,6 +699,10 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       if (patch.endTime !== undefined) update.end_time = patch.endTime;
       if (patch.involvedContactIds !== undefined) {
         update.involved_contact_ids = patch.involvedContactIds;
+      }
+      if (patch.location !== undefined) update.location = patch.location;
+      if (patch.departureTime !== undefined) {
+        update.departure_time = patch.departureTime;
       }
       if (
         patch.rxAmount !== undefined ||

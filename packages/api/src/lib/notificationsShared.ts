@@ -238,7 +238,12 @@ export function buildModeCopy(
 
 function shouldIncludeKind(kind: string, prefs: NotificationPrefs): boolean {
   if (isRxKind(kind)) return prefs.notifyRx;
-  if (kind === 'task' || kind === 'reminder' || kind === 'possible_event') {
+  if (
+    kind === 'task' ||
+    kind === 'reminder' ||
+    kind === 'possible_event' ||
+    kind === 'event'
+  ) {
     return prefs.notifyTasks;
   }
   return false;
@@ -263,6 +268,9 @@ export function collectNotifiableOccurrences(
     kind: string;
     startTime: string | null;
     dayId: string;
+    /** Hora de salida prevista (eventos). Prioridad sobre startTime para avisos. */
+    departureTime?: string | null;
+    location?: string | null;
   }>,
   prefs: NotificationPrefs,
   options?: {
@@ -282,8 +290,17 @@ export function collectNotifiableOccurrences(
     if (!options?.includeCompleted && task.completed) continue;
     if (!shouldIncludeKind(task.kind, prefs)) continue;
 
-    const hasTime = Boolean(task.startTime && TIME_RE.test(task.startTime));
-    const startTime = hasTime ? (task.startTime as string) : '';
+    // Eventos: ancla de notificaciones = salida prevista si existe; si no, horario del evento.
+    const anchorRaw =
+      task.kind === 'event' && task.departureTime && TIME_RE.test(task.departureTime)
+        ? task.departureTime
+        : task.startTime;
+    const hasTime = Boolean(anchorRaw && TIME_RE.test(anchorRaw));
+    const startTime = hasTime ? (anchorRaw as string) : '';
+    const displayTitle =
+      task.kind === 'event' && task.location
+        ? `${task.title} · ${task.location}`
+        : task.title;
 
     let dueAt: Date;
     try {
@@ -299,7 +316,7 @@ export function collectNotifiableOccurrences(
       const copy = buildModeCopy(
         'before',
         task.kind,
-        task.title,
+        displayTitle,
         startTime,
         minutesBefore,
         language
@@ -308,7 +325,7 @@ export function collectNotifiableOccurrences(
         out,
         {
           taskId: task.id,
-          title: task.title,
+          title: displayTitle,
           dayId: task.dayId,
           startTime,
           kind: task.kind,
@@ -330,7 +347,7 @@ export function collectNotifiableOccurrences(
         const copy = buildModeCopy(
           'day_before',
           task.kind,
-          task.title,
+          displayTitle,
           startTime || null,
           0,
           language
@@ -339,7 +356,7 @@ export function collectNotifiableOccurrences(
           out,
           {
             taskId: task.id,
-            title: task.title,
+            title: displayTitle,
             dayId: task.dayId,
             startTime,
             kind: task.kind,
@@ -359,12 +376,19 @@ export function collectNotifiableOccurrences(
 
     if (prefs.notifyPastIncomplete && hasTime) {
       const fireAt = new Date(dueAt.getTime() + pastAfter * 60_000);
-      const copy = buildModeCopy('past', task.kind, task.title, startTime, 0, language);
+      const copy = buildModeCopy(
+        'past',
+        task.kind,
+        displayTitle,
+        startTime,
+        0,
+        language
+      );
       pushIfInWindow(
         out,
         {
           taskId: task.id,
-          title: task.title,
+          title: displayTitle,
           dayId: task.dayId,
           startTime,
           kind: task.kind,

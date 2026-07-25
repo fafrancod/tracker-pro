@@ -42,6 +42,8 @@ function pushTask(
     endTime: partial.endTime ?? null,
     rx: partial.rx ?? null,
     involvedContactIds: partial.involvedContactIds ?? [],
+    location: partial.location ?? null,
+    departureTime: partial.departureTime ?? null,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

@@ -33,12 +33,18 @@ type TaskRow = {
   kind: string;
   start_time: string | null;
   day_id: string;
+  departure_time?: string | null;
+  location?: string | null;
 };
 
 function kindLabel(kind: string, language: 'es' | 'en'): string {
   if (kind === 'rx_human') return language === 'en' ? 'Prescription (human)' : 'Recetario (humano)';
   if (kind === 'rx_pet') return language === 'en' ? 'Prescription (pet)' : 'Recetario (mascota)';
   if (kind === 'reminder') return language === 'en' ? 'Reminder' : 'Recordatorio';
+  if (kind === 'event') return language === 'en' ? 'Event' : 'Evento';
+  if (kind === 'possible_event') {
+    return language === 'en' ? 'Possible event' : 'Evento posible';
+  }
   return language === 'en' ? 'Task' : 'Tarea';
 }
 
@@ -102,7 +108,7 @@ export async function dispatchDueEmailNotifications(
     // Incluye sin hora (day_before) y con hora (before + past)
     const { data: tasks, error: taskErr } = await getSupabaseAdmin()
       .from('tasks')
-      .select('id, title, completed, kind, start_time, day_id')
+      .select('id, title, completed, kind, start_time, day_id, departure_time, location')
       .eq('user_id', raw.id)
       .eq('completed', false)
       .in('day_id', dayIds);
@@ -119,6 +125,8 @@ export async function dispatchDueEmailNotifications(
       kind: (t.kind as 'task') ?? 'task',
       startTime: t.start_time,
       dayId: t.day_id,
+      departureTime: t.departure_time ?? null,
+      location: t.location ?? null,
     }));
 
     const occs = collectNotifiableOccurrences(mapped, prefs, {

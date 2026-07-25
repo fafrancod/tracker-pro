@@ -61,6 +61,11 @@ create table if not exists public.tasks (
   rx_meta jsonb,
   -- Círculo: personas/mascotas involucradas (ids de contacts).
   involved_contact_ids text[] not null default '{}',
+  -- Evento: lugar y hora de salida prevista (notificaciones).
+  location text,
+  departure_time text check (
+    departure_time is null or departure_time ~ '^[0-2][0-9]:[0-5][0-9]$'
+  ),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   check (end_day_id >= day_id)
@@ -163,7 +168,7 @@ begin
   ) then
     alter table public.tasks
       add constraint tasks_kind_check
-      check (kind in ('task', 'reminder', 'rx_human', 'rx_pet', 'possible_event'));
+      check (kind in ('task', 'reminder', 'rx_human', 'rx_pet', 'possible_event', 'event'));
   end if;
   if not exists (
     select 1 from pg_constraint
@@ -176,7 +181,7 @@ begin
   end if;
 end $$;
 
--- Expand kind check for existing DBs (+ rx_* + possible_event)
+-- Expand kind check for existing DBs (+ rx_* + possible_event + event)
 do $$
 begin
   if exists (
@@ -188,11 +193,13 @@ begin
   end if;
   alter table public.tasks
     add constraint tasks_kind_check
-    check (kind in ('task', 'reminder', 'rx_human', 'rx_pet', 'possible_event'));
+    check (kind in ('task', 'reminder', 'rx_human', 'rx_pet', 'possible_event', 'event'));
 exception when duplicate_object then null;
 end $$;
 
 alter table public.tasks add column if not exists involved_contact_ids text[] not null default '{}';
+alter table public.tasks add column if not exists location text;
+alter table public.tasks add column if not exists departure_time text;
 create index if not exists tasks_user_involved_contacts_idx
   on public.tasks using gin (involved_contact_ids);
 

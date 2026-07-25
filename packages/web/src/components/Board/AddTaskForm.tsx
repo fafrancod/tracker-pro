@@ -14,6 +14,7 @@ import {
   PawPrint,
   User,
   CalendarHeart,
+  MapPin,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,7 @@ import type {
 import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
 import {
   expandIntervalTimes,
+  isEventKind,
   isPossibleEventKind,
   isRxKind,
   resolvePhaseScheduleMode,
@@ -148,10 +150,14 @@ export function AddTaskForm({
   const [rxSubject, setRxSubject] = useState('');
   const [rxPhases, setRxPhases] = useState<RxPhase[]>([{ ...DEFAULT_RX_PHASE, times: ['08:00'] }]);
   const [involvedContactIds, setInvolvedContactIds] = useState<string[]>([]);
+  const [location, setLocation] = useState('');
+  const [departureTime, setDepartureTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
   const isPossible = isPossibleEventKind(kind);
+  const isEvent = isEventKind(kind);
+  const isEventLike = isPossible || isEvent;
   const tasksByDay = useStore(s => s.tasksByDay);
   const contacts = useStore(s => s.contacts);
 
@@ -229,6 +235,8 @@ export function AddTaskForm({
     setRxSubject('');
     setRxPhases([{ ...DEFAULT_RX_PHASE, times: ['08:00'] }]);
     setInvolvedContactIds([]);
+    setLocation('');
+    setDepartureTime('');
     if (startDayId) setEndDayId(startDayId);
   }
 
@@ -345,7 +353,7 @@ export function AddTaskForm({
       frequency = 'none';
     }
 
-    const contactTagHandles = isPossible
+    const contactTagHandles = isEventLike
       ? contacts
           .filter(c => involvedContactIds.includes(c.id))
           .flatMap(c => contactHandles(c))
@@ -358,6 +366,7 @@ export function AddTaskForm({
     );
     const startN = normalizeTimeInput(startTime);
     const endN = normalizeTimeInput(endTime);
+    const depN = normalizeTimeInput(departureTime);
     if (startN && endN && endN < startN) {
       showToast(t('task_time_range_error'), 'error');
       return;
@@ -367,19 +376,23 @@ export function AddTaskForm({
     try {
       await onAdd({
         title: trimmed,
-        projectId: isPossible ? null : projectId,
+        projectId: isEventLike ? null : projectId,
         priority,
         endDayId: safeEnd,
         recurrenceFrequency: frequency,
         recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
         kind,
-        urgency: isPossible ? null : urgency,
-        importance: isPossible ? null : importance,
-        color: color ?? (isPossible ? '#a371f7' : null),
+        urgency: isEventLike ? null : urgency,
+        importance: isEventLike ? null : importance,
+        color:
+          color ??
+          (isEvent ? '#58a6ff' : isPossible ? '#a371f7' : null),
         startTime: startN,
         endTime: endN,
         tags,
-        involvedContactIds: isPossible ? involvedContactIds : [],
+        involvedContactIds: isEventLike ? involvedContactIds : [],
+        location: isEvent ? location.trim() || null : null,
+        departureTime: isEvent ? depN : null,
       });
       resetForm();
       inputRef.current?.focus();
@@ -492,14 +505,19 @@ export function AddTaskForm({
         />
       )}
 
-      {/* Kind: Tarea | Recordatorio | Rx | Evento posible */}
-      <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5', !isModal && 'gap-1')}>
+      {/* Kind: Tarea | Recordatorio | Rx | Evento | Evento posible */}
+      <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6', !isModal && 'gap-1')}>
         {(
           [
             { value: 'task' as const, icon: CheckSquare, label: t('task_kind_task') },
             { value: 'reminder' as const, icon: Bell, label: t('task_kind_reminder') },
             { value: 'rx_human' as const, icon: Pill, label: t('task_kind_rx_human') },
             { value: 'rx_pet' as const, icon: PawPrint, label: t('task_kind_rx_pet') },
+            {
+              value: 'event' as const,
+              icon: MapPin,
+              label: t('task_kind_event'),
+            },
             {
               value: 'possible_event' as const,
               icon: CalendarHeart,
@@ -544,11 +562,13 @@ export function AddTaskForm({
           placeholder={
             isRx
               ? t('rx_medicine_placeholder')
-              : isPossible
-                ? t('task_possible_event_placeholder')
-                : kind === 'reminder'
-                  ? t('task_reminder_placeholder')
-                  : t('task_title_placeholder')
+              : isEvent
+                ? t('task_event_placeholder')
+                : isPossible
+                  ? t('task_possible_event_placeholder')
+                  : kind === 'reminder'
+                    ? t('task_reminder_placeholder')
+                    : t('task_title_placeholder')
           }
           list="circle-mention-suggestions"
           className={cn(
@@ -796,8 +816,8 @@ export function AddTaskForm({
         </div>
       )}
 
-      {/* Project + priority + Eisenhower — no aplica a recetario ni eventos posibles */}
-      {!isRx && !isPossible && (
+      {/* Project + priority + Eisenhower — no aplica a recetario ni eventos */}
+      {!isRx && !isEventLike && (
         <>
           <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
             <select
@@ -899,9 +919,47 @@ export function AddTaskForm({
         </>
       )}
 
-      {/* Evento posible: contactos del Círculo */}
-      {isPossible && (
-        <div className="space-y-1.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-3">
+      {/* Evento: lugar + salida prevista */}
+      {isEvent && (
+        <div className="space-y-3 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
+          <label className="flex flex-col gap-1 text-[11px] text-text-muted">
+            <span className="inline-flex items-center gap-1 font-medium uppercase tracking-wide">
+              <MapPin className="h-3 w-3" />
+              {t('task_event_location')}
+            </span>
+            <Input
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+              placeholder={t('task_event_location_ph')}
+              maxLength={200}
+              className="h-9 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-[11px] text-text-muted">
+            <span className="font-medium uppercase tracking-wide">
+              {t('task_event_departure')}
+            </span>
+            <TimeInput
+              value={departureTime}
+              onChange={setDepartureTime}
+              nowLabel={t('time_now')}
+              clearLabel={t('task_clear_time')}
+            />
+            <span className="text-[10px]">{t('task_event_departure_hint')}</span>
+          </label>
+        </div>
+      )}
+
+      {/* Evento / evento posible: contactos del Círculo */}
+      {isEventLike && (
+        <div
+          className={cn(
+            'space-y-1.5 rounded-xl border p-3',
+            isEvent
+              ? 'border-sky-500/30 bg-sky-500/5'
+              : 'border-fuchsia-500/30 bg-fuchsia-500/5'
+          )}
+        >
           <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
             {t('task_involved_contacts')}
           </p>
@@ -918,13 +976,18 @@ export function AddTaskForm({
                     className={cn(
                       'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
                       active
-                        ? 'bg-fuchsia-500/15 text-text-primary'
+                        ? isEvent
+                          ? 'bg-sky-500/15 text-text-primary'
+                          : 'bg-fuchsia-500/15 text-text-primary'
                         : 'text-text-muted hover:bg-background'
                     )}
                   >
                     <input
                       type="checkbox"
-                      className="h-3.5 w-3.5 accent-fuchsia-500"
+                      className={cn(
+                        'h-3.5 w-3.5',
+                        isEvent ? 'accent-sky-500' : 'accent-fuchsia-500'
+                      )}
                       checked={active}
                       onChange={() => toggleInvolvedContact(c.id)}
                     />

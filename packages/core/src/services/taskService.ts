@@ -214,6 +214,8 @@ export async function createTask(
     rxPhases: payload.rxPhases,
     rxSubject: payload.rxSubject ?? null,
     involvedContactIds: payload.involvedContactIds ?? [],
+    location: payload.location ?? null,
+    departureTime: payload.departureTime ?? null,
     eventId,
   });
 
@@ -285,6 +287,8 @@ function materializeDemoCreate(
         endTime: null,
         rx,
         involvedContactIds: [],
+        location: null,
+        departureTime: null,
         createdAt: now,
         updatedAt: now,
         weekId: occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId),
@@ -333,6 +337,9 @@ function materializeDemoCreate(
       endTime: payload.endTime ?? null,
       rx: null,
       involvedContactIds: involved,
+      location: kind === 'event' ? (payload.location?.trim() || null) : null,
+      departureTime:
+        kind === 'event' ? (payload.departureTime ?? null) : null,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -420,6 +427,8 @@ export async function rematerializeRxSeries(
       endTime: instance.endTime,
       rx: instance.rx,
       involvedContactIds: instance.involvedContactIds ?? [],
+      location: instance.location ?? null,
+      departureTime: instance.departureTime ?? null,
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
     });
@@ -519,6 +528,8 @@ function rematerializeDemoRx(
       importance: existing.importance,
       kind,
       involvedContactIds: [],
+      location: null,
+      departureTime: null,
       color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
       startTime: occ.startTime,
       endTime: null,
@@ -610,6 +621,8 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     involvedContactIds: normalizeInvolvedContactIds(
       raw.involved_contact_ids ?? raw.involvedContactIds
     ),
+    location: normalizeLocationField(raw.location),
+    departureTime: normalizeTimeField(raw.departure_time ?? raw.departureTime),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
@@ -620,7 +633,14 @@ function normalizeTaskKind(raw: unknown): Task['kind'] {
   if (raw === 'rx_human') return 'rx_human';
   if (raw === 'rx_pet') return 'rx_pet';
   if (raw === 'possible_event') return 'possible_event';
+  if (raw === 'event') return 'event';
   return 'task';
+}
+
+function normalizeLocationField(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim();
+  return t ? t.slice(0, 200) : null;
 }
 
 function normalizeInvolvedContactIds(raw: unknown): string[] {
