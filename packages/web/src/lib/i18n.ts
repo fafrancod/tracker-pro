@@ -430,6 +430,15 @@ export interface TranslationDict {
   eisenhower_uncategorized: string;
   eisenhower_empty: string;
   eisenhower_hint: string;
+  eisenhower_horizon: string;
+  eisenhower_horizon_30d: string;
+  eisenhower_horizon_month: string;
+  eisenhower_horizon_3m: string;
+  eisenhower_horizon_6m: string;
+  eisenhower_horizon_1y: string;
+  eisenhower_series_done_period: string;
+  eisenhower_series_next: string;
+  eisenhower_series_done_next_title: string;
 
   // Estados
   status_demo: string;
@@ -466,7 +475,7 @@ const es_dict: TranslationDict = {
   nav_activity: 'Bitácora',
   nav_settings: 'Config',
   nav_admin: 'Admin',
-  nav_eisenhower: 'Eisenhower',
+  nav_eisenhower: 'Matriz de Prioridades',
   nav_notifications: 'Avisos',
   nav_memento: 'Memento mori',
   nav_life_goals: 'Metas de vida',
@@ -904,7 +913,7 @@ const es_dict: TranslationDict = {
   importance_important: 'Importante',
   importance_not_important: 'No importante',
 
-  eisenhower_title: 'Matriz Eisenhower',
+  eisenhower_title: 'Matriz de Prioridades',
   eisenhower_project: 'Proyecto',
   eisenhower_all_projects: 'Todos',
   eisenhower_do: 'Urgente e importante',
@@ -913,7 +922,18 @@ const es_dict: TranslationDict = {
   eisenhower_eliminate: 'No urgente y no importante',
   eisenhower_uncategorized: 'Sin categorizar',
   eisenhower_empty: 'No hay tareas en este cuadrante.',
-  eisenhower_hint: 'Haz clic en una tarea o mueve a un cuadrante para asignar urgencia e importancia.',
+  eisenhower_hint:
+    'Haz clic en una tarea o arrástrala a un cuadrante. El horizonte filtra qué entra en la matriz.',
+  eisenhower_horizon: 'Horizonte',
+  eisenhower_horizon_30d: '30 días adelante',
+  eisenhower_horizon_month: 'Mes actual',
+  eisenhower_horizon_3m: '3 meses',
+  eisenhower_horizon_6m: '6 meses',
+  eisenhower_horizon_1y: '1 año',
+  eisenhower_series_done_period: 'Hecho este periodo',
+  eisenhower_series_next: 'Próximo',
+  eisenhower_series_done_next_title:
+    'Completado el {done}. La serie se repite el {next}.',
 
   status_demo: 'Demo',
   status_production: 'Producción',
@@ -947,7 +967,7 @@ const en_dict: TranslationDict = {
   nav_activity: 'Activity',
   nav_settings: 'Settings',
   nav_admin: 'Admin',
-  nav_eisenhower: 'Eisenhower',
+  nav_eisenhower: 'Priority Matrix',
   nav_notifications: 'Alerts',
   nav_memento: 'Memento mori',
   nav_life_goals: 'Life goals',
@@ -1385,7 +1405,7 @@ const en_dict: TranslationDict = {
   importance_important: 'Important',
   importance_not_important: 'Not important',
 
-  eisenhower_title: 'Eisenhower matrix',
+  eisenhower_title: 'Priority Matrix',
   eisenhower_project: 'Project',
   eisenhower_all_projects: 'All',
   eisenhower_do: 'Urgent & important',
@@ -1394,7 +1414,18 @@ const en_dict: TranslationDict = {
   eisenhower_eliminate: 'Not urgent & not important',
   eisenhower_uncategorized: 'Uncategorized',
   eisenhower_empty: 'No tasks in this quadrant.',
-  eisenhower_hint: 'Click a task or move it into a quadrant to set urgency and importance.',
+  eisenhower_hint:
+    'Click a task or drag it into a quadrant. The horizon filters what appears in the matrix.',
+  eisenhower_horizon: 'Horizon',
+  eisenhower_horizon_30d: 'Next 30 days',
+  eisenhower_horizon_month: 'This month',
+  eisenhower_horizon_3m: '3 months',
+  eisenhower_horizon_6m: '6 months',
+  eisenhower_horizon_1y: '1 year',
+  eisenhower_series_done_period: 'Done this period',
+  eisenhower_series_next: 'Next',
+  eisenhower_series_done_next_title:
+    'Completed on {done}. Series repeats on {next}.',
 
   status_demo: 'Demo',
   status_production: 'Production',
