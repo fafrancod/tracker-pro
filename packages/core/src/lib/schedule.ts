@@ -27,6 +27,104 @@ export function effectiveEndMinutes(
   return Math.min(start + 60, 24 * 60);
 }
 
+/**
+ * ¿El tramo cruza medianoche de forma válida?
+ * Solo multi-día (endDayId > startDayId) admite endTime < startTime (ej. 20:00→03:00).
+ * Mismo día: end debe ser >= start si ambos están definidos.
+ */
+export function isValidTaskTimeRange(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+  startDayId?: string | null,
+  endDayId?: string | null
+): boolean {
+  if (!startTime || !endTime) return true;
+  const multi = Boolean(startDayId && endDayId && endDayId > startDayId);
+  if (multi) return true;
+  return endTime >= startTime;
+}
+
+export type DayRoleInSpan = 'single' | 'start' | 'middle' | 'end';
+
+export function dayRoleInSpan(
+  viewDayId: string,
+  startDayId: string,
+  endDayId: string
+): DayRoleInSpan {
+  const end = endDayId || startDayId;
+  if (startDayId === end) return 'single';
+  if (viewDayId === startDayId) return 'start';
+  if (viewDayId === end) return 'end';
+  return 'middle';
+}
+
+/**
+ * Posiciona un bloque en la grilla de un día concreto del span.
+ * Multi-día con 20:00→03:00: día inicio hasta fin de grilla; día fin desde inicio hasta 03:00.
+ */
+export function layoutInGridForDay(
+  startTime: string | null | undefined,
+  endTime: string | null | undefined,
+  range: HourRange,
+  hourHeightPx: number,
+  viewDayId: string,
+  startDayId: string,
+  endDayId: string
+): { top: number; height: number } | null {
+  const role = dayRoleInSpan(viewDayId, startDayId, endDayId || startDayId);
+  if (role === 'single') {
+    return layoutInGrid(startTime, endTime, range, hourHeightPx);
+  }
+
+  const gridStart = range.startHour * 60;
+  const gridEnd = range.endHour * 60;
+  if (gridEnd <= gridStart) return null;
+
+  const start = parseTimeToMinutes(startTime);
+  const end = parseTimeToMinutes(endTime);
+
+  let segStart: number;
+  let segEnd: number;
+
+  if (role === 'start') {
+    // Desde hora de inicio hasta fin del día visible.
+    if (start === null) return null;
+    segStart = start;
+    segEnd = gridEnd;
+  } else if (role === 'end') {
+    // Desde inicio del día visible hasta hora de fin (puede ser < startTime del tramo).
+    if (end === null) {
+      // Sin fin explícito: barra corta al inicio del día.
+      segStart = gridStart;
+      segEnd = Math.min(gridStart + 60, gridEnd);
+    } else {
+      segStart = gridStart;
+      segEnd = end;
+    }
+  } else {
+    // Días intermedios: bloque a lo largo de la grilla.
+    segStart = gridStart;
+    segEnd = gridEnd;
+  }
+
+  const clampedStart = Math.max(segStart, gridStart);
+  const clampedEnd = Math.min(segEnd, gridEnd);
+  if (clampedEnd <= clampedStart) {
+    // Fuera de la ventana visible.
+    if (segEnd <= gridStart || segStart >= gridEnd) {
+      return {
+        top: segEnd <= gridStart ? 0 : ((gridEnd - gridStart) / 60) * hourHeightPx - hourHeightPx * 0.35,
+        height: Math.max(hourHeightPx * 0.35, 18),
+      };
+    }
+    return null;
+  }
+
+  const top = ((clampedStart - gridStart) / 60) * hourHeightPx;
+  const height = Math.max(((clampedEnd - clampedStart) / 60) * hourHeightPx, 18);
+  return { top, height };
+}
+
 export function hasSchedule(startTime: string | null | undefined): boolean {
   return parseTimeToMinutes(startTime) !== null;
 }

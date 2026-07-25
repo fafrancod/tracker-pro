@@ -131,12 +131,22 @@ const rxPhaseSchema = z
     }
   });
 
+/**
+ * Mismo día: endTime >= startTime.
+ * Multi-día (endDayId > startDayId): se permite cruce de medianoche (20:00 → 03:00).
+ */
 function assertTimeRange(
   startTime: string | null | undefined,
-  endTime: string | null | undefined
+  endTime: string | null | undefined,
+  startDayId?: string | null,
+  endDayId?: string | null
 ) {
-  if (startTime && endTime && endTime < startTime) {
-    throw ApiError.badRequest('endTime debe ser >= startTime');
+  if (!startTime || !endTime) return;
+  const multi = Boolean(startDayId && endDayId && endDayId > startDayId);
+  if (!multi && endTime < startTime) {
+    throw ApiError.badRequest(
+      'endTime debe ser >= startTime en el mismo día (en varios días se permite cruce de medianoche)'
+    );
   }
 }
 
@@ -300,7 +310,9 @@ tasksRouter.post('/', async (req, res, next) => {
       departureTime,
     } = createSchema.parse(req.body);
 
-    assertTimeRange(startTime, endTime);
+    const resolvedEndDayId =
+      typeof rawEndDayId === 'string' && rawEndDayId >= dayId ? rawEndDayId : dayId;
+    assertTimeRange(startTime, endTime, dayId, resolvedEndDayId);
 
     const taskKind = kind ?? 'task';
     const now = new Date().toISOString();
@@ -578,7 +590,12 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       patch.endTime !== undefined
         ? patch.endTime
         : ((existing.end_time as string | null | undefined) ?? null);
-    assertTimeRange(nextStart, nextEnd);
+    const rangeStartDay = (existing.day_id as string) ?? dayId;
+    const rangeEndDay =
+      patch.endDayId !== undefined
+        ? patch.endDayId
+        : ((existing.end_day_id as string | undefined) ?? rangeStartDay);
+    assertTimeRange(nextStart, nextEnd, rangeStartDay, rangeEndDay);
 
     // Metadata compartida de la serie (no fechas ni completed).
     const seriesUpdate: Record<string, unknown> = { updated_at: now };

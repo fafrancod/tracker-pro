@@ -917,7 +917,8 @@ const es_dict: TranslationDict = {
   task_end_time: 'Hora fin',
   task_clear_time: 'Quitar hora',
   time_now: 'Ahora',
-  task_time_range_error: 'La hora de fin debe ser posterior o igual a la de inicio.',
+  task_time_range_error:
+    'La hora de fin debe ser posterior o igual a la de inicio (en el mismo día). En varios días se permite acabar al día siguiente (ej. 20:00 → 03:00).',
   task_created_ok: 'Tarea guardada.',
   notify_hub_title: 'Central de avisos',
   notify_hub_intro:
@@ -1517,7 +1518,8 @@ const en_dict: TranslationDict = {
   task_end_time: 'End time',
   task_clear_time: 'Clear time',
   time_now: 'Now',
-  task_time_range_error: 'End time must be greater than or equal to start time.',
+  task_time_range_error:
+    'End time must be greater than or equal to start time on the same day. Multi-day spans may end after midnight (e.g. 20:00 → 03:00).',
   task_created_ok: 'Task saved.',
   notify_hub_title: 'Alerts hub',
   notify_hub_intro:

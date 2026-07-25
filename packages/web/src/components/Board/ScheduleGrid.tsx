@@ -6,7 +6,7 @@ import {
   formatMinutes,
   hasSchedule,
   hourLabels,
-  layoutInGrid,
+  layoutInGridForDay,
   normalizeHourRange,
 } from '@core/lib/schedule';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
@@ -247,11 +247,14 @@ export function ScheduleGrid({
                   />
                 ))}
                 {timed.map(loc => {
-                  const layout = layoutInGrid(
+                  const layout = layoutInGridForDay(
                     loc.startTime,
                     loc.endTime,
                     range,
-                    HOUR_HEIGHT
+                    HOUR_HEIGHT,
+                    day.dayId,
+                    loc.startDayId,
+                    loc.endDayId || loc.startDayId
                   );
                   if (!layout) return null;
                   const project = projects.find(p => p.id === loc.projectId);

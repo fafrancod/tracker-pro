@@ -360,7 +360,7 @@ describe('POST /api/tasks — startTime / endTime', () => {
     expect(res.body.endTime).toBe('10:45');
   });
 
-  it('rechaza endTime < startTime', async () => {
+  it('rechaza endTime < startTime en el mismo día', async () => {
     const res = await request(app)
       .post('/api/tasks')
       .set('Authorization', 'Bearer valid-token')
@@ -371,6 +371,24 @@ describe('POST /api/tasks — startTime / endTime', () => {
       });
 
     expect(res.status).toBe(400);
+  });
+
+  it('permite endTime < startTime en multi-día (cruce de medianoche)', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        endDayId: '2026-03-11',
+        startTime: '20:00',
+        endTime: '03:00',
+        kind: 'event',
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert[0].start_time).toBe('20:00');
+    expect(lastTaskInsert[0].end_time).toBe('03:00');
+    expect(lastTaskInsert[0].end_day_id).toBe('2026-03-11');
   });
 });
 

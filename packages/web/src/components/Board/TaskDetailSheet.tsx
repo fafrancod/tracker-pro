@@ -42,6 +42,7 @@ import {
 } from '@core/lib/rx';
 import { extractHashtags, extractMentions, mergeTags } from '@core/lib/tags';
 import { normalizeTimeInput } from '@core/lib/time';
+import { isValidTaskTimeRange } from '@core/lib/schedule';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
 import type {
@@ -465,7 +466,15 @@ function TaskDetailInner({
         const startN = normalizeTimeInput(draft.startTime);
         const endN = normalizeTimeInput(draft.endTime);
         const depN = normalizeTimeInput(draft.departureTime);
-        if (startN && endN && endN < startN) {
+        // Multi-día: se permite 20:00 → 03:00 (cruce de medianoche).
+        if (
+          !isValidTaskTimeRange(
+            startN,
+            endN,
+            dayId,
+            draft.endDayId || dayId
+          )
+        ) {
           showToast(t('task_time_range_error'), 'error');
           return;
         }
@@ -1108,7 +1117,11 @@ function TaskDetailInner({
                   <TimeInput
                     value={draft.endTime}
                     onChange={v => patchDraft({ endTime: v })}
-                    minTime={draft.startTime || undefined}
+                    minTime={
+                      draft.endDayId && draft.endDayId > dayId
+                        ? undefined
+                        : draft.startTime || undefined
+                    }
                     nowLabel={t('time_now')}
                     clearLabel={t('task_clear_time')}
                   />

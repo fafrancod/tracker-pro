@@ -54,6 +54,7 @@ import {
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
 import { normalizeTimeInput } from '@core/lib/time';
+import { isValidTaskTimeRange } from '@core/lib/schedule';
 import { useStore } from '@core/store';
 import { useToast } from '@/contexts/ToastContext';
 import { ApiClientError } from '@core/lib/api';
@@ -399,7 +400,8 @@ export function AddTaskForm({
     const startN = normalizeTimeInput(startTime);
     const endN = normalizeTimeInput(endTime);
     const depN = normalizeTimeInput(departureTime);
-    if (startN && endN && endN < startN) {
+    // Multi-día: se permite 20:00 → 03:00 (cruce de medianoche).
+    if (!isValidTaskTimeRange(startN, endN, startDayId, safeEnd)) {
       showToast(t('task_time_range_error'), 'error');
       return;
     }
@@ -1165,7 +1167,7 @@ export function AddTaskForm({
           <TimeInput
             value={endTime}
             onChange={setEndTime}
-            minTime={startTime || undefined}
+            minTime={isMultiDay ? undefined : startTime || undefined}
             nowLabel={t('time_now')}
             clearLabel={t('task_clear_time')}
             aria-label={t('task_end_time')}
