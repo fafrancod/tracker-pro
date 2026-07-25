@@ -252,6 +252,42 @@ export function rxPlanEndDayId(startDayId: string, phases: RxPhase[] | null | un
   return format(addDays(parseISO(startDayId), total - 1), 'yyyy-MM-dd');
 }
 
+/** Rango de fechas (inclusive) de una fase dentro del plan. */
+export interface RxPhaseDateRange {
+  phaseIndex: number;
+  days: number;
+  startDayId: string;
+  endDayId: string;
+}
+
+/**
+ * Fechas de cada fase, en orden, a partir del inicio del plan.
+ * Fase 0: [start, start+d0-1]; fase 1: a continuación, etc.
+ */
+export function rxPhaseDateRanges(
+  startDayId: string,
+  phases: RxPhase[] | null | undefined
+): RxPhaseDateRange[] {
+  if (!phases?.length) return [];
+  const start = parseISO(startDayId);
+  const out: RxPhaseDateRange[] = [];
+  let offset = 0;
+  phases.forEach((p, phaseIndex) => {
+    const days = Math.max(0, Math.floor(p.days || 0));
+    if (days <= 0) return;
+    const phaseStart = addDays(start, offset);
+    const phaseEnd = addDays(phaseStart, days - 1);
+    out.push({
+      phaseIndex,
+      days,
+      startDayId: format(phaseStart, 'yyyy-MM-dd'),
+      endDayId: format(phaseEnd, 'yyyy-MM-dd'),
+    });
+    offset += days;
+  });
+  return out;
+}
+
 export function parseRxMeta(raw: unknown): RxMeta | null {
   if (!raw || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;

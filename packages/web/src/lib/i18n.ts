@@ -405,6 +405,8 @@ export interface TranslationDict {
   rx_plan_start: string;
   rx_plan_duration: string;
   rx_plan_duration_value: string;
+  /** Fase N: start → end (days d) */
+  rx_phase_date_range: string;
   settings_notify_permission_denied: string;
   settings_notify_test_email: string;
   settings_notify_test_email_sent: string;
@@ -898,6 +900,7 @@ const es_dict: TranslationDict = {
   rx_plan_start: 'Inicio del tratamiento',
   rx_plan_duration: 'Duración (según fases)',
   rx_plan_duration_value: '{days} días · hasta {end}',
+  rx_phase_date_range: 'Fase {n}: {start} → {end} ({days} d)',
   settings_notify_permission_denied:
     'Permiso denegado. Actívalo en los ajustes del sistema o del navegador.',
   settings_notify_test_email: 'Enviar correo de prueba',
@@ -1390,6 +1393,7 @@ const en_dict: TranslationDict = {
   rx_plan_start: 'Treatment start',
   rx_plan_duration: 'Duration (from phases)',
   rx_plan_duration_value: '{days} days · until {end}',
+  rx_phase_date_range: 'Phase {n}: {start} → {end} ({days} d)',
   settings_notify_permission_denied:
     'Permission denied. Enable it in system or browser settings.',
   settings_notify_test_email: 'Send test email',

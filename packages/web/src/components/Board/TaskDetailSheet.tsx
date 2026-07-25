@@ -35,6 +35,7 @@ import {
   expandIntervalTimes,
   isRxKind,
   resolvePhaseScheduleMode,
+  rxPhaseDateRanges,
   rxPlanEndDayId,
   totalRxPlanDays,
   validateRxPhases,
@@ -265,6 +266,10 @@ function TaskDetailInner({
   const planDirty = isRxKind(task.kind) && isPlanDirty(draft, task);
   const isSeries = Boolean(task.seriesId);
   const isRx = isRxKind(task.kind);
+  const rxPlanStart = task.rx?.planStartDayId || dayId;
+  const rxPlanDays = isRx ? totalRxPlanDays(draft.rxPhases) : 0;
+  const rxPlanEnd = isRx ? rxPlanEndDayId(rxPlanStart, draft.rxPhases) : '';
+  const rxPhaseRanges = isRx ? rxPhaseDateRanges(rxPlanStart, draft.rxPhases) : [];
 
   function patchDraft(partial: Partial<DraftState>) {
     setDraft(prev => (prev ? { ...prev, ...partial } : prev));
@@ -651,19 +656,34 @@ function TaskDetailInner({
               )}
             </Field>
 
-            {draft.rxPhases.length > 0 && (
-              <p className="mb-3 text-[11px] text-text-muted">
-                {t('rx_plan_duration_value')
-                  .replace('{days}', String(totalRxPlanDays(draft.rxPhases)))
-                  .replace(
-                    '{end}',
-                    rxPlanEndDayId(
-                      task.rx?.planStartDayId || dayId,
-                      draft.rxPhases
-                    )
-                  )}
-              </p>
-            )}
+            {draft.rxPhases.length > 0 &&
+              (rxPhaseRanges.length <= 1 ? (
+                <p className="mb-3 text-[11px] text-text-muted">
+                  {t('rx_plan_duration_value')
+                    .replace('{days}', String(rxPlanDays))
+                    .replace('{end}', rxPlanEnd)}
+                </p>
+              ) : (
+                <div className="mb-3 space-y-1 text-[11px] text-text-muted">
+                  <p className="font-medium text-text-secondary">{t('rx_plan_duration')}</p>
+                  <ul className="space-y-0.5">
+                    {rxPhaseRanges.map(r => (
+                      <li key={r.phaseIndex}>
+                        {t('rx_phase_date_range')
+                          .replace('{n}', String(r.phaseIndex + 1))
+                          .replace('{start}', r.startDayId)
+                          .replace('{end}', r.endDayId)
+                          .replace('{days}', String(r.days))}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="border-t border-border/40 pt-1 font-medium text-text-primary">
+                    {t('rx_plan_duration_value')
+                      .replace('{days}', String(rxPlanDays))
+                      .replace('{end}', rxPlanEnd)}
+                  </p>
+                </div>
+              ))}
 
             <Field label={t('rx_phases_hint')}>
               <div className="space-y-2">

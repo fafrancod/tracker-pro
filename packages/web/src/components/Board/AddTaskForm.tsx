@@ -35,6 +35,7 @@ import {
   expandIntervalTimes,
   isRxKind,
   resolvePhaseScheduleMode,
+  rxPhaseDateRanges,
   rxPlanEndDayId,
   totalRxPlanDays,
   validateRxPhases,
@@ -167,6 +168,10 @@ export function AddTaskForm({
   const rxEndDayId = useMemo(() => {
     if (!startDayId || !isRx) return '';
     return rxPlanEndDayId(startDayId, rxPhases);
+  }, [startDayId, isRx, rxPhases]);
+  const rxPhaseRanges = useMemo(() => {
+    if (!startDayId || !isRx) return [];
+    return rxPhaseDateRanges(startDayId, rxPhases);
   }, [startDayId, isRx, rxPhases]);
 
   useEffect(() => {
@@ -888,13 +893,34 @@ export function AddTaskForm({
           {isRx ? (
             <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
               <span>{t('rx_plan_duration')}</span>
-              <p className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary">
-                {rxPlanDays > 0
-                  ? t('rx_plan_duration_value')
+              <div className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary">
+                {rxPlanDays <= 0 || rxPhaseRanges.length === 0 ? (
+                  <p>—</p>
+                ) : rxPhaseRanges.length === 1 ? (
+                  <p>
+                    {t('rx_plan_duration_value')
                       .replace('{days}', String(rxPlanDays))
-                      .replace('{end}', rxEndDayId)
-                  : '—'}
-              </p>
+                      .replace('{end}', rxEndDayId)}
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {rxPhaseRanges.map(r => (
+                      <li key={r.phaseIndex}>
+                        {t('rx_phase_date_range')
+                          .replace('{n}', String(r.phaseIndex + 1))
+                          .replace('{start}', r.startDayId)
+                          .replace('{end}', r.endDayId)
+                          .replace('{days}', String(r.days))}
+                      </li>
+                    ))}
+                    <li className="border-t border-border/50 pt-1 font-medium text-text-primary">
+                      {t('rx_plan_duration_value')
+                        .replace('{days}', String(rxPlanDays))
+                        .replace('{end}', rxEndDayId)}
+                    </li>
+                  </ul>
+                )}
+              </div>
             </div>
           ) : (
             <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
