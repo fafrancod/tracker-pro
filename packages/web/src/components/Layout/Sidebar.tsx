@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { type ReactNode } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   ListChecks,
@@ -10,6 +11,7 @@ import {
   Grid2x2,
   Bell,
   Hourglass,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +25,8 @@ export interface NavItem {
   labelKey: TKey;
   icon: typeof LayoutDashboard;
   adminOnly?: boolean;
+  /** Si true, no se lista en el bucle principal (se renderiza en bloque Memento). */
+  skipMainList?: boolean;
 }
 
 // El playbook indica que el segundo item debe ser la acción/entidad principal.
@@ -32,7 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/board', labelKey: 'nav_tasks', icon: ListChecks },
   { to: '/notifications', labelKey: 'nav_notifications', icon: Bell },
   { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
-  { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass },
+  { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass, skipMainList: true },
   { to: '/projects', labelKey: 'nav_projects', icon: FolderKanban },
   { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart3 },
   { to: '/activity', labelKey: 'nav_activity', icon: ScrollText },
@@ -45,12 +49,77 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
+function navClass(active: boolean): string {
+  return cn(
+    'mb-0.5 flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+    active
+      ? 'bg-accent-teal/10 text-accent-teal'
+      : 'text-text-muted hover:bg-background hover:text-text-primary'
+  );
+}
+
 export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
   const { user, signOut } = useAuth();
   const { t } = useT();
+  const location = useLocation();
   // Admin se decide por backend en el futuro; por ahora se oculta.
   const isAdmin = false;
-  const items = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin);
+  const items = NAV_ITEMS.filter(item => (!item.adminOnly || isAdmin) && !item.skipMainList);
+
+  const onMemento = location.pathname === '/memento-mori';
+  const onGoalsTab = onMemento && new URLSearchParams(location.search).get('tab') === 'goals';
+  const onMapTab = onMemento && !onGoalsTab;
+
+  // Insertar bloque Memento después de Eisenhower (índice de items filtrados)
+  const eisenhowerIdx = items.findIndex(i => i.to === '/eisenhower');
+
+  function renderItem(item: NavItem) {
+    const Icon = item.icon;
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        onClick={onNavigate}
+        className={({ isActive }) => navClass(isActive)}
+      >
+        <Icon className="h-4 w-4" />
+        <span>{t(item.labelKey)}</span>
+      </NavLink>
+    );
+  }
+
+  const mementoBlock = (
+    <div key="memento-block" className="mb-1">
+      <NavLink
+        to="/memento-mori"
+        onClick={onNavigate}
+        className={navClass(onMapTab)}
+        end
+      >
+        <Hourglass className="h-4 w-4" />
+        <span>{t('nav_memento')}</span>
+      </NavLink>
+      <NavLink
+        to="/memento-mori?tab=goals"
+        onClick={onNavigate}
+        className={cn(navClass(onGoalsTab), 'ml-3 pl-2 text-[13px]')}
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        <span>{t('nav_life_goals')}</span>
+      </NavLink>
+    </div>
+  );
+
+  const navNodes: ReactNode[] = [];
+  items.forEach((item, idx) => {
+    navNodes.push(renderItem(item));
+    if (idx === eisenhowerIdx) {
+      navNodes.push(mementoBlock);
+    }
+  });
+  if (eisenhowerIdx < 0) {
+    navNodes.push(mementoBlock);
+  }
 
   return (
     <aside
@@ -64,29 +133,7 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
         <span className="text-sm font-bold tracking-tight text-text-primary">Daily Tracker</span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
-        {items.map(item => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                cn(
-                  'mb-0.5 flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                  isActive
-                    ? 'bg-accent-teal/10 text-accent-teal'
-                    : 'text-text-muted hover:bg-background hover:text-text-primary'
-                )
-              }
-            >
-              <Icon className="h-4 w-4" />
-              <span>{t(item.labelKey)}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
+      <nav className="flex-1 overflow-y-auto px-2 py-3">{navNodes}</nav>
 
       <div className="border-t border-border p-3">
         <div className="mb-2 flex items-center gap-2">

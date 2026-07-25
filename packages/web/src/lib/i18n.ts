@@ -18,6 +18,7 @@ export interface TranslationDict {
   nav_eisenhower: string;
   nav_notifications: string;
   nav_memento: string;
+  nav_life_goals: string;
 
   // Memento mori
   memento_title: string;
@@ -35,9 +36,48 @@ export interface TranslationDict {
   memento_legend_current: string;
   memento_legend_left: string;
   memento_legend_milestone: string;
+  memento_legend_goal: string;
   memento_milestones_hint: string;
   memento_lifespan_note: string;
   memento_past_expectation: string;
+  memento_tab_map: string;
+  memento_tab_goals: string;
+  memento_goals_on_map: string;
+  memento_manage_goals: string;
+  life_goals_title: string;
+  life_goals_subtitle: string;
+  life_goals_empty: string;
+  life_goals_empty_hint: string;
+  life_goal_add: string;
+  life_goal_new: string;
+  life_goal_edit: string;
+  life_goal_title_label: string;
+  life_goal_title_placeholder: string;
+  life_goal_manifestation: string;
+  life_goal_manifestation_placeholder: string;
+  life_goal_date: string;
+  life_goal_color: string;
+  life_goal_kind: string;
+  life_goal_kind_goal: string;
+  life_goal_kind_manifestation: string;
+  life_goal_kind_milestone: string;
+  life_goal_kind_vision: string;
+  life_goal_photo: string;
+  life_goal_add_photo: string;
+  life_goal_change_photo: string;
+  life_goal_remove_photo: string;
+  life_goal_compressing: string;
+  life_goal_saved: string;
+  life_goal_save_error: string;
+  life_goal_title_required: string;
+  life_goal_date_required: string;
+  life_goal_date_out_of_map: string;
+  life_goal_limit: string;
+  life_goal_delete_confirm: string;
+  life_goal_image_error: string;
+  life_goal_saving: string;
+  life_goal_need_birthdate: string;
+  life_goal_off_map: string;
   settings_birth_date: string;
   settings_birth_date_desc: string;
   settings_lifespan: string;
@@ -333,6 +373,7 @@ const es_dict: TranslationDict = {
   nav_eisenhower: 'Eisenhower',
   nav_notifications: 'Avisos',
   nav_memento: 'Memento mori',
+  nav_life_goals: 'Metas de vida',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Cada cuadrado es una semana de tu vida. Vive con intención.',
@@ -350,9 +391,53 @@ const es_dict: TranslationDict = {
   memento_legend_current: 'Esta semana',
   memento_legend_left: 'Por vivir',
   memento_legend_milestone: 'Cumpleaños ×5 (35, 40…)',
+  memento_legend_goal: 'Meta de vida',
   memento_milestones_hint: 'Hitos marcados: {ages} años.',
   memento_lifespan_note: 'Basado en {years} años de esperanza de vida (ajustable en Config).',
   memento_past_expectation: 'Has superado la esperanza configurada: celebra cada semana extra.',
+  memento_tab_map: 'Mapa de semanas',
+  memento_tab_goals: 'Metas de vida',
+  memento_goals_on_map: '{n} semana(s) con meta marcada en el mapa.',
+  memento_manage_goals: 'Gestionar metas',
+  life_goals_title: 'Metas de vida',
+  life_goals_subtitle:
+    'Define visiones, manifestaciones e hitos con fecha. Cada una se pinta en tu mapa de semanas.',
+  life_goals_empty: 'Aún no tienes metas de vida.',
+  life_goals_empty_hint:
+    'Añade la casa, el viaje, el negocio o la versión de ti que estás construyendo. Con foto y fecha.',
+  life_goal_add: 'Nueva meta',
+  life_goal_new: 'Nueva meta de vida',
+  life_goal_edit: 'Editar meta',
+  life_goal_title_label: 'Título',
+  life_goal_title_placeholder: 'Ej. Casa propia junto al mar',
+  life_goal_manifestation: 'Manifestación / notas',
+  life_goal_manifestation_placeholder:
+    'Escribe en presente: cómo se siente, qué ves, por qué importa…',
+  life_goal_date: 'Fecha objetivo',
+  life_goal_color: 'Color en el mapa',
+  life_goal_kind: 'Tipo',
+  life_goal_kind_goal: 'Meta',
+  life_goal_kind_manifestation: 'Manifestación',
+  life_goal_kind_milestone: 'Hito',
+  life_goal_kind_vision: 'Visión',
+  life_goal_photo: 'Imagen',
+  life_goal_add_photo: 'Añadir foto o vision board',
+  life_goal_change_photo: 'Cambiar imagen',
+  life_goal_remove_photo: 'Quitar imagen',
+  life_goal_compressing: 'Comprimiendo…',
+  life_goal_saved: 'Meta guardada.',
+  life_goal_save_error: 'No se pudo guardar la meta.',
+  life_goal_title_required: 'Escribe un título para la meta.',
+  life_goal_date_required: 'Elige una fecha objetivo.',
+  life_goal_date_out_of_map:
+    'Esa fecha cae fuera del mapa (revisa nacimiento y esperanza de vida en Config).',
+  life_goal_limit: 'Máximo 24 metas de vida.',
+  life_goal_delete_confirm: '¿Eliminar esta meta de vida?',
+  life_goal_image_error: 'No se pudo procesar la imagen.',
+  life_goal_saving: 'Guardando…',
+  life_goal_need_birthdate:
+    'Para ubicar las metas en el mapa de semanas, configura tu fecha de nacimiento.',
+  life_goal_off_map: 'Fuera del mapa',
   settings_birth_date: 'Fecha de nacimiento',
   settings_birth_date_desc:
     'Se usa en Memento mori para calcular las semanas que has vivido y las que quedan.',
@@ -655,6 +740,7 @@ const en_dict: TranslationDict = {
   nav_eisenhower: 'Eisenhower',
   nav_notifications: 'Alerts',
   nav_memento: 'Memento mori',
+  nav_life_goals: 'Life goals',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Each square is one week of your life. Live with intention.',
@@ -672,9 +758,53 @@ const en_dict: TranslationDict = {
   memento_legend_current: 'This week',
   memento_legend_left: 'Remaining',
   memento_legend_milestone: '5-year milestones (35, 40…)',
+  memento_legend_goal: 'Life goal',
   memento_milestones_hint: 'Milestones marked: ages {ages}.',
   memento_lifespan_note: 'Based on {years} years of life expectancy (adjustable in Settings).',
   memento_past_expectation: 'You have passed the configured expectancy — celebrate every extra week.',
+  memento_tab_map: 'Week map',
+  memento_tab_goals: 'Life goals',
+  memento_goals_on_map: '{n} week(s) with a goal on the map.',
+  memento_manage_goals: 'Manage goals',
+  life_goals_title: 'Life goals',
+  life_goals_subtitle:
+    'Define visions, manifestations and milestones with a date. Each one is painted on your week map.',
+  life_goals_empty: 'No life goals yet.',
+  life_goals_empty_hint:
+    'Add the home, trip, business or version of yourself you are building — with a photo and a date.',
+  life_goal_add: 'New goal',
+  life_goal_new: 'New life goal',
+  life_goal_edit: 'Edit goal',
+  life_goal_title_label: 'Title',
+  life_goal_title_placeholder: 'e.g. Home by the sea',
+  life_goal_manifestation: 'Manifestation / notes',
+  life_goal_manifestation_placeholder:
+    'Write in the present tense: how it feels, what you see, why it matters…',
+  life_goal_date: 'Target date',
+  life_goal_color: 'Map color',
+  life_goal_kind: 'Type',
+  life_goal_kind_goal: 'Goal',
+  life_goal_kind_manifestation: 'Manifestation',
+  life_goal_kind_milestone: 'Milestone',
+  life_goal_kind_vision: 'Vision',
+  life_goal_photo: 'Image',
+  life_goal_add_photo: 'Add photo or vision board',
+  life_goal_change_photo: 'Change image',
+  life_goal_remove_photo: 'Remove image',
+  life_goal_compressing: 'Compressing…',
+  life_goal_saved: 'Goal saved.',
+  life_goal_save_error: 'Could not save the goal.',
+  life_goal_title_required: 'Enter a title for the goal.',
+  life_goal_date_required: 'Pick a target date.',
+  life_goal_date_out_of_map:
+    'That date is outside the map (check birth date and life expectancy in Settings).',
+  life_goal_limit: 'Maximum 24 life goals.',
+  life_goal_delete_confirm: 'Delete this life goal?',
+  life_goal_image_error: 'Could not process the image.',
+  life_goal_saving: 'Saving…',
+  life_goal_need_birthdate:
+    'To place goals on the week map, set your birth date in Settings.',
+  life_goal_off_map: 'Off map',
   settings_birth_date: 'Birth date',
   settings_birth_date_desc:
     'Used by Memento mori to calculate weeks lived and weeks remaining.',

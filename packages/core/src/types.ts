@@ -121,6 +121,33 @@ export interface UserSettings {
    * Default 80 (calendario clásico de semanas de vida).
    */
   expectedLifespanYears: number;
+  /**
+   * Metas de vida / manifestaciones (Memento mori).
+   * Se marcan en la matriz semanal por `targetDate`.
+   */
+  lifeGoals: LifeGoal[];
+}
+
+/** Tipo de meta de vida (visión / manifestación / hito). */
+export type LifeGoalKind = 'goal' | 'manifestation' | 'milestone' | 'vision';
+
+/**
+ * Meta o manifestación con fecha objetivo.
+ * `imageDataUrl` es opcional (JPEG comprimido en cliente) para no depender de storage.
+ */
+export interface LifeGoal {
+  id: string;
+  title: string;
+  description: string;
+  /** Fecha objetivo YYYY-MM-DD. */
+  targetDate: string;
+  kind: LifeGoalKind;
+  /** Data URL de imagen (recomendado ≤ ~200KB). null = sin foto. */
+  imageDataUrl: string | null;
+  /** Color de marcador en la matriz (#RRGGBB). */
+  color: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Project {

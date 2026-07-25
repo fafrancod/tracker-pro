@@ -147,3 +147,87 @@ export function milestoneWeekMap(
   }
   return map;
 }
+
+/** Parsea YYYY-MM-DD local sin restringir al pasado (metas futuras). */
+export function parseLocalDayId(iso: string | null | undefined): Date | null {
+  if (!iso || typeof iso !== 'string') return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const date = new Date(y, mo - 1, d);
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== y ||
+    date.getMonth() !== mo - 1 ||
+    date.getDate() !== d
+  ) {
+    return null;
+  }
+  return date;
+}
+
+/**
+ * Índice de semana de vida para una fecha objetivo, dado el nacimiento.
+ * null si no se puede calcular o cae fuera del mapa de lifespan.
+ */
+export function weekIndexForTargetDate(
+  birthDateIso: string | null | undefined,
+  targetDateIso: string | null | undefined,
+  lifespanYears?: number | null
+): number | null {
+  const birth = parseBirthDate(birthDateIso);
+  const target = parseLocalDayId(targetDateIso);
+  if (!birth || !target) return null;
+  if (target.getTime() < birth.getTime()) return null;
+  const years = clampLifespanYears(lifespanYears);
+  const total = years * WEEKS_PER_YEAR;
+  const idx = wholeWeeksBetween(birth, target);
+  if (idx < 0 || idx >= total) return null;
+  return idx;
+}
+
+export interface LifeGoalMarker {
+  goalId: string;
+  title: string;
+  color: string;
+  kind: string;
+  weekIndex: number;
+}
+
+/** Agrupa metas por índice de semana (varias metas el mismo día → misma celda). */
+export function lifeGoalsByWeekIndex(
+  birthDateIso: string | null | undefined,
+  lifespanYears: number | null | undefined,
+  goals: Array<{
+    id: string;
+    title: string;
+    targetDate: string;
+    color?: string | null;
+    kind?: string;
+  }>
+): Map<number, LifeGoalMarker[]> {
+  const map = new Map<number, LifeGoalMarker[]>();
+  if (!goals?.length) return map;
+  const defaultColors = ['#a371f7', '#db61a2', '#e3b341', '#39c5cf', '#f85149', '#3fb950'];
+  goals.forEach((g, i) => {
+    const idx = weekIndexForTargetDate(birthDateIso, g.targetDate, lifespanYears);
+    if (idx === null) return;
+    const color =
+      (g.color && /^#[0-9A-Fa-f]{6}$/.test(g.color) ? g.color : null) ??
+      defaultColors[i % defaultColors.length];
+    const marker: LifeGoalMarker = {
+      goalId: g.id,
+      title: g.title,
+      color,
+      kind: g.kind ?? 'goal',
+      weekIndex: idx,
+    };
+    const list = map.get(idx) ?? [];
+    list.push(marker);
+    map.set(idx, list);
+  });
+  return map;
+}

@@ -52,6 +52,7 @@ const DEFAULTS: UserSettings = {
   timezone: detectTimezone(),
   birthDate: null,
   expectedLifespanYears: 80,
+  lifeGoals: [],
 };
 
 function loadLocal(): Partial<UserSettings> | null {

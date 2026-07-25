@@ -81,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               : 'UTC',
           birthDate: null,
           expectedLifespanYears: 80,
+          lifeGoals: [],
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;
