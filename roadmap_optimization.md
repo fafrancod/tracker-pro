@@ -1,7 +1,7 @@
 # Roadmap de optimización — tiempos de carga y mutaciones
 
 **Fecha (actualizado):** 2026-07-25  
-**Versión de producto de referencia:** **v2.7.11**  
+**Versión de producto de referencia:** **v2.7.12**  
 **Archivo:** `roadmap_optimization.md` (repo root)
 
 **Contexto original:** Al guardar o editar tareas, eventos, hábitos, recetarios, etc. la UI se siente lenta.  
@@ -288,11 +288,15 @@ create index if not exists tasks_user_kind_day_idx on public.tasks (user_id, kin
 
 ---
 
-### Fase 5 — Observabilidad (continuo)
+### Fase 5 — Observabilidad ✅ (v2.7.12)
 
-- Test CI: “create daily no hace más de 3 round-trips a DB”.  
-- Log p95 create/update en Railway.  
-- Contador de filas por kind (`habit_*`, `rx_*`) en métricas.
+| # | Acción | Detalle |
+|---|--------|---------|
+| 5.1 | CI round-trips | `create-roundtrips.test.ts`: hábito/daily/single → order SELECT ≤1, tasks ops ≤3 |
+| 5.2 | Log p95 Railway | `recordTaskCreate` / `recordTaskUpdate` → `logger.info` con `p50/p95/p99_ms` (ventana 100) |
+| 5.3 | Contadores por kind | `kind_totals` en payload métricas; `rows` / `orderQueries` en create |
+
+**Cómo leer en Railway:** filtrar logs por `metric: api.tasks.create` o mensaje `api.tasks.create`.
 
 ---
 
@@ -423,3 +427,4 @@ Las features de **v2.6–2.7** (hábitos, pasos, eventos, Círculo, resumen con 
 | 2026-07-25 | **Fase 2 aplicada (v2.7.9):** hábitos lazy — create 1 seed + `habit-ensure` + virtuales `vh:` en `collectTasksCovering` + materialize en toggle/edit; fetch de seeds en covering/range; tests `habit-lazy.test.ts` |
 | 2026-07-25 | **Fase 3 aplicada (v2.7.10):** Realtime 1 canal/uid + delta al store + eco 2s; `ensureTasksRangeLoaded` + caché 45s; Board/Continuo/Mes/Resumen sin tormenta de refetch |
 | 2026-07-25 | **Fase 4 aplicada (v2.7.11):** toast Guardado inmediato; prefetch idle semana; continuo ±1 mes; pasos draft local; skeleton solo primer fetch |
+| 2026-07-25 | **Fase 5 aplicada (v2.7.12):** `requestMetrics` p95 create/update; CI round-trips; kind_totals en logs |

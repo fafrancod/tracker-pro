@@ -27,24 +27,31 @@ import {
 } from '../lib/rx.js';
 import { extractHashtags, mergeTags, mergeTagsForRx } from '../lib/tags.js';
 import { logger } from '../logger.js';
+import {
+  nowMs,
+  recordTaskCreate,
+  recordTaskUpdate,
+} from '../lib/requestMetrics.js';
 
 /**
  * Contadores de filas por day_id en **una** query (evita N+1 de COUNT secuenciales
  * al materializar hábitos diarios / recetarios).
  * @see roadmap_optimization.md §0.1 / §1.1
+ * @returns map + nº de round-trips SELECT (chunks), para métricas Fase 5.
  */
 async function loadOrderCounters(
   uid: string,
   dayIds: string[]
-): Promise<Map<string, number>> {
+): Promise<{ map: Map<string, number>; queryCount: number }> {
   const unique = Array.from(new Set(dayIds.filter(Boolean)));
   const map = new Map<string, number>();
   for (const id of unique) map.set(id, 0);
-  if (unique.length === 0) return map;
+  if (unique.length === 0) return { map, queryCount: 0 };
 
   // Un solo SELECT de day_id (sin head count por día).
   // Chunk si hay muchos días (p. ej. > 80) para no saturar `.in()`.
   const CHUNK = 80;
+  let queryCount = 0;
   for (let i = 0; i < unique.length; i += CHUNK) {
     const slice = unique.slice(i, i + CHUNK);
     const { data, error } = await getSupabaseAdmin()
@@ -52,13 +59,14 @@ async function loadOrderCounters(
       .select('day_id')
       .eq('user_id', uid)
       .in('day_id', slice);
+    queryCount += 1;
     if (error) throw error;
     for (const row of data ?? []) {
       const d = row.day_id as string;
       map.set(d, (map.get(d) ?? 0) + 1);
     }
   }
-  return map;
+  return { map, queryCount };
 }
 
 export const tasksRouter = Router();
@@ -371,6 +379,8 @@ function kindSupportsSteps(kind: string | null | undefined): boolean {
 }
 
 tasksRouter.post('/', async (req, res, next) => {
+  const t0 = nowMs();
+  let orderQueryCount = 0;
   try {
     const uid = req.user!.uid;
     const {
@@ -459,10 +469,12 @@ tasksRouter.post('/', async (req, res, next) => {
         }
       }
 
-      const orderByDay = await loadOrderCounters(
+      const orderResult = await loadOrderCounters(
         uid,
         occurrences.map(o => o.dayId)
       );
+      const orderByDay = orderResult.map;
+      orderQueryCount = orderResult.queryCount;
 
       // Recetario: sin proyecto; se asume urgente e importante.
       // Mascota (rxSubject) y #hashtags del título → tags reutilizables.
@@ -565,10 +577,12 @@ tasksRouter.post('/', async (req, res, next) => {
         }
       }
 
-      const orderByDay = await loadOrderCounters(
+      const orderResult = await loadOrderCounters(
         uid,
         occurrenceRanges.map(r => r.dayId)
       );
+      const orderByDay = orderResult.map;
+      orderQueryCount = orderResult.queryCount;
 
       // #hashtags en el título se convierten en tags reutilizables
       const mergedTags = mergeTags(tags, extractHashtags(title));
@@ -645,6 +659,23 @@ tasksRouter.post('/', async (req, res, next) => {
       instances,
     });
 
+    // Fase 5: métricas create (p95 rolling en logs Railway).
+    const createKind = (rows[0]?.kind as string) ?? taskKind;
+    const createRecurrence =
+      (rows[0]?.recurrence_frequency as string | undefined) ??
+      recurrenceFrequency ??
+      'none';
+    logger.info(
+      recordTaskCreate({
+        ms: nowMs() - t0,
+        rows: rows.length,
+        kind: createKind,
+        orderQueries: orderQueryCount,
+        recurrence: createRecurrence,
+      }),
+      'api.tasks.create'
+    );
+
     // No bloquear la respuesta al cliente (roadmap §1.3 / 0).
     void bumpUsage(uid, { tasksCreated: rows.length }, eventId).catch(err => {
       logger.warn({ err, uid, n: rows.length }, 'bumpUsage after create failed');
@@ -655,6 +686,7 @@ tasksRouter.post('/', async (req, res, next) => {
 });
 
 tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
+  const t0 = nowMs();
   try {
     const uid = req.user!.uid;
     const { weekId, dayId, taskId } = req.params;
@@ -884,6 +916,17 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       updatedCount,
       ...clientPatch,
     });
+
+    // Fase 5: métricas update (p95 rolling en logs Railway).
+    logger.info(
+      recordTaskUpdate({
+        ms: nowMs() - t0,
+        kind: normalizeKind(existing.kind),
+        applyTo,
+        updatedCount,
+      }),
+      'api.tasks.update'
+    );
   } catch (err) {
     next(err);
   }
@@ -975,10 +1018,11 @@ tasksRouter.post(
       }
 
       const now = new Date().toISOString();
-      const orderByDay = await loadOrderCounters(
+      const orderResult = await loadOrderCounters(
         uid,
         occurrences.map(o => o.dayId)
       );
+      const orderByDay = orderResult.map;
 
       const rows: Record<string, unknown>[] = [];
       for (const occ of occurrences) {
