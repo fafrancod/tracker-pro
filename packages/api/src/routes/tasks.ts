@@ -785,7 +785,7 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.recurrenceInterval !== undefined) {
       instanceUpdate.recurrence_interval = patch.recurrenceInterval;
     }
-    // Dosis de esta toma (rx_meta merge)
+    // Dosis de esta toma (rx_meta merge) — instancia por defecto
     if (
       patch.rxAmount !== undefined ||
       patch.rxUnit !== undefined ||
@@ -807,13 +807,51 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
           patch.rxSubject !== undefined ? patch.rxSubject : prev.subject,
       };
     }
-    // Subject en toda la serie (sin rehacer plan)
-    if (patch.rxSubject !== undefined && applyTo === 'series' && seriesId) {
-      // handled below after fetch siblings if needed — merge in series update via raw SQL hard;
-      // for v1 apply subject only on instance unless rematerialize
+
+    // Tags de recetario al cambiar kind/sujeto en serie
+    const nextKindForTags =
+      patch.kind !== undefined
+        ? patch.kind
+        : normalizeKind(existing.kind as string);
+    const prevRx = parseRxMeta(existing.rx_meta);
+    const nextSubjectForTags =
+      patch.rxSubject !== undefined ? patch.rxSubject : (prevRx?.subject ?? null);
+    if (
+      applyTo === 'series' &&
+      seriesId &&
+      (patch.kind !== undefined || patch.rxSubject !== undefined) &&
+      (isRxKind(nextKindForTags) || isRxKind(normalizeKind(existing.kind as string)))
+    ) {
+      const titleForTags =
+        typeof seriesUpdate.title === 'string'
+          ? seriesUpdate.title
+          : String(existing.title ?? '');
+      const baseTags = Array.isArray(patch.tags)
+        ? patch.tags
+        : Array.isArray(existing.tags)
+          ? (existing.tags as string[])
+          : [];
+      seriesUpdate.tags = mergeTagsForRx(
+        titleForTags,
+        baseTags,
+        nextKindForTags,
+        nextSubjectForTags
+      );
+      if (patch.kind === 'rx_pet' && patch.color === undefined && !seriesUpdate.color) {
+        seriesUpdate.color = '#d29922';
+      }
+      if (patch.kind === 'rx_human' && patch.color === undefined && !seriesUpdate.color) {
+        seriesUpdate.color = '#a371f7';
+      }
     }
 
-    const hasSeriesFields = Object.keys(seriesUpdate).length > 1; // updated_at + …
+    const needsSeriesRxSubject =
+      applyTo === 'series' &&
+      seriesId != null &&
+      patch.rxSubject !== undefined;
+
+    const hasSeriesFields =
+      Object.keys(seriesUpdate).length > 1 || needsSeriesRxSubject; // updated_at + …
     const hasInstanceFields = Object.keys(instanceUpdate).length > 1;
 
     let updatedCount = 0;
@@ -822,22 +860,72 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       if (!seriesId) {
         throw ApiError.badRequest('applyTo=series requiere una tarea con seriesId');
       }
-      const { error, count } = await getSupabaseAdmin()
-        .from('tasks')
-        .update(seriesUpdate, { count: 'exact' })
-        .eq('user_id', uid)
-        .eq('series_id', seriesId);
-      if (error) throw error;
-      updatedCount = count ?? 0;
-
-      // Campos de instancia (completed, endDayId, …) solo sobre la fila pedida.
-      if (hasInstanceFields) {
-        const { error: instErr } = await getSupabaseAdmin()
+      if (Object.keys(seriesUpdate).length > 1) {
+        const { error, count } = await getSupabaseAdmin()
           .from('tasks')
-          .update(instanceUpdate)
-          .eq('id', taskId)
-          .eq('user_id', uid);
-        if (instErr) throw instErr;
+          .update(seriesUpdate, { count: 'exact' })
+          .eq('user_id', uid)
+          .eq('series_id', seriesId);
+        if (error) throw error;
+        updatedCount = count ?? 0;
+      }
+
+      // Propagar subject (y amount/unit si vienen) a rx_meta de TODA la serie.
+      const needsSeriesRxMeta =
+        needsSeriesRxSubject ||
+        (applyTo === 'series' &&
+          seriesId != null &&
+          (patch.rxAmount !== undefined || patch.rxUnit !== undefined));
+      if (needsSeriesRxMeta) {
+        const { data: siblings, error: sibErr } = await getSupabaseAdmin()
+          .from('tasks')
+          .select('id, rx_meta')
+          .eq('user_id', uid)
+          .eq('series_id', seriesId);
+        if (sibErr) throw sibErr;
+        const rows = siblings ?? [];
+        updatedCount = Math.max(updatedCount, rows.length);
+        await Promise.all(
+          rows.map(async row => {
+            const prev = parseRxMeta(row.rx_meta) ?? {
+              subject: null,
+              amount: 1,
+              unit: 'pills' as const,
+              phaseIndex: 0,
+              planStartDayId: dayId,
+              phases: [],
+            };
+            const nextMeta = {
+              ...prev,
+              subject:
+                patch.rxSubject !== undefined ? patch.rxSubject : prev.subject,
+              amount: patch.rxAmount !== undefined ? patch.rxAmount : prev.amount,
+              unit: patch.rxUnit !== undefined ? patch.rxUnit : prev.unit,
+            };
+            const { error: metaErr } = await getSupabaseAdmin()
+              .from('tasks')
+              .update({ rx_meta: nextMeta, updated_at: now })
+              .eq('id', row.id)
+              .eq('user_id', uid);
+            if (metaErr) throw metaErr;
+          })
+        );
+      }
+
+      // completed / order / endDayId solo en la fila pedida
+      if (hasInstanceFields) {
+        const instOnly = { ...instanceUpdate };
+        if (needsSeriesRxMeta) {
+          delete instOnly.rx_meta;
+        }
+        if (Object.keys(instOnly).length > 1) {
+          const { error: instErr } = await getSupabaseAdmin()
+            .from('tasks')
+            .update(instOnly)
+            .eq('id', taskId)
+            .eq('user_id', uid);
+          if (instErr) throw instErr;
+        }
       }
     } else {
       // instance (default): merge series + instance fields on one row

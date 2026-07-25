@@ -153,7 +153,14 @@ export const useStore = create<AppStore>()(
         for (const days of Object.values(state.tasksByDay)) {
           for (const tasks of Object.values(days)) {
             for (const task of tasks) {
-              if (task.seriesId === seriesId) {
+              if (task.seriesId !== seriesId) continue;
+              // Deep-merge de rx_meta para no pisar amount/fase al cambiar subject.
+              if (patch.rx) {
+                const { rx, ...rest } = patch;
+                Object.assign(task, rest, {
+                  rx: task.rx ? { ...task.rx, ...rx } : rx,
+                });
+              } else {
                 Object.assign(task, patch);
               }
             }

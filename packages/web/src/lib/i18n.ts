@@ -606,6 +606,17 @@ export interface TranslationDict {
   rx_phase_days_count: string;
   rx_subject_unnamed_person: string;
   rx_subject_unnamed_pet: string;
+  rx_edit_owner_title: string;
+  rx_edit_owner_desc: string;
+  rx_edit_owner_kind: string;
+  rx_edit_owner_hint: string;
+  rx_edit_owner_action: string;
+  rx_edit_owner_saved: string;
+  rx_edit_owner_error: string;
+  rx_phases_ending_title: string;
+  rx_phases_ending_subtitle: string;
+  rx_phases_ending_empty: string;
+  rx_phases_ending_on: string;
 
   // Generales
   empty_no_tasks: string;
@@ -1320,6 +1331,20 @@ const es_dict: TranslationDict = {
   rx_phase_days_count: '{n} días',
   rx_subject_unnamed_person: 'Persona (sin nombre)',
   rx_subject_unnamed_pet: 'Mascota (sin nombre)',
+  rx_edit_owner_title: 'A quién pertenece',
+  rx_edit_owner_desc:
+    'Cambia si «{title}» es para persona o mascota y el nombre. Se aplica a todo el tratamiento.',
+  rx_edit_owner_kind: 'Tipo',
+  rx_edit_owner_hint:
+    'Ej. Ragnar. Si lo pasas a mascota, aparecerá en el filtro de mascotas.',
+  rx_edit_owner_action: 'Editar dueño',
+  rx_edit_owner_saved: 'Dueño del recetario actualizado.',
+  rx_edit_owner_error: 'No se pudo actualizar el dueño del recetario.',
+  rx_phases_ending_title: 'Fases que terminan esta semana',
+  rx_phases_ending_subtitle:
+    'Fases de tratamiento cuyo último día cae en los próximos 7 días.',
+  rx_phases_ending_empty: 'Ninguna fase termina en los próximos 7 días.',
+  rx_phases_ending_on: 'Termina {date}',
 
   empty_no_tasks: 'Aún no hay tareas.',
   empty_no_events: 'Aún no hay eventos.',
@@ -2038,6 +2063,20 @@ const en_dict: TranslationDict = {
   rx_phase_days_count: '{n} days',
   rx_subject_unnamed_person: 'Person (unnamed)',
   rx_subject_unnamed_pet: 'Pet (unnamed)',
+  rx_edit_owner_title: 'Who it belongs to',
+  rx_edit_owner_desc:
+    'Change whether “{title}” is for a person or pet and the name. Applies to the whole treatment.',
+  rx_edit_owner_kind: 'Type',
+  rx_edit_owner_hint:
+    'e.g. Ragnar. Switch to pet to show it under the pets filter.',
+  rx_edit_owner_action: 'Edit owner',
+  rx_edit_owner_saved: 'Prescription owner updated.',
+  rx_edit_owner_error: 'Could not update the prescription owner.',
+  rx_phases_ending_title: 'Phases ending this week',
+  rx_phases_ending_subtitle:
+    'Treatment phases whose last day falls in the next 7 days.',
+  rx_phases_ending_empty: 'No phases end in the next 7 days.',
+  rx_phases_ending_on: 'Ends {date}',
 
   empty_no_tasks: 'No tasks yet.',
   empty_no_events: 'No events yet.',

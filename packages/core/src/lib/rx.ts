@@ -619,6 +619,59 @@ export function buildRxSubjectGroups(
   return groups;
 }
 
+export interface RxPhaseEndingSoon {
+  treatmentKey: string;
+  title: string;
+  subject: string | null;
+  kind: 'rx_human' | 'rx_pet';
+  phaseIndex: number;
+  amount: number;
+  unit: DoseUnit;
+  startDayId: string;
+  endDayId: string;
+  daysRemaining: number;
+  status: RxPhaseStatus;
+}
+
+/**
+ * Fases cuyo fin cae en [fromDayId, toDayId] (inclusive), o activas con días restantes
+ * dentro de la ventana.
+ */
+export function listPhasesEndingInRange(
+  treatments: RxTreatmentProgress[],
+  fromDayId: string,
+  toDayId: string
+): RxPhaseEndingSoon[] {
+  const out: RxPhaseEndingSoon[] = [];
+  for (const tr of treatments) {
+    for (const p of tr.phaseProgress) {
+      if (p.status === 'done') continue;
+      // Fin de fase dentro del rango, o fase activa que termina antes de toDayId
+      const endsInRange = p.endDayId >= fromDayId && p.endDayId <= toDayId;
+      if (!endsInRange) continue;
+      out.push({
+        treatmentKey: tr.key,
+        title: tr.title,
+        subject: tr.subject,
+        kind: tr.kind,
+        phaseIndex: p.phaseIndex,
+        amount: p.amount,
+        unit: p.unit,
+        startDayId: p.startDayId,
+        endDayId: p.endDayId,
+        daysRemaining: p.daysRemaining,
+        status: p.status,
+      });
+    }
+  }
+  out.sort((a, b) => {
+    const d = a.endDayId.localeCompare(b.endDayId);
+    if (d !== 0) return d;
+    return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+  });
+  return out;
+}
+
 /**
  * Aplana tomas de recetario del store.
  * `dayId` es el bucket de inicio (día de la toma materializada).

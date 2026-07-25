@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/Board';
 import { RxTreatmentsPanel } from '@/components/Recetario/RxTreatmentsPanel';
+import { RxPhasesEndingPanel } from '@/components/Recetario/RxPhasesEndingPanel';
 import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
@@ -31,6 +32,7 @@ import {
   buildRxSubjectGroups,
   collectRxTasksFromStore,
   isRxKind,
+  listPhasesEndingInRange,
 } from '@core/lib/rx';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
@@ -182,6 +184,12 @@ export function DashboardPage() {
     }).filter(g => g.todayDoses.length > 0 || g.treatments.some(tr => tr.isActive));
   }, [remoteRx, tasksByDay, todayId]);
 
+  const phasesEnding = useMemo(() => {
+    const treatments = rxGroups.flatMap(g => g.treatments);
+    const to = getDayId(addDays(today, 6));
+    return listPhasesEndingInRange(treatments, todayId, to);
+  }, [rxGroups, today, todayId]);
+
   return (
     <Layout title={t('dashboard_title')} showFab={false}>
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -250,12 +258,15 @@ export function DashboardPage() {
                 {t('dashboard_no_doses_today')}
               </div>
             ) : (
-              <RxTreatmentsPanel
-                groups={rxGroups}
-                onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
-                emptyLabel={t('dashboard_no_doses_today')}
-                compact
-              />
+              <div className="space-y-3">
+                <RxPhasesEndingPanel items={phasesEnding} />
+                <RxTreatmentsPanel
+                  groups={rxGroups}
+                  onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
+                  emptyLabel={t('dashboard_no_doses_today')}
+                  compact
+                />
+              </div>
             )}
           </section>
 

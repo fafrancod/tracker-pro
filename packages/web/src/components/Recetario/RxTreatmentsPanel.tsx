@@ -1,7 +1,15 @@
-import { CheckCircle2, ChevronDown, ChevronRight, PawPrint, User } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Pencil,
+  PawPrint,
+  User,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ProgressRing } from '@/components/Board';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
@@ -141,9 +149,11 @@ function PhaseRow({ phase }: { phase: RxPhaseProgress }) {
 function TreatmentCard({
   treatment,
   defaultOpen,
+  onEditOwner,
 }: {
   treatment: RxTreatmentProgress;
   defaultOpen?: boolean;
+  onEditOwner?: (treatment: RxTreatmentProgress) => void;
 }) {
   const { t, locale, shortDateFormat } = useT();
   const [open, setOpen] = useState(defaultOpen ?? treatment.isActive);
@@ -192,7 +202,14 @@ function TreatmentCard({
               </Badge>
             )}
           </div>
-          <p className="mt-0.5 text-[11px] text-text-muted">{rangeLabel}</p>
+          <p className="mt-0.5 text-[11px] text-text-muted">
+            {treatment.subject?.trim() ||
+              (treatment.kind === 'rx_pet'
+                ? t('rx_subject_unnamed_pet')
+                : t('rx_subject_unnamed_person'))}
+            {' · '}
+            {rangeLabel}
+          </p>
           <p className="mt-1 text-[11px] text-text-muted">
             {t('rx_progress_pct')
               .replace('{pct}', String(treatment.progressPct))
@@ -210,6 +227,23 @@ function TreatmentCard({
 
       {open && (
         <div className="space-y-3 border-t border-border px-3 py-3">
+          {onEditOwner && (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-[11px]"
+                onClick={e => {
+                  e.stopPropagation();
+                  onEditOwner(treatment);
+                }}
+              >
+                <Pencil className="h-3 w-3" />
+                {t('rx_edit_owner_action')}
+              </Button>
+            </div>
+          )}
           {treatment.phaseProgress.length > 0 ? (
             <div className="space-y-2">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
@@ -231,11 +265,13 @@ function TreatmentCard({
 export function RxSubjectCard({
   group,
   onToggleDose,
+  onEditOwner,
   showToday = true,
   compact = false,
 }: {
   group: RxSubjectGroup;
   onToggleDose: (task: Task) => void;
+  onEditOwner?: (treatment: RxTreatmentProgress) => void;
   showToday?: boolean;
   compact?: boolean;
 }) {
@@ -330,6 +366,7 @@ export function RxSubjectCard({
             key={tr.key}
             treatment={tr}
             defaultOpen={!compact && tr.isActive}
+            onEditOwner={onEditOwner}
           />
         ))}
       </div>
@@ -340,12 +377,14 @@ export function RxSubjectCard({
 export function RxTreatmentsPanel({
   groups,
   onToggleDose,
+  onEditOwner,
   emptyLabel,
   compact = false,
   showToday = true,
 }: {
   groups: RxSubjectGroup[];
   onToggleDose: (task: Task) => void;
+  onEditOwner?: (treatment: RxTreatmentProgress) => void;
   emptyLabel: string;
   compact?: boolean;
   showToday?: boolean;
@@ -365,6 +404,7 @@ export function RxTreatmentsPanel({
           key={g.subjectKey}
           group={g}
           onToggleDose={onToggleDose}
+          onEditOwner={onEditOwner}
           showToday={showToday}
           compact={compact}
         />

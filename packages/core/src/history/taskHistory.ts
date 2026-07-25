@@ -296,6 +296,27 @@ export const taskHistory = {
 
     // Optimistic
     const partial = patchToPartialTask(patch);
+    // rxSubject / dosis → merge en Task.rx (no está en patchToPartialTask genérico)
+    if (
+      patch.rxSubject !== undefined ||
+      patch.rxAmount !== undefined ||
+      patch.rxUnit !== undefined
+    ) {
+      const baseRx = before.rx ?? {
+        subject: null,
+        amount: 1,
+        unit: 'pills' as const,
+        phaseIndex: 0,
+        planStartDayId: locDayId,
+        phases: [],
+      };
+      partial.rx = {
+        ...baseRx,
+        subject: patch.rxSubject !== undefined ? patch.rxSubject : baseRx.subject,
+        amount: patch.rxAmount !== undefined ? patch.rxAmount : baseRx.amount,
+        unit: patch.rxUnit !== undefined ? patch.rxUnit : baseRx.unit,
+      };
+    }
     if (applyTo === 'series' && before.seriesId) {
       const seriesPartial = { ...partial };
       delete seriesPartial.completed;

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { addDays } from 'date-fns';
 import { Pill, PawPrint, User, Users } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -10,13 +11,17 @@ import {
 } from '@/components/ui/mobile-sheet';
 import { AddTaskForm } from '@/components/Board';
 import { RxTreatmentsPanel } from '@/components/Recetario/RxTreatmentsPanel';
+import { RxOwnerEditDialog, type RxOwnerEditResult } from '@/components/Recetario/RxOwnerEditDialog';
+import { RxPhasesEndingPanel } from '@/components/Recetario/RxPhasesEndingPanel';
 import { useProjects } from '@core/hooks/useProjects';
 import { useTasks } from '@core/hooks/useTasks';
-import { useStore } from '@core/store';
+import { findTaskLocation, useStore } from '@core/store';
 import {
   collectRxTasksFromStore,
   buildRxSubjectGroups,
   isRxKind,
+  listPhasesEndingInRange,
+  type RxTreatmentProgress,
 } from '@core/lib/rx';
 import {
   fetchAllTasks,
@@ -41,12 +46,15 @@ export function RecetarioPage() {
   const today = useMemo(() => new Date(), []);
   const todayId = getDayId(today);
   const weekId = getWeekId(today);
+  const weekEndId = getDayId(addDays(today, 6));
   const { addTask, editTask } = useTasks(weekId, todayId);
 
   const [filter, setFilter] = useState<SubjectFilter>('all');
   const [remoteRx, setRemoteRx] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<RxTreatmentProgress | null>(null);
+  const [savingOwner, setSavingOwner] = useState(false);
 
   const loadAllRx = useCallback(async () => {
     if (!uid || isDemoMode()) {
@@ -92,6 +100,11 @@ export function RecetarioPage() {
     return all;
   }, [allRx, todayId, filter]);
 
+  const phasesEnding = useMemo(() => {
+    const treatments = groups.flatMap(g => g.treatments);
+    return listPhasesEndingInRange(treatments, todayId, weekEndId);
+  }, [groups, todayId, weekEndId]);
+
   const totals = useMemo(() => {
     const activeTreatments = groups.reduce(
       (s, g) => s + g.treatments.filter(tr => tr.isActive).length,
@@ -104,6 +117,73 @@ export function RecetarioPage() {
     const todayTotal = groups.reduce((s, g) => s + g.todayDoses.length, 0);
     return { activeTreatments, todayPending, todayTotal, subjects: groups.length };
   }, [groups]);
+
+  async function handleOwnerSave(result: RxOwnerEditResult) {
+    if (!editTarget) return;
+    const sample = editTarget.tasks[0];
+    if (!sample) return;
+
+    setSavingOwner(true);
+    try {
+      const loc = findTaskLocation(sample.id);
+      // editTask usa week/day del hook; taskHistory reubica con findTaskLocation.
+      void loc;
+      const subject = result.subject.trim() || null;
+      await editTask(sample.id, {
+        kind: result.kind,
+        rxSubject: subject,
+        color: result.kind === 'rx_pet' ? '#d29922' : '#a371f7',
+        applyTo: editTarget.seriesId || sample.seriesId ? 'series' : 'instance',
+      });
+
+      // Si no hay seriesId, propaga a todas las tomas del tratamiento en cliente+API.
+      if (!editTarget.seriesId && !sample.seriesId && editTarget.tasks.length > 1) {
+        for (const task of editTarget.tasks.slice(1)) {
+          await editTask(task.id, {
+            kind: result.kind,
+            rxSubject: subject,
+            color: result.kind === 'rx_pet' ? '#d29922' : '#a371f7',
+            applyTo: 'instance',
+          });
+        }
+      }
+
+      // Actualiza remote cache localmente para feedback inmediato
+      setRemoteRx(prev =>
+        prev.map(t => {
+          const sameSeries =
+            (editTarget.seriesId || sample.seriesId) &&
+            t.seriesId === (editTarget.seriesId || sample.seriesId);
+          const sameSolo = editTarget.tasks.some(x => x.id === t.id);
+          if (!sameSeries && !sameSolo) return t;
+          return {
+            ...t,
+            kind: result.kind,
+            color: result.kind === 'rx_pet' ? '#d29922' : '#a371f7',
+            rx: t.rx
+              ? { ...t.rx, subject }
+              : {
+                  subject,
+                  amount: 1,
+                  unit: 'pills' as const,
+                  phaseIndex: 0,
+                  planStartDayId: todayId,
+                  phases: [],
+                },
+          };
+        })
+      );
+
+      showToast(t('rx_edit_owner_saved'), 'success');
+      setEditTarget(null);
+      await loadAllRx();
+    } catch (err) {
+      console.error('[recetario] owner save failed', err);
+      showToast(t('rx_edit_owner_error'), 'error');
+    } finally {
+      setSavingOwner(false);
+    }
+  }
 
   return (
     <Layout title={t('nav_recetario')} showFab onFabClick={() => setFabOpen(true)}>
@@ -129,6 +209,8 @@ export function RecetarioPage() {
               value={loading ? '…' : t('recetario_kpi_ready')}
             />
           </div>
+
+          <RxPhasesEndingPanel items={phasesEnding} />
 
           <div className="flex flex-wrap gap-1.5 rounded-xl border border-border bg-surface p-1">
             {(
@@ -162,10 +244,21 @@ export function RecetarioPage() {
           <RxTreatmentsPanel
             groups={groups}
             onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
+            onEditOwner={tr => setEditTarget(tr)}
             emptyLabel={loading ? t('recetario_loading') : t('recetario_empty')}
           />
         </div>
       </div>
+
+      <RxOwnerEditDialog
+        open={editTarget !== null}
+        treatment={editTarget}
+        saving={savingOwner}
+        onOpenChange={open => {
+          if (!open && !savingOwner) setEditTarget(null);
+        }}
+        onSave={result => void handleOwnerSave(result)}
+      />
 
       <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
         <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">
