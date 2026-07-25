@@ -490,7 +490,7 @@ const es_dict: TranslationDict = {
   memento_goals_on_map: '{n} semana(s) con meta marcada en el mapa.',
   memento_manage_goals: 'Gestionar metas',
   memento_goal_hover_hint:
-    'Pasa el ratón o toca un cuadrado de meta para ver la foto, manifestación y fecha.',
+    'Mantén el ratón sobre un cuadrado de meta para ver el detalle; al salir se cierra.',
   memento_goal_preview_title: 'Meta de vida',
   memento_goal_preview_title_multi: '{n} metas en esta semana',
   memento_goal_preview_desc: 'Lo que definiste para este hito en el mapa de semanas.',
@@ -963,7 +963,7 @@ const en_dict: TranslationDict = {
   memento_goals_on_map: '{n} week(s) with a goal on the map.',
   memento_manage_goals: 'Manage goals',
   memento_goal_hover_hint:
-    'Hover or tap a goal square to see the photo, manifestation and date.',
+    'Keep the pointer on a goal square to preview it; move away to close.',
   memento_goal_preview_title: 'Life goal',
   memento_goal_preview_title_multi: '{n} goals in this week',
   memento_goal_preview_desc: 'What you defined for this milestone on the week map.',
