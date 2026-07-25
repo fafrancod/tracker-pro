@@ -1,4 +1,5 @@
 import { useMemo, type MouseEvent } from 'react';
+import { Check } from 'lucide-react';
 import { useStore } from '@core/store';
 import { collectTasksCovering } from '@core/lib/taskPresence';
 import {
@@ -142,28 +143,55 @@ export function ScheduleGrid({
                     const project = projects.find(p => p.id === loc.projectId);
                     const color = loc.color ?? project?.color ?? undefined;
                     return (
-                      <button
+                      <div
                         key={loc.id}
-                        type="button"
-                        onClick={() =>
-                          onOpenTask?.({
-                            weekId: loc.weekId,
-                            dayId: loc.startDayId,
-                            taskId: loc.id,
-                          })
-                        }
                         className={cn(
-                          'truncate rounded px-1 py-0.5 text-left text-[10px] font-medium',
-                          loc.completed && 'line-through opacity-60'
+                          'flex min-w-0 items-center gap-0.5 rounded px-0.5 py-0.5 text-[10px] font-medium',
+                          loc.completed && 'opacity-60'
                         )}
                         style={{
                           backgroundColor: color ? `${color}22` : undefined,
                           borderLeft: color ? `2px solid ${color}` : undefined,
                         }}
-                        title={loc.title}
                       >
-                        {loc.title}
-                      </button>
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            onToggleTask?.({
+                              weekId: loc.weekId,
+                              dayId: loc.startDayId,
+                              task: loc,
+                            });
+                          }}
+                          className={cn(
+                            'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                            loc.completed
+                              ? 'border-accent-green bg-accent-green/25 text-accent-green'
+                              : 'border-border bg-background/80 hover:border-accent-green'
+                          )}
+                          aria-label={loc.completed ? 'Desmarcar' : 'Completar'}
+                        >
+                          {loc.completed && <Check className="h-2.5 w-2.5" />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onOpenTask?.({
+                              weekId: loc.weekId,
+                              dayId: loc.startDayId,
+                              taskId: loc.id,
+                            })
+                          }
+                          className={cn(
+                            'min-w-0 flex-1 truncate text-left',
+                            loc.completed && 'line-through'
+                          )}
+                          title={loc.title}
+                        >
+                          {loc.title}
+                        </button>
+                      </div>
                     );
                   })}
                   {unscheduled.length === 0 && (
@@ -263,28 +291,12 @@ export function ScheduleGrid({
                     ? `${loc.startTime}–${loc.endTime}`
                     : loc.startTime ?? '';
                   return (
-                    <button
+                    <div
                       key={loc.id}
-                      type="button"
-                      onClick={() =>
-                        onOpenTask?.({
-                          weekId: loc.weekId,
-                          dayId: loc.startDayId,
-                          taskId: loc.id,
-                        })
-                      }
-                      onDoubleClick={e => {
-                        e.stopPropagation();
-                        onToggleTask?.({
-                          weekId: loc.weekId,
-                          dayId: loc.startDayId,
-                          task: loc,
-                        });
-                      }}
                       className={cn(
-                        'absolute left-0.5 right-0.5 z-[1] overflow-hidden rounded border border-black/10 px-1 py-0.5 text-left shadow-sm transition-opacity hover:z-[2] hover:brightness-110',
+                        'absolute left-0.5 right-0.5 z-[1] flex overflow-hidden rounded border border-black/10 px-0.5 py-0.5 shadow-sm transition-opacity hover:z-[2] hover:brightness-110',
                         loc.kind === 'possible_event' && !loc.completed && 'opacity-60',
-                        loc.completed && 'opacity-55 line-through',
+                        loc.completed && 'opacity-55',
                         compact ? 'text-[11px]' : 'text-[10px]'
                       )}
                       style={{
@@ -295,9 +307,46 @@ export function ScheduleGrid({
                       }}
                       title={`${loc.title} (${timeLabel})`}
                     >
-                      <div className="truncate font-semibold text-text-primary">{loc.title}</div>
-                      <div className="truncate text-[9px] text-text-muted">{timeLabel}</div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={e => {
+                          e.stopPropagation();
+                          onToggleTask?.({
+                            weekId: loc.weekId,
+                            dayId: loc.startDayId,
+                            task: loc,
+                          });
+                        }}
+                        className={cn(
+                          'mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                          loc.completed
+                            ? 'border-accent-green bg-accent-green/30 text-accent-green'
+                            : 'border-black/25 bg-white/70 hover:border-accent-green'
+                        )}
+                        aria-label={loc.completed ? 'Desmarcar' : 'Completar'}
+                      >
+                        {loc.completed && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onOpenTask?.({
+                            weekId: loc.weekId,
+                            dayId: loc.startDayId,
+                            taskId: loc.id,
+                          })
+                        }
+                        className={cn(
+                          'min-w-0 flex-1 overflow-hidden px-0.5 text-left',
+                          loc.completed && 'line-through'
+                        )}
+                      >
+                        <div className="truncate font-semibold text-text-primary">
+                          {loc.title}
+                        </div>
+                        <div className="truncate text-[9px] text-text-muted">{timeLabel}</div>
+                      </button>
+                    </div>
                   );
                 })}
               </div>

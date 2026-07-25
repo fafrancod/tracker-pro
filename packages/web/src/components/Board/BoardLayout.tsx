@@ -162,6 +162,11 @@ export function BoardLayout({
           dayEndHour={dayEndHour}
           filter={filter}
           onOpenTask={loc => setDetailTask(loc)}
+          onToggleTask={({ weekId, dayId, task }) => {
+            void taskHistory.update(weekId, dayId, task.id, {
+              completed: !task.completed,
+            });
+          }}
         />
       ) : (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

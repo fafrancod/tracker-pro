@@ -563,34 +563,43 @@ export function MonthView({
                                   : undefined
                               }
                             >
-                              {habit ? (
-                                <button
-                                  type="button"
-                                  className={cn(
-                                    'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border',
-                                    task.completed
-                                      ? isHabitQuit(task.kind)
-                                        ? 'border-red-500/70 bg-red-500/25 text-red-100'
-                                        : 'border-accent-green bg-accent-green/25 text-accent-green'
-                                      : isHabitGood(task.kind)
-                                        ? 'border-emerald-500/60'
-                                        : 'border-red-500/60'
-                                  )}
-                                  aria-label={
-                                    task.completed ? t('habit_done') : t('habit_not_done')
-                                  }
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    void handleToggleLocated({
-                                      task,
-                                      startDayId: task.startDayId,
-                                      startWeekId: task.weekId,
-                                    });
-                                  }}
-                                >
-                                  {task.completed && <Check className="h-2.5 w-2.5" />}
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                className={cn(
+                                  'flex h-3.5 w-3.5 shrink-0 items-center justify-center border transition-colors',
+                                  habit ? 'rounded' : 'rounded-full',
+                                  task.completed
+                                    ? isHabitQuit(task.kind)
+                                      ? 'border-red-500/70 bg-red-500/25 text-red-100'
+                                      : 'border-accent-green bg-accent-green/25 text-accent-green'
+                                    : habit && isHabitGood(task.kind)
+                                      ? 'border-emerald-500/60 bg-background/80'
+                                      : habit && isHabitQuit(task.kind)
+                                        ? 'border-red-500/60 bg-background/80'
+                                        : 'border-border bg-background/90 hover:border-accent-green'
+                                )}
+                                aria-label={
+                                  habit
+                                    ? task.completed
+                                      ? t('habit_done')
+                                      : t('habit_not_done')
+                                    : task.completed
+                                      ? 'Desmarcar'
+                                      : 'Completar'
+                                }
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  void handleToggleLocated({
+                                    task,
+                                    startDayId: task.startDayId,
+                                    startWeekId: task.weekId,
+                                  });
+                                }}
+                              >
+                                {task.completed && (
+                                  <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                                )}
+                              </button>
                               <span className="min-w-0 flex-1 truncate">
                                 {!habit && task.kind === 'reminder' ? '🔔 ' : ''}
                                 {!habit && task.recurrence.frequency !== 'none' ? '↻ ' : ''}
@@ -626,28 +635,16 @@ export function MonthView({
                       : null;
                     const color = bar.task.color ?? project?.color ?? '#58a6ff';
                     return (
-                      <button
+                      <div
                         key={`${bar.task.id}-${bar.colStart}-${bar.lane}`}
-                        type="button"
-                        onClick={e => {
-                          e.stopPropagation();
-                        }}
-                        onDoubleClick={e => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          openDetail(bar.startWeekId, bar.startDayId, bar.task.id);
-                        }}
-                        onContextMenu={e =>
-                          openCtx(e, bar.task, bar.startWeekId, bar.startDayId)
-                        }
                         title={
                           bar.task.startTime
                             ? `${bar.task.title} · ${chipTimeLabel(bar.task)}`
                             : bar.task.title
                         }
                         className={cn(
-                          'pointer-events-auto absolute z-10 flex items-center gap-0.5 rounded px-1.5 text-left text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
-                          bar.task.completed && 'line-through opacity-60',
+                          'pointer-events-auto absolute z-10 flex items-center gap-0.5 rounded px-1 text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
+                          bar.task.completed && 'opacity-60',
                           bar.task.kind === 'possible_event' &&
                             !bar.task.completed &&
                             'opacity-60',
@@ -662,18 +659,57 @@ export function MonthView({
                           color: bar.task.completed ? undefined : '#0d1117',
                         }}
                       >
-                        <span className="min-w-0 flex-1 truncate">
+                        <button
+                          type="button"
+                          className={cn(
+                            'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border',
+                            bar.task.completed
+                              ? 'border-accent-green/80 bg-accent-green/40'
+                              : 'border-black/30 bg-white/80 hover:border-accent-green'
+                          )}
+                          aria-label={
+                            bar.task.completed ? 'Desmarcar' : 'Completar'
+                          }
+                          onClick={e => {
+                            e.stopPropagation();
+                            void handleToggleLocated({
+                              task: bar.task,
+                              startDayId: bar.startDayId,
+                              startWeekId: bar.startWeekId,
+                            });
+                          }}
+                        >
+                          {bar.task.completed && (
+                            <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          className={cn(
+                            'min-w-0 flex-1 truncate text-left',
+                            bar.task.completed && 'line-through'
+                          )}
+                          onClick={e => e.stopPropagation()}
+                          onDoubleClick={e => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            openDetail(bar.startWeekId, bar.startDayId, bar.task.id);
+                          }}
+                          onContextMenu={e =>
+                            openCtx(e, bar.task, bar.startWeekId, bar.startDayId)
+                          }
+                        >
                           {bar.continuesLeft ? '‹ ' : ''}
                           {bar.task.recurrence.frequency !== 'none' ? '↻ ' : ''}
                           {bar.task.title}
                           {bar.continuesRight ? ' ›' : ''}
-                        </span>
-                        {bar.task.startTime && (
-                          <span className="shrink-0 tabular-nums text-[9px] opacity-80">
-                            {bar.task.startTime.slice(0, 5)}
-                          </span>
-                        )}
-                      </button>
+                          {bar.task.startTime ? (
+                            <span className="ml-0.5 tabular-nums text-[9px] opacity-80">
+                              {bar.task.startTime.slice(0, 5)}
+                            </span>
+                          ) : null}
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
