@@ -10,6 +10,7 @@ import { MonthView } from './MonthView';
 
 interface ContinuousMonthsViewProps {
   onPickDay: (date: Date) => void;
+  onViewDay?: (date: Date) => void;
   filter?: BoardTaskFilters;
 }
 
@@ -23,7 +24,11 @@ function monthKey(d: Date): string {
   return `${d.getFullYear()}-${d.getMonth()}`;
 }
 
-export function ContinuousMonthsView({ onPickDay, filter }: ContinuousMonthsViewProps) {
+export function ContinuousMonthsView({
+  onPickDay,
+  onViewDay,
+  filter,
+}: ContinuousMonthsViewProps) {
   const { settings } = useSettings();
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const uid = useStore(s => s.uid);
@@ -123,6 +128,7 @@ export function ContinuousMonthsView({ onPickDay, filter }: ContinuousMonthsView
         <div key={monthKey(m)} className="border-b border-border last:border-b-0">
           <MonthView
             onPickDay={onPickDay}
+            onViewDay={onViewDay}
             mode="continuous"
             monthDate={m}
             hideChrome

@@ -200,6 +200,8 @@ export interface TranslationDict {
   board_month_view: string;
   board_continuous_view: string;
   board_day_view: string;
+  /** Menú contextual de celda en mes/continuo */
+  board_ctx_view_day: string;
   board_next_week: string;
   board_prev_week: string;
   board_prev_day: string;
@@ -684,6 +686,7 @@ const es_dict: TranslationDict = {
   board_month_view: 'Mes',
   board_continuous_view: 'Continuo',
   board_day_view: 'Día',
+  board_ctx_view_day: 'Ver día',
   board_next_week: 'Semana siguiente',
   board_prev_week: 'Semana anterior',
   board_prev_day: 'Día anterior',
@@ -1177,6 +1180,7 @@ const en_dict: TranslationDict = {
   board_month_view: 'Month',
   board_continuous_view: 'Continuous',
   board_day_view: 'Day',
+  board_ctx_view_day: 'View day',
   board_next_week: 'Next week',
   board_prev_week: 'Previous week',
   board_prev_day: 'Previous day',

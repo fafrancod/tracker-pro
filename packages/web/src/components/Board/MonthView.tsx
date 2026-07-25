@@ -28,9 +28,16 @@ import {
   TaskContextMenu,
   type TaskContextMenuState,
 } from './TaskContextMenu';
+import {
+  DayContextMenu,
+  openDayContextMenu,
+  type DayContextMenuState,
+} from './DayContextMenu';
 
 export interface MonthViewProps {
   onPickDay: (date: Date) => void;
+  /** Right-click «Ver día» → navigate to day view for that date. */
+  onViewDay?: (date: Date) => void;
   mode?: 'single' | 'continuous';
   /** When mode is continuous (or embedding), which month to render. */
   monthDate?: Date;
@@ -135,6 +142,7 @@ function buildBarsForWeek(
 
 export function MonthView({
   onPickDay,
+  onViewDay,
   mode = 'single',
   monthDate,
   hideChrome = false,
@@ -156,6 +164,7 @@ export function MonthView({
   );
   const [loadingRange, setLoadingRange] = useState(false);
   const [ctxMenu, setCtxMenu] = useState<TaskContextMenuState | null>(null);
+  const [dayCtxMenu, setDayCtxMenu] = useState<DayContextMenuState | null>(null);
 
   // Sync controlled monthDate (continuous embed)
   useEffect(() => {
@@ -403,6 +412,10 @@ export function MonthView({
                       key={date.toISOString()}
                       type="button"
                       onClick={() => onPickDay(date)}
+                      onContextMenu={e => {
+                        if (!onViewDay) return;
+                        openDayContextMenu(e, date, setDayCtxMenu);
+                      }}
                       className={cn(
                         'group relative flex min-h-[104px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
                         inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
@@ -565,6 +578,14 @@ export function MonthView({
           });
         }}
       />
+
+      {onViewDay && (
+        <DayContextMenu
+          menu={dayCtxMenu}
+          onClose={() => setDayCtxMenu(null)}
+          onViewDay={onViewDay}
+        />
+      )}
     </div>
   );
 }

@@ -113,6 +113,12 @@ export function BoardPage() {
     setFabOpen(true);
   }
 
+  function handleViewDay(date: Date) {
+    setCurrentWeek(getWeekId(date));
+    setSelectedDay(getDayId(date));
+    setView('day');
+  }
+
   const category = filters.category ?? 'all';
   const isRxCategory = category === 'rx';
   const isProjectsCategory = category === 'projects';
@@ -369,9 +375,19 @@ export function BoardPage() {
           onLayoutChange={setScheduleLayout}
         />
       )}
-      {view === 'month' && <MonthView onPickDay={handlePickDay} filter={filters} />}
+      {view === 'month' && (
+        <MonthView
+          onPickDay={handlePickDay}
+          onViewDay={handleViewDay}
+          filter={filters}
+        />
+      )}
       {view === 'continuous' && (
-        <ContinuousMonthsView onPickDay={handlePickDay} filter={filters} />
+        <ContinuousMonthsView
+          onPickDay={handlePickDay}
+          onViewDay={handleViewDay}
+          filter={filters}
+        />
       )}
 
       <TaskDetailSheet />
