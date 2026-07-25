@@ -33,3 +33,5 @@ packages/web/android/*.keystore
 packages/web/android/*.jks
 packages/web/android/app/*.keystore
 packages/web/android/app/*.jks
+
+packages/web/src/lib/stoicQuotes.generated.txt
