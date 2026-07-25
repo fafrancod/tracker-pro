@@ -154,6 +154,7 @@ export interface TranslationDict {
   task_clear_time: string;
   time_now: string;
   task_time_range_error: string;
+  task_created_ok: string;
 
   // Centralizador de notificaciones
   notify_hub_title: string;
@@ -466,6 +467,7 @@ const es_dict: TranslationDict = {
   task_clear_time: 'Quitar hora',
   time_now: 'Ahora',
   task_time_range_error: 'La hora de fin debe ser posterior o igual a la de inicio.',
+  task_created_ok: 'Tarea guardada.',
   notify_hub_title: 'Central de avisos',
   notify_hub_intro:
     'Consulta y programa recordatorios de tareas, recetarios, recordatorios y proyectos. Los avisos usan tu zona horaria y los modos de antelación, mañana y seguimiento.',
@@ -785,6 +787,7 @@ const en_dict: TranslationDict = {
   task_clear_time: 'Clear time',
   time_now: 'Now',
   task_time_range_error: 'End time must be greater than or equal to start time.',
+  task_created_ok: 'Task saved.',
   notify_hub_title: 'Alerts hub',
   notify_hub_intro:
     'View and schedule reminders for tasks, prescriptions, reminders and projects. Alerts use your timezone and the before / tomorrow / follow-up modes.',

@@ -17,6 +17,7 @@ export * from './lib/api';
 export * from './lib/demoMode';
 export * from './lib/recurrence';
 export * from './lib/taskPresence';
+export * from './lib/mergeDayTasks';
 export * from './lib/schedule';
 export * from './lib/rx';
 export * from './lib/notifications';

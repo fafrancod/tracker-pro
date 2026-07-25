@@ -3,6 +3,7 @@ import { addMonths, endOfMonth, endOfWeek, startOfMonth, startOfWeek } from 'dat
 import { useStore } from '@core/store';
 import { fetchTasksInRange, getDayId } from '@core/services/taskService';
 import { isDemoMode } from '@core/lib/demoMode';
+import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
 import type { BoardTaskFilters, Task } from '@core/types';
 import { useSettings } from '@/contexts/SettingsContext';
 import { MonthView } from './MonthView';
@@ -66,7 +67,9 @@ export function ContinuousMonthsView({ onPickDay, filter }: ContinuousMonthsView
       }
       for (const [weekId, days] of byWeekDay) {
         for (const [dayId, list] of days) {
-          setDayTasks(weekId, dayId, list);
+          // Merge: un fetch en vuelo no debe borrar una tarea recién creada.
+          const existing = useStore.getState().tasksByDay[weekId]?.[dayId] ?? [];
+          setDayTasks(weekId, dayId, mergeDayTaskLists(existing, list));
         }
       }
     });

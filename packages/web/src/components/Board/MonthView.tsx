@@ -15,6 +15,7 @@ import { useStore } from '@core/store';
 import { getDayId, fetchTasksInRange } from '@core/services/taskService';
 import { taskHistory } from '@core/history/taskHistory';
 import { collectTasksCovering, type LocatedTask } from '@core/lib/taskPresence';
+import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
 import { isDemoMode } from '@core/lib/demoMode';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
 import { Button } from '@/components/ui/button';
@@ -209,7 +210,9 @@ export function MonthView({
         }
         for (const [weekId, days] of byWeekDay) {
           for (const [dayId, list] of days) {
-            setDayTasks(weekId, dayId, list);
+            // Merge: un fetch en vuelo no debe borrar una tarea recién creada.
+            const existing = useStore.getState().tasksByDay[weekId]?.[dayId] ?? [];
+            setDayTasks(weekId, dayId, mergeDayTaskLists(existing, list));
           }
         }
       })

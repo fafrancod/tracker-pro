@@ -36,6 +36,8 @@ import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
 import { normalizeTimeInput } from '@core/lib/time';
 import { useStore } from '@core/store';
+import { useToast } from '@/contexts/ToastContext';
+import { ApiClientError } from '@core/lib/api';
 
 const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
@@ -109,6 +111,7 @@ export function AddTaskForm({
   onCancel,
 }: AddTaskFormProps) {
   const { t } = useT();
+  const { showToast } = useToast();
   const [open, setOpen] = useState(startOpen);
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -278,6 +281,8 @@ export function AddTaskForm({
         });
         resetForm();
         inputRef.current?.focus();
+      } catch (err) {
+        showToast(formatCreateError(err), 'error');
       } finally {
         setSubmitting(false);
       }
@@ -292,6 +297,12 @@ export function AddTaskForm({
     }
 
     const tags = mergeTags([], extractHashtags(trimmed));
+    const startN = normalizeTimeInput(startTime);
+    const endN = normalizeTimeInput(endTime);
+    if (startN && endN && endN < startN) {
+      showToast(t('task_time_range_error'), 'error');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -306,15 +317,35 @@ export function AddTaskForm({
         urgency,
         importance,
         color,
-        startTime: normalizeTimeInput(startTime),
-        endTime: normalizeTimeInput(endTime),
+        startTime: startN,
+        endTime: endN,
         tags,
       });
       resetForm();
       inputRef.current?.focus();
+    } catch (err) {
+      showToast(formatCreateError(err), 'error');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function formatCreateError(err: unknown): string {
+    if (err instanceof ApiClientError) {
+      if (err.code === 'plan_limit_reached') {
+        return err.message || 'Has alcanzado el límite de tu plan.';
+      }
+      if (err.status === 400) {
+        return err.message || 'Datos de la tarea no válidos.';
+      }
+      // Mensajes típicos de columna ausente en Supabase
+      if (/column|schema cache|does not exist|PGRST/i.test(err.message)) {
+        return 'Error de base de datos al guardar. Puede faltar una migración SQL en Supabase.';
+      }
+      return err.message || 'No se pudo guardar la tarea.';
+    }
+    if (err instanceof Error && err.message) return err.message;
+    return 'No se pudo guardar la tarea.';
   }
 
   function notesFromRx(subject: string, phases: RxPhase[]): string {

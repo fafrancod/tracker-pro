@@ -8,6 +8,7 @@ import {
   type LocatedTaskRow,
 } from '../services/taskService';
 import { collectTasksCovering } from '../lib/taskPresence';
+import { mergeDayTaskLists } from '../lib/mergeDayTasks';
 import type {
   CreateTaskPayload,
   UpdateTaskPayload,
@@ -57,23 +58,12 @@ export function useTasks(weekId: string, dayId: string) {
         const w = group[0].weekId;
         const d = group[0].dayId;
         const existing = useStore.getState().tasksByDay[w]?.[d] ?? [];
-        const byId = new Map(existing.map(t => [t.id, t]));
-        for (const row of group) {
+        const incoming = group.map(row => {
           const { weekId: _w, dayId: _d, ...task } = row;
-          // Prefer server row over optimistic only if same id
-          byId.set(task.id, task);
-        }
-        // Keep optimistic (offline) rows not yet on server
-        for (const t of existing) {
-          if (t.id.startsWith('optimistic-') && !byId.has(t.id)) {
-            byId.set(t.id, t);
-          }
-        }
-        setDayTasks(
-          w,
-          d,
-          Array.from(byId.values()).sort((a, b) => a.order - b.order)
-        );
+          return task;
+        });
+        // Merge: conserva optimistic y tareas locales si el fetch va retrasado.
+        setDayTasks(w, d, mergeDayTaskLists(existing, incoming));
       }
       // Ensure the subscribed start day is marked loaded even if empty.
       if (!byStart.has(`${weekId}|${dayId}`)) {
@@ -86,7 +76,9 @@ export function useTasks(weekId: string, dayId: string) {
 
   const addTask = useCallback(
     async (payload: CreateTaskPayload) => {
-      if (!uid) return;
+      if (!uid) {
+        throw new Error('Sesión no lista. Recarga la página e inténtalo de nuevo.');
+      }
       await taskHistory.create(weekId, dayId, payload);
     },
     [uid, weekId, dayId]

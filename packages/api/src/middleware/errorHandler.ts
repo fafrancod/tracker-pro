@@ -4,6 +4,29 @@ import { ApiError } from '../errors.js';
 import { logError } from '../errorLogs.js';
 import { logger } from '../logger.js';
 
+function extractUnknownError(err: unknown): { message: string; details?: unknown } {
+  if (err instanceof Error) {
+    return { message: err.message || 'Unexpected error' };
+  }
+  // PostgrestError / objetos de Supabase a veces no son instanceof Error
+  if (err && typeof err === 'object') {
+    const e = err as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    const message =
+      typeof e.message === 'string' && e.message.trim()
+        ? e.message
+        : 'Unexpected error';
+    return {
+      message,
+      details: {
+        code: e.code,
+        details: e.details,
+        hint: e.hint,
+      },
+    };
+  }
+  return { message: 'Unexpected error' };
+}
+
 export const errorHandler: ErrorRequestHandler = async (err, req, res, _next) => {
   let apiErr: ApiError;
 
@@ -12,9 +35,8 @@ export const errorHandler: ErrorRequestHandler = async (err, req, res, _next) =>
   } else if (err instanceof ZodError) {
     apiErr = ApiError.badRequest('Invalid payload', err.flatten());
   } else {
-    apiErr = ApiError.internal(
-      err instanceof Error ? err.message : 'Unexpected error'
-    );
+    const extracted = extractUnknownError(err);
+    apiErr = ApiError.internal(extracted.message, extracted.details);
   }
 
   if (apiErr.status >= 500) {

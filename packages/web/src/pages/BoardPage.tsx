@@ -396,7 +396,7 @@ export function BoardPage() {
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {
               await addTask(payload);
-              showToast('OK', 'success');
+              showToast(t('task_created_ok'), 'success');
               setFabOpen(false);
             }}
           />
