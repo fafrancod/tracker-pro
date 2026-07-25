@@ -89,8 +89,13 @@ async function ensureAndroidChannel(): Promise<void> {
 }
 
 /** Hash estable a id numérico positivo (Capacitor exige number). */
-function notificationId(taskId: string, dayId: string, startTime: string): number {
-  const raw = `${taskId}|${dayId}|${startTime}`;
+function notificationId(
+  taskId: string,
+  dayId: string,
+  startTime: string,
+  mode: string
+): number {
+  const raw = `${taskId}|${dayId}|${startTime}|${mode}`;
   let h = 0;
   for (let i = 0; i < raw.length; i++) {
     h = (Math.imul(31, h) + raw.charCodeAt(i)) | 0;
@@ -136,7 +141,10 @@ export function buildUpcomingOccurrences(
   if (!prefs.notifyLocal) return [];
 
   const now = new Date();
-  const fromDay = dayIdFromDate(now);
+  // Ayer → horizonte: past nudges de hoy y day_before de próximos días
+  const start = new Date(now);
+  start.setDate(start.getDate() - 1);
+  const fromDay = dayIdFromDate(start);
   const end = new Date(now);
   end.setDate(end.getDate() + HORIZON_DAYS);
   const toDay = dayIdFromDate(end);
@@ -217,8 +225,8 @@ async function scheduleNative(
 
     await LocalNotifications.schedule({
       notifications: occs.map(o => ({
-        id: notificationId(o.taskId, o.dayId, o.startTime),
-        title: o.title,
+        id: notificationId(o.taskId, o.dayId, o.startTime, o.mode),
+        title: o.headline || o.title,
         body: o.body,
         schedule: { at: o.fireAt, allowWhileIdle: true },
         channelId: CHANNEL_ID,
@@ -226,6 +234,7 @@ async function scheduleNative(
           taskId: o.taskId,
           dayId: o.dayId,
           startTime: o.startTime,
+          mode: o.mode,
         },
       })),
     });
@@ -258,11 +267,11 @@ function scheduleWeb(
   for (const o of occs) {
     const delay = o.fireAt.getTime() - now;
     if (delay < 0 || delay > HORIZON_DAYS * 86_400_000) continue;
-    const key = `${o.taskId}|${o.dayId}|${o.startTime}`;
+    const key = `${o.taskId}|${o.dayId}|${o.startTime}|${o.mode}`;
     const handle = setTimeout(() => {
       webTimers.delete(key);
       try {
-        new Notification(o.title, {
+        new Notification(o.headline || o.title, {
           body: o.body,
           tag: key,
           silent: false,

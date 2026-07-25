@@ -196,6 +196,14 @@ export interface TranslationDict {
   settings_notify_email_desc: string;
   settings_notify_minutes: string;
   settings_notify_minutes_desc: string;
+  settings_notify_before_enabled: string;
+  settings_notify_before_enabled_desc: string;
+  settings_notify_day_before: string;
+  settings_notify_day_before_desc: string;
+  settings_notify_day_before_time: string;
+  settings_notify_past: string;
+  settings_notify_past_desc: string;
+  settings_notify_past_after: string;
   settings_notify_tasks: string;
   settings_notify_tasks_desc: string;
   settings_notify_rx: string;
@@ -208,6 +216,7 @@ export interface TranslationDict {
   settings_notify_test_email_skipped: string;
   settings_notify_test_email_error: string;
   settings_notify_local_scheduled: string;
+  settings_notify_modes_title: string;
 
   // Urgencia / importancia
   urgency_urgent: string;
@@ -445,8 +454,19 @@ const es_dict: TranslationDict = {
     'El servidor te envía un email a la hora (o minutos antes). Funciona en web y Android.',
   settings_notify_minutes: 'Antelación',
   settings_notify_minutes_desc: 'Cuántos minutos antes del horario programado avisar.',
+  settings_notify_before_enabled: 'Recordar X minutos antes',
+  settings_notify_before_enabled_desc:
+    'Aviso justo antes (o en el momento) de cada tarea/toma con hora.',
+  settings_notify_day_before: 'Recordar el día anterior',
+  settings_notify_day_before_desc:
+    '«Recuerda que mañana vas a…» la tarde/noche previa a la actividad.',
+  settings_notify_day_before_time: 'Hora del aviso «mañana»',
+  settings_notify_past: '¿Ya lo hiciste? (eventos pasados)',
+  settings_notify_past_desc:
+    'Si pasó la hora y sigue incompleto, te pregunta si ya lo hiciste.',
+  settings_notify_past_after: 'Minutos después de la hora',
   settings_notify_tasks: 'Tareas y recordatorios',
-  settings_notify_tasks_desc: 'Incluir entradas con hora (no recetario).',
+  settings_notify_tasks_desc: 'Incluir entradas de proyecto (no solo recetario).',
   settings_notify_rx: 'Tomas del recetario',
   settings_notify_rx_desc: 'Incluir dosis de medicamentos (humano y mascota).',
   settings_notify_timezone: 'Zona horaria (correo)',
@@ -459,6 +479,7 @@ const es_dict: TranslationDict = {
     'El servidor aún no tiene RESEND_API_KEY; no se envió el correo.',
   settings_notify_test_email_error: 'No se pudo enviar el correo de prueba.',
   settings_notify_local_scheduled: 'Recordatorios locales reprogramados: {n}.',
+  settings_notify_modes_title: 'Cuándo avisar',
 
   urgency_urgent: 'Urgente',
   urgency_not_urgent: 'No urgente',
@@ -691,8 +712,19 @@ const en_dict: TranslationDict = {
     'The server emails you at the scheduled time (or minutes before). Works on web and Android.',
   settings_notify_minutes: 'Lead time',
   settings_notify_minutes_desc: 'How many minutes before the scheduled time to notify.',
+  settings_notify_before_enabled: 'Remind X minutes before',
+  settings_notify_before_enabled_desc:
+    'Alert just before (or at) each timed task or dose.',
+  settings_notify_day_before: 'Remind the day before',
+  settings_notify_day_before_desc:
+    '“Remember tomorrow you’re going to…” the evening before the activity.',
+  settings_notify_day_before_time: 'Time for “tomorrow” alert',
+  settings_notify_past: 'Did you do it? (past events)',
+  settings_notify_past_desc:
+    'If the time passed and it’s still incomplete, ask whether you did it.',
+  settings_notify_past_after: 'Minutes after start time',
   settings_notify_tasks: 'Tasks and reminders',
-  settings_notify_tasks_desc: 'Include timed entries (non-prescription).',
+  settings_notify_tasks_desc: 'Include project entries (not only prescriptions).',
   settings_notify_rx: 'Prescription doses',
   settings_notify_rx_desc: 'Include medication doses (human and pet).',
   settings_notify_timezone: 'Timezone (email)',
@@ -705,6 +737,7 @@ const en_dict: TranslationDict = {
     'Server has no RESEND_API_KEY yet; email was not sent.',
   settings_notify_test_email_error: 'Could not send the test email.',
   settings_notify_local_scheduled: 'Local reminders rescheduled: {n}.',
+  settings_notify_modes_title: 'When to notify',
 
   urgency_urgent: 'Urgent',
   urgency_not_urgent: 'Not urgent',

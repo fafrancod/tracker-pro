@@ -11,7 +11,10 @@ import { useToast } from '@/contexts/ToastContext';
 import { api } from '@core/lib/api';
 import { isDemoMode } from '@core/lib/demoMode';
 import { appVersion } from '@/lib/appVersion';
-import { NOTIFY_MINUTES_OPTIONS } from '@core/lib/notifications';
+import {
+  NOTIFY_MINUTES_OPTIONS,
+  NOTIFY_PAST_AFTER_OPTIONS,
+} from '@core/lib/notifications';
 import { useStore } from '@core/store';
 
 import { clearDemoState } from '@/lib/demoPersistence';
@@ -292,29 +295,97 @@ export function SettingsPage() {
               </Button>
             )}
 
-            <div className="mt-2 mb-3">
-              <label className="mb-1.5 block text-xs font-medium text-text-muted">
-                {t('settings_notify_minutes')}
-              </label>
-              <p className="mb-1.5 text-[11px] text-text-muted">
-                {t('settings_notify_minutes_desc')}
-              </p>
-              <select
-                value={settings.notifyMinutesBefore ?? 10}
-                onChange={e =>
-                  void updateSettings({
-                    notifyMinutesBefore: Number(e.target.value),
-                  })
-                }
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring sm:w-auto"
-              >
-                {NOTIFY_MINUTES_OPTIONS.map(m => (
-                  <option key={m} value={m}>
-                    {m === 0 ? '0 min' : `${m} min`}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <p className="mb-2 mt-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
+              {t('settings_notify_modes_title')}
+            </p>
+
+            {/* Modo 1: X minutos antes */}
+            <SettingRow
+              title={t('settings_notify_before_enabled')}
+              description={t('settings_notify_before_enabled_desc')}
+              value={settings.notifyBeforeEnabled !== false}
+              onChange={v => handleToggle('notifyBeforeEnabled', v)}
+            />
+            {settings.notifyBeforeEnabled !== false && (
+              <div className="mb-3 ml-1">
+                <label className="mb-1 block text-[11px] font-medium text-text-muted">
+                  {t('settings_notify_minutes')}
+                </label>
+                <p className="mb-1.5 text-[10px] text-text-muted">
+                  {t('settings_notify_minutes_desc')}
+                </p>
+                <select
+                  value={settings.notifyMinutesBefore ?? 10}
+                  onChange={e =>
+                    void updateSettings({
+                      notifyMinutesBefore: Number(e.target.value),
+                    })
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring sm:w-auto"
+                >
+                  {NOTIFY_MINUTES_OPTIONS.map(m => (
+                    <option key={m} value={m}>
+                      {m === 0 ? '0 min' : `${m} min`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Modo 2: día anterior */}
+            <SettingRow
+              title={t('settings_notify_day_before')}
+              description={t('settings_notify_day_before_desc')}
+              value={settings.notifyDayBefore !== false}
+              onChange={v => handleToggle('notifyDayBefore', v)}
+            />
+            {settings.notifyDayBefore !== false && (
+              <div className="mb-3 ml-1">
+                <label className="mb-1 block text-[11px] font-medium text-text-muted">
+                  {t('settings_notify_day_before_time')}
+                </label>
+                <input
+                  type="time"
+                  value={settings.notifyDayBeforeTime ?? '20:00'}
+                  onChange={e =>
+                    void updateSettings({
+                      notifyDayBeforeTime: e.target.value || '20:00',
+                    })
+                  }
+                  className="rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            )}
+
+            {/* Modo 3: pasado incompleto */}
+            <SettingRow
+              title={t('settings_notify_past')}
+              description={t('settings_notify_past_desc')}
+              value={settings.notifyPastIncomplete !== false}
+              onChange={v => handleToggle('notifyPastIncomplete', v)}
+            />
+            {settings.notifyPastIncomplete !== false && (
+              <div className="mb-3 ml-1">
+                <label className="mb-1 block text-[11px] font-medium text-text-muted">
+                  {t('settings_notify_past_after')}
+                </label>
+                <select
+                  value={settings.notifyPastAfterMinutes ?? 30}
+                  onChange={e =>
+                    void updateSettings({
+                      notifyPastAfterMinutes: Number(e.target.value),
+                    })
+                  }
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring sm:w-auto"
+                >
+                  {NOTIFY_PAST_AFTER_OPTIONS.map(m => (
+                    <option key={m} value={m}>
+                      {m >= 60 ? `${m / 60} h` : `${m} min`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <SettingRow
               title={t('settings_notify_tasks')}

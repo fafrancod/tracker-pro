@@ -42,6 +42,12 @@ function kindLabel(kind: string, language: 'es' | 'en'): string {
   return language === 'en' ? 'Task' : 'Tarea';
 }
 
+function modeLabel(mode: string, language: 'es' | 'en'): string {
+  if (mode === 'day_before') return language === 'en' ? 'Tomorrow' : 'Mañana';
+  if (mode === 'past') return language === 'en' ? 'Follow-up' : 'Seguimiento';
+  return language === 'en' ? 'Upcoming' : 'Próximo';
+}
+
 function languageFromSettings(settings: Record<string, unknown> | null): 'es' | 'en' {
   return settings?.language === 'en' ? 'en' : 'es';
 }
@@ -93,12 +99,12 @@ export async function dispatchDueEmailNotifications(
     summary.scannedUsers += 1;
     const language = languageFromSettings(settings);
 
+    // Incluye sin hora (day_before) y con hora (before + past)
     const { data: tasks, error: taskErr } = await getSupabaseAdmin()
       .from('tasks')
       .select('id, title, completed, kind, start_time, day_id')
       .eq('user_id', raw.id)
       .eq('completed', false)
-      .not('start_time', 'is', null)
       .in('day_id', dayIds);
 
     if (taskErr) {
@@ -123,7 +129,13 @@ export async function dispatchDueEmailNotifications(
 
     for (const occ of occs) {
       summary.candidates += 1;
-      const fireKey = notificationFireKey(occ.taskId, occ.dayId, occ.startTime, 'email');
+      const fireKey = notificationFireKey(
+        occ.taskId,
+        occ.dayId,
+        occ.startTime,
+        occ.mode,
+        'email'
+      );
 
       // Dedupe: try insert first with unique constraint
       const deliveryId = generateId();
@@ -153,25 +165,22 @@ export async function dispatchDueEmailNotifications(
         continue;
       }
 
-      const subject =
-        language === 'en'
-          ? `${config.email.appName}: ${occ.title}`
-          : `${config.email.appName}: ${occ.title}`;
+      const subject = `${config.email.appName}: ${occ.headline}`;
 
       const html = reminderEmailHtml({
         userName: raw.name || raw.email.split('@')[0],
         title: occ.title,
         dayId: occ.dayId,
-        startTime: occ.startTime,
+        startTime: occ.startTime || '—',
         body: occ.body,
-        kindLabel: kindLabel(occ.kind, language),
+        kindLabel: `${kindLabel(occ.kind, language)} · ${modeLabel(occ.mode, language)}`,
       });
 
       const result = await sendEmail({
         to: raw.email,
         subject,
         html,
-        text: `${occ.body}\n${occ.title}\n${occ.dayId} ${occ.startTime}`,
+        text: `${occ.headline}\n${occ.body}\n${occ.title}\n${occ.dayId} ${occ.startTime}`,
       });
 
       if (result.skipped) {

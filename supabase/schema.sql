@@ -286,13 +286,20 @@ update public.profiles
 set settings = coalesce(settings, '{}'::jsonb) || jsonb_build_object(
   'notifyLocal', true,
   'notifyEmail', false,
+  'notifyBeforeEnabled', true,
   'notifyMinutesBefore', 10,
+  'notifyDayBefore', true,
+  'notifyDayBeforeTime', '20:00',
+  'notifyPastIncomplete', true,
+  'notifyPastAfterMinutes', 30,
   'notifyTasks', true,
   'notifyRx', true,
   'timezone', coalesce(settings->>'timezone', 'UTC')
 )
 where settings is null
-   or not (settings ? 'notifyEmail');
+   or not (settings ? 'notifyEmail')
+   or not (settings ? 'notifyDayBefore')
+   or not (settings ? 'notifyPastIncomplete');
 
 -- RLS: lecturas del dueño; escrituras sensibles vía API (service role)
 alter table public.profiles enable row level security;

@@ -67,7 +67,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           defaultScheduleLayout: 'list',
           notifyLocal: true,
           notifyEmail: false,
+          notifyBeforeEnabled: true,
           notifyMinutesBefore: 10,
+          notifyDayBefore: true,
+          notifyDayBeforeTime: '20:00',
+          notifyPastIncomplete: true,
+          notifyPastAfterMinutes: 30,
           notifyTasks: true,
           notifyRx: true,
           timezone:

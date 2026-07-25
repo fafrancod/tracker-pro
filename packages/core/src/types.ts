@@ -81,8 +81,27 @@ export interface UserSettings {
   notifyLocal: boolean;
   /** Recordatorios por correo (servidor). Requiere RESEND_API_KEY en API. */
   notifyEmail: boolean;
+  /**
+   * Modo “X minutos antes” (o en el momento si notifyMinutesBefore=0).
+   * Default true.
+   */
+  notifyBeforeEnabled: boolean;
   /** Minutos de antelación (0 = en el momento). */
   notifyMinutesBefore: number;
+  /**
+   * Modo “Recuerda que mañana vas a…”.
+   * Dispara el día anterior a `notifyDayBeforeTime`.
+   */
+  notifyDayBefore: boolean;
+  /** Hora local HH:mm del aviso del día anterior. Default 20:00. */
+  notifyDayBeforeTime: string;
+  /**
+   * Modo “¿Ya hiciste esto?” para eventos pasados incompletos.
+   * Dispara `notifyPastAfterMinutes` después de la hora de inicio.
+   */
+  notifyPastIncomplete: boolean;
+  /** Minutos después de la hora de inicio para el seguimiento. Default 30. */
+  notifyPastAfterMinutes: number;
   /** Incluir tareas / recordatorios con hora. */
   notifyTasks: boolean;
   /** Incluir tomas de recetario. */

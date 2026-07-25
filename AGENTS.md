@@ -66,10 +66,11 @@ Agents must treat the following as **in-tree product**, not optional experiments
 
 ### Notifications
 
-- **Device (Android + browser):** Capacitor `@capacitor/local-notifications` + Web Notification API; scheduled from tasks/doses with `startTime`.
-- **Email (web + Android):** API worker + Resend (`RESEND_API_KEY`, `EMAIL_FROM`); prefs `notifyEmail`, `notifyMinutesBefore`, `timezone`.
-- Settings UI: local/email toggles, lead time, tasks vs rx, test email.
-- Schema: `notification_deliveries` dedupe table; settings keys on `profiles.settings`.
+- **Device (Android + browser):** Capacitor `@capacitor/local-notifications` + Web Notification API.
+- **Email (web + Android):** API worker + Resend (`RESEND_API_KEY`, `EMAIL_FROM`).
+- **Modes (all channels):** (1) X min before, (2) day-before “mañana vas a…”, (3) past incomplete “¿ya lo hiciste?”.
+- Prefs: `notifyBeforeEnabled`, `notifyMinutesBefore`, `notifyDayBefore`+`Time`, `notifyPastIncomplete`+`AfterMinutes`, `timezone`.
+- Schema: `notification_deliveries` dedupe by task+mode+channel.
 
 ### Android / PWA / offline
 
