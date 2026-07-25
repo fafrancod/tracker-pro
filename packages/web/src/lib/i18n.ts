@@ -91,6 +91,12 @@ export interface TranslationDict {
   rx_times: string;
   rx_add_time: string;
   rx_add_phase: string;
+  rx_edit_plan: string;
+  rx_this_dose: string;
+  rx_apply_plan: string;
+  rx_apply_plan_hint: string;
+  rx_plan_saved: string;
+  rx_plan_error: string;
   task_color: string;
   task_color_auto: string;
   task_priority_low: string;
@@ -219,6 +225,10 @@ export interface TranslationDict {
   dashboard_completion_rate: string;
   dashboard_no_tasks_today: string;
   dashboard_jump_to_board: string;
+  dashboard_doses_today: string;
+  dashboard_no_doses_today: string;
+  dashboard_dose_pending: string;
+  dashboard_dose_done: string;
 
   // Generales
   empty_no_tasks: string;
@@ -306,6 +316,13 @@ const es_dict: TranslationDict = {
   rx_times: 'Horarios',
   rx_add_time: 'horario',
   rx_add_phase: 'Añadir fase (otra dosis)',
+  rx_edit_plan: 'Recetario',
+  rx_this_dose: 'Esta toma',
+  rx_apply_plan: 'Aplicar plan y regenerar tomas',
+  rx_apply_plan_hint:
+    'Se regeneran las tomas pendientes desde este día. Las ya completadas se conservan. La hora de cada toma sale del plan de fases.',
+  rx_plan_saved: 'Plan actualizado: {n} tomas regeneradas.',
+  rx_plan_error: 'No se pudo actualizar el plan del recetario.',
   task_color: 'Color',
   task_color_auto: 'Automático',
   task_priority_low: 'Baja',
@@ -432,6 +449,10 @@ const es_dict: TranslationDict = {
   dashboard_completion_rate: 'Progreso',
   dashboard_no_tasks_today: 'No tienes tareas para hoy. Disfruta el día o crea una nueva.',
   dashboard_jump_to_board: 'Ir al tablero',
+  dashboard_doses_today: 'Próximas tomas del día',
+  dashboard_no_doses_today: 'No hay tomas de recetario para hoy.',
+  dashboard_dose_pending: 'Marcar toma como hecha',
+  dashboard_dose_done: 'Desmarcar toma',
 
   empty_no_tasks: 'Aún no hay tareas.',
   empty_no_projects: 'Aún no hay proyectos.',
@@ -518,6 +539,13 @@ const en_dict: TranslationDict = {
   rx_times: 'Times',
   rx_add_time: 'time',
   rx_add_phase: 'Add phase (new dose)',
+  rx_edit_plan: 'Prescription',
+  rx_this_dose: 'This dose',
+  rx_apply_plan: 'Apply plan and regenerate doses',
+  rx_apply_plan_hint:
+    'Pending doses from this day are regenerated. Completed ones are kept. Each dose time comes from the phase plan.',
+  rx_plan_saved: 'Plan updated: {n} doses regenerated.',
+  rx_plan_error: 'Could not update the prescription plan.',
   task_color: 'Color',
   task_color_auto: 'Auto',
   task_priority_low: 'Low',
@@ -644,6 +672,10 @@ const en_dict: TranslationDict = {
   dashboard_completion_rate: 'Progress',
   dashboard_no_tasks_today: 'No tasks for today. Enjoy your day or add one.',
   dashboard_jump_to_board: 'Go to board',
+  dashboard_doses_today: 'Doses for today',
+  dashboard_no_doses_today: 'No prescription doses for today.',
+  dashboard_dose_pending: 'Mark dose as taken',
+  dashboard_dose_done: 'Unmark dose',
 
   empty_no_tasks: 'No tasks yet.',
   empty_no_projects: 'No projects yet.',

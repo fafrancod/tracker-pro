@@ -9,6 +9,10 @@ import {
   X,
   CheckCircle2,
   Save,
+  Pill,
+  PawPrint,
+  User,
+  RefreshCw,
 } from 'lucide-react';
 import {
   SideSheet,
@@ -27,14 +31,38 @@ import { useWeek } from '@core/hooks/useWeek';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
+import { isRxKind, validateRxPhases } from '@core/lib/rx';
 import type {
+  DoseUnit,
   Importance,
   Priority,
+  RxPhase,
   Task,
   TaskApplyTo,
   TaskKind,
   Urgency,
 } from '@core/types';
+
+const DEFAULT_RX_PHASE: RxPhase = {
+  amount: 1,
+  unit: 'pills',
+  days: 7,
+  times: ['08:00'],
+};
+
+function clonePhases(phases: RxPhase[] | undefined | null): RxPhase[] {
+  if (!phases?.length) return [{ ...DEFAULT_RX_PHASE, times: ['08:00'] }];
+  return phases.map(p => ({
+    amount: p.amount,
+    unit: p.unit,
+    days: p.days,
+    times: [...p.times],
+  }));
+}
+
+function phasesEqual(a: RxPhase[], b: RxPhase[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 
 const PRIORITIES: {
   value: Priority;
@@ -70,6 +98,11 @@ interface DraftState {
   endDayId: string;
   startTime: string;
   endTime: string;
+  /** Recetario */
+  rxSubject: string;
+  rxAmount: number;
+  rxUnit: DoseUnit;
+  rxPhases: RxPhase[];
 }
 
 function taskToDraft(task: Task, fallbackDayId: string): DraftState {
@@ -86,6 +119,10 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     endDayId: task.endDayId || fallbackDayId,
     startTime: task.startTime ?? '',
     endTime: task.endTime ?? '',
+    rxSubject: task.rx?.subject ?? '',
+    rxAmount: task.rx?.amount ?? 1,
+    rxUnit: task.rx?.unit ?? 'pills',
+    rxPhases: clonePhases(task.rx?.phases),
   };
 }
 
@@ -103,8 +140,16 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.endDayId !== base.endDayId ||
     draft.startTime !== base.startTime ||
     draft.endTime !== base.endTime ||
-    draft.tags.join('\0') !== base.tags.join('\0')
+    draft.tags.join('\0') !== base.tags.join('\0') ||
+    draft.rxSubject !== base.rxSubject ||
+    draft.rxAmount !== base.rxAmount ||
+    draft.rxUnit !== base.rxUnit ||
+    !phasesEqual(draft.rxPhases, base.rxPhases)
   );
+}
+
+function isPlanDirty(draft: DraftState, task: Task): boolean {
+  return !phasesEqual(draft.rxPhases, clonePhases(task.rx?.phases));
 }
 
 export function TaskDetailSheet() {
@@ -163,7 +208,10 @@ function TaskDetailInner({
   t,
   showToast,
 }: InnerProps) {
-  const { tasks, editTask, removeTask, moveTaskToDay, addTask } = useTasks(weekId, dayId);
+  const { tasks, editTask, removeTask, moveTaskToDay, addTask, rematerializeRx } = useTasks(
+    weekId,
+    dayId
+  );
   const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });
 
   const task = useMemo(() => tasks.find(x => x.id === taskId) ?? null, [tasks, taskId]);
@@ -182,17 +230,91 @@ function TaskDetailInner({
   if (!task || !draft) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-text-muted">
-        Esta tarea ya no existe.
+        {saving ? t('rx_apply_plan') + '…' : 'Esta tarea ya no existe.'}
       </div>
     );
   }
 
   const project = projects.find(p => p.id === task.projectId);
   const dirty = isDirty(draft, task, dayId);
+  const planDirty = isRxKind(task.kind) && isPlanDirty(draft, task);
   const isSeries = Boolean(task.seriesId);
+  const isRx = isRxKind(task.kind);
 
   function patchDraft(partial: Partial<DraftState>) {
     setDraft(prev => (prev ? { ...prev, ...partial } : prev));
+  }
+
+  function updatePhase(index: number, patch: Partial<RxPhase>) {
+    setDraft(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rxPhases: prev.rxPhases.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+      };
+    });
+  }
+
+  function addPhase() {
+    setDraft(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rxPhases: [
+          ...prev.rxPhases,
+          { amount: 1, unit: 'pills' as DoseUnit, days: 7, times: ['08:00'] },
+        ],
+      };
+    });
+  }
+
+  function removePhase(index: number) {
+    setDraft(prev => {
+      if (!prev || prev.rxPhases.length <= 1) return prev;
+      return { ...prev, rxPhases: prev.rxPhases.filter((_, i) => i !== index) };
+    });
+  }
+
+  function addTimeToPhase(index: number) {
+    setDraft(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rxPhases: prev.rxPhases.map((p, i) =>
+          i === index
+            ? { ...p, times: [...p.times, p.times[p.times.length - 1] ?? '08:00'] }
+            : p
+        ),
+      };
+    });
+  }
+
+  function setPhaseTime(phaseIndex: number, timeIndex: number, value: string) {
+    setDraft(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rxPhases: prev.rxPhases.map((p, i) => {
+          if (i !== phaseIndex) return p;
+          const times = [...p.times];
+          times[timeIndex] = value;
+          return { ...p, times };
+        }),
+      };
+    });
+  }
+
+  function removePhaseTime(phaseIndex: number, timeIndex: number) {
+    setDraft(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        rxPhases: prev.rxPhases.map((p, i) => {
+          if (i !== phaseIndex || p.times.length <= 1) return p;
+          return { ...p, times: p.times.filter((_, ti) => ti !== timeIndex) };
+        }),
+      };
+    });
   }
 
   async function handleSave(applyTo: TaskApplyTo) {
@@ -202,32 +324,82 @@ function TaskDetailInner({
       showToast(t('task_title_required'), 'error');
       return;
     }
+
+    if (isRx && planDirty) {
+      const phaseErr = validateRxPhases(draft.rxPhases);
+      if (phaseErr) {
+        showToast(phaseErr, 'error');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      await editTask(task.id, {
-        title,
-        notes: draft.notes,
-        tags: draft.tags,
-        kind: draft.kind,
-        priority: draft.priority,
-        urgency: draft.urgency,
-        importance: draft.importance,
-        color: draft.color,
-        projectId: draft.projectId,
-        endDayId: draft.endDayId,
-        startTime: draft.startTime || null,
-        endTime: draft.endTime || null,
-        applyTo: isSeries ? applyTo : 'instance',
-      });
-      showToast(
-        applyTo === 'series' && isSeries
-          ? t('task_saved_series')
-          : t('task_saved_instance'),
-        'success'
-      );
+      if (isRx) {
+        // Metadata de esta toma / serie (sin rehacer plan)
+        await editTask(task.id, {
+          title,
+          notes: draft.notes,
+          tags: draft.tags,
+          priority: draft.priority,
+          urgency: draft.urgency,
+          importance: draft.importance,
+          color: draft.color,
+          projectId: draft.projectId,
+          startTime: planDirty ? undefined : draft.startTime || null,
+          endTime: planDirty ? undefined : draft.endTime || null,
+          rxAmount: draft.rxAmount,
+          rxUnit: draft.rxUnit,
+          rxSubject: draft.rxSubject.trim() || null,
+          applyTo: isSeries ? applyTo : 'instance',
+        });
+
+        if (planDirty) {
+          const result = await rematerializeRx(task.id, {
+            title,
+            rxPhases: draft.rxPhases,
+            rxSubject: draft.rxSubject.trim() || null,
+            fromDayId: dayId,
+            color: draft.color,
+          });
+          showToast(
+            t('rx_plan_saved').replace('{n}', String(result?.created ?? 0)),
+            'success'
+          );
+        } else {
+          showToast(
+            applyTo === 'series' && isSeries
+              ? t('task_saved_series')
+              : t('task_saved_instance'),
+            'success'
+          );
+        }
+      } else {
+        await editTask(task.id, {
+          title,
+          notes: draft.notes,
+          tags: draft.tags,
+          kind: draft.kind,
+          priority: draft.priority,
+          urgency: draft.urgency,
+          importance: draft.importance,
+          color: draft.color,
+          projectId: draft.projectId,
+          endDayId: draft.endDayId,
+          startTime: draft.startTime || null,
+          endTime: draft.endTime || null,
+          applyTo: isSeries ? applyTo : 'instance',
+        });
+        showToast(
+          applyTo === 'series' && isSeries
+            ? t('task_saved_series')
+            : t('task_saved_instance'),
+          'success'
+        );
+      }
       onClose();
     } catch {
-      showToast(t('task_save_error'), 'error');
+      showToast(planDirty ? t('rx_plan_error') : t('task_save_error'), 'error');
     } finally {
       setSaving(false);
     }
@@ -356,85 +528,290 @@ function TaskDetailInner({
           </p>
         )}
 
-        <Field label={t('task_date_range')}>
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
-              <span>{t('task_start_date')}</span>
-              <input
-                type="date"
-                value={dayId}
-                readOnly
-                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary opacity-80"
-              />
-            </label>
-            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
-              <span>{t('task_end_date')}</span>
-              <input
-                type="date"
-                value={draft.endDayId || dayId}
-                min={dayId}
-                onChange={e => {
-                  const next = e.target.value || dayId;
-                  if (next >= dayId) patchDraft({ endDayId: next });
-                }}
-                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </label>
-          </div>
-        </Field>
-
-        <Field label={t('task_schedule')}>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
-              <span>{t('task_start_time')}</span>
-              <input
-                type="time"
-                value={draft.startTime}
-                onChange={e => patchDraft({ startTime: e.target.value })}
-                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </label>
-            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
-              <span>{t('task_end_time')}</span>
-              <input
-                type="time"
-                value={draft.endTime}
-                min={draft.startTime || undefined}
-                onChange={e => patchDraft({ endTime: e.target.value })}
-                className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </label>
-            {(draft.startTime || draft.endTime) && (
-              <button
-                type="button"
-                className="text-[10px] text-text-muted hover:text-text-primary"
-                onClick={() => patchDraft({ startTime: '', endTime: '' })}
-              >
-                {t('task_clear_time')}
-              </button>
-            )}
-          </div>
-        </Field>
-
-        <Field label={`${t('task_kind_task')} / ${t('task_kind_reminder')}`}>
-          <div className="inline-flex rounded-md border border-border bg-background p-0.5">
-            {(['task', 'reminder'] as const).map(k => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => patchDraft({ kind: k })}
-                className={cn(
-                  'rounded px-3 py-1 text-xs font-medium transition-colors',
-                  draft.kind === k
-                    ? 'bg-accent-teal/15 text-accent-teal'
-                    : 'text-text-muted hover:text-text-primary'
+        {/* Recetario: tipo fijo + sujeto + dosis de esta toma + plan de fases */}
+        {isRx ? (
+          <>
+            <Field label={t('rx_edit_plan')}>
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-text-primary">
+                {task.kind === 'rx_pet' ? (
+                  <PawPrint className="h-3.5 w-3.5 text-accent-pink" />
+                ) : (
+                  <Pill className="h-3.5 w-3.5 text-accent-teal" />
                 )}
-              >
-                {k === 'task' ? t('task_kind_task') : t('task_kind_reminder')}
-              </button>
-            ))}
-          </div>
-        </Field>
+                {task.kind === 'rx_pet' ? t('task_kind_rx_pet') : t('task_kind_rx_human')}
+              </div>
+            </Field>
+
+            <Field
+              label={
+                <span className="inline-flex items-center gap-1">
+                  {task.kind === 'rx_pet' ? (
+                    <PawPrint className="h-3 w-3" />
+                  ) : (
+                    <User className="h-3 w-3" />
+                  )}
+                  {task.kind === 'rx_pet' ? t('rx_pet_name') : t('rx_patient_name')}
+                </span>
+              }
+            >
+              <Input
+                value={draft.rxSubject}
+                onChange={e => patchDraft({ rxSubject: e.target.value })}
+                placeholder={
+                  task.kind === 'rx_pet' ? t('rx_pet_placeholder') : t('rx_patient_placeholder')
+                }
+                className="h-9 text-sm"
+              />
+            </Field>
+
+            <Field label={t('rx_this_dose')}>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                  <span>{t('rx_amount')}</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step="any"
+                    value={draft.rxAmount}
+                    onChange={e =>
+                      patchDraft({
+                        rxAmount: Math.max(0.1, Number(e.target.value) || 0),
+                      })
+                    }
+                    className="w-24 rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                  />
+                </label>
+                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                  <span>{t('rx_unit')}</span>
+                  <select
+                    value={draft.rxUnit}
+                    onChange={e => patchDraft({ rxUnit: e.target.value as DoseUnit })}
+                    className="rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                  >
+                    <option value="pills">{t('rx_unit_pills')}</option>
+                    <option value="ml">{t('rx_unit_ml')}</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                  <span>{t('task_start_time')}</span>
+                  <input
+                    type="time"
+                    value={draft.startTime}
+                    onChange={e => patchDraft({ startTime: e.target.value })}
+                    disabled={planDirty}
+                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary disabled:opacity-50"
+                  />
+                </label>
+              </div>
+              {planDirty && (
+                <p className="mt-1.5 text-[10px] text-text-muted">{t('rx_apply_plan_hint')}</p>
+              )}
+            </Field>
+
+            <Field label={t('rx_phases_hint')}>
+              <div className="space-y-2">
+                {draft.rxPhases.map((phase, pi) => (
+                  <div
+                    key={pi}
+                    className="space-y-2 rounded-lg border border-border bg-background p-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-text-primary">
+                        {t('rx_phase')} {pi + 1}
+                      </span>
+                      {draft.rxPhases.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removePhase(pi)}
+                          className="text-[11px] text-accent-red hover:underline"
+                        >
+                          {t('action_delete')}
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-end gap-2">
+                      <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                        <span>{t('rx_amount')}</span>
+                        <input
+                          type="number"
+                          min={0.1}
+                          step="any"
+                          value={phase.amount}
+                          onChange={e =>
+                            updatePhase(pi, {
+                              amount: Math.max(0.1, Number(e.target.value) || 0),
+                            })
+                          }
+                          className="w-20 rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
+                        />
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                        <span>{t('rx_unit')}</span>
+                        <select
+                          value={phase.unit}
+                          onChange={e =>
+                            updatePhase(pi, { unit: e.target.value as DoseUnit })
+                          }
+                          className="rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
+                        >
+                          <option value="pills">{t('rx_unit_pills')}</option>
+                          <option value="ml">{t('rx_unit_ml')}</option>
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                        <span>{t('rx_days')}</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={phase.days}
+                          onChange={e =>
+                            updatePhase(pi, {
+                              days: Math.max(
+                                1,
+                                Math.min(365, Number(e.target.value) || 1)
+                              ),
+                            })
+                          }
+                          className="w-16 rounded border border-border bg-surface px-2 py-1.5 text-xs text-text-primary"
+                        />
+                      </label>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-medium uppercase text-text-muted">
+                        {t('rx_times')}
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {phase.times.map((tm, ti) => (
+                          <div key={ti} className="flex items-center gap-0.5">
+                            <input
+                              type="time"
+                              value={tm}
+                              onChange={e => setPhaseTime(pi, ti, e.target.value)}
+                              className="rounded border border-border bg-surface px-1.5 py-1 text-xs text-text-primary"
+                            />
+                            {phase.times.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removePhaseTime(pi, ti)}
+                                className="text-text-muted hover:text-accent-red"
+                                aria-label={t('action_delete')}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => addTimeToPhase(pi)}
+                          className="rounded border border-dashed border-border px-2 py-1 text-[10px] text-text-muted hover:text-text-primary"
+                        >
+                          + {t('rx_add_time')}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addPhase}
+                  className="w-full rounded-lg border border-dashed border-border py-2 text-xs font-medium text-text-muted hover:border-accent-teal/40 hover:text-accent-teal"
+                >
+                  + {t('rx_add_phase')}
+                </button>
+                {planDirty && (
+                  <p className="flex items-start gap-1.5 rounded-md border border-accent-teal/30 bg-accent-teal/10 px-2 py-1.5 text-[11px] text-text-primary">
+                    <RefreshCw className="mt-0.5 h-3 w-3 shrink-0 text-accent-teal" />
+                    {t('rx_apply_plan_hint')}
+                  </p>
+                )}
+              </div>
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label={t('task_date_range')}>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                  <span>{t('task_start_date')}</span>
+                  <input
+                    type="date"
+                    value={dayId}
+                    readOnly
+                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary opacity-80"
+                  />
+                </label>
+                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                  <span>{t('task_end_date')}</span>
+                  <input
+                    type="date"
+                    value={draft.endDayId || dayId}
+                    min={dayId}
+                    onChange={e => {
+                      const next = e.target.value || dayId;
+                      if (next >= dayId) patchDraft({ endDayId: next });
+                    }}
+                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </label>
+              </div>
+            </Field>
+
+            <Field label={t('task_schedule')}>
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                  <span>{t('task_start_time')}</span>
+                  <input
+                    type="time"
+                    value={draft.startTime}
+                    onChange={e => patchDraft({ startTime: e.target.value })}
+                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </label>
+                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                  <span>{t('task_end_time')}</span>
+                  <input
+                    type="time"
+                    value={draft.endTime}
+                    min={draft.startTime || undefined}
+                    onChange={e => patchDraft({ endTime: e.target.value })}
+                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                </label>
+                {(draft.startTime || draft.endTime) && (
+                  <button
+                    type="button"
+                    className="text-[10px] text-text-muted hover:text-text-primary"
+                    onClick={() => patchDraft({ startTime: '', endTime: '' })}
+                  >
+                    {t('task_clear_time')}
+                  </button>
+                )}
+              </div>
+            </Field>
+
+            <Field label={`${t('task_kind_task')} / ${t('task_kind_reminder')}`}>
+              <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+                {(['task', 'reminder'] as const).map(k => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => patchDraft({ kind: k })}
+                    className={cn(
+                      'rounded px-3 py-1 text-xs font-medium transition-colors',
+                      draft.kind === k
+                        ? 'bg-accent-teal/15 text-accent-teal'
+                        : 'text-text-muted hover:text-text-primary'
+                    )}
+                  >
+                    {k === 'task' ? t('task_kind_task') : t('task_kind_reminder')}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          </>
+        )}
 
         <Field label={t('task_priority_label')}>
           <div className="inline-flex rounded-md border border-border bg-background p-0.5">
@@ -639,7 +1016,20 @@ function TaskDetailInner({
       {/* Save scope — before secondary actions */}
       {dirty && (
         <div className="mt-2 space-y-2 border-t border-border pt-3">
-          {isSeries ? (
+          {isRx && planDirty ? (
+            <>
+              <p className="text-[11px] text-text-muted">{t('rx_apply_plan_hint')}</p>
+              <Button
+                size="sm"
+                disabled={saving}
+                onClick={() => void handleSave('series')}
+                className="w-full gap-1.5"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                {t('rx_apply_plan')}
+              </Button>
+            </>
+          ) : isSeries ? (
             <>
               <p className="text-[11px] text-text-muted">{t('task_save_scope_hint')}</p>
               <div className="flex flex-col gap-2 sm:flex-row">

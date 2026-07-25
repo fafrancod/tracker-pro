@@ -190,12 +190,24 @@ export interface UpdateTaskPayload {
   color?: string | null;
   startTime?: string | null;
   endTime?: string | null;
+  /** Ajuste de dosis de esta toma (recetario). */
+  rxAmount?: number;
+  rxUnit?: DoseUnit;
+  rxSubject?: string | null;
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (título, color, …) a toda la serie.
    * completed / fechas / order nunca se propagan a la serie.
    */
   applyTo?: TaskApplyTo;
+}
+
+export interface RematerializeRxPayload {
+  title?: string;
+  rxPhases: RxPhase[];
+  rxSubject?: string | null;
+  fromDayId?: string;
+  color?: string | null;
 }
 
 /** Campos de metadata que sí se propagan con applyTo=series. */

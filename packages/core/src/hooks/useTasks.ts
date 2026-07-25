@@ -4,10 +4,16 @@ import {
   subscribeTasks,
   getWeekId,
   getDayId,
+  rematerializeRxSeries,
   type LocatedTaskRow,
 } from '../services/taskService';
 import { collectTasksCovering } from '../lib/taskPresence';
-import type { CreateTaskPayload, UpdateTaskPayload, Task } from '../types';
+import type {
+  CreateTaskPayload,
+  UpdateTaskPayload,
+  RematerializeRxPayload,
+  Task,
+} from '../types';
 import { taskHistory } from '../history/taskHistory';
 import { hydrateFromTaskCache } from '../offline/bootstrap';
 import { isBrowserOnline } from '../lib/network';
@@ -128,6 +134,14 @@ export function useTasks(weekId: string, dayId: string) {
     [weekId, dayId, startDayTasks, reorderTasks]
   );
 
+  const rematerializeRx = useCallback(
+    async (taskId: string, payload: RematerializeRxPayload) => {
+      if (!uid) return { created: 0, instances: [] as Array<Task & { weekId: string; dayId: string }> };
+      return rematerializeRxSeries(weekId, dayId, taskId, payload);
+    },
+    [uid, weekId, dayId]
+  );
+
   const completedCount = tasks.filter(t => t.completed).length;
   const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
@@ -138,6 +152,7 @@ export function useTasks(weekId: string, dayId: string) {
     removeTask,
     moveTaskToDay,
     reorder,
+    rematerializeRx,
     progress,
     completedCount,
     updateTaskById,

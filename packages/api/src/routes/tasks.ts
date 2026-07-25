@@ -112,6 +112,10 @@ const updateSchema = z
     color: colorSchema,
     startTime: timeSchema,
     endTime: timeSchema,
+    /** Ajuste de dosis de ESTA toma (recetario). */
+    rxAmount: z.number().positive().max(10000).optional(),
+    rxUnit: z.enum(['pills', 'ml']).optional(),
+    rxSubject: z.string().max(120).nullable().optional(),
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -119,6 +123,18 @@ const updateSchema = z
     p => Object.keys(p).some(k => k !== 'applyTo'),
     { message: 'patch vacio' }
   );
+
+const rematerializeRxSchema = z.object({
+  title: z.string().min(1).max(280).trim().optional(),
+  rxPhases: z.array(rxPhaseSchema).min(1).max(12),
+  rxSubject: z.string().max(120).nullable().optional(),
+  /**
+   * Día desde el que se regeneran tomas incompletas (inclusive).
+   * Por defecto: día de la tarea editada.
+   */
+  fromDayId: z.string().refine(isValidDayId).optional(),
+  color: colorSchema,
+});
 
 function toClientTask(
   row: Record<string, unknown>,
@@ -472,6 +488,33 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.recurrenceInterval !== undefined) {
       instanceUpdate.recurrence_interval = patch.recurrenceInterval;
     }
+    // Dosis de esta toma (rx_meta merge)
+    if (
+      patch.rxAmount !== undefined ||
+      patch.rxUnit !== undefined ||
+      patch.rxSubject !== undefined
+    ) {
+      const prev = parseRxMeta(existing.rx_meta) ?? {
+        subject: null,
+        amount: 1,
+        unit: 'pills' as const,
+        phaseIndex: 0,
+        planStartDayId: dayId,
+        phases: [],
+      };
+      instanceUpdate.rx_meta = {
+        ...prev,
+        amount: patch.rxAmount !== undefined ? patch.rxAmount : prev.amount,
+        unit: patch.rxUnit !== undefined ? patch.rxUnit : prev.unit,
+        subject:
+          patch.rxSubject !== undefined ? patch.rxSubject : prev.subject,
+      };
+    }
+    // Subject en toda la serie (sin rehacer plan)
+    if (patch.rxSubject !== undefined && applyTo === 'series' && seriesId) {
+      // handled below after fetch siblings if needed — merge in series update via raw SQL hard;
+      // for v1 apply subject only on instance unless rematerialize
+    }
 
     const hasSeriesFields = Object.keys(seriesUpdate).length > 1; // updated_at + …
     const hasInstanceFields = Object.keys(instanceUpdate).length > 1;
@@ -526,6 +569,27 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       if (patch.color !== undefined) update.color = patch.color;
       if (patch.startTime !== undefined) update.start_time = patch.startTime;
       if (patch.endTime !== undefined) update.end_time = patch.endTime;
+      if (
+        patch.rxAmount !== undefined ||
+        patch.rxUnit !== undefined ||
+        patch.rxSubject !== undefined
+      ) {
+        const prev = parseRxMeta(existing.rx_meta) ?? {
+          subject: null,
+          amount: 1,
+          unit: 'pills' as const,
+          phaseIndex: 0,
+          planStartDayId: dayId,
+          phases: [],
+        };
+        update.rx_meta = {
+          ...prev,
+          amount: patch.rxAmount !== undefined ? patch.rxAmount : prev.amount,
+          unit: patch.rxUnit !== undefined ? patch.rxUnit : prev.unit,
+          subject:
+            patch.rxSubject !== undefined ? patch.rxSubject : prev.subject,
+        };
+      }
 
       const { error } = await getSupabaseAdmin()
         .from('tasks')
@@ -549,6 +613,173 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     next(err);
   }
 });
+
+/**
+ * Regenera tomas incompletas de un recetario con un plan de fases nuevo.
+ * Conserva tomas ya completadas. Elimina incompletas desde fromDayId.
+ */
+tasksRouter.post(
+  '/:weekId/:dayId/:taskId/rematerialize-rx',
+  async (req, res, next) => {
+    try {
+      const uid = req.user!.uid;
+      const { weekId, dayId, taskId } = req.params;
+      if (!isValidWeekId(weekId) || !isValidDayId(dayId)) {
+        throw ApiError.badRequest('weekId/dayId con formato invalido');
+      }
+      const body = rematerializeRxSchema.parse(req.body);
+      const phaseErr = validateRxPhases(body.rxPhases);
+      if (phaseErr) throw ApiError.badRequest(phaseErr);
+
+      const { data: existing, error: fetchError } = await getSupabaseAdmin()
+        .from('tasks')
+        .select('*')
+        .eq('id', taskId)
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      if (!existing) throw ApiError.notFound('Task not found');
+
+      const kind = normalizeKind(existing.kind);
+      if (!isRxKind(kind)) {
+        throw ApiError.badRequest('Solo recetarios admiten rematerialize-rx');
+      }
+      const seriesId = (existing.series_id as string | null) ?? null;
+      if (!seriesId) {
+        throw ApiError.badRequest('Recetario sin seriesId');
+      }
+
+      const fromDayId = body.fromDayId ?? dayId;
+      const title = body.title ?? (existing.title as string);
+      const subject =
+        body.rxSubject !== undefined
+          ? body.rxSubject
+          : (parseRxMeta(existing.rx_meta)?.subject ?? null);
+      const color =
+        body.color !== undefined
+          ? body.color
+          : ((existing.color as string | null) ?? null);
+
+      // Borrar incompletas de la serie desde fromDayId (conserva completadas y el pasado).
+      const { error: delErr } = await getSupabaseAdmin()
+        .from('tasks')
+        .delete()
+        .eq('user_id', uid)
+        .eq('series_id', seriesId)
+        .eq('completed', false)
+        .gte('day_id', fromDayId);
+      if (delErr) throw delErr;
+
+      let occurrences;
+      try {
+        occurrences = materializeRxOccurrences(fromDayId, body.rxPhases);
+      } catch (e) {
+        throw ApiError.badRequest(
+          e instanceof Error ? e.message : 'Plan de recetario inválido'
+        );
+      }
+
+      const plan = await readProfilePlan(uid);
+      const limits = getLimits(plan);
+      if (Number.isFinite(limits.maxTasksPerMonth)) {
+        const usage = await readUsage(uid, monthFromDay(fromDayId));
+        const tasksThisMonth = usage.tasks_created ?? 0;
+        if (tasksThisMonth + occurrences.length > limits.maxTasksPerMonth) {
+          throw ApiError.planLimit(
+            `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
+            {
+              plan,
+              limit: limits.maxTasksPerMonth,
+              current: tasksThisMonth,
+              requested: occurrences.length,
+            }
+          );
+        }
+      }
+
+      const now = new Date().toISOString();
+      const orderByDay = new Map<string, number>();
+      for (const occ of occurrences) {
+        if (orderByDay.has(occ.dayId)) continue;
+        const { count } = await getSupabaseAdmin()
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', uid)
+          .eq('day_id', occ.dayId);
+        orderByDay.set(occ.dayId, count ?? 0);
+      }
+
+      const rows: Record<string, unknown>[] = [];
+      for (const occ of occurrences) {
+        const occWeekId = getWeekIdFromDayId(occ.dayId);
+        const order = orderByDay.get(occ.dayId) ?? 0;
+        orderByDay.set(occ.dayId, order + 1);
+        const rxMeta = buildRxMetaForOccurrence(
+          fromDayId,
+          body.rxPhases,
+          occ,
+          subject
+        );
+        rows.push({
+          id: generateId(),
+          user_id: uid,
+          week_id: occWeekId,
+          day_id: occ.dayId,
+          end_day_id: occ.dayId,
+          title,
+          completed: false,
+          completed_at: null,
+          project_id: (existing.project_id as string | null) ?? null,
+          priority: (existing.priority as string) ?? 'high',
+          notes: (existing.notes as string) ?? '',
+          order,
+          tags: Array.isArray(existing.tags) ? existing.tags : [],
+          moved_from: null,
+          series_id: seriesId,
+          recurrence_frequency: 'none',
+          recurrence_interval: 1,
+          urgency: (existing.urgency as string | null) ?? null,
+          importance: (existing.importance as string | null) ?? null,
+          kind,
+          color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
+          start_time: occ.startTime,
+          end_time: null,
+          rx_meta: rxMeta,
+          created_at: now,
+          updated_at: now,
+        });
+      }
+
+      if (rows.length > 0) {
+        const { error: insErr } = await getSupabaseAdmin()
+          .from('tasks')
+          .insert(rows);
+        if (insErr) throw insErr;
+        await bumpUsage(uid, { tasksCreated: rows.length });
+      }
+
+      // Actualizar título en tomas completadas conservadas
+      if (body.title) {
+        await getSupabaseAdmin()
+          .from('tasks')
+          .update({ title: body.title, updated_at: now })
+          .eq('user_id', uid)
+          .eq('series_id', seriesId)
+          .eq('completed', true);
+      }
+
+      const instances = rows.map(row => toClientTask(row));
+      res.status(201).json({
+        seriesId,
+        fromDayId,
+        created: instances.length,
+        instances,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 
 tasksRouter.delete('/:weekId/:dayId/:taskId', async (req, res, next) => {
   try {

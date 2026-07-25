@@ -7,8 +7,15 @@ import {
   normalizeRecurrence,
   getWeekIdFromDayId,
 } from '../lib/recurrence';
-import type { Task, CreateTaskPayload, UpdateTaskPayload, Recurrence } from '../types';
+import type {
+  Task,
+  CreateTaskPayload,
+  UpdateTaskPayload,
+  RematerializeRxPayload,
+  Recurrence,
+} from '../types';
 import { isRxKind, materializeRxOccurrences, buildRxMetaForOccurrence, parseRxMeta } from '../lib/rx';
+import { findTaskLocation, useStore } from '../store';
 import { getISOWeek, format } from 'date-fns';
 
 export type TasksUnsubscribe = () => void;
@@ -335,6 +342,188 @@ export async function updateTask(
     `/api/tasks/${encodeURIComponent(weekId)}/${encodeURIComponent(dayId)}/${encodeURIComponent(taskId)}`,
     payload
   );
+}
+
+/**
+ * Regenera tomas incompletas de un recetario y mergea en el store local.
+ * Conserva completadas; borra incompletas desde fromDayId (inclusive).
+ */
+export async function rematerializeRxSeries(
+  weekId: string,
+  dayId: string,
+  taskId: string,
+  payload: RematerializeRxPayload
+): Promise<{ created: number; instances: Array<Task & { weekId: string; dayId: string }> }> {
+  if (isDemoMode()) {
+    return rematerializeDemoRx(weekId, dayId, taskId, payload);
+  }
+
+  const res = await api.post<{
+    seriesId: string;
+    fromDayId: string;
+    created: number;
+    instances: Array<Record<string, unknown>>;
+  }>(
+    `/api/tasks/${encodeURIComponent(weekId)}/${encodeURIComponent(dayId)}/${encodeURIComponent(taskId)}/rematerialize-rx`,
+    payload
+  );
+
+  const store = useStore.getState();
+  const fromDayId = res.fromDayId ?? payload.fromDayId ?? dayId;
+  const seriesId =
+    res.seriesId ??
+    findTaskLocation(taskId)?.task.seriesId ??
+    null;
+
+  purgeIncompleteSeriesFromStore(seriesId, fromDayId);
+
+  const instances = (res.instances ?? []).map(raw => {
+    const mapped = mapTask((raw.id as string) ?? '', raw);
+    return {
+      ...mapped,
+      weekId: (raw.weekId as string) ?? (raw.week_id as string) ?? weekId,
+      dayId: (raw.dayId as string) ?? (raw.day_id as string) ?? dayId,
+    };
+  });
+
+  for (const instance of instances) {
+    store.addTaskOptimistic(instance.weekId, instance.dayId, {
+      id: instance.id,
+      title: instance.title,
+      completed: instance.completed,
+      completedAt: instance.completedAt,
+      projectId: instance.projectId,
+      priority: instance.priority,
+      notes: instance.notes,
+      order: instance.order,
+      tags: instance.tags,
+      movedFrom: instance.movedFrom,
+      seriesId: instance.seriesId,
+      recurrence: instance.recurrence,
+      endDayId: instance.endDayId,
+      urgency: instance.urgency,
+      importance: instance.importance,
+      kind: instance.kind,
+      color: instance.color,
+      startTime: instance.startTime,
+      endTime: instance.endTime,
+      rx: instance.rx,
+      createdAt: instance.createdAt,
+      updatedAt: instance.updatedAt,
+    });
+  }
+
+  // Título en completadas locales (el API ya actualizó el servidor).
+  if (payload.title && seriesId) {
+    applySeriesTitleLocal(seriesId, payload.title);
+  }
+
+  return { created: res.created ?? instances.length, instances };
+}
+
+function purgeIncompleteSeriesFromStore(seriesId: string | null, fromDayId: string): void {
+  if (!seriesId) return;
+  const store = useStore.getState();
+  for (const [w, days] of Object.entries(store.tasksByDay)) {
+    for (const [d, list] of Object.entries(days)) {
+      if (d < fromDayId) continue;
+      for (const t of list) {
+        if (t.seriesId === seriesId && !t.completed) {
+          store.removeTaskOptimistic(w, d, t.id);
+        }
+      }
+    }
+  }
+}
+
+function applySeriesTitleLocal(seriesId: string, title: string): void {
+  const store = useStore.getState();
+  const now = new Date().toISOString();
+  for (const [w, days] of Object.entries(store.tasksByDay)) {
+    for (const [d, list] of Object.entries(days)) {
+      for (const t of list) {
+        if (t.seriesId === seriesId && t.completed && t.title !== title) {
+          store.updateTaskOptimistic(w, d, t.id, { title, updatedAt: now });
+        }
+      }
+    }
+  }
+}
+
+function rematerializeDemoRx(
+  weekId: string,
+  dayId: string,
+  taskId: string,
+  payload: RematerializeRxPayload
+): { created: number; instances: Array<Task & { weekId: string; dayId: string }> } {
+  const loc = findTaskLocation(taskId);
+  const existing = loc?.task;
+  if (!existing || !isRxKind(existing.kind)) {
+    throw new Error('Solo recetarios admiten rematerialize-rx');
+  }
+  const seriesId = existing.seriesId;
+  if (!seriesId) {
+    throw new Error('Recetario sin seriesId');
+  }
+
+  const fromDayId = payload.fromDayId ?? dayId;
+  const title = payload.title ?? existing.title;
+  const subject =
+    payload.rxSubject !== undefined
+      ? payload.rxSubject
+      : (existing.rx?.subject ?? null);
+  const color =
+    payload.color !== undefined
+      ? payload.color
+      : existing.color;
+  const kind = existing.kind;
+
+  purgeIncompleteSeriesFromStore(seriesId, fromDayId);
+
+  const occs = materializeRxOccurrences(fromDayId, payload.rxPhases);
+  const now = new Date().toISOString();
+  const baseId = `rx-${Date.now().toString(36)}`;
+  const store = useStore.getState();
+
+  const instances = occs.map((occ, index) => {
+    const id = `${baseId}-${index}`;
+    const rx = buildRxMetaForOccurrence(fromDayId, payload.rxPhases, occ, subject);
+    const w = occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId);
+    const task: Task & { weekId: string; dayId: string } = {
+      id,
+      title,
+      completed: false,
+      completedAt: null,
+      projectId: existing.projectId,
+      priority: existing.priority,
+      notes: existing.notes,
+      order: store.tasksByDay[w]?.[occ.dayId]?.length ?? 0,
+      tags: [...existing.tags],
+      movedFrom: null,
+      seriesId,
+      recurrence: { frequency: 'none', interval: 1 },
+      endDayId: occ.dayId,
+      urgency: existing.urgency,
+      importance: existing.importance,
+      kind,
+      color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
+      startTime: occ.startTime,
+      endTime: null,
+      rx,
+      createdAt: now,
+      updatedAt: now,
+      weekId: w,
+      dayId: occ.dayId,
+    };
+    store.addTaskOptimistic(w, occ.dayId, task);
+    return task;
+  });
+
+  if (payload.title) {
+    applySeriesTitleLocal(seriesId, title);
+  }
+
+  return { created: instances.length, instances };
 }
 
 export async function deleteTask(
