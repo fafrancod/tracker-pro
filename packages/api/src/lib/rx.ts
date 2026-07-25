@@ -21,6 +21,19 @@ export interface RxMeta {
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+function normalizePhaseTime(raw: string): string {
+  const s = raw.trim();
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(s)) {
+    return normalizePhaseTime(s.slice(0, s.lastIndexOf(':')));
+  }
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (!m) return s;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return s;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
 export function isRxKind(kind: string | null | undefined): boolean {
   return kind === 'rx_human' || kind === 'rx_pet';
 }
@@ -52,10 +65,16 @@ export function validateRxPhases(phases: RxPhase[]): string | null {
     if (p.times.length > 12) {
       return `Fase ${i + 1}: máximo 12 horarios por día`;
     }
-    for (const t of p.times) {
-      if (typeof t !== 'string' || !TIME_RE.test(t)) {
+    for (let ti = 0; ti < p.times.length; ti++) {
+      const t = p.times[ti];
+      if (typeof t !== 'string') {
+        return `Fase ${i + 1}: horario inválido`;
+      }
+      const nt = normalizePhaseTime(t);
+      if (!TIME_RE.test(nt)) {
         return `Fase ${i + 1}: horario inválido (${t})`;
       }
+      p.times[ti] = nt;
     }
     totalDays += days;
     totalSessions += days * p.times.length;

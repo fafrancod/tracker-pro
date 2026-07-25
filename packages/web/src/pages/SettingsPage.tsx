@@ -34,6 +34,7 @@ import {
   getDeviceTimezone,
   listTimezoneOptions,
 } from '@/lib/timezones';
+import { TimeInput } from '@/components/ui/time-input';
 
 interface BackendVersionInfo {
   service: string;
@@ -372,15 +373,14 @@ export function SettingsPage() {
                 <label className="mb-1 block text-[11px] font-medium text-text-muted">
                   {t('settings_notify_day_before_time')}
                 </label>
-                <input
-                  type="time"
+                <TimeInput
                   value={settings.notifyDayBeforeTime ?? '20:00'}
-                  onChange={e =>
+                  onChange={v =>
                     void updateSettings({
-                      notifyDayBeforeTime: e.target.value || '20:00',
+                      notifyDayBeforeTime: v || '20:00',
                     })
                   }
-                  className="rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                  nowLabel={t('time_now')}
                 />
               </div>
             )}

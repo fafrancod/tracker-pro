@@ -127,6 +127,8 @@ export interface TranslationDict {
   task_start_time: string;
   task_end_time: string;
   task_clear_time: string;
+  time_now: string;
+  task_time_range_error: string;
   task_continues: string;
   task_span_recurrence_hint: string;
   task_create_title: string;
@@ -387,6 +389,8 @@ const es_dict: TranslationDict = {
   task_start_time: 'Hora inicio',
   task_end_time: 'Hora fin',
   task_clear_time: 'Quitar hora',
+  time_now: 'Ahora',
+  task_time_range_error: 'La hora de fin debe ser posterior o igual a la de inicio.',
   task_continues: 'Continúa',
   task_span_recurrence_hint:
     'En rangos de varios días solo puedes repetir cada mes, cada año o no repetir.',
@@ -653,6 +657,8 @@ const en_dict: TranslationDict = {
   task_start_time: 'Start time',
   task_end_time: 'End time',
   task_clear_time: 'Clear time',
+  time_now: 'Now',
+  task_time_range_error: 'End time must be greater than or equal to start time.',
   task_continues: 'Continues',
   task_span_recurrence_hint:
     'Multi-day ranges only support monthly, yearly, or no recurrence.',

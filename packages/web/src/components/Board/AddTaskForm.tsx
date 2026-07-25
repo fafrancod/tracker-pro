@@ -33,6 +33,8 @@ import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
 import { isRxKind, rxPlanEndDayId, totalRxPlanDays, validateRxPhases } from '@core/lib/rx';
 import { extractHashtags, mergeTags, normalizeTag } from '@core/lib/tags';
 import { DecimalInput } from '@/components/ui/decimal-input';
+import { TimeInput } from '@/components/ui/time-input';
+import { normalizeTimeInput } from '@core/lib/time';
 import { useStore } from '@core/store';
 
 const DEFAULT_RX_PHASE: RxPhase = {
@@ -297,8 +299,8 @@ export function AddTaskForm({
         urgency,
         importance,
         color,
-        startTime: startTime || null,
-        endTime: endTime || null,
+        startTime: normalizeTimeInput(startTime),
+        endTime: normalizeTimeInput(endTime),
         tags,
       });
       resetForm();
@@ -514,11 +516,11 @@ export function AddTaskForm({
                 <div className="flex flex-wrap items-center gap-1.5">
                   {phase.times.map((tm, ti) => (
                     <div key={ti} className="flex items-center gap-0.5">
-                      <input
-                        type="time"
+                      <TimeInput
                         value={tm}
-                        onChange={e => setPhaseTime(pi, ti, e.target.value)}
-                        className="rounded border border-border bg-background px-1.5 py-1 text-xs text-text-primary"
+                        onChange={v => setPhaseTime(pi, ti, v || '08:00')}
+                        showNow={false}
+                        clearLabel={t('action_delete')}
                       />
                       {phase.times.length > 1 && (
                         <button
@@ -744,24 +746,24 @@ export function AddTaskForm({
 
       {/* Schedule times — no aplica a recetario (horarios van en fases) */}
       <div className={cn('flex flex-wrap items-end gap-2', isModal && 'gap-3', isRx && 'hidden')}>
-        <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+        <label className="flex min-w-0 flex-col gap-0.5 text-[10px] text-text-muted">
           <span>{t('task_start_time')}</span>
-          <input
-            type="time"
+          <TimeInput
             value={startTime}
-            onChange={e => setStartTime(e.target.value)}
-            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            onChange={setStartTime}
+            nowLabel={t('time_now')}
+            clearLabel={t('task_clear_time')}
             aria-label={t('task_start_time')}
           />
         </label>
-        <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+        <label className="flex min-w-0 flex-col gap-0.5 text-[10px] text-text-muted">
           <span>{t('task_end_time')}</span>
-          <input
-            type="time"
+          <TimeInput
             value={endTime}
-            min={startTime || undefined}
-            onChange={e => setEndTime(e.target.value)}
-            className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            onChange={setEndTime}
+            minTime={startTime || undefined}
+            nowLabel={t('time_now')}
+            clearLabel={t('task_clear_time')}
             aria-label={t('task_end_time')}
           />
         </label>

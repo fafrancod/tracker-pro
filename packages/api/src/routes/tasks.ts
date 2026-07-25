@@ -48,19 +48,44 @@ const colorSchema = z
   .nullable()
   .optional();
 
-/** Local time HH:mm (24h). */
-const timeSchema = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'hora formato HH:mm')
-  .nullable()
-  .optional();
+/**
+ * Local time HH:mm (24h).
+ * Acepta y normaliza: "9:30", "09:30", "09:30:00", "" → null.
+ */
+function normalizeTimeValue(raw: unknown): string | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  if (typeof raw !== 'string') return raw as string;
+  const s = raw.trim();
+  if (!s) return null;
+  // HH:mm:ss
+  let t = s;
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(t)) t = t.slice(0, t.lastIndexOf(':'));
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+  if (!m) return s; // dejar fallar al regex
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return s;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+const timeSchema = z.preprocess(
+  normalizeTimeValue,
+  z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'hora formato HH:mm')
+    .nullable()
+    .optional()
+);
+
+const hhmmSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'hora formato HH:mm');
 
 const rxPhaseSchema = z.object({
   amount: z.number().positive().max(10000),
   unit: z.enum(['pills', 'ml']),
   days: z.number().int().min(1).max(365),
   times: z
-    .array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/))
+    .array(z.preprocess(normalizeTimeValue, hhmmSchema))
     .min(1)
     .max(12),
 });

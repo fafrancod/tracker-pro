@@ -15,12 +15,12 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import {
-  SideSheet,
-  SideSheetContent,
-  SideSheetDescription,
-  SideSheetHeader,
-  SideSheetTitle,
-} from '@/components/ui/side-sheet';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +33,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
 import { isRxKind, rxPlanEndDayId, totalRxPlanDays, validateRxPhases } from '@core/lib/rx';
 import { extractHashtags, mergeTags } from '@core/lib/tags';
+import { normalizeTimeInput } from '@core/lib/time';
 import { DecimalInput } from '@/components/ui/decimal-input';
+import { TimeInput } from '@/components/ui/time-input';
 import type {
   DoseUnit,
   Importance,
@@ -164,24 +166,31 @@ export function TaskDetailSheet() {
   const open = detail !== null;
 
   return (
-    <SideSheet open={open} onOpenChange={o => !o && setDetailTask(null)}>
-      <SideSheetContent>
-        {detail && (
-          <TaskDetailInner
-            weekId={detail.weekId}
-            dayId={detail.dayId}
-            taskId={detail.taskId}
-            locale={locale}
-            shortDateFormat={shortDateFormat}
-            weekdayFormat={weekdayFormat}
-            projects={projects}
-            onClose={() => setDetailTask(null)}
-            t={t}
-            showToast={showToast}
-          />
+    <Dialog open={open} onOpenChange={o => !o && setDetailTask(null)}>
+      <DialogContent
+        className={cn(
+          'flex max-h-[92vh] w-[min(96vw,52rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl',
+          'left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]'
         )}
-      </SideSheetContent>
-    </SideSheet>
+      >
+        {detail && (
+          <div className="flex max-h-[92vh] flex-col overflow-hidden px-5 py-4 sm:px-6 sm:py-5">
+            <TaskDetailInner
+              weekId={detail.weekId}
+              dayId={detail.dayId}
+              taskId={detail.taskId}
+              locale={locale}
+              shortDateFormat={shortDateFormat}
+              weekdayFormat={weekdayFormat}
+              projects={projects}
+              onClose={() => setDetailTask(null)}
+              t={t}
+              showToast={showToast}
+            />
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -355,8 +364,8 @@ function TaskDetailInner({
           importance: 'important',
           color: draft.color,
           projectId: null,
-          startTime: planDirty ? undefined : draft.startTime || null,
-          endTime: planDirty ? undefined : draft.endTime || null,
+          startTime: planDirty ? undefined : normalizeTimeInput(draft.startTime),
+          endTime: planDirty ? undefined : normalizeTimeInput(draft.endTime),
           rxAmount: draft.rxAmount,
           rxUnit: draft.rxUnit,
           rxSubject: subject,
@@ -385,6 +394,12 @@ function TaskDetailInner({
         }
       } else {
         const tags = mergeTags(draft.tags, extractHashtags(title));
+        const startN = normalizeTimeInput(draft.startTime);
+        const endN = normalizeTimeInput(draft.endTime);
+        if (startN && endN && endN < startN) {
+          showToast(t('task_time_range_error'), 'error');
+          return;
+        }
         await editTask(task.id, {
           title,
           notes: draft.notes,
@@ -396,8 +411,8 @@ function TaskDetailInner({
           color: draft.color,
           projectId: draft.projectId,
           endDayId: draft.endDayId,
-          startTime: draft.startTime || null,
-          endTime: draft.endTime || null,
+          startTime: startN,
+          endTime: endN,
           applyTo: isSeries ? applyTo : 'instance',
         });
         showToast(
@@ -479,32 +494,34 @@ function TaskDetailInner({
 
   return (
     <>
-      <SideSheetHeader>
-        <SideSheetTitle>{t('task_detail_title')}</SideSheetTitle>
-        <SideSheetDescription>
-          {project ? (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: project.color }} />
-              {project.icon} {project.name}
-            </span>
-          ) : (
-            t('task_no_project')
-          )}
-          {' · '}
-          {format(parseISO(`${dayId}T00:00:00`), `EEEE, ${shortDateFormat}`, { locale })}
-          {task.endDayId && task.endDayId > dayId && (
-            <>
-              {' – '}
-              {format(parseISO(`${task.endDayId}T00:00:00`), shortDateFormat, { locale })}
-            </>
-          )}
-          {isSeries && (
-            <span className="ml-1 text-accent-teal"> · {t('task_part_of_series')}</span>
-          )}
-        </SideSheetDescription>
-      </SideSheetHeader>
+      <DialogHeader className="shrink-0 pr-8 text-left">
+        <DialogTitle>{t('task_detail_title')}</DialogTitle>
+        <DialogDescription asChild>
+          <div>
+            {project ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: project.color }} />
+                {project.icon} {project.name}
+              </span>
+            ) : (
+              t('task_no_project')
+            )}
+            {' · '}
+            {format(parseISO(`${dayId}T00:00:00`), `EEEE, ${shortDateFormat}`, { locale })}
+            {task.endDayId && task.endDayId > dayId && (
+              <>
+                {' – '}
+                {format(parseISO(`${task.endDayId}T00:00:00`), shortDateFormat, { locale })}
+              </>
+            )}
+            {isSeries && (
+              <span className="ml-1 text-accent-teal"> · {t('task_part_of_series')}</span>
+            )}
+          </div>
+        </DialogDescription>
+      </DialogHeader>
 
-      <div className="-mx-2 flex-1 overflow-y-auto px-2">
+      <div className="min-h-0 flex-1 overflow-y-auto py-3 pr-1">
         {/* Title + completed (completed is immediate / instance-only) */}
         <div className="mb-4 flex items-start gap-3">
           <button
@@ -598,12 +615,12 @@ function TaskDetailInner({
                 </label>
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                   <span>{t('task_start_time')}</span>
-                  <input
-                    type="time"
+                  <TimeInput
                     value={draft.startTime}
-                    onChange={e => patchDraft({ startTime: e.target.value })}
+                    onChange={v => patchDraft({ startTime: v })}
                     disabled={planDirty}
-                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary disabled:opacity-50"
+                    nowLabel={t('time_now')}
+                    clearLabel={t('task_clear_time')}
                   />
                 </label>
               </div>
@@ -696,11 +713,11 @@ function TaskDetailInner({
                       <div className="flex flex-wrap items-center gap-1.5">
                         {phase.times.map((tm, ti) => (
                           <div key={ti} className="flex items-center gap-0.5">
-                            <input
-                              type="time"
+                            <TimeInput
                               value={tm}
-                              onChange={e => setPhaseTime(pi, ti, e.target.value)}
-                              className="rounded border border-border bg-surface px-1.5 py-1 text-xs text-text-primary"
+                              onChange={v => setPhaseTime(pi, ti, v || '08:00')}
+                              showNow={false}
+                              clearLabel={t('action_delete')}
                             />
                             {phase.times.length > 1 && (
                               <button
@@ -771,30 +788,30 @@ function TaskDetailInner({
             </Field>
 
             <Field label={t('task_schedule')}>
-              <div className="flex flex-wrap items-end gap-2">
+              <div className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                   <span>{t('task_start_time')}</span>
-                  <input
-                    type="time"
+                  <TimeInput
                     value={draft.startTime}
-                    onChange={e => patchDraft({ startTime: e.target.value })}
-                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                    onChange={v => patchDraft({ startTime: v })}
+                    nowLabel={t('time_now')}
+                    clearLabel={t('task_clear_time')}
                   />
                 </label>
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                   <span>{t('task_end_time')}</span>
-                  <input
-                    type="time"
+                  <TimeInput
                     value={draft.endTime}
-                    min={draft.startTime || undefined}
-                    onChange={e => patchDraft({ endTime: e.target.value })}
-                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                    onChange={v => patchDraft({ endTime: v })}
+                    minTime={draft.startTime || undefined}
+                    nowLabel={t('time_now')}
+                    clearLabel={t('task_clear_time')}
                   />
                 </label>
                 {(draft.startTime || draft.endTime) && (
                   <button
                     type="button"
-                    className="text-[10px] text-text-muted hover:text-text-primary"
+                    className="mb-1 text-[10px] text-text-muted hover:text-text-primary"
                     onClick={() => patchDraft({ startTime: '', endTime: '' })}
                   >
                     {t('task_clear_time')}
@@ -982,7 +999,7 @@ function TaskDetailInner({
           <textarea
             value={draft.notes}
             onChange={e => patchDraft({ notes: e.target.value })}
-            rows={8}
+            rows={5}
             placeholder={t('task_notes_placeholder')}
             className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
           />
@@ -1033,7 +1050,7 @@ function TaskDetailInner({
 
       {/* Save scope — before secondary actions */}
       {dirty && (
-        <div className="mt-2 space-y-2 border-t border-border pt-3">
+        <div className="mt-2 shrink-0 space-y-2 border-t border-border pt-3">
           {isRx && planDirty ? (
             <>
               <p className="text-[11px] text-text-muted">{t('rx_apply_plan_hint')}</p>
