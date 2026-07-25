@@ -21,6 +21,7 @@ export interface TranslationDict {
   nav_memento: string;
   nav_life_goals: string;
   nav_reflections: string;
+  nav_recetario: string;
 
   // Memento mori
   memento_title: string;
@@ -564,6 +565,47 @@ export interface TranslationDict {
   dashboard_no_doses_today: string;
   dashboard_dose_pending: string;
   dashboard_dose_done: string;
+  dashboard_rx_title: string;
+  dashboard_rx_subtitle: string;
+  dashboard_open_recetario: string;
+  dashboard_doses_badge: string;
+
+  recetario_title: string;
+  recetario_subtitle: string;
+  recetario_kpi_subjects: string;
+  recetario_kpi_treatments: string;
+  recetario_kpi_today: string;
+  recetario_kpi_status: string;
+  recetario_kpi_ready: string;
+  recetario_filter_all: string;
+  recetario_filter_people: string;
+  recetario_filter_pets: string;
+  recetario_empty: string;
+  recetario_loading: string;
+  recetario_new: string;
+  recetario_new_hint: string;
+  rx_load_error: string;
+  rx_toggle_error: string;
+  rx_today_doses: string;
+  rx_no_doses_today_subject: string;
+  rx_treatments_title: string;
+  rx_treatment_one: string;
+  rx_treatment_many: string;
+  rx_treatment_finished: string;
+  rx_progress_pct: string;
+  rx_progress_phases: string;
+  rx_progress_no_phases: string;
+  rx_progress_days_left: string;
+  rx_progress_doses: string;
+  rx_progress_remaining: string;
+  rx_progress_left_short: string;
+  rx_phase_status_active: string;
+  rx_phase_status_upcoming: string;
+  rx_phase_status_done: string;
+  rx_times_per_day: string;
+  rx_phase_days_count: string;
+  rx_subject_unnamed_person: string;
+  rx_subject_unnamed_pet: string;
 
   // Generales
   empty_no_tasks: string;
@@ -649,6 +691,7 @@ const es_dict: TranslationDict = {
   nav_memento: 'Memento mori',
   nav_life_goals: 'Metas de vida',
   nav_reflections: 'Reflexiones',
+  nav_recetario: 'Recetario',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Cada cuadrado es una semana de tu vida. Vive con intención.',
@@ -1234,6 +1277,49 @@ const es_dict: TranslationDict = {
   dashboard_no_doses_today: 'No hay tomas de recetario para hoy.',
   dashboard_dose_pending: 'Marcar toma como hecha',
   dashboard_dose_done: 'Desmarcar toma',
+  dashboard_rx_title: 'Recetario',
+  dashboard_rx_subtitle:
+    'Por persona o mascota: tomas de hoy, % de avance, días que quedan en cada fase y tomas hechas/pendientes.',
+  dashboard_open_recetario: 'Ver recetario',
+  dashboard_doses_badge: '{pending}/{total} tomas hoy',
+
+  recetario_title: 'Recetario',
+  recetario_subtitle:
+    'Tratamientos y tomas por persona o mascota. Marca las tomas del día y revisa el avance de cada fase.',
+  recetario_kpi_subjects: 'Sujetos',
+  recetario_kpi_treatments: 'Tratamientos activos',
+  recetario_kpi_today: 'Tomas hoy',
+  recetario_kpi_status: 'Estado',
+  recetario_kpi_ready: 'Listo',
+  recetario_filter_all: 'Todos',
+  recetario_filter_people: 'Personas',
+  recetario_filter_pets: 'Mascotas',
+  recetario_empty: 'Aún no hay recetarios. Pulsa + para crear el primero.',
+  recetario_loading: 'Cargando tratamientos…',
+  recetario_new: 'Nuevo recetario',
+  recetario_new_hint: 'Define el remedio, la persona o mascota y las fases del plan.',
+  rx_load_error: 'No se pudieron cargar los recetarios.',
+  rx_toggle_error: 'No se pudo actualizar la toma.',
+  rx_today_doses: 'Tomas de hoy',
+  rx_no_doses_today_subject: 'Sin tomas programadas para hoy.',
+  rx_treatments_title: 'Tratamientos',
+  rx_treatment_one: 'tratamiento',
+  rx_treatment_many: 'tratamientos',
+  rx_treatment_finished: 'Finalizado',
+  rx_progress_pct: '{pct}% · {done}/{total} tomas · quedan {left}',
+  rx_progress_phases: 'Fases del plan',
+  rx_progress_no_phases: 'Sin detalle de fases en este plan.',
+  rx_progress_days_left: 'Días restantes',
+  rx_progress_doses: 'Tomas',
+  rx_progress_remaining: 'Quedan',
+  rx_progress_left_short: 'quedan',
+  rx_phase_status_active: 'En curso',
+  rx_phase_status_upcoming: 'Próxima',
+  rx_phase_status_done: 'Hecha',
+  rx_times_per_day: '{n}×/día',
+  rx_phase_days_count: '{n} días',
+  rx_subject_unnamed_person: 'Persona (sin nombre)',
+  rx_subject_unnamed_pet: 'Mascota (sin nombre)',
 
   empty_no_tasks: 'Aún no hay tareas.',
   empty_no_events: 'Aún no hay eventos.',
@@ -1323,6 +1409,7 @@ const en_dict: TranslationDict = {
   nav_memento: 'Memento mori',
   nav_life_goals: 'Life goals',
   nav_reflections: 'Reflections',
+  nav_recetario: 'Prescriptions',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Each square is one week of your life. Live with intention.',
@@ -1908,6 +1995,49 @@ const en_dict: TranslationDict = {
   dashboard_no_doses_today: 'No prescription doses for today.',
   dashboard_dose_pending: 'Mark dose as taken',
   dashboard_dose_done: 'Unmark dose',
+  dashboard_rx_title: 'Prescriptions',
+  dashboard_rx_subtitle:
+    'By person or pet: today’s doses, progress %, days left per phase, and doses taken/remaining.',
+  dashboard_open_recetario: 'Open prescriptions',
+  dashboard_doses_badge: '{pending}/{total} doses today',
+
+  recetario_title: 'Prescriptions',
+  recetario_subtitle:
+    'Treatments and doses by person or pet. Check off today’s doses and review phase progress.',
+  recetario_kpi_subjects: 'Subjects',
+  recetario_kpi_treatments: 'Active treatments',
+  recetario_kpi_today: 'Doses today',
+  recetario_kpi_status: 'Status',
+  recetario_kpi_ready: 'Ready',
+  recetario_filter_all: 'All',
+  recetario_filter_people: 'People',
+  recetario_filter_pets: 'Pets',
+  recetario_empty: 'No prescriptions yet. Tap + to create the first one.',
+  recetario_loading: 'Loading treatments…',
+  recetario_new: 'New prescription',
+  recetario_new_hint: 'Set the medicine, person or pet, and plan phases.',
+  rx_load_error: 'Could not load prescriptions.',
+  rx_toggle_error: 'Could not update the dose.',
+  rx_today_doses: 'Today’s doses',
+  rx_no_doses_today_subject: 'No doses scheduled for today.',
+  rx_treatments_title: 'Treatments',
+  rx_treatment_one: 'treatment',
+  rx_treatment_many: 'treatments',
+  rx_treatment_finished: 'Finished',
+  rx_progress_pct: '{pct}% · {done}/{total} doses · {left} left',
+  rx_progress_phases: 'Plan phases',
+  rx_progress_no_phases: 'No phase detail on this plan.',
+  rx_progress_days_left: 'Days left',
+  rx_progress_doses: 'Doses',
+  rx_progress_remaining: 'Remaining',
+  rx_progress_left_short: 'left',
+  rx_phase_status_active: 'Active',
+  rx_phase_status_upcoming: 'Upcoming',
+  rx_phase_status_done: 'Done',
+  rx_times_per_day: '{n}×/day',
+  rx_phase_days_count: '{n} days',
+  rx_subject_unnamed_person: 'Person (unnamed)',
+  rx_subject_unnamed_pet: 'Pet (unnamed)',
 
   empty_no_tasks: 'No tasks yet.',
   empty_no_events: 'No events yet.',

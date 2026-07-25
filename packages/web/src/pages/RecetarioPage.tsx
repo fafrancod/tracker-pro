@@ -1,0 +1,202 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pill, PawPrint, User, Users } from 'lucide-react';
+import { Layout } from '@/components/Layout';
+import {
+  MobileSheet,
+  MobileSheetContent,
+  MobileSheetDescription,
+  MobileSheetHeader,
+  MobileSheetTitle,
+} from '@/components/ui/mobile-sheet';
+import { AddTaskForm } from '@/components/Board';
+import { RxTreatmentsPanel } from '@/components/Recetario/RxTreatmentsPanel';
+import { useProjects } from '@core/hooks/useProjects';
+import { useTasks } from '@core/hooks/useTasks';
+import { useStore } from '@core/store';
+import {
+  collectRxTasksFromStore,
+  buildRxSubjectGroups,
+  isRxKind,
+} from '@core/lib/rx';
+import {
+  fetchAllTasks,
+  getDayId,
+  getWeekId,
+  mergeLocatedRowsIntoStore,
+} from '@core/services/taskService';
+import { isDemoMode } from '@core/lib/demoMode';
+import { useT } from '@/hooks/useT';
+import { useToast } from '@/contexts/ToastContext';
+import { cn } from '@/lib/utils';
+import type { Task } from '@core/types';
+
+type SubjectFilter = 'all' | 'human' | 'pet';
+
+export function RecetarioPage() {
+  const { t } = useT();
+  const { showToast } = useToast();
+  const { projects } = useProjects();
+  const uid = useStore(s => s.uid);
+  const tasksByDay = useStore(s => s.tasksByDay);
+  const today = useMemo(() => new Date(), []);
+  const todayId = getDayId(today);
+  const weekId = getWeekId(today);
+  const { addTask, editTask } = useTasks(weekId, todayId);
+
+  const [filter, setFilter] = useState<SubjectFilter>('all');
+  const [remoteRx, setRemoteRx] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
+
+  const loadAllRx = useCallback(async () => {
+    if (!uid || isDemoMode()) {
+      setRemoteRx([]);
+      return;
+    }
+    setLoading(true);
+    try {
+      const rows = await fetchAllTasks(uid);
+      const rxRows = rows.filter(r => isRxKind(r.kind));
+      mergeLocatedRowsIntoStore(rxRows);
+      setRemoteRx(
+        rxRows.map(r => {
+          const { weekId: _w, dayId, ...task } = r;
+          return { ...(task as Task), dayId };
+        })
+      );
+    } catch (err) {
+      console.error('[recetario] load failed', err);
+      showToast(t('rx_load_error'), 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [uid, showToast, t]);
+
+  useEffect(() => {
+    void loadAllRx();
+  }, [loadAllRx]);
+
+  const storeRx = useMemo(() => collectRxTasksFromStore(tasksByDay), [tasksByDay]);
+
+  const allRx = useMemo(() => {
+    const byId = new Map<string, Task>();
+    for (const t of remoteRx) byId.set(t.id, t);
+    for (const t of storeRx) byId.set(t.id, t);
+    return [...byId.values()];
+  }, [remoteRx, storeRx]);
+
+  const groups = useMemo(() => {
+    const all = buildRxSubjectGroups(allRx, todayId, { includeFinished: true });
+    if (filter === 'human') return all.filter(g => g.kind === 'rx_human' || g.kind === 'mixed');
+    if (filter === 'pet') return all.filter(g => g.kind === 'rx_pet' || g.kind === 'mixed');
+    return all;
+  }, [allRx, todayId, filter]);
+
+  const totals = useMemo(() => {
+    const activeTreatments = groups.reduce(
+      (s, g) => s + g.treatments.filter(tr => tr.isActive).length,
+      0
+    );
+    const todayPending = groups.reduce(
+      (s, g) => s + g.todayDoses.filter(d => !d.completed).length,
+      0
+    );
+    const todayTotal = groups.reduce((s, g) => s + g.todayDoses.length, 0);
+    return { activeTreatments, todayPending, todayTotal, subjects: groups.length };
+  }, [groups]);
+
+  return (
+    <Layout title={t('nav_recetario')} showFab onFabClick={() => setFabOpen(true)}>
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-3xl space-y-5">
+          <header className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Pill className="h-5 w-5 text-accent-pink" />
+              <h1 className="text-lg font-semibold text-text-primary">{t('recetario_title')}</h1>
+            </div>
+            <p className="text-sm text-text-muted">{t('recetario_subtitle')}</p>
+          </header>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <MiniKpi label={t('recetario_kpi_subjects')} value={totals.subjects} />
+            <MiniKpi label={t('recetario_kpi_treatments')} value={totals.activeTreatments} />
+            <MiniKpi
+              label={t('recetario_kpi_today')}
+              value={`${totals.todayPending}/${totals.todayTotal}`}
+            />
+            <MiniKpi
+              label={t('recetario_kpi_status')}
+              value={loading ? '…' : t('recetario_kpi_ready')}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 rounded-xl border border-border bg-surface p-1">
+            {(
+              [
+                { id: 'all' as const, icon: Users, label: t('recetario_filter_all') },
+                { id: 'human' as const, icon: User, label: t('recetario_filter_people') },
+                { id: 'pet' as const, icon: PawPrint, label: t('recetario_filter_pets') },
+              ] as const
+            ).map(item => {
+              const Icon = item.icon;
+              const active = filter === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setFilter(item.id)}
+                  className={cn(
+                    'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-colors',
+                    active
+                      ? 'bg-accent-pink text-white shadow-sm'
+                      : 'text-text-muted hover:bg-background hover:text-text-primary'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <RxTreatmentsPanel
+            groups={groups}
+            onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
+            emptyLabel={loading ? t('recetario_loading') : t('recetario_empty')}
+          />
+        </div>
+      </div>
+
+      <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
+        <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">
+          <MobileSheetHeader className="pr-8">
+            <MobileSheetTitle className="text-lg">{t('recetario_new')}</MobileSheetTitle>
+            <MobileSheetDescription>{t('recetario_new_hint')}</MobileSheetDescription>
+          </MobileSheetHeader>
+          <AddTaskForm
+            projects={projects}
+            startOpen
+            variant="modal"
+            startDayId={todayId}
+            initialKind="rx_human"
+            onCancel={() => setFabOpen(false)}
+            onAdd={async payload => {
+              setFabOpen(false);
+              await addTask(payload);
+              await loadAllRx();
+            }}
+          />
+        </MobileSheetContent>
+      </MobileSheet>
+    </Layout>
+  );
+}
+
+function MiniKpi({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-text-muted">{label}</p>
+      <p className="mt-0.5 text-lg font-semibold tabular-nums text-text-primary">{value}</p>
+    </div>
+  );
+}

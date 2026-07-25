@@ -14,6 +14,7 @@ import {
   Hourglass,
   Sparkles,
   BookHeart,
+  Pill,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
   { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass, skipMainList: true },
   { to: '/reflections', labelKey: 'nav_reflections', icon: BookHeart },
+  { to: '/recetario', labelKey: 'nav_recetario', icon: Pill },
   { to: '/projects', labelKey: 'nav_projects', icon: FolderKanban },
   { to: '/circle', labelKey: 'nav_circle', icon: Users },
   { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart3 },

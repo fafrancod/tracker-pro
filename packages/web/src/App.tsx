@@ -21,6 +21,7 @@ import { ActivityPage } from '@/pages/ActivityPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { MementoMoriPage } from '@/pages/MementoMoriPage';
 import { ReflectionsPage } from '@/pages/ReflectionsPage';
+import { RecetarioPage } from '@/pages/RecetarioPage';
 import { LoginPage } from '@/pages/Login';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
@@ -141,6 +142,14 @@ function App() {
                         element={
                           <RouteErrorBoundary>
                             <ReflectionsPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="recetario"
+                        element={
+                          <RouteErrorBoundary>
+                            <RecetarioPage />
                           </RouteErrorBoundary>
                         }
                       />

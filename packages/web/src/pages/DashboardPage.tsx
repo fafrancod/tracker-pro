@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { format, startOfISOWeek, addDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -14,17 +14,24 @@ import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/Board';
+import { RxTreatmentsPanel } from '@/components/Recetario/RxTreatmentsPanel';
 import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
 import {
   ensureTasksRangeLoaded,
+  fetchAllTasks,
   getDayId,
   getWeekId,
+  mergeLocatedRowsIntoStore,
 } from '@core/services/taskService';
 import { collectTasksCovering } from '@core/lib/taskPresence';
 import { isDemoMode } from '@core/lib/demoMode';
-import { formatDose, isRxKind } from '@core/lib/rx';
+import {
+  buildRxSubjectGroups,
+  collectRxTasksFromStore,
+  isRxKind,
+} from '@core/lib/rx';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { WellbeingAnalyticsPanel } from '@/components/Dashboard/WellbeingAnalyticsPanel';
@@ -40,6 +47,7 @@ export function DashboardPage() {
   const { projects } = useProjects();
   const uid = useStore(s => s.uid);
   const tasksByDay = useStore(s => s.tasksByDay);
+  const [remoteRx, setRemoteRx] = useState<Task[]>([]);
 
   // Siempre la semana ISO de HOY (no la del tablero, que puede estar en otro mes).
   const today = useMemo(() => new Date(), []);
@@ -69,6 +77,31 @@ export function DashboardPage() {
       /* el resto de la UI sigue con lo que haya en store */
     });
   }, [uid, weekFrom, weekTo]);
+
+  // Carga recetarios completos para % de avance (planes multi-día).
+  const loadRx = useCallback(async () => {
+    if (!uid || isDemoMode()) {
+      setRemoteRx([]);
+      return;
+    }
+    try {
+      const rows = await fetchAllTasks(uid);
+      const rxRows = rows.filter(r => isRxKind(r.kind));
+      mergeLocatedRowsIntoStore(rxRows);
+      setRemoteRx(
+        rxRows.map(r => {
+          const { weekId: _w, dayId, ...task } = r;
+          return { ...(task as Task), dayId };
+        })
+      );
+    } catch {
+      /* UI usa lo que haya en store */
+    }
+  }, [uid]);
+
+  useEffect(() => {
+    void loadRx();
+  }, [loadRx]);
 
   // Suscripción al día de hoy (toggles en vivo).
   const {
@@ -138,6 +171,17 @@ export function DashboardPage() {
 
   const pendingDoses = todayDoses.filter(t => !t.completed).length;
 
+  const rxGroups = useMemo(() => {
+    const storeRx = collectRxTasksFromStore(tasksByDay);
+    const byId = new Map<string, Task>();
+    for (const t of remoteRx) byId.set(t.id, t);
+    for (const t of storeRx) byId.set(t.id, t);
+    // En resumen: solo sujetos con tratamientos activos o tomas de hoy.
+    return buildRxSubjectGroups([...byId.values()], todayId, {
+      includeFinished: false,
+    }).filter(g => g.todayDoses.length > 0 || g.treatments.some(tr => tr.isActive));
+  }, [remoteRx, tasksByDay, todayId]);
+
   return (
     <Layout title={t('dashboard_title')} showFab={false}>
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -172,37 +216,46 @@ export function DashboardPage() {
 
           <WellbeingAnalyticsPanel />
 
-          {/* Próximas tomas del día (recetario) */}
+          {/* Recetario: tomas de hoy + avance de tratamientos por persona/mascota */}
           <section className="rounded-lg border border-border bg-surface p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Pill className="h-4 w-4 text-accent-pink" />
                 <h2 className="text-sm font-semibold text-text-primary">
-                  {t('dashboard_doses_today')}
+                  {t('dashboard_rx_title')}
                 </h2>
                 {todayDoses.length > 0 && (
                   <Badge variant="secondary" className="text-[10px]">
-                    {pendingDoses}/{todayDoses.length}
+                    {t('dashboard_doses_badge')
+                      .replace('{pending}', String(pendingDoses))
+                      .replace('{total}', String(todayDoses.length))}
                   </Badge>
                 )}
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1 text-[11px]"
+                onClick={() => navigate('/recetario')}
+              >
+                {t('dashboard_open_recetario')}
+                <ArrowRight className="h-3 w-3" />
+              </Button>
             </div>
+            <p className="mb-3 text-[11px] text-text-muted">{t('dashboard_rx_subtitle')}</p>
 
-            {todayDoses.length === 0 ? (
+            {rxGroups.length === 0 ? (
               <div className="rounded border border-dashed border-border p-4 text-center text-xs text-text-muted">
                 {t('dashboard_no_doses_today')}
               </div>
             ) : (
-              <ul className="space-y-1.5">
-                {todayDoses.map(task => (
-                  <DoseRow
-                    key={task.id}
-                    task={task}
-                    onToggle={() => editTask(task.id, { completed: !task.completed })}
-                    t={t}
-                  />
-                ))}
-              </ul>
+              <RxTreatmentsPanel
+                groups={rxGroups}
+                onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
+                emptyLabel={t('dashboard_no_doses_today')}
+                compact
+              />
             )}
           </section>
 
@@ -366,73 +419,4 @@ function TaskRow({
   );
 }
 
-function DoseRow({
-  task,
-  onToggle,
-  t,
-}: {
-  task: Task;
-  onToggle: () => void;
-  t: (key: Parameters<ReturnType<typeof useT>['t']>[0]) => string;
-}) {
-  const doseLabel =
-    task.rx != null ? formatDose(task.rx.amount, task.rx.unit) : null;
-  const subject = task.rx?.subject?.trim() || null;
 
-  return (
-    <li
-      className={cn(
-        'flex items-center gap-2.5 rounded-md border px-2.5 py-2',
-        task.completed
-          ? 'border-border bg-background/60 opacity-70'
-          : 'border-border bg-background'
-      )}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        className={cn(
-          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors',
-          task.completed
-            ? 'border-accent-green bg-accent-green/20 text-accent-green'
-            : 'border-border hover:border-accent-green'
-        )}
-        aria-label={
-          task.completed ? t('dashboard_dose_done') : t('dashboard_dose_pending')
-        }
-      >
-        {task.completed && <CheckCircle2 className="h-3 w-3" />}
-      </button>
-
-      <span
-        className={cn(
-          'w-12 shrink-0 text-center text-sm font-semibold tabular-nums',
-          task.completed ? 'text-text-muted' : 'text-accent-teal'
-        )}
-      >
-        {task.startTime ?? '—'}
-      </span>
-
-      <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            'truncate text-sm font-medium',
-            task.completed ? 'text-text-muted line-through' : 'text-text-primary'
-          )}
-        >
-          {task.title}
-        </p>
-        <p className="truncate text-[11px] text-text-muted">
-          {[doseLabel, subject].filter(Boolean).join(' · ') ||
-            (task.kind === 'rx_pet' ? t('task_kind_rx_pet') : t('task_kind_rx_human'))}
-        </p>
-      </div>
-
-      {doseLabel && (
-        <Badge variant="secondary" className="shrink-0 text-[10px]">
-          {doseLabel}
-        </Badge>
-      )}
-    </li>
-  );
-}
