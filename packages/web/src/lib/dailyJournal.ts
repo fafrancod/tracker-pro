@@ -361,6 +361,12 @@ export interface WeekWellbeingSummary {
   daysWithMood: number;
   daysWithEnergy: number;
   daysWithSleep: number;
+  /** Días con al menos un tono de energía registrado. */
+  daysWithFeel: number;
+  /** Tono más frecuente del periodo (por muestras horarias; empate → el más reciente). */
+  dominantFeel: EnergyFeel | null;
+  /** Conteo de muestras horarias por tono en el periodo. */
+  feelCounts: Record<EnergyFeel, number>;
   moodTrend: 'up' | 'down' | 'flat' | 'unknown';
   energyTrend: 'up' | 'down' | 'flat' | 'unknown';
 }
@@ -428,6 +434,28 @@ export function computeWeekWellbeing(
   const energyVals = days.map(d => d.avgEnergy).filter((n): n is number => n !== null);
   const sleepVals = days.map(d => d.sleepHours).filter((n): n is number => n !== null);
 
+  const feelCounts: Record<EnergyFeel, number> = { tense: 0, relaxed: 0, vigorous: 0 };
+  let lastFeel: EnergyFeel | null = null;
+  for (const dayId of dayIds) {
+    const entry = getJournalEntry(journal, dayId);
+    for (const row of entry.energies ?? []) {
+      if (!isEnergyFeel(row.feel)) continue;
+      feelCounts[row.feel] += 1;
+      lastFeel = row.feel;
+    }
+  }
+  let dominantFeel: EnergyFeel | null = null;
+  let bestFeelN = 0;
+  for (const f of ENERGY_FEELS) {
+    const n = feelCounts[f];
+    if (n === 0) continue;
+    // Empate: gana el tono más reciente (lastFeel).
+    if (n > bestFeelN || (n === bestFeelN && f === lastFeel)) {
+      bestFeelN = n;
+      dominantFeel = f;
+    }
+  }
+
   return {
     days,
     avgMood: mean(moodVals),
@@ -436,6 +464,9 @@ export function computeWeekWellbeing(
     daysWithMood: moodVals.length,
     daysWithEnergy: energyVals.length,
     daysWithSleep: sleepVals.length,
+    daysWithFeel: days.filter(d => d.dominantFeel !== null).length,
+    dominantFeel,
+    feelCounts,
     moodTrend: trendOf(moodVals),
     energyTrend: trendOf(energyVals),
   };

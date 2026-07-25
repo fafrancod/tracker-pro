@@ -1,10 +1,12 @@
 import { useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Battery, Moon, Sparkles, ArrowRight } from 'lucide-react';
+import { Activity, Battery, Moon, Sparkles, ArrowRight, Wind } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
 import {
   ENERGY_COLORS,
+  ENERGY_FEELS,
+  ENERGY_FEEL_COLORS,
   MOOD_COLORS,
   computeWeekWellbeing,
   formatDayId,
@@ -13,7 +15,20 @@ import {
 } from '@/lib/dailyJournal';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { MoodLevel } from '@core/types';
+import type { EnergyFeel, MoodLevel } from '@core/types';
+import type { TKey } from '@/lib/i18n';
+
+const FEEL_LABEL_KEYS: Record<EnergyFeel, TKey> = {
+  tense: 'energy_feel_tense',
+  relaxed: 'energy_feel_relaxed',
+  vigorous: 'energy_feel_vigorous',
+};
+
+const FEEL_EMOJI: Record<EnergyFeel, string> = {
+  tense: '😣',
+  relaxed: '🌿',
+  vigorous: '💪',
+};
 
 function toneClasses(tone: EncouragementTone): string {
   switch (tone) {
@@ -64,7 +79,7 @@ function BarRow({
 }
 
 /**
- * Panel de analytics de bienestar en Resumen: ánimo, energía, sueño + mensajes.
+ * Panel de analytics de bienestar en Resumen: ánimo, energía, tono, sueño + mensajes.
  */
 export function WellbeingAnalyticsPanel() {
   const { settings } = useSettings();
@@ -80,7 +95,12 @@ export function WellbeingAnalyticsPanel() {
   const messages = useMemo(() => pickEncouragementMessages(summary), [summary]);
 
   const hasData =
-    summary.daysWithMood > 0 || summary.daysWithEnergy > 0 || summary.daysWithSleep > 0;
+    summary.daysWithMood > 0 ||
+    summary.daysWithEnergy > 0 ||
+    summary.daysWithSleep > 0 ||
+    summary.daysWithFeel > 0;
+
+  const totalFeelSamples = ENERGY_FEELS.reduce((a, f) => a + summary.feelCounts[f], 0);
 
   return (
     <section className="rounded-lg border border-border bg-surface p-4">
@@ -103,32 +123,118 @@ export function WellbeingAnalyticsPanel() {
       <p className="mb-4 text-[11px] text-text-muted">{t('wellbeing_panel_subtitle')}</p>
 
       {/* KPIs semanales */}
-      <div className="mb-4 grid grid-cols-3 gap-2">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <KpiMini
           icon={<Sparkles className="h-3.5 w-3.5" />}
           label={t('wellbeing_kpi_mood')}
-          value={
-            summary.avgMood === null ? '—' : `${summary.avgMood.toFixed(1)}/5`
-          }
+          value={summary.avgMood === null ? '—' : `${summary.avgMood.toFixed(1)}/5`}
           hint={`${summary.daysWithMood}/7 ${t('wellbeing_days_short')}`}
         />
         <KpiMini
           icon={<Battery className="h-3.5 w-3.5" />}
           label={t('wellbeing_kpi_energy')}
-          value={
-            summary.avgEnergy === null ? '—' : `${summary.avgEnergy.toFixed(1)}/5`
-          }
+          value={summary.avgEnergy === null ? '—' : `${summary.avgEnergy.toFixed(1)}/5`}
           hint={`${summary.daysWithEnergy}/7 ${t('wellbeing_days_short')}`}
+        />
+        <KpiMini
+          icon={<Wind className="h-3.5 w-3.5" />}
+          label={t('wellbeing_kpi_feel')}
+          value={
+            summary.dominantFeel
+              ? `${FEEL_EMOJI[summary.dominantFeel]} ${t(FEEL_LABEL_KEYS[summary.dominantFeel])}`
+              : '—'
+          }
+          hint={
+            summary.dominantFeel
+              ? `${summary.daysWithFeel}/7 ${t('wellbeing_days_short')}`
+              : t('wellbeing_feel_none')
+          }
+          valueColor={
+            summary.dominantFeel ? ENERGY_FEEL_COLORS[summary.dominantFeel] : undefined
+          }
         />
         <KpiMini
           icon={<Moon className="h-3.5 w-3.5" />}
           label={t('wellbeing_kpi_sleep')}
-          value={
-            summary.avgSleep === null ? '—' : `${summary.avgSleep.toFixed(1)} h`
-          }
+          value={summary.avgSleep === null ? '—' : `${summary.avgSleep.toFixed(1)} h`}
           hint={`${summary.daysWithSleep}/7 ${t('wellbeing_days_short')}`}
         />
       </div>
+
+      {/* Distribución de tonos de la semana */}
+      {totalFeelSamples > 0 && (
+        <div className="mb-4 rounded-lg border border-border bg-background p-2.5">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            {t('wellbeing_chart_feel')}
+          </p>
+          <div className="mb-2 flex h-2 overflow-hidden rounded-full bg-surface">
+            {ENERGY_FEELS.map(feel => {
+              const n = summary.feelCounts[feel];
+              if (n <= 0) return null;
+              const pct = Math.round((n / totalFeelSamples) * 100);
+              return (
+                <div
+                  key={feel}
+                  title={`${t(FEEL_LABEL_KEYS[feel])}: ${n}`}
+                  style={{
+                    width: `${Math.max(pct, 4)}%`,
+                    backgroundColor: ENERGY_FEEL_COLORS[feel],
+                  }}
+                />
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {ENERGY_FEELS.map(feel => {
+              const n = summary.feelCounts[feel];
+              return (
+                <span
+                  key={feel}
+                  className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] text-text-muted"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: ENERGY_FEEL_COLORS[feel] }}
+                  />
+                  {FEEL_EMOJI[feel]} {t(FEEL_LABEL_KEYS[feel])}
+                  <span className="tabular-nums font-medium text-text-primary">{n}</span>
+                </span>
+              );
+            })}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            {summary.days.map(d => (
+              <div
+                key={`f-${d.dayId}`}
+                className="flex min-w-[1.75rem] flex-1 flex-col items-center gap-0.5"
+                title={
+                  d.dominantFeel
+                    ? `${d.dayId}: ${t(FEEL_LABEL_KEYS[d.dominantFeel])}`
+                    : d.dayId
+                }
+              >
+                <span className="text-[9px] tabular-nums text-text-muted">{d.dayId.slice(8)}</span>
+                <span
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-[12px]"
+                  style={
+                    d.dominantFeel
+                      ? {
+                          backgroundColor: `${ENERGY_FEEL_COLORS[d.dominantFeel]}33`,
+                          border: `1px solid ${ENERGY_FEEL_COLORS[d.dominantFeel]}`,
+                        }
+                      : {
+                          backgroundColor: 'var(--color-surface)',
+                          border: '1px solid var(--color-border)',
+                        }
+                  }
+                >
+                  {d.dominantFeel ? FEEL_EMOJI[d.dominantFeel] : '·'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Barras por día */}
       <div className="mb-4 grid gap-4 sm:grid-cols-3">
@@ -163,7 +269,9 @@ export function WellbeingAnalyticsPanel() {
               color={
                 d.avgEnergy === null
                   ? ENERGY_COLORS[3]
-                  : ENERGY_COLORS[Math.min(5, Math.max(1, Math.round(d.avgEnergy))) as MoodLevel]
+                  : ENERGY_COLORS[
+                      Math.min(5, Math.max(1, Math.round(d.avgEnergy))) as MoodLevel
+                    ]
               }
             />
           ))}
@@ -193,7 +301,10 @@ export function WellbeingAnalyticsPanel() {
         {messages.map(msg => (
           <div
             key={msg.key}
-            className={cn('rounded-lg border px-3 py-2 text-xs leading-relaxed', toneClasses(msg.tone))}
+            className={cn(
+              'rounded-lg border px-3 py-2 text-xs leading-relaxed',
+              toneClasses(msg.tone)
+            )}
           >
             {t(msg.key)}
           </div>
@@ -220,11 +331,13 @@ function KpiMini({
   label,
   value,
   hint,
+  valueColor,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   hint: string;
+  valueColor?: string;
 }) {
   return (
     <div className="rounded-lg border border-border bg-background px-2.5 py-2">
@@ -232,7 +345,12 @@ function KpiMini({
         {icon}
         <span className="text-[10px] font-medium uppercase tracking-wide">{label}</span>
       </div>
-      <p className="text-sm font-semibold tabular-nums text-text-primary">{value}</p>
+      <p
+        className="truncate text-sm font-semibold tabular-nums text-text-primary"
+        style={valueColor ? { color: valueColor } : undefined}
+      >
+        {value}
+      </p>
       <p className="text-[10px] text-text-muted">{hint}</p>
     </div>
   );

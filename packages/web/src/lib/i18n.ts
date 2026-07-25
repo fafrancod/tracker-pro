@@ -166,10 +166,13 @@ export interface TranslationDict {
   wellbeing_kpi_mood: string;
   wellbeing_kpi_energy: string;
   wellbeing_kpi_sleep: string;
+  wellbeing_kpi_feel: string;
+  wellbeing_feel_none: string;
   wellbeing_days_short: string;
   wellbeing_chart_mood: string;
   wellbeing_chart_energy: string;
   wellbeing_chart_sleep: string;
+  wellbeing_chart_feel: string;
   wellbeing_messages_title: string;
   wellbeing_start_logging: string;
   wellbeing_msg_no_data: string;
@@ -801,15 +804,18 @@ const es_dict: TranslationDict = {
   sleep_recorded: '{h} h de sueño',
   wellbeing_panel_title: 'Bienestar (semana)',
   wellbeing_panel_subtitle:
-    'Resumen de ánimo, energía y sueño de los últimos 7 días, con mensajes de apoyo.',
+    'Resumen de ánimo, energía, tono (tenso/relajado/vigoroso) y sueño de los últimos 7 días, con mensajes de apoyo.',
   wellbeing_open_journal: 'Diario',
   wellbeing_kpi_mood: 'Ánimo',
   wellbeing_kpi_energy: 'Energía',
   wellbeing_kpi_sleep: 'Sueño',
+  wellbeing_kpi_feel: 'Tono',
+  wellbeing_feel_none: 'Sin tono',
   wellbeing_days_short: 'días',
   wellbeing_chart_mood: 'Ánimo / día',
   wellbeing_chart_energy: 'Energía / día',
   wellbeing_chart_sleep: 'Sueño / día',
+  wellbeing_chart_feel: 'Tono / día',
   wellbeing_messages_title: 'Mensajes para ti',
   wellbeing_start_logging: 'Empezar a registrar en Reflexiones',
   wellbeing_msg_no_data:
@@ -1472,15 +1478,18 @@ const en_dict: TranslationDict = {
   sleep_recorded: '{h} h of sleep',
   wellbeing_panel_title: 'Wellbeing (week)',
   wellbeing_panel_subtitle:
-    'Mood, energy and sleep for the last 7 days, plus supportive messages.',
+    'Mood, energy, feel (tense/relaxed/vigorous) and sleep for the last 7 days, plus supportive messages.',
   wellbeing_open_journal: 'Journal',
   wellbeing_kpi_mood: 'Mood',
   wellbeing_kpi_energy: 'Energy',
   wellbeing_kpi_sleep: 'Sleep',
+  wellbeing_kpi_feel: 'Feel',
+  wellbeing_feel_none: 'No feel',
   wellbeing_days_short: 'days',
   wellbeing_chart_mood: 'Mood / day',
   wellbeing_chart_energy: 'Energy / day',
   wellbeing_chart_sleep: 'Sleep / day',
+  wellbeing_chart_feel: 'Feel / day',
   wellbeing_messages_title: 'Messages for you',
   wellbeing_start_logging: 'Start logging in Reflections',
   wellbeing_msg_no_data:
