@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { type MouseEvent, type ReactNode, useTransition } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ListChecks,
@@ -64,6 +64,8 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
   const { user, signOut } = useAuth();
   const { t } = useT();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [, startTransition] = useTransition();
   // Admin se decide por backend en el futuro; por ahora se oculta.
   const isAdmin = false;
   const items = NAV_ITEMS.filter(item => (!item.adminOnly || isAdmin) && !item.skipMainList);
@@ -75,13 +77,22 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
   // Insertar bloque Memento después de Eisenhower (índice de items filtrados)
   const eisenhowerIdx = items.findIndex(i => i.to === '/eisenhower');
 
+  /** Navegación en transition: mantiene la UI actual hasta que la ruta nueva esté lista. */
+  function go(to: string, e?: MouseEvent) {
+    e?.preventDefault();
+    onNavigate?.();
+    startTransition(() => {
+      navigate(to);
+    });
+  }
+
   function renderItem(item: NavItem) {
     const Icon = item.icon;
     return (
       <NavLink
         key={item.to}
         to={item.to}
-        onClick={onNavigate}
+        onClick={e => go(item.to, e)}
         className={({ isActive }) => navClass(isActive)}
       >
         <Icon className="h-4 w-4" />
@@ -94,7 +105,7 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
     <div key="memento-block" className="mb-1">
       <NavLink
         to="/memento-mori"
-        onClick={onNavigate}
+        onClick={e => go('/memento-mori', e)}
         className={navClass(onMapTab)}
         end
       >
@@ -103,7 +114,7 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
       </NavLink>
       <NavLink
         to="/memento-mori?tab=goals"
-        onClick={onNavigate}
+        onClick={e => go('/memento-mori?tab=goals', e)}
         className={cn(navClass(onGoalsTab), 'ml-3 pl-2 text-[13px]')}
       >
         <Sparkles className="h-3.5 w-3.5" />

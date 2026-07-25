@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
-import { Menu, Sparkles, Plus } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Suspense, useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import { Menu, Plus, Sparkles, Loader2 } from 'lucide-react';
 import { Sidebar, NAV_ITEMS } from './Sidebar';
 import { MobileDrawer } from './MobileDrawer';
 import { FAB } from './FAB';
@@ -8,82 +8,35 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { isDemoMode } from '@core/lib/demoMode';
 import { useT } from '@/hooks/useT';
-import { usePageChrome } from './PageChromeContext';
-
-interface LayoutProps {
-  children: ReactNode;
-  title?: string;
-  primaryAction?: {
-    label: string;
-    onClick: () => void;
-  };
-  /** Si está definido, el FAB usa este handler. Si no, se reutiliza primaryAction.onClick. */
-  onFabClick?: () => void;
-  /** Permite ocultar el FAB en pantallas donde no aplica. */
-  showFab?: boolean;
-}
+import { useLocation } from 'react-router-dom';
+import { PageChromeProvider, usePageChrome } from './PageChromeContext';
 
 /**
- * Dentro de AppShell: solo publica título/FAB al chrome persistente y renderiza children.
- * Fuera de AppShell (p. ej. admin legacy): monta el layout completo.
+ * Shell persistente: sidebar + header no se desmontan al cambiar de ruta.
+ * Solo el <Outlet /> (contenido) hace Suspense → sin flash a pantalla negra.
  */
-export function Layout({
-  children,
-  title,
-  primaryAction,
-  onFabClick,
-  showFab = true,
-}: LayoutProps) {
-  const pageChrome = usePageChrome();
-
-  // Shell mode: no re-montar sidebar; solo actualizar header/FAB.
-  useLayoutEffect(() => {
-    if (!pageChrome) return;
-    pageChrome.setChrome({
-      title: title ?? '',
-      showFab,
-      primaryAction: primaryAction ?? null,
-      onFabClick: onFabClick ?? null,
-    });
-  }, [pageChrome, title, showFab, primaryAction, onFabClick]);
-
-  useEffect(() => {
-    if (!pageChrome) return;
-    return () => {
-      pageChrome.resetChrome();
-    };
-  }, [pageChrome]);
-
-  if (pageChrome) {
-    return <>{children}</>;
-  }
-
+export function AppShell() {
   return (
-    <StandaloneLayout
-      title={title}
-      primaryAction={primaryAction}
-      onFabClick={onFabClick}
-      showFab={showFab}
-    >
-      {children}
-    </StandaloneLayout>
+    <PageChromeProvider>
+      <AppShellInner />
+    </PageChromeProvider>
   );
 }
 
-function StandaloneLayout({
-  children,
-  title,
-  primaryAction,
-  onFabClick,
-  showFab = true,
-}: LayoutProps) {
+function AppShellInner() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const { t } = useT();
+  const pageChrome = usePageChrome();
+  const chrome = pageChrome?.chrome;
 
   const matched = NAV_ITEMS.find(i => location.pathname.startsWith(i.to));
-  const headerTitle = title ?? (matched ? t(matched.labelKey) : '');
-  const fabHandler = onFabClick ?? primaryAction?.onClick;
+  const headerTitle =
+    chrome?.title || (matched ? t(matched.labelKey) : '') || t('nav_tasks');
+
+  const primaryAction = chrome?.primaryAction ?? null;
+  const showFab = chrome?.showFab ?? false;
+  const fabHandler = chrome?.onFabClick ?? primaryAction?.onClick ?? null;
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-background overscroll-none">
@@ -127,12 +80,25 @@ function StandaloneLayout({
           )}
         </header>
 
-        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Suspense fallback={<ContentFallback />}>
+            <Outlet />
+          </Suspense>
+        </main>
       </div>
 
       {showFab && fabHandler && (
         <FAB onClick={fabHandler} label={primaryAction?.label ?? 'Nueva tarea'} />
       )}
+    </div>
+  );
+}
+
+/** Fallback suave: no tapa el sidebar ni pinta pantalla completa negra. */
+function ContentFallback() {
+  return (
+    <div className="flex flex-1 items-center justify-center bg-transparent">
+      <Loader2 className="h-5 w-5 animate-spin text-text-muted opacity-60" />
     </div>
   );
 }
