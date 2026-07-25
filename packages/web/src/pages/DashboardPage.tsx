@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { format, startOfISOWeek, addDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -14,62 +14,141 @@ import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressRing } from '@/components/Board';
-import { useWeek } from '@core/hooks/useWeek';
 import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
-import { getDayId } from '@core/services/taskService';
+import {
+  fetchTasksInRange,
+  getDayId,
+  getWeekId,
+} from '@core/services/taskService';
+import { collectTasksCovering } from '@core/lib/taskPresence';
+import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
+import { isDemoMode } from '@core/lib/demoMode';
 import { formatDose, isRxKind } from '@core/lib/rx';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { WellbeingAnalyticsPanel } from '@/components/Dashboard/WellbeingAnalyticsPanel';
 import type { Task } from '@core/types';
 
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 export function DashboardPage() {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
-  const { currentWeekId, days, todayDayId, isCurrentWeek } = useWeek({
-    locale,
-    weekdayFormat,
-    shortDateFormat,
-  });
   const navigate = useNavigate();
   const { projects } = useProjects();
+  const uid = useStore(s => s.uid);
+  const setDayTasks = useStore(s => s.setDayTasks);
+  const tasksByDay = useStore(s => s.tasksByDay);
 
-  // El hook useTasks asegura suscripción al día de hoy (en real mode con Firestore).
-  const todayWeekId = currentWeekId;
-  const todayId = todayDayId ?? days[0].dayId;
-  const { tasks: todayTasks, editTask, progress: todayProgress } = useTasks(todayWeekId, todayId);
+  // Siempre la semana ISO de HOY (no la del tablero, que puede estar en otro mes).
+  const today = useMemo(() => new Date(), []);
+  const thisWeekId = getWeekId(today);
+  const todayId = getDayId(today);
+  const weekStart = startOfISOWeek(today);
 
-  // Tareas de toda la semana (lectura desde el store; los DayColumns suscriben).
-  const weekTasks = useStore(s => s.tasksByDay[currentWeekId] ?? {});
+  const days = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = addDays(weekStart, i);
+      return {
+        date: d,
+        dayId: getDayId(d),
+        label: capitalize(format(d, weekdayFormat, { locale })),
+        dateLabel: capitalize(format(d, shortDateFormat, { locale })),
+      };
+    });
+  }, [weekStart, locale, weekdayFormat, shortDateFormat]);
+
+  const weekFrom = days[0]?.dayId;
+  const weekTo = days[6]?.dayId;
+
+  // Cargar tareas de toda la semana (el resumen no suscribía días futuros).
+  useEffect(() => {
+    if (!uid || isDemoMode() || !weekFrom || !weekTo) return;
+    let cancelled = false;
+    void fetchTasksInRange(uid, weekFrom, weekTo)
+      .then(rows => {
+        if (cancelled) return;
+        const byWeekDay = new Map<string, Map<string, Task[]>>();
+        for (const row of rows) {
+          if (!byWeekDay.has(row.weekId)) byWeekDay.set(row.weekId, new Map());
+          const daysMap = byWeekDay.get(row.weekId)!;
+          if (!daysMap.has(row.dayId)) daysMap.set(row.dayId, []);
+          const { weekId: _w, dayId: _d, ...task } = row;
+          daysMap.get(row.dayId)!.push(task);
+        }
+        for (const [weekId, daysMap] of byWeekDay) {
+          for (const [dayId, list] of daysMap) {
+            const existing =
+              useStore.getState().tasksByDay[weekId]?.[dayId] ?? [];
+            setDayTasks(weekId, dayId, mergeDayTaskLists(existing, list));
+          }
+        }
+      })
+      .catch(() => {
+        /* el resto de la UI sigue con lo que haya en store */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [uid, weekFrom, weekTo, setDayTasks]);
+
+  // Suscripción al día de hoy (toggles en vivo).
+  const {
+    tasks: todayTasks,
+    editTask,
+    progress: todayProgress,
+  } = useTasks(thisWeekId, todayId);
+
+  // Por día: presencia multi-día (collectTasksCovering), no solo bucket de inicio.
+  const weekDayStats = useMemo(() => {
+    return days.map(d => {
+      const list = collectTasksCovering(tasksByDay, d.dayId);
+      const completed = list.filter(t => t.completed).length;
+      return {
+        dayId: d.dayId,
+        label: d.label,
+        dateLabel: d.dateLabel,
+        total: list.length,
+        completed,
+        isToday: d.dayId === todayId,
+      };
+    });
+  }, [days, tasksByDay, todayId]);
+
+  // KPIs de la semana: tareas únicas que tocan algún día de la semana.
   const weekStats = useMemo(() => {
-    let total = 0;
-    let completed = 0;
-    for (const dayId of Object.keys(weekTasks)) {
-      const list = weekTasks[dayId] ?? [];
-      total += list.length;
-      completed += list.filter(t => t.completed).length;
+    const seen = new Map<string, boolean>();
+    for (const d of days) {
+      for (const t of collectTasksCovering(tasksByDay, d.dayId)) {
+        if (!seen.has(t.id)) seen.set(t.id, t.completed);
+      }
     }
-    return { total, completed, pending: total - completed, rate: total > 0 ? Math.round((completed / total) * 100) : 0 };
-  }, [weekTasks]);
+    const total = seen.size;
+    const completed = [...seen.values()].filter(Boolean).length;
+    return {
+      total,
+      completed,
+      pending: total - completed,
+      rate: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  }, [days, tasksByDay]);
 
-  // Streak local-only basado en cuántos días seguidos (hacia atrás desde hoy) con
-  // al menos una tarea, todas completadas. Stub razonable hasta que el backend lo calcule.
+  // Streak local: días seguidos hacia atrás con ≥1 tarea y todas completadas.
   const streak = useMemo(() => {
-    const today = new Date();
     let count = 0;
     for (let i = 0; i < 30; i++) {
       const d = addDays(today, -i);
       const dId = getDayId(d);
-      const wId = `${d.getUTCFullYear()}-W${String(Math.ceil(((d.getTime() - startOfISOWeek(new Date(d.getUTCFullYear(), 0, 4)).getTime()) / 86400000 + 1) / 7))
-        .padStart(2, '0')}`;
-      const list = useStore.getState().tasksByDay[wId]?.[dId];
-      if (!list || list.length === 0) break;
+      const list = collectTasksCovering(tasksByDay, dId);
+      if (list.length === 0) break;
       if (list.every(t => t.completed)) count++;
       else break;
     }
     return count;
-  }, [weekTasks]);
+  }, [tasksByDay, today]);
 
   /** Tomas del recetario de hoy, ordenadas por hora (pendientes primero). */
   const todayDoses = useMemo(() => {
@@ -116,7 +195,6 @@ export function DashboardPage() {
             />
           </div>
 
-          {/* Bienestar: ánimo, energía, sueño + mensajes */}
           <WellbeingAnalyticsPanel />
 
           {/* Próximas tomas del día (recetario) */}
@@ -160,7 +238,7 @@ export function DashboardPage() {
                 <CalendarDays className="h-4 w-4 text-accent-teal" />
                 <h2 className="text-sm font-semibold text-text-primary">{t('dashboard_today')}</h2>
                 <Badge variant="secondary" className="text-[10px]">
-                  {format(new Date(), shortDateFormat, { locale })}
+                  {format(today, shortDateFormat, { locale })}
                 </Badge>
               </div>
               <ProgressRing
@@ -191,35 +269,46 @@ export function DashboardPage() {
             )}
           </section>
 
-          {/* Atajos */}
+          {/* Esta semana */}
           <section className="rounded-lg border border-border bg-surface p-4">
-            <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('dashboard_this_week')}</h2>
-            <div className="grid grid-cols-7 gap-2">
-              {days.map(d => {
-                const list = weekTasks[d.dayId] ?? [];
-                const completed = list.filter(t => t.completed).length;
-                const total = list.length;
-                const isToday = isCurrentWeek && d.dayId === todayDayId;
-                return (
-                  <button
-                    key={d.dayId}
-                    onClick={() => navigate('/board')}
-                    className={cn(
-                      'flex flex-col items-center gap-1 rounded-md border border-border bg-background p-2 text-xs transition-colors hover:border-accent-teal/40',
-                      isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30'
-                    )}
-                  >
-                    <span className="font-semibold text-text-primary">{d.label.slice(0, 3)}</span>
-                    <span className="text-[10px] text-text-muted">{d.dateLabel}</span>
-                    <span className="text-[11px]">
-                      <span className="text-accent-green">{completed}</span>
-                      <span className="text-text-muted">/{total || 0}</span>
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-text-primary">
+                {t('dashboard_this_week')}
+              </h2>
+              <span className="text-[11px] text-text-muted">
+                {weekStats.completed}/{weekStats.total} · {weekStats.rate}%
+              </span>
             </div>
-            <Button onClick={() => navigate('/board')} className="mt-4 w-full gap-2 sm:w-auto" size="sm">
+            <div className="grid grid-cols-7 gap-2">
+              {weekDayStats.map(d => (
+                <button
+                  key={d.dayId}
+                  type="button"
+                  onClick={() => navigate('/board')}
+                  className={cn(
+                    'flex flex-col items-center gap-1 rounded-md border border-border bg-background p-2 text-xs transition-colors hover:border-accent-teal/40',
+                    d.isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30'
+                  )}
+                >
+                  <span className="font-semibold text-text-primary">{d.label.slice(0, 3)}</span>
+                  <span className="text-[10px] text-text-muted">{d.dateLabel}</span>
+                  <span className="text-[11px]">
+                    <span className="text-accent-green">{d.completed}</span>
+                    <span className="text-text-muted">/{d.total || 0}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {weekStats.total === 0 && (
+              <p className="mt-3 text-center text-[11px] text-text-muted">
+                {t('dashboard_no_tasks_today')}
+              </p>
+            )}
+            <Button
+              onClick={() => navigate('/board')}
+              className="mt-4 w-full gap-2 sm:w-auto"
+              size="sm"
+            >
               {t('dashboard_jump_to_board')}
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -268,6 +357,7 @@ function TaskRow({
   return (
     <li className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2">
       <button
+        type="button"
         onClick={onToggle}
         className={cn(
           'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition-colors',
