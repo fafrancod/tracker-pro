@@ -5,10 +5,8 @@ import {
   getWeekId,
   getDayId,
   rematerializeRxSeries,
-  type LocatedTaskRow,
 } from '../services/taskService';
 import { collectTasksCovering } from '../lib/taskPresence';
-import { mergeDayTaskLists } from '../lib/mergeDayTasks';
 import type {
   CreateTaskPayload,
   UpdateTaskPayload,
@@ -23,15 +21,14 @@ export function useTasks(weekId: string, dayId: string) {
   const uid = useStore(s => s.uid);
   const tasksByDay = useStore(s => s.tasksByDay);
   const startDayTasks = useStore(s => s.tasksByDay[weekId]?.[dayId] ?? []);
-  const {
-    setDayTasks,
-    reorderTasks,
-    updateTaskById,
-  } = useStore();
+  const { reorderTasks, updateTaskById } = useStore();
 
   // Presence-aware list: multi-day spans appear on every covered day.
   const tasks = useMemo(
-    () => collectTasksCovering(tasksByDay, dayId).map(({ weekId: _w, startDayId: _s, ...task }) => task),
+    () =>
+      collectTasksCovering(tasksByDay, dayId).map(
+        ({ weekId: _w, startDayId: _s, ...task }) => task
+      ),
     [tasksByDay, dayId]
   );
 
@@ -46,33 +43,9 @@ export function useTasks(weekId: string, dayId: string) {
     // Offline: keep cache-hydrated state; no live subscription traffic.
     if (!isBrowserOnline()) return;
 
-    const unsub = subscribeTasks(uid, weekId, dayId, (rows: LocatedTaskRow[]) => {
-      // Merge covering tasks into their **start** day buckets.
-      const byStart = new Map<string, LocatedTaskRow[]>();
-      for (const row of rows) {
-        const key = `${row.weekId}|${row.dayId}`;
-        if (!byStart.has(key)) byStart.set(key, []);
-        byStart.get(key)!.push(row);
-      }
-      for (const group of byStart.values()) {
-        const w = group[0].weekId;
-        const d = group[0].dayId;
-        const existing = useStore.getState().tasksByDay[w]?.[d] ?? [];
-        const incoming = group.map(row => {
-          const { weekId: _w, dayId: _d, ...task } = row;
-          return task;
-        });
-        // Merge: conserva optimistic y tareas locales si el fetch va retrasado.
-        setDayTasks(w, d, mergeDayTaskLists(existing, incoming));
-      }
-      // Ensure the subscribed start day is marked loaded even if empty.
-      if (!byStart.has(`${weekId}|${dayId}`)) {
-        const existing = useStore.getState().tasksByDay[weekId]?.[dayId];
-        if (existing === undefined) setDayTasks(weekId, dayId, []);
-      }
-    });
-    return unsub;
-  }, [uid, weekId, dayId, setDayTasks]);
+    // Fase 3: un canal por uid + ensure de semana ISO (sin refetch por evento RT).
+    return subscribeTasks(uid, weekId, dayId);
+  }, [uid, weekId, dayId]);
 
   const addTask = useCallback(
     async (payload: CreateTaskPayload) => {
@@ -128,14 +101,19 @@ export function useTasks(weekId: string, dayId: string) {
 
   const rematerializeRx = useCallback(
     async (taskId: string, payload: RematerializeRxPayload) => {
-      if (!uid) return { created: 0, instances: [] as Array<Task & { weekId: string; dayId: string }> };
+      if (!uid)
+        return {
+          created: 0,
+          instances: [] as Array<Task & { weekId: string; dayId: string }>,
+        };
       return rematerializeRxSeries(weekId, dayId, taskId, payload);
     },
     [uid, weekId, dayId]
   );
 
   const completedCount = tasks.filter(t => t.completed).length;
-  const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const progress =
+    tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
 
   return {
     tasks,

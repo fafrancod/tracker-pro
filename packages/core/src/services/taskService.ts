@@ -1,7 +1,10 @@
 import { getSupabase } from '../supabase';
 import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
-import { subscribeTable } from '../lib/realtime';
+import {
+  subscribeTable,
+  type PostgresChangePayload,
+} from '../lib/realtime';
 import {
   materializeOccurrenceRanges,
   normalizeRecurrence,
@@ -22,8 +25,22 @@ import {
 } from '../lib/habits';
 import { kindSupportsSteps, normalizeTaskSteps } from '../lib/steps';
 import { extractHashtags, mergeTags } from '../lib/tags';
+import { mergeDayTaskLists } from '../lib/mergeDayTasks';
+import {
+  isTasksRangeFresh,
+  markTasksRangeLoaded,
+} from '../lib/taskRangeCache';
+import { isOwnTaskEcho, noteOwnTaskMutation } from '../lib/taskEcho';
 import { findTaskLocation, useStore } from '../store';
 import { getISOWeek, format } from 'date-fns';
+
+export { noteOwnTaskMutation, isOwnTaskEcho } from '../lib/taskEcho';
+export {
+  isTasksRangeFresh,
+  markTasksRangeLoaded,
+  clearTasksRangeCache,
+  TASK_RANGE_FRESH_MS,
+} from '../lib/taskRangeCache';
 
 export type TasksUnsubscribe = () => void;
 
@@ -191,46 +208,208 @@ export async function fetchAllTasks(
   }));
 }
 
+/** Fusiona filas located en buckets start-day del store. */
+export function mergeLocatedRowsIntoStore(rows: LocatedTaskRow[]): void {
+  const byStart = new Map<string, LocatedTaskRow[]>();
+  for (const row of rows) {
+    const key = `${row.weekId}|${row.dayId}`;
+    if (!byStart.has(key)) byStart.set(key, []);
+    byStart.get(key)!.push(row);
+  }
+  const store = useStore.getState();
+  for (const group of byStart.values()) {
+    const w = group[0].weekId;
+    const d = group[0].dayId;
+    const existing = store.tasksByDay[w]?.[d] ?? [];
+    const incoming = group.map(row => {
+      const { weekId: _w, dayId: _d, ...task } = row;
+      return task as Task;
+    });
+    store.setDayTasks(w, d, mergeDayTaskLists(existing, incoming));
+  }
+}
+
+const rangeLoadInflight = new Map<string, Promise<void>>();
+
 /**
- * Subscribe to tasks covering a day. Callback receives rows located at their **start** day
- * (not necessarily the subscribed dayId), so the store can merge into start buckets.
+ * Carga un rango al store si no está fresco (Fase 3.4 / 3.5).
+ * Dedup inflight por uid+from+to.
+ */
+export async function ensureTasksRangeLoaded(
+  uid: string,
+  fromDayId: string,
+  toDayId: string
+): Promise<void> {
+  if (isDemoMode() || !uid) return;
+  const from = fromDayId <= toDayId ? fromDayId : toDayId;
+  const to = fromDayId <= toDayId ? toDayId : fromDayId;
+  if (isTasksRangeFresh(from, to)) return;
+
+  const key = `${uid}|${from}|${to}`;
+  const existing = rangeLoadInflight.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    const rows = await fetchTasksInRange(uid, from, to);
+    mergeLocatedRowsIntoStore(rows);
+    markTasksRangeLoaded(from, to);
+  })().finally(() => {
+    rangeLoadInflight.delete(key);
+  });
+
+  rangeLoadInflight.set(key, promise);
+  return promise;
+}
+
+function stripLocated(row: LocatedTaskRow): Task {
+  const { weekId: _w, dayId: _d, ...task } = row;
+  return task;
+}
+
+/**
+ * Aplica un evento Realtime de `tasks` al store (Fase 3.2).
+ * Respeta eco de mutaciones propias (Fase 3.3).
+ */
+export function applyTaskRealtimeDelta(payload: PostgresChangePayload): void {
+  const raw =
+    payload.eventType === 'DELETE'
+      ? payload.old
+      : payload.new ?? payload.old;
+  if (!raw) return;
+  const id = String(raw.id ?? '');
+  if (!id) return;
+  if (isOwnTaskEcho(id)) return;
+
+  const store = useStore.getState();
+
+  if (payload.eventType === 'DELETE') {
+    const loc = findTaskLocation(id);
+    if (loc) store.removeTaskOptimistic(loc.weekId, loc.dayId, id);
+    return;
+  }
+
+  // INSERT / UPDATE — mapear fila
+  const dayId =
+    (raw.day_id as string | undefined) ??
+    (raw.dayId as string | undefined);
+  if (!dayId) return;
+  const weekId =
+    (raw.week_id as string | undefined) ??
+    (raw.weekId as string | undefined) ??
+    getWeekIdFromDayId(dayId);
+  const located: LocatedTaskRow = {
+    ...mapTask(id, raw),
+    weekId,
+    dayId,
+  };
+  const task = stripLocated(located);
+  const existing = findTaskLocation(id);
+
+  if (payload.eventType === 'INSERT') {
+    if (existing) {
+      // Optimistic ya presente: merge campos servidor sin mover bucket
+      store.updateTaskOptimistic(existing.weekId, existing.dayId, id, task);
+      return;
+    }
+    store.addTaskOptimistic(weekId, dayId, task);
+    return;
+  }
+
+  // UPDATE
+  if (existing) {
+    if (existing.weekId !== weekId || existing.dayId !== dayId) {
+      store.removeTaskOptimistic(existing.weekId, existing.dayId, id);
+      store.addTaskOptimistic(weekId, dayId, task);
+    } else {
+      store.updateTaskOptimistic(existing.weekId, existing.dayId, id, task);
+    }
+  } else {
+    store.addTaskOptimistic(weekId, dayId, task);
+  }
+}
+
+/** Un canal Realtime por uid (Fase 3.1); refcount entre hooks useTasks. */
+const userTaskRefCount = new Map<string, number>();
+const userTaskUnsub = new Map<string, () => void>();
+
+function acquireUserTasksChannel(uid: string): void {
+  const count = (userTaskRefCount.get(uid) ?? 0) + 1;
+  userTaskRefCount.set(uid, count);
+  if (count === 1) {
+    const unsub = subscribeTable({
+      topic: `tasks:${uid}`,
+      table: 'tasks',
+      filter: `user_id=eq.${uid}`,
+      onChange: payload => {
+        if (payload) applyTaskRealtimeDelta(payload);
+      },
+    });
+    userTaskUnsub.set(uid, unsub);
+  }
+}
+
+function releaseUserTasksChannel(uid: string): void {
+  const count = (userTaskRefCount.get(uid) ?? 1) - 1;
+  if (count <= 0) {
+    userTaskRefCount.delete(uid);
+    const unsub = userTaskUnsub.get(uid);
+    userTaskUnsub.delete(uid);
+    unsub?.();
+  } else {
+    userTaskRefCount.set(uid, count);
+  }
+}
+
+/** Lunes–domingo ISO de la semana que contiene dayId (YYYY-MM-DD local). */
+function isoWeekDayBounds(dayId: string): { from: string; to: string } {
+  const [y, m, d] = dayId.split('-').map(Number);
+  const date = new Date(y, (m ?? 1) - 1, d ?? 1);
+  // ISO: lunes = 1 … domingo = 0 → ajustar a lunes
+  const day = date.getDay(); // 0 Sun … 6 Sat
+  const diffToMon = day === 0 ? -6 : 1 - day;
+  const mon = new Date(date);
+  mon.setDate(date.getDate() + diffToMon);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  const fmt = (dt: Date) =>
+    `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+  return { from: fmt(mon), to: fmt(sun) };
+}
+
+/**
+ * Suscripción por día (compat useTasks):
+ * - Carga la **semana ISO** del día (las 7 columnas comparten un ensure inflight).
+ * - Canal Realtime **único por usuario** + delta al store (Fase 3.1–3.2).
+ * - `cb` opcional (legacy); el merge ya lo hace ensureTasksRangeLoaded.
  */
 export function subscribeTasks(
   uid: string,
   weekId: string,
   dayId: string,
-  cb: (rows: LocatedTaskRow[]) => void
+  _cb?: (rows: LocatedTaskRow[]) => void
 ): TasksUnsubscribe {
   if (isDemoMode()) return () => undefined;
 
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  const DEBOUNCE_MS = 200;
+  let cancelled = false;
+  const { from, to } = isoWeekDayBounds(dayId);
 
-  const load = () => {
-    void fetchTasksCoveringDay(uid, dayId).then(cb);
-  };
+  void ensureTasksRangeLoaded(uid, from, to)
+    .then(() => {
+      if (cancelled) return;
+      const existing = useStore.getState().tasksByDay[weekId]?.[dayId];
+      if (existing === undefined) {
+        useStore.getState().setDayTasks(weekId, dayId, []);
+      }
+    })
+    .catch(() => {
+      /* offline / error: el store queda con lo que haya */
+    });
 
-  /** Coalesce ráfagas Realtime (p. ej. insert de 90 hábitos) — roadmap §0.4. */
-  const scheduleLoad = () => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      debounceTimer = null;
-      load();
-    }, DEBOUNCE_MS);
-  };
-
-  load();
-
-  const unsub = subscribeTable({
-    topic: `tasks:${uid}:${weekId}:${dayId}`,
-    table: 'tasks',
-    filter: `user_id=eq.${uid}`,
-    onChange: scheduleLoad,
-  });
+  acquireUserTasksChannel(uid);
 
   return () => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    unsub();
+    cancelled = true;
+    releaseUserTasksChannel(uid);
   };
 }
 
@@ -422,10 +601,13 @@ export async function createTask(
 
   // Demo: el API stub no materializa; lo hacemos en cliente.
   if (isDemoMode()) {
-    return materializeDemoCreate(weekId, dayId, payload, res.id);
+    const demo = materializeDemoCreate(weekId, dayId, payload, res.id);
+    noteOwnTaskMutation(...demo.instances.map(i => i.id));
+    return demo;
   }
 
   const instances = expandCreateInstances(weekId, dayId, payload, res);
+  noteOwnTaskMutation(...instances.map(i => i.id), res.id);
 
   return {
     task: instances[0] ?? mapTask(res.id, res as unknown as Record<string, unknown>),
@@ -605,6 +787,7 @@ export async function ensureHabitInstance(opts: {
       createdAt: now,
     };
     store.addTaskOptimistic(task.weekId, task.dayId, task);
+    noteOwnTaskMutation(task.id);
     return task;
   }
 
@@ -620,6 +803,7 @@ export async function ensureHabitInstance(opts: {
     getWeekIdFromDayId(opts.dayId);
   const d = (res.dayId as string) ?? (res.day_id as string) ?? opts.dayId;
   const located = { ...mapped, weekId: w, dayId: d };
+  noteOwnTaskMutation(located.id);
   useStore.getState().addTaskOptimistic(w, d, located);
   return located;
 }
@@ -630,6 +814,9 @@ export async function updateTask(
   taskId: string,
   payload: UpdateTaskPayload
 ): Promise<void> {
+  // Eco Realtime: anotar id actual (y el materializado si virtual).
+  noteOwnTaskMutation(taskId);
+
   // Hábito virtual: materializar primero, luego patch si hace falta.
   if (isVirtualHabitId(taskId)) {
     const parsed = parseVirtualHabitId(taskId);
@@ -687,7 +874,9 @@ export async function rematerializeRxSeries(
   payload: RematerializeRxPayload
 ): Promise<{ created: number; instances: Array<Task & { weekId: string; dayId: string }> }> {
   if (isDemoMode()) {
-    return rematerializeDemoRx(weekId, dayId, taskId, payload);
+    const demo = rematerializeDemoRx(weekId, dayId, taskId, payload);
+    noteOwnTaskMutation(...demo.instances.map(i => i.id));
+    return demo;
   }
 
   const res = await api.post<{
@@ -717,6 +906,7 @@ export async function rematerializeRxSeries(
       dayId: (raw.dayId as string) ?? (raw.day_id as string) ?? dayId,
     };
   });
+  noteOwnTaskMutation(...instances.map(i => i.id));
 
   for (const instance of instances) {
     store.addTaskOptimistic(instance.weekId, instance.dayId, {
@@ -871,6 +1061,7 @@ export async function deleteTask(
   dayId: string,
   taskId: string
 ): Promise<void> {
+  noteOwnTaskMutation(taskId);
   await api.del<void>(
     `/api/tasks/${encodeURIComponent(weekId)}/${encodeURIComponent(dayId)}/${encodeURIComponent(taskId)}`
   );
@@ -883,6 +1074,7 @@ export async function moveTask(
   toWeekId: string,
   toDayId: string
 ): Promise<void> {
+  noteOwnTaskMutation(taskId);
   await api.post<void>(
     `/api/tasks/${encodeURIComponent(fromWeekId)}/${encodeURIComponent(fromDayId)}/${encodeURIComponent(taskId)}/move`,
     { toWeekId, toDayId }

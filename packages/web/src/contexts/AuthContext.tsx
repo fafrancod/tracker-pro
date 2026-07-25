@@ -219,6 +219,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    try {
+      const { clearTasksRangeCache } = await import('@core/lib/taskRangeCache');
+      clearTasksRangeCache();
+    } catch {
+      /* ignore */
+    }
     const { error } = await getSupabase().auth.signOut();
     if (error) throw error;
   }, []);

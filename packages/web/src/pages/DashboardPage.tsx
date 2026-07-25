@@ -18,12 +18,11 @@ import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
 import {
-  fetchTasksInRange,
+  ensureTasksRangeLoaded,
   getDayId,
   getWeekId,
 } from '@core/services/taskService';
 import { collectTasksCovering } from '@core/lib/taskPresence';
-import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
 import { isDemoMode } from '@core/lib/demoMode';
 import { formatDose, isRxKind } from '@core/lib/rx';
 import { useT } from '@/hooks/useT';
@@ -40,7 +39,6 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const { projects } = useProjects();
   const uid = useStore(s => s.uid);
-  const setDayTasks = useStore(s => s.setDayTasks);
   const tasksByDay = useStore(s => s.tasksByDay);
 
   // Siempre la semana ISO de HOY (no la del tablero, que puede estar en otro mes).
@@ -64,36 +62,13 @@ export function DashboardPage() {
   const weekFrom = days[0]?.dayId;
   const weekTo = days[6]?.dayId;
 
-  // Cargar tareas de toda la semana (el resumen no suscribía días futuros).
+  // Fase 3.5: semana del resumen sin re-fetch si el store ya tiene el rango fresco.
   useEffect(() => {
     if (!uid || isDemoMode() || !weekFrom || !weekTo) return;
-    let cancelled = false;
-    void fetchTasksInRange(uid, weekFrom, weekTo)
-      .then(rows => {
-        if (cancelled) return;
-        const byWeekDay = new Map<string, Map<string, Task[]>>();
-        for (const row of rows) {
-          if (!byWeekDay.has(row.weekId)) byWeekDay.set(row.weekId, new Map());
-          const daysMap = byWeekDay.get(row.weekId)!;
-          if (!daysMap.has(row.dayId)) daysMap.set(row.dayId, []);
-          const { weekId: _w, dayId: _d, ...task } = row;
-          daysMap.get(row.dayId)!.push(task);
-        }
-        for (const [weekId, daysMap] of byWeekDay) {
-          for (const [dayId, list] of daysMap) {
-            const existing =
-              useStore.getState().tasksByDay[weekId]?.[dayId] ?? [];
-            setDayTasks(weekId, dayId, mergeDayTaskLists(existing, list));
-          }
-        }
-      })
-      .catch(() => {
-        /* el resto de la UI sigue con lo que haya en store */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [uid, weekFrom, weekTo, setDayTasks]);
+    void ensureTasksRangeLoaded(uid, weekFrom, weekTo).catch(() => {
+      /* el resto de la UI sigue con lo que haya en store */
+    });
+  }, [uid, weekFrom, weekTo]);
 
   // Suscripción al día de hoy (toggles en vivo).
   const {

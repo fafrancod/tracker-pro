@@ -9,10 +9,14 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { useStore } from '@core/store';
-import { fetchTasksInRange, getDayId } from '@core/services/taskService';
+import {
+  ensureTasksRangeLoaded,
+  getDayId,
+  subscribeTasks,
+} from '@core/services/taskService';
 import { isDemoMode } from '@core/lib/demoMode';
-import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
-import type { BoardTaskFilters, Task } from '@core/types';
+import { isBrowserOnline } from '@core/lib/network';
+import type { BoardTaskFilters } from '@core/types';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
 import { capitalize } from '@/lib/i18n';
@@ -46,7 +50,6 @@ export function ContinuousMonthsView({
   const { locale } = useT();
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const uid = useStore(s => s.uid);
-  const setDayTasks = useStore(s => s.setDayTasks);
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadingMore = useRef(false);
   // Anchor once per mount so offsets stay stable while scrolling.
@@ -110,31 +113,19 @@ export function ContinuousMonthsView({
     return { fromDayId: getDayId(gridStart), toDayId: getDayId(gridEnd) };
   }, [months, weekStartsOn]);
 
-  // Fetch all tasks covering the continuous visible range once per bounds change.
+  // Fase 3.5: skip re-fetch si el rango ya está fresco; un canal RT por usuario.
   useEffect(() => {
-    if (!uid || isDemoMode()) return;
-    let cancelled = false;
-    void fetchTasksInRange(uid, rangeBounds.fromDayId, rangeBounds.toDayId).then(rows => {
-      if (cancelled) return;
-      const byWeekDay = new Map<string, Map<string, Task[]>>();
-      for (const row of rows) {
-        if (!byWeekDay.has(row.weekId)) byWeekDay.set(row.weekId, new Map());
-        const days = byWeekDay.get(row.weekId)!;
-        if (!days.has(row.dayId)) days.set(row.dayId, []);
-        days.get(row.dayId)!.push(row);
-      }
-      for (const [weekId, days] of byWeekDay) {
-        for (const [dayId, list] of days) {
-          // Merge: un fetch en vuelo no debe borrar una tarea recién creada.
-          const existing = useStore.getState().tasksByDay[weekId]?.[dayId] ?? [];
-          setDayTasks(weekId, dayId, mergeDayTaskLists(existing, list));
-        }
-      }
+    if (!uid || isDemoMode() || !isBrowserOnline()) return;
+    void ensureTasksRangeLoaded(
+      uid,
+      rangeBounds.fromDayId,
+      rangeBounds.toDayId
+    ).catch(() => {
+      /* store conserva lo que haya */
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [uid, rangeBounds.fromDayId, rangeBounds.toDayId, setDayTasks]);
+    const unsub = subscribeTasks(uid, 'cont', rangeBounds.fromDayId);
+    return unsub;
+  }, [uid, rangeBounds.fromDayId, rangeBounds.toDayId]);
 
   const prepend = useCallback(() => {
     if (loadingMore.current) return;

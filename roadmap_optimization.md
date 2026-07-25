@@ -1,7 +1,7 @@
 # Roadmap de optimización — tiempos de carga y mutaciones
 
 **Fecha (actualizado):** 2026-07-25  
-**Versión de producto de referencia:** **v2.7.9**  
+**Versión de producto de referencia:** **v2.7.10**  
 **Archivo:** `roadmap_optimization.md` (repo root)
 
 **Contexto original:** Al guardar o editar tareas, eventos, hábitos, recetarios, etc. la UI se siente lenta.  
@@ -264,15 +264,15 @@ create index if not exists tasks_user_kind_day_idx on public.tasks (user_id, kin
 
 ---
 
-### Fase 3 — Realtime y store (1 semana)
+### Fase 3 — Realtime y store ✅ (v2.7.10)
 
-| # | Acción |
-|---|--------|
-| 3.1 | Un canal por usuario (no por DayColumn) |
-| 3.2 | Aplicar delta del evento Realtime (`new`/`old` record) |
-| 3.3 | Ignorar eco de mutaciones propias (ventana 1–2 s) |
-| 3.4 | Suscripción a nivel Board por rango de vista |
-| 3.5 | Continuo/Resumen: no re-fetch completo si el store ya tiene el rango fresco |
+| # | Acción | Detalle |
+|---|--------|---------|
+| 3.1 | Un canal por usuario | `subscribeTable` multi-listener + topic `tasks:${uid}` refcounted |
+| 3.2 | Delta Realtime | `applyTaskRealtimeDelta` INSERT/UPDATE/DELETE → store (sin refetch) |
+| 3.3 | Eco propio | `noteOwnTaskMutation` / ventana 2 s en create/update/delete/move/ensure |
+| 3.4 | Board por rango | `ensureTasksRangeLoaded` + semana ISO compartida entre columnas; BoardLayout prefetch |
+| 3.5 | Continuo/Resumen frescos | `isTasksRangeFresh` 45 s; skip re-fetch en Continuo, Mes, Dashboard |
 
 ---
 
@@ -421,3 +421,4 @@ Las features de **v2.6–2.7** (hábitos, pasos, eventos, Círculo, resumen con 
 | 2026-07-25 | **Fase 0 aplicada (parcial, v2.7.6):** `loadOrderCounters` (1 query batch por chunks, sin N COUNT secuenciales); plan+usage en `Promise.all`; `bumpUsage` post-respuesta; create form cierra sin await; Realtime debounce 200 ms en `subscribeTasks`; cache JWT en `api.ts` + clear en signOut |
 | 2026-07-25 | **Fase 1 aplicada (v2.7.7):** respuesta create compacta (`instances` = id/weekId/dayId/endDayId/seriesId + `createdCount`); cliente `expandCreateInstances`; horizonte daily **28** / weekly **26** (api+core); steps solo en instancia (no seriesUpdate); tests verdes |
 | 2026-07-25 | **Fase 2 aplicada (v2.7.9):** hábitos lazy — create 1 seed + `habit-ensure` + virtuales `vh:` en `collectTasksCovering` + materialize en toggle/edit; fetch de seeds en covering/range; tests `habit-lazy.test.ts` |
+| 2026-07-25 | **Fase 3 aplicada (v2.7.10):** Realtime 1 canal/uid + delta al store + eco 2s; `ensureTasksRangeLoaded` + caché 45s; Board/Continuo/Mes/Resumen sin tormenta de refetch |

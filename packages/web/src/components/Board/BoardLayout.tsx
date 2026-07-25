@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Calendar, List, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -15,6 +15,12 @@ import {
 import { useWeek } from '@core/hooks/useWeek';
 import { useStore } from '@core/store';
 import { taskHistory } from '@core/history/taskHistory';
+import {
+  ensureTasksRangeLoaded,
+  subscribeTasks,
+} from '@core/services/taskService';
+import { isDemoMode } from '@core/lib/demoMode';
+import { isBrowserOnline } from '@core/lib/network';
 import { Button } from '@/components/ui/button';
 import { DayColumn } from './DayColumn';
 import { TaskCard } from './TaskCard';
@@ -52,8 +58,21 @@ export function BoardLayout({
   const { projects } = useProjects();
   const { showToast } = useToast();
   const setDetailTask = useStore(s => s.setDetailTask);
+  const uid = useStore(s => s.uid);
 
   const [activeDrag, setActiveDrag] = useState<DragData | null>(null);
+
+  // Fase 3.4: un fetch de semana + un canal RT (schedule no monta DayColumn/useTasks).
+  useEffect(() => {
+    if (!uid || isDemoMode() || !isBrowserOnline()) return;
+    const from = days[0]?.dayId;
+    const to = days[days.length - 1]?.dayId;
+    if (!from || !to) return;
+    void ensureTasksRangeLoaded(uid, from, to);
+    // Mantener canal usuario aunque la vista sea schedule (sin 7 useTasks).
+    const unsub = subscribeTasks(uid, currentWeekId, from);
+    return unsub;
+  }, [uid, currentWeekId, days]);
 
   // Touch: delay+tolerance so scroll/tap still work; mouse: small distance.
   const sensors = useSensors(

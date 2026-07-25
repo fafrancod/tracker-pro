@@ -12,14 +12,16 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useStore } from '@core/store';
-import { getDayId, fetchTasksInRange } from '@core/services/taskService';
+import {
+  ensureTasksRangeLoaded,
+  getDayId,
+} from '@core/services/taskService';
 import { taskHistory } from '@core/history/taskHistory';
 import {
   collectTasksCovering,
   compareByStartTime,
   type LocatedTask,
 } from '@core/lib/taskPresence';
-import { mergeDayTaskLists } from '@core/lib/mergeDayTasks';
 import { isDemoMode } from '@core/lib/demoMode';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
 import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
@@ -168,7 +170,6 @@ export function MonthView({
   const { settings } = useSettings();
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const uid = useStore(s => s.uid);
-  const setDayTasks = useStore(s => s.setDayTasks);
   const updateTaskById = useStore(s => s.updateTaskById);
 
   const setDetailTask = useStore(s => s.setDetailTask);
@@ -228,23 +229,9 @@ export function MonthView({
     const toDayId = getDayId(gridEnd);
 
     setLoadingRange(true);
-    void fetchTasksInRange(uid, fromDayId, toDayId)
-      .then(rows => {
-        if (cancelled) return;
-        const byWeekDay = new Map<string, Map<string, Task[]>>();
-        for (const row of rows) {
-          if (!byWeekDay.has(row.weekId)) byWeekDay.set(row.weekId, new Map());
-          const days = byWeekDay.get(row.weekId)!;
-          if (!days.has(row.dayId)) days.set(row.dayId, []);
-          days.get(row.dayId)!.push(row);
-        }
-        for (const [weekId, days] of byWeekDay) {
-          for (const [dayId, list] of days) {
-            // Merge: un fetch en vuelo no debe borrar una tarea recién creada.
-            const existing = useStore.getState().tasksByDay[weekId]?.[dayId] ?? [];
-            setDayTasks(weekId, dayId, mergeDayTaskLists(existing, list));
-          }
-        }
+    void ensureTasksRangeLoaded(uid, fromDayId, toDayId)
+      .catch(() => {
+        /* store conserva lo que haya */
       })
       .finally(() => {
         if (!cancelled) setLoadingRange(false);
@@ -253,7 +240,7 @@ export function MonthView({
     return () => {
       cancelled = true;
     };
-  }, [uid, gridStart.getTime(), gridEnd.getTime(), setDayTasks, skipFetch]);
+  }, [uid, gridStart.getTime(), gridEnd.getTime(), skipFetch]);
 
   const tasksByDay = useStore(s => s.tasksByDay);
   const allProjects = useStore(s => s.projects);
