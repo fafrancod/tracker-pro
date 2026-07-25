@@ -34,6 +34,8 @@ export interface TranslationDict {
   memento_legend_lived: string;
   memento_legend_current: string;
   memento_legend_left: string;
+  memento_legend_milestone: string;
+  memento_milestones_hint: string;
   memento_lifespan_note: string;
   memento_past_expectation: string;
   settings_birth_date: string;
@@ -347,6 +349,8 @@ const es_dict: TranslationDict = {
   memento_legend_lived: 'Vividas',
   memento_legend_current: 'Esta semana',
   memento_legend_left: 'Por vivir',
+  memento_legend_milestone: 'Cumpleaños ×5 (35, 40…)',
+  memento_milestones_hint: 'Hitos marcados: {ages} años.',
   memento_lifespan_note: 'Basado en {years} años de esperanza de vida (ajustable en Config).',
   memento_past_expectation: 'Has superado la esperanza configurada: celebra cada semana extra.',
   settings_birth_date: 'Fecha de nacimiento',
@@ -667,6 +671,8 @@ const en_dict: TranslationDict = {
   memento_legend_lived: 'Lived',
   memento_legend_current: 'This week',
   memento_legend_left: 'Remaining',
+  memento_legend_milestone: '5-year milestones (35, 40…)',
+  memento_milestones_hint: 'Milestones marked: ages {ages}.',
   memento_lifespan_note: 'Based on {years} years of life expectancy (adjustable in Settings).',
   memento_past_expectation: 'You have passed the configured expectancy — celebrate every extra week.',
   settings_birth_date: 'Birth date',

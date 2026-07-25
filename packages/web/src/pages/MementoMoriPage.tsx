@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Hourglass, Settings } from 'lucide-react';
 import { Layout } from '@/components/Layout';
@@ -9,70 +9,104 @@ import { getStoicQuoteForDate } from '@/lib/stoicQuotes';
 import {
   WEEKS_PER_YEAR,
   computeLifeWeeks,
+  milestoneWeekMap,
   weekCellState,
   type LifeWeeksSnapshot,
   type WeekCellState,
 } from '@/lib/mementoMori';
 import { cn } from '@/lib/utils';
 
-function cellClass(state: WeekCellState): string {
-  switch (state) {
-    case 'lived':
-      return 'bg-accent-teal/80 border-accent-teal/50';
-    case 'current':
-      return 'bg-accent-red border-accent-red ring-1 ring-accent-red/60 scale-110 z-[1]';
-    case 'remaining':
-    default:
-      return 'bg-transparent border-border/80';
+/**
+ * Colores sólidos con CSS vars (Tailwind /opacity NO funciona con var(--color-*)).
+ */
+function cellStyle(state: WeekCellState, isMilestone: boolean): CSSProperties {
+  if (state === 'current') {
+    return {
+      backgroundColor: 'var(--color-accent-red)',
+      borderColor: 'var(--color-accent-red)',
+      boxShadow: isMilestone ? '0 0 0 2px #e3b341' : undefined,
+    };
   }
+  if (state === 'lived') {
+    return {
+      backgroundColor: 'var(--color-accent-teal)',
+      borderColor: 'var(--color-accent-teal)',
+      boxShadow: isMilestone ? '0 0 0 2px #e3b341' : undefined,
+    };
+  }
+  // remaining
+  if (isMilestone) {
+    return {
+      backgroundColor: 'rgba(227, 179, 65, 0.35)',
+      borderColor: '#e3b341',
+      boxShadow: '0 0 0 1px #e3b341',
+    };
+  }
+  return {
+    backgroundColor: 'transparent',
+    borderColor: 'var(--color-border)',
+  };
 }
 
 function LifeGrid({ snap }: { snap: LifeWeeksSnapshot }) {
   const years = snap.lifespanYears;
+  const milestones = useMemo(
+    () => milestoneWeekMap(snap.ageYears, snap.lifespanYears),
+    [snap.ageYears, snap.lifespanYears]
+  );
+
   const cells: ReactNode[] = [];
 
   for (let y = 0; y < years; y++) {
+    const showLabel = y % 5 === 0 || y === years - 1;
+    cells.push(
+      <div
+        key={`label-${y}`}
+        className="flex items-center justify-end pr-1.5 text-[10px] tabular-nums leading-none text-text-muted sm:pr-2 sm:text-[11px]"
+        aria-hidden
+      >
+        {showLabel ? y : ''}
+      </div>
+    );
+
     for (let w = 0; w < WEEKS_PER_YEAR; w++) {
       const index = y * WEEKS_PER_YEAR + w;
       const state = weekCellState(index, snap);
+      const milestoneAge = milestones.get(index);
+      const isMilestone = milestoneAge !== undefined;
+      const title = isMilestone
+        ? `Cumples ${milestoneAge} · año ${y}, sem. ${w + 1}`
+        : `Año ${y}, sem. ${w + 1}`;
+
       cells.push(
         <span
           key={index}
-          title={`Año ${y}, sem. ${w + 1}`}
+          title={title}
+          data-state={state}
+          data-milestone={isMilestone ? milestoneAge : undefined}
           className={cn(
-            'box-border block h-[5px] w-full min-w-[4px] rounded-[1px] border sm:h-1.5',
-            cellClass(state)
+            'box-border aspect-square w-full min-w-0 rounded-[2px] border',
+            state === 'current' && 'relative z-[1] ring-2 ring-[var(--color-accent-red)] ring-offset-1 ring-offset-[var(--color-surface)]'
           )}
+          style={cellStyle(state, isMilestone)}
         />
       );
     }
   }
 
-  // Una etiqueta por fila de año, alineada con el gap de la grilla.
-  const yearLabels = Array.from({ length: years }, (_, y) => (
-    <div
-      key={y}
-      className="flex h-[5px] items-center justify-end text-[9px] leading-none text-text-muted sm:h-1.5 sm:text-[10px]"
-    >
-      {y % 10 === 0 || y === years - 1 ? y : ''}
-    </div>
-  ));
-
   return (
-    <div className="flex gap-1.5 sm:gap-2">
-      <div className="flex shrink-0 flex-col gap-[2px]" aria-hidden>
-        {yearLabels}
-      </div>
-
-      <div className="min-w-0 flex-1 overflow-x-auto pb-1">
-        <div
-          className="grid w-full min-w-[280px] max-w-[520px] gap-[2px]"
-          style={{ gridTemplateColumns: `repeat(${WEEKS_PER_YEAR}, minmax(0, 1fr))` }}
-          role="img"
-          aria-label={`${snap.weeksLived} semanas vividas, ${snap.weeksRemaining} restantes`}
-        >
-          {cells}
-        </div>
+    <div className="flex w-full justify-center">
+      <div
+        className="w-full max-w-5xl"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `2rem repeat(${WEEKS_PER_YEAR}, minmax(0, 1fr))`,
+          gap: '3px',
+        }}
+        role="img"
+        aria-label={`${snap.weeksLived} semanas vividas, ${snap.weeksRemaining} restantes`}
+      >
+        {cells}
       </div>
     </div>
   );
@@ -89,12 +123,17 @@ export function MementoMoriPage() {
 
   const quote = useMemo(() => getStoicQuoteForDate(new Date()), []);
 
+  const milestoneList = useMemo(() => {
+    if (!snap) return [];
+    return Array.from(milestoneWeekMap(snap.ageYears, snap.lifespanYears).values());
+  }, [snap]);
+
   return (
     <Layout title={t('nav_memento')} showFab={false}>
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="mx-auto max-w-2xl space-y-6">
-          <header className="space-y-1">
-            <div className="flex items-center gap-2">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <div className="mx-auto w-full max-w-5xl space-y-6">
+          <header className="space-y-1 text-center sm:text-left">
+            <div className="flex items-center justify-center gap-2 sm:justify-start">
               <Hourglass className="h-5 w-5 text-accent-teal" />
               <h1 className="text-lg font-semibold text-text-primary">{t('memento_title')}</h1>
             </div>
@@ -131,14 +170,50 @@ export function MementoMoriPage() {
                 />
               </section>
 
-              <section className="rounded-lg border border-border bg-surface p-3 sm:p-4">
-                <div className="mb-3 flex flex-wrap items-center gap-3 text-[11px] text-text-muted">
-                  <LegendDot className="bg-accent-teal/80 border-accent-teal/50" label={t('memento_legend_lived')} />
-                  <LegendDot className="bg-accent-red border-accent-red" label={t('memento_legend_current')} />
-                  <LegendDot className="bg-transparent border-border" label={t('memento_legend_left')} />
+              <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
+                <div className="mb-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-text-muted sm:justify-start">
+                  <LegendDot
+                    style={{
+                      backgroundColor: 'var(--color-accent-teal)',
+                      borderColor: 'var(--color-accent-teal)',
+                    }}
+                    label={t('memento_legend_lived')}
+                  />
+                  <LegendDot
+                    style={{
+                      backgroundColor: 'var(--color-accent-red)',
+                      borderColor: 'var(--color-accent-red)',
+                    }}
+                    label={t('memento_legend_current')}
+                  />
+                  <LegendDot
+                    style={{
+                      backgroundColor: 'transparent',
+                      borderColor: 'var(--color-border)',
+                    }}
+                    label={t('memento_legend_left')}
+                  />
+                  <LegendDot
+                    style={{
+                      backgroundColor: 'rgba(227, 179, 65, 0.35)',
+                      borderColor: '#e3b341',
+                    }}
+                    label={t('memento_legend_milestone')}
+                  />
                 </div>
+
                 <LifeGrid snap={snap} />
-                <p className="mt-3 text-[11px] text-text-muted">
+
+                {milestoneList.length > 0 && (
+                  <p className="mt-3 text-center text-[11px] text-text-muted sm:text-left">
+                    {t('memento_milestones_hint').replace(
+                      '{ages}',
+                      milestoneList.slice(0, 8).join(', ') +
+                        (milestoneList.length > 8 ? '…' : '')
+                    )}
+                  </p>
+                )}
+                <p className="mt-1 text-center text-[11px] text-text-muted sm:text-left">
                   {t('memento_lifespan_note').replace('{years}', String(snap.lifespanYears))}
                   {snap.pastExpectation ? ` ${t('memento_past_expectation')}` : ''}
                 </p>
@@ -146,13 +221,14 @@ export function MementoMoriPage() {
             </>
           )}
 
-          {/* Frase estoica del día — siempre visible */}
-          <section className="rounded-lg border border-border bg-surface p-4">
+          <section className="rounded-xl border border-border bg-surface p-4 sm:p-6">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
               {t('memento_quote_title')}
             </p>
-            <blockquote className="border-l-2 border-accent-teal/60 pl-3">
-              <p className="text-sm leading-relaxed text-text-primary">«{quote.text}»</p>
+            <blockquote className="border-l-2 border-accent-teal pl-3">
+              <p className="text-sm leading-relaxed text-text-primary sm:text-base">
+                «{quote.text}»
+              </p>
               <footer className="mt-2 text-xs font-medium text-accent-teal">— {quote.author}</footer>
             </blockquote>
           </section>
@@ -172,7 +248,7 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface px-3 py-2.5">
+    <div className="rounded-lg border border-border bg-surface px-3 py-2.5 text-center sm:text-left">
       <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">{label}</p>
       <p className="mt-0.5 text-base font-semibold tabular-nums text-text-primary sm:text-lg">{value}</p>
       {hint ? <p className="text-[10px] text-text-muted">{hint}</p> : null}
@@ -180,10 +256,16 @@ function StatCard({
   );
 }
 
-function LegendDot({ className, label }: { className: string; label: string }) {
+function LegendDot({
+  style,
+  label,
+}: {
+  style: CSSProperties;
+  label: string;
+}) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={cn('inline-block h-2.5 w-2.5 rounded-[2px] border', className)} />
+      <span className="inline-block h-3 w-3 rounded-[2px] border" style={style} />
       {label}
     </span>
   );

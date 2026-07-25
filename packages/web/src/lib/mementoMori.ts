@@ -108,3 +108,42 @@ export function weekCellState(index: number, snap: LifeWeeksSnapshot): WeekCellS
   if (index === snap.currentWeekIndex) return 'current';
   return 'remaining';
 }
+
+/**
+ * Edades múltiplo de 5 aún por cumplir (p. ej. 32 → 35, 40, 45…).
+ * No incluye la edad actual aunque sea múltiplo de 5 (ya cumplida).
+ */
+export function nextFiveYearMilestones(
+  currentAgeYears: number,
+  lifespanYears: number
+): number[] {
+  const age = Math.max(0, Math.floor(currentAgeYears));
+  const max = Math.max(age, Math.floor(lifespanYears));
+  // Primer múltiplo de 5 estrictamente mayor que la edad actual.
+  const first = Math.ceil((age + 1) / 5) * 5;
+  const out: number[] = [];
+  for (let a = first; a <= max; a += 5) {
+    out.push(a);
+  }
+  return out;
+}
+
+/** Índice 0-based de la primera semana del año de vida `ageYears` (cumpleaños de esa edad). */
+export function weekIndexForAge(ageYears: number): number {
+  return Math.max(0, Math.floor(ageYears)) * WEEKS_PER_YEAR;
+}
+
+/** Mapa weekIndex → edad hito (35, 40, …) para marcar celdas. */
+export function milestoneWeekMap(
+  currentAgeYears: number,
+  lifespanYears: number
+): Map<number, number> {
+  const map = new Map<number, number>();
+  for (const age of nextFiveYearMilestones(currentAgeYears, lifespanYears)) {
+    const idx = weekIndexForAge(age);
+    if (idx < lifespanYears * WEEKS_PER_YEAR) {
+      map.set(idx, age);
+    }
+  }
+  return map;
+}
