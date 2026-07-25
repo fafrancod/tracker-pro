@@ -1,6 +1,6 @@
 # Daily Tracker — Claude / Agent instructions
 
-Project monorepo: `packages/web` (React + Vite), `packages/api` (Express), `packages/core` (shared), `supabase/schema.sql`.
+Project monorepo: `packages/web` (React + Vite + PWA + Capacitor), `packages/api` (Express), `packages/core` (shared), `supabase/schema.sql`.
 
 ## Language
 
@@ -9,44 +9,90 @@ Project monorepo: `packages/web` (React + Vite), `packages/api` (Express), `pack
 
 ## Git policy (mandatory)
 
-**Always work on `main`. Always merge into `main` and push `main`.**
+**Always work on `main`. Always merge into `main`. Always push `main` to BOTH remotes.**
 
-- Default branch for all work: **`main`**.
-- Do **not** leave finished work only on feature branches unless the user explicitly asks for a PR branch workflow.
-- When a change is complete and the user wants it published (or when the session ends with completed work they expect live):
-  1. Ensure commits are on `main` (fast-forward merge feature branches into `main` if needed).
-  2. **Push `main`** to remotes (`tracker-pro` and `origin` when both exist).
-- Prefer **no long-lived feature branches** for this solo product; feature-branch-chain is optional only if the user requests review isolation.
-- Never force-push `main` unless the user explicitly orders it.
-- Conventional commits only. **Never** add `Co-Authored-By` or AI attribution footers.
+| Rule | Detail |
+|------|--------|
+| Branch | Default branch for all work: **`main`**. |
+| Dual remote | After every completed feature: push to **`tracker-pro`** and **`origin`**. Same commits on both. |
+| Parity | Do **not** leave new features only on one GitHub repo. If a push fails, fix and complete both. |
+| Feature branches | Prefer no long-lived branches; if used, FF-merge into `main` before finishing. |
+| PRs | Optional; only if the user asks. Default delivery is **direct to main**. |
+| Force push | Forbidden on `main` unless the user explicitly orders it. |
+| Commits | Conventional commits only. **Never** add `Co-Authored-By` or AI attribution footers. |
 
-Remotes historically used:
+```text
+git checkout main
+git merge --ff-only <feature-branch>   # if needed
+git push tracker-pro main
+git push origin main
+```
 
-- `tracker-pro` → https://github.com/fafrancod/tracker-pro (primary deploy)
+Remotes:
+
+- `tracker-pro` → https://github.com/fafrancod/tracker-pro (**primary deploy**)
 - `origin` → https://github.com/fafrancod/dailytracker
+
+When the user says “publica”, “deja todo en main”, or finishes a feature session: **both remotes**, not only `tracker-pro`.
 
 ## Architecture
 
 - Business logic lives in **`packages/core`** — do not import web/api into core.
-- Shared types and hooks must stay DOM-free so a future mobile app can reuse them.
+- Shared types and hooks must stay DOM-free (no `window`/`localStorage` types without `globalThis` guards) so mobile/Capacitor/RN can reuse them.
 - Data: **Supabase** Auth + PostgreSQL (`supabase/schema.sql`). Apply schema migrations in the Supabase SQL editor when columns change.
-- API owns validation (Zod), plan limits, and recurrence materialization; core mirrors recurrence helpers (keep dual-port in sync).
+- API owns validation (Zod), plan limits, and recurrence materialization; core mirrors recurrence + schedule helpers (keep dual-port in sync).
+- Offline queue + task cache live in core; web hosts banners (offline / PWA install).
 
-## Product conventions
+## Product conventions (current feature set)
 
-- Multi-day tasks: `end_day_id` single row; complete-once for the whole span.
-- Multi-day recurrence allowed: **`none` | `monthly` | `yearly`** only.
-- Eisenhower fields: `urgency`, `importance` (nullable).
-- Task kind: `task` | `reminder`; optional `color` hex.
-- Board views: week | month | continuous; default from `settings.defaultBoardView`.
-- Right-click → context menu (complete / edit / delete); double-click → edit sheet.
+These features are **shipped product** on `main` and must exist on **both** remotes. Do not regress them; extend them deliberately.
+
+### Board
+
+- Views: **`day` | `week` | `month` | `continuous`** (`settings.defaultBoardView`).
+- Week/day modes: **`list` | `schedule`** (`settings.defaultScheduleLayout`).
+- Hour grid: `settings.dayStartHour` / `dayEndHour` (default 7–22); unscheduled strip = “Sin hora”.
+- Filters: project / urgency / importance with prev/next cycle controls.
+- Dense full-width week columns; touch-friendly targets and safe-area insets.
+
+### Tasks
+
+- Multi-day: `end_day_id` single row; complete-once for the whole span.
+- Multi-day recurrence: **`none` | `monthly` | `yearly`** only.
+- Eisenhower: `urgency`, `importance` (nullable).
+- Kind: `task` | `reminder`; optional `color` hex.
+- **Time schedule**: optional `startTime` / `endTime` (`HH:mm` / DB `start_time`/`end_time`).
+- Series: shared `seriesId`; edit scope **instance | series** (`applyTo`) for shared metadata (incl. title, color, times, Eisenhower).
+- Interactions: long-press / ⋮ / right-click context menu; double-click → detail sheet; draft+save in detail when dirty.
+
+### History & offline
+
+- Session undo/redo (board Ctrl+Z / Ctrl+Y) + Bitácora `/activity` jump timeline.
+- Offline: last board snapshot + queued create/update/delete/move; sync on reconnect.
+
+### Appearance
+
+- 40 skins (20 dark + 20 light), `settings.skinId`; `theme-color` follows skin.
+
+### Android / PWA
+
+- PWA installable (PNG any+maskable icons, install banner).
+- Capacitor app: `packages/web/android`, id `com.cerebrostudios.dailytracker`.
+- Guides: `roadmap_android.md`, `docs/ANDROID.md`, `docs/PLAY_STORE.md`.
+- Native builds need absolute `VITE_API_BASE_URL` at web build time.
+
+### Eisenhower UI
+
+- Labels show **Urgente e importante** / combinations (not Hacer/Planificar/Delegar/Eliminar).
 
 ## Testing
 
 - Strict TDD for **API**: `npm run test --workspace=packages/api`
-- Typecheck packages after non-trivial changes.
+- Typecheck packages after non-trivial changes (`packages/core` has no DOM lib).
 
 ## Deploy notes
 
 - After schema changes, run the SQL migration on Supabase **before** relying on new columns in production.
-- Railway serves API + SPA; keep `end_day_id`, `kind`, `color`, yearly recurrence constraints applied in prod DB.
+- Railway serves API + SPA from **tracker-pro** deploy pipeline; keep `main` equal on **origin** too.
+- Prod DB should include: multi-day, series, recurrence, Eisenhower, kind, color, **start_time/end_time**.
+- After finishing work: push both remotes; if schema or Android shell changed, tell the user what to run (SQL / `npm run build:android`).
