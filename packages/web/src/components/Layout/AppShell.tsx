@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { isDemoMode } from '@core/lib/demoMode';
 import { useT } from '@/hooks/useT';
-import { PageChromeProvider, usePageChrome } from './PageChromeContext';
+import {
+  PageChromeProvider,
+  usePageChromeState,
+} from './PageChromeContext';
 
 /**
  * Shell persistente: sidebar + header no se desmontan al cambiar de ruta.
- * El contenido vive en <Outlet /> (páginas eager → navegación inmediata).
  */
 export function AppShell() {
   return (
@@ -26,16 +28,15 @@ function AppShellInner() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
   const { t } = useT();
-  const pageChrome = usePageChrome();
-  const chrome = pageChrome?.chrome;
+  const chrome = usePageChromeState();
 
   const matched = NAV_ITEMS.find(i => location.pathname.startsWith(i.to));
   const headerTitle =
-    chrome?.title || (matched ? t(matched.labelKey) : '') || t('nav_tasks');
+    chrome.title || (matched ? t(matched.labelKey) : '') || t('nav_tasks');
 
-  const primaryAction = chrome?.primaryAction ?? null;
-  const showFab = chrome?.showFab ?? false;
-  const fabHandler = chrome?.onFabClick ?? primaryAction?.onClick ?? null;
+  const primaryAction = chrome.primaryAction;
+  const showFab = chrome.showFab;
+  const fabHandler = chrome.onFabClick ?? primaryAction?.onClick ?? null;
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-background overscroll-none">

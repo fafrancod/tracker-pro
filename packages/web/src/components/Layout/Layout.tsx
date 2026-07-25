@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Menu, Sparkles, Plus } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { Sidebar, NAV_ITEMS } from './Sidebar';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { isDemoMode } from '@core/lib/demoMode';
 import { useT } from '@/hooks/useT';
-import { usePageChrome } from './PageChromeContext';
+import { usePageChromeApi } from './PageChromeContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -24,8 +24,8 @@ interface LayoutProps {
 }
 
 /**
- * Dentro de AppShell: solo publica título/FAB al chrome persistente y renderiza children.
- * Fuera de AppShell (p. ej. admin legacy): monta el layout completo.
+ * Dentro de AppShell: publica título/FAB al chrome (API estable) y solo renderiza children.
+ * Fuera de AppShell: monta el layout completo (fallback).
  */
 export function Layout({
   children,
@@ -34,27 +34,48 @@ export function Layout({
   onFabClick,
   showFab = true,
 }: LayoutProps) {
-  const pageChrome = usePageChrome();
+  const chromeApi = usePageChromeApi();
+  const titleKey = title ?? '';
+  const actionLabel = primaryAction?.label ?? '';
+  const hasPrimary = Boolean(primaryAction);
+  const hasFabClick = Boolean(onFabClick);
 
-  // Shell mode: no re-montar sidebar; solo actualizar header/FAB.
+  // Siempre el handler más reciente sin re-disparar setState.
+  const primaryRef = useRef(primaryAction);
+  primaryRef.current = primaryAction;
+  const fabRef = useRef(onFabClick);
+  fabRef.current = onFabClick;
+
+  // Deps solo strings/flags → no bucle Maximum update depth (#185).
   useLayoutEffect(() => {
-    if (!pageChrome) return;
-    pageChrome.setChrome({
-      title: title ?? '',
+    if (!chromeApi) return;
+    chromeApi.setChrome({
+      title: titleKey,
       showFab,
-      primaryAction: primaryAction ?? null,
-      onFabClick: onFabClick ?? null,
+      primaryAction: hasPrimary
+        ? {
+            label: actionLabel,
+            onClick: () => {
+              primaryRef.current?.onClick();
+            },
+          }
+        : null,
+      onFabClick: hasFabClick
+        ? () => {
+            fabRef.current?.();
+          }
+        : null,
     });
-  }, [pageChrome, title, showFab, primaryAction, onFabClick]);
+  }, [chromeApi, titleKey, showFab, actionLabel, hasPrimary, hasFabClick]);
 
   useEffect(() => {
-    if (!pageChrome) return;
+    if (!chromeApi) return;
     return () => {
-      pageChrome.resetChrome();
+      chromeApi.resetChrome();
     };
-  }, [pageChrome]);
+  }, [chromeApi]);
 
-  if (pageChrome) {
+  if (chromeApi) {
     return <>{children}</>;
   }
 
