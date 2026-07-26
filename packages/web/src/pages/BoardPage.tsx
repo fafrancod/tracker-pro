@@ -9,7 +9,6 @@ import {
   Sun,
   LayoutGrid,
   FolderKanban,
-  Pill,
   CalendarHeart,
   MapPin,
   Leaf,
@@ -148,8 +147,12 @@ export function BoardPage() {
     setView('day');
   }
 
-  const category = filters.category ?? 'all';
-  const isRxCategory = category === 'rx';
+  const category = filters.category === 'rx' ? 'all' : (filters.category ?? 'all');
+  /** Filtros efectivos del board (sin pestaña recetario). */
+  const boardFilter: BoardTaskFilters = {
+    ...filters,
+    category,
+  };
   const isProjectsCategory = category === 'projects';
   const isPossibleCategory = category === 'possible';
   const isEventsCategory = category === 'events';
@@ -166,7 +169,6 @@ export function BoardPage() {
       label: t('board_filter_category_projects'),
       icon: FolderKanban,
     },
-    { value: 'rx', label: t('board_filter_category_rx'), icon: Pill },
     {
       value: 'events',
       label: t('board_filter_category_events'),
@@ -311,7 +313,7 @@ export function BoardPage() {
         </div>
       </div>
 
-      {/* Fila 2: categorías visibles (Todo / Proyectos / Recetario) + filtros contextuales */}
+      {/* Fila 2: categorías (Todo / Proyectos / Eventos / …) — recetario vive en /recetario */}
       <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-surface/60 px-2 py-2 md:flex-row md:items-center md:px-3">
         <div
           className="inline-flex w-full rounded-lg border border-border bg-background p-0.5 sm:w-auto"
@@ -331,9 +333,8 @@ export function BoardPage() {
                   setFilters(f => ({
                     ...f,
                     category: tab.value,
-                    // Al entrar en recetario o eventos posibles, limpia filtros de proyecto/Eisenhower
-                    ...(tab.value === 'rx' ||
-                    tab.value === 'possible' ||
+                    // Eventos / posibles / hábitos no usan proyecto ni Eisenhower
+                    ...(tab.value === 'possible' ||
                     tab.value === 'events' ||
                     tab.value === 'habits'
                       ? { projectId: 'all', urgency: 'all', importance: 'all' }
@@ -343,17 +344,15 @@ export function BoardPage() {
                 className={cn(
                   'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition-colors sm:flex-none sm:py-1.5',
                   active
-                    ? tab.value === 'rx'
-                      ? 'bg-violet-500/20 text-violet-200'
-                      : tab.value === 'possible'
-                        ? 'bg-fuchsia-500/20 text-fuchsia-200'
-                        : tab.value === 'events'
-                          ? 'bg-sky-500/20 text-sky-200'
-                          : tab.value === 'habits'
-                            ? 'bg-emerald-500/20 text-emerald-200'
-                            : tab.value === 'projects'
-                              ? 'bg-accent-teal/15 text-accent-teal'
-                              : 'bg-accent-teal/15 text-accent-teal'
+                    ? tab.value === 'possible'
+                      ? 'bg-fuchsia-500/20 text-fuchsia-200'
+                      : tab.value === 'events'
+                        ? 'bg-sky-500/20 text-sky-200'
+                        : tab.value === 'habits'
+                          ? 'bg-emerald-500/20 text-emerald-200'
+                          : tab.value === 'projects'
+                            ? 'bg-accent-teal/15 text-accent-teal'
+                            : 'bg-accent-teal/15 text-accent-teal'
                     : 'text-text-muted hover:bg-surface hover:text-text-primary'
                 )}
               >
@@ -381,10 +380,7 @@ export function BoardPage() {
         )}
 
         {/* Filtros secundarios: solo donde aplican */}
-        {!isRxCategory &&
-          !isPossibleCategory &&
-          !isEventsCategory &&
-          !isHabitsCategory && (
+        {!isPossibleCategory && !isEventsCategory && !isHabitsCategory && (
           <div className="flex flex-wrap items-center gap-1.5 md:ml-auto">
             {(isProjectsCategory || category === 'all') && (
               <div className="flex items-center gap-1">
@@ -442,18 +438,12 @@ export function BoardPage() {
             </div>
           </div>
         )}
-
-        {isRxCategory && (
-          <p className="text-[11px] text-text-muted md:ml-auto">
-            {t('board_category_rx_hint')}
-          </p>
-        )}
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {view === 'day' && (
           <DayView
-            filter={filters}
+            filter={boardFilter}
             dayStartHour={settings.dayStartHour ?? 7}
             dayEndHour={settings.dayEndHour ?? 22}
             layout={scheduleLayout}
@@ -462,7 +452,7 @@ export function BoardPage() {
         )}
         {view === 'week' && (
           <BoardLayout
-            filter={filters}
+            filter={boardFilter}
             dayStartHour={settings.dayStartHour ?? 7}
             dayEndHour={settings.dayEndHour ?? 22}
             layout={scheduleLayout}
@@ -473,7 +463,7 @@ export function BoardPage() {
           <MonthView
             onPickDay={handlePickDay}
             onViewDay={handleViewDay}
-            filter={filters}
+            filter={boardFilter}
             focusTodayNonce={focusTodayNonce}
           />
         )}
@@ -481,7 +471,7 @@ export function BoardPage() {
           <ContinuousMonthsView
             onPickDay={handlePickDay}
             onViewDay={handleViewDay}
-            filter={filters}
+            filter={boardFilter}
             focusTodayNonce={focusTodayNonce}
           />
         )}
@@ -506,15 +496,13 @@ export function BoardPage() {
             variant="modal"
             startDayId={targetDayId}
             initialKind={
-              isRxCategory
-                ? 'rx_human'
-                : isEventsCategory
-                  ? 'event'
-                  : isPossibleCategory
-                    ? 'possible_event'
-                    : isHabitsCategory
-                      ? 'habit_good'
-                      : 'task'
+              isEventsCategory
+                ? 'event'
+                : isPossibleCategory
+                  ? 'possible_event'
+                  : isHabitsCategory
+                    ? 'habit_good'
+                    : 'task'
             }
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {

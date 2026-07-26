@@ -584,6 +584,10 @@ export interface TranslationDict {
   recetario_loading: string;
   recetario_new: string;
   recetario_new_hint: string;
+  recetario_day_range: string;
+  recetario_prev_day: string;
+  recetario_next_day: string;
+  recetario_no_doses_day: string;
   rx_load_error: string;
   rx_toggle_error: string;
   rx_today_doses: string;
@@ -1309,6 +1313,10 @@ const es_dict: TranslationDict = {
   recetario_loading: 'Cargando tratamientos…',
   recetario_new: 'Nuevo recetario',
   recetario_new_hint: 'Define el remedio, la persona o mascota y las fases del plan.',
+  recetario_day_range: 'Rango de días',
+  recetario_prev_day: 'Día anterior',
+  recetario_next_day: 'Día siguiente',
+  recetario_no_doses_day: 'Sin tomas este día',
   rx_load_error: 'No se pudieron cargar los recetarios.',
   rx_toggle_error: 'No se pudo actualizar la toma.',
   rx_today_doses: 'Tomas de hoy',
@@ -2041,6 +2049,10 @@ const en_dict: TranslationDict = {
   recetario_loading: 'Loading treatments…',
   recetario_new: 'New prescription',
   recetario_new_hint: 'Set the medicine, person or pet, and plan phases.',
+  recetario_day_range: 'Day range',
+  recetario_prev_day: 'Previous day',
+  recetario_next_day: 'Next day',
+  recetario_no_doses_day: 'No doses this day',
   rx_load_error: 'Could not load prescriptions.',
   rx_toggle_error: 'Could not update the dose.',
   rx_today_doses: 'Today’s doses',

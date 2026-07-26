@@ -465,14 +465,24 @@ export function MonthView({
                         >
                           {format(date, 'd')}
                         </span>
-                        {total > 0 && (
-                          <Badge
-                            variant={completed === total ? 'green' : 'secondary'}
-                            className="px-1.5 py-0 text-[10px]"
+                        <div className="flex items-center gap-0.5">
+                          {total > 0 && (
+                            <Badge
+                              variant={completed === total ? 'green' : 'secondary'}
+                              className="px-1.5 py-0 text-[10px]"
+                            >
+                              {completed}/{total}
+                            </Badge>
+                          )}
+                          {/* Affordance: añadir aunque el día esté lleno de chips */}
+                          <span
+                            className="flex h-4 w-4 items-center justify-center rounded text-[11px] font-bold leading-none text-text-muted opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                            aria-hidden
+                            title={t('action_add_task')}
                           >
-                            {completed}/{total}
-                          </Badge>
-                        )}
+                            +
+                          </span>
+                        </div>
                       </div>
 
                       <div
@@ -481,9 +491,13 @@ export function MonthView({
                         aria-hidden
                       />
 
+                      {/*
+                        No stopPropagation en el contenedor: un día con chips
+                        debe seguir abriendo el alta al clicar el hueco vacío.
+                        Cada chip sí detiene la propagación.
+                      */}
                       <div
                         className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain"
-                        onClick={e => e.stopPropagation()}
                         onWheel={e => {
                           // Keep wheel scroll inside the day cell when the list overflows.
                           const el = e.currentTarget;

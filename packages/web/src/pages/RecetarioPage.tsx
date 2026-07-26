@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/mobile-sheet';
 import { AddTaskForm } from '@/components/Board';
 import { RxTreatmentsPanel } from '@/components/Recetario/RxTreatmentsPanel';
+import { RxDayColumns } from '@/components/Recetario/RxDayColumns';
 import { RxOwnerEditDialog, type RxOwnerEditResult } from '@/components/Recetario/RxOwnerEditDialog';
 import { RxPhasesEndingPanel } from '@/components/Recetario/RxPhasesEndingPanel';
 import { useProjects } from '@core/hooks/useProjects';
@@ -50,6 +51,8 @@ export function RecetarioPage() {
   const { addTask, editTask } = useTasks(weekId, todayId);
 
   const [filter, setFilter] = useState<SubjectFilter>('all');
+  /** Centro de la ventana de 3 días (ayer | centro | mañana). */
+  const [centerDayId, setCenterDayId] = useState(todayId);
   const [remoteRx, setRemoteRx] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
@@ -188,7 +191,7 @@ export function RecetarioPage() {
   return (
     <Layout title={t('nav_recetario')} showFab onFabClick={() => setFabOpen(true)}>
       <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-        <div className="mx-auto w-full max-w-3xl space-y-5">
+        <div className="mx-auto w-full max-w-6xl space-y-5">
           <header className="space-y-1">
             <div className="flex items-center gap-2">
               <Pill className="h-5 w-5 text-accent-pink" />
@@ -241,11 +244,20 @@ export function RecetarioPage() {
             })}
           </div>
 
+          <RxDayColumns
+            tasks={allRx}
+            filter={filter}
+            centerDayId={centerDayId}
+            onCenterDayChange={setCenterDayId}
+            onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
+          />
+
           <RxTreatmentsPanel
             groups={groups}
             onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
             onEditOwner={tr => setEditTarget(tr)}
             emptyLabel={loading ? t('recetario_loading') : t('recetario_empty')}
+            showToday={false}
           />
         </div>
       </div>
