@@ -487,9 +487,9 @@ export interface BoardTaskFilters {
   urgency?: Urgency | 'all';
   importance?: Importance | 'all';
   /**
-   * all = todo;
+   * all = calendario sin recetario (vive en /recetario);
    * projects = tareas/recordatorios (no recetario, eventos ni hábitos);
-   * rx = solo recetarios;
+   * rx = legacy: solo recetarios (el board ya no expone esta pestaña);
    * possible = solo eventos posibles;
    * events = eventos confirmados;
    * habits = hábitos buenos y a dejar.
@@ -501,12 +501,18 @@ export function taskMatchesFilters(
   task: Pick<Task, 'projectId' | 'urgency' | 'importance' | 'kind'>,
   filters: BoardTaskFilters
 ): boolean {
+  const kind = task.kind ?? 'task';
+  const isRx = kind === 'rx_human' || kind === 'rx_pet';
+
+  // El calendario no muestra tomas de recetario salvo filtro legacy `rx`.
+  if (isRx && filters.category !== 'rx') {
+    return false;
+  }
+
   if (filters.category && filters.category !== 'all') {
-    const kind = task.kind ?? 'task';
     if (filters.category === 'projects') {
       if (
-        kind === 'rx_human' ||
-        kind === 'rx_pet' ||
+        isRx ||
         kind === 'possible_event' ||
         kind === 'event' ||
         kind === 'habit_good' ||
@@ -515,7 +521,7 @@ export function taskMatchesFilters(
         return false;
       }
     } else if (filters.category === 'rx') {
-      if (kind !== 'rx_human' && kind !== 'rx_pet') return false;
+      if (!isRx) return false;
     } else if (filters.category === 'possible') {
       if (kind !== 'possible_event') return false;
     } else if (filters.category === 'events') {
