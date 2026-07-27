@@ -290,6 +290,16 @@ html[data-material='glass'].dark
   filter: invert(1);
 }
 
+/* Apple dark materials keep secondary copy clearly legible.  The previous
+   token looked fine on a solid panel but became too dim over a tinted mesh. */
+html.dark .text-text-muted {
+  color: color-mix(in srgb, var(--color-text-muted) 72%, white) !important;
+}
+
+html.dark :is(input, textarea, select) {
+  color: color-mix(in srgb, var(--color-text-primary) 92%, white) !important;
+}
+
 @media (prefers-reduced-transparency: reduce) {
   html[data-material='glass'] .bg-surface,
   html[data-material='glass'] [data-chrome='glass'] {

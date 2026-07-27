@@ -68,6 +68,7 @@ import {
 import type { TaskStep } from '@core/types';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
+import { SimpleSelect } from '@/components/ui/select';
 import { normalizeTimeInput } from '@core/lib/time';
 import { isValidTaskTimeRange } from '@core/lib/schedule';
 import { useStore } from '@core/store';
@@ -715,31 +716,28 @@ export function AddTaskForm({
             </label>
             <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
               <span>{t('fin_field_currency')}</span>
-              <select
+              <SimpleSelect
                 value={financeCurrency}
-                onChange={e => setFinanceCurrency(e.target.value)}
+                onChange={setFinanceCurrency}
                 className="h-9 rounded-lg border border-border bg-field px-2 text-xs text-text-primary"
-              >
-                {SUPPORTED_CURRENCIES.map(c => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+                options={SUPPORTED_CURRENCIES.map(currency => ({
+                  value: currency.code,
+                  label: currency.label,
+                }))}
+              />
             </label>
           </div>
           <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
             <span>{t('task_finance_certainty')}</span>
-            <select
+            <SimpleSelect
               value={financeCertainty}
-              onChange={e =>
-                setFinanceCertainty(e.target.value as FinanceCertainty)
-              }
+              onChange={value => setFinanceCertainty(value as FinanceCertainty)}
               className="h-9 rounded-lg border border-border bg-field px-2 text-xs text-text-primary"
-            >
-              <option value="fixed">{t('task_finance_fixed')}</option>
-              <option value="potential">{t('task_finance_potential')}</option>
-            </select>
+              options={[
+                { value: 'fixed', label: t('task_finance_fixed') },
+                { value: 'potential', label: t('task_finance_potential') },
+              ]}
+            />
           </label>
         </div>
       )}
@@ -865,14 +863,15 @@ export function AddTaskForm({
                 </label>
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                   <span>{t('rx_unit')}</span>
-                  <select
+                  <SimpleSelect
                     value={phase.unit}
-                    onChange={e => updatePhase(pi, { unit: e.target.value as DoseUnit })}
+                    onChange={value => updatePhase(pi, { unit: value as DoseUnit })}
                     className="rounded border border-border bg-field px-2 py-1.5 text-xs text-text-primary"
-                  >
-                    <option value="pills">{t('rx_unit_pills')}</option>
-                    <option value="ml">{t('rx_unit_ml')}</option>
-                  </select>
+                    options={[
+                      { value: 'pills', label: t('rx_unit_pills') },
+                      { value: 'ml', label: t('rx_unit_ml') },
+                    ]}
+                  />
                 </label>
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                   <span>{t('rx_days')}</span>
@@ -1021,21 +1020,21 @@ export function AddTaskForm({
       {!isRx && !isEventLike && !isHabit && !isFinance && (
         <>
           <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
-            <select
+            <SimpleSelect
               value={projectId ?? ''}
-              onChange={e => setProjectId(e.target.value || null)}
+              onChange={value => setProjectId(value || null)}
               className={cn(
                 'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
                 isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
               )}
-            >
-              <option value="">{t('task_no_project')}</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.icon} {p.name}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: t('task_no_project') },
+                ...projects.map(project => ({
+                  value: project.id,
+                  label: `${project.icon} ${project.name}`,
+                })),
+              ]}
+            />
 
             <div className="flex gap-1">
               {PRIORITY_OPTIONS.map(opt => (
@@ -1370,10 +1369,10 @@ export function AddTaskForm({
       >
         <div className="flex flex-wrap items-center gap-2">
           <Repeat className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
-          <select
+          <SimpleSelect
             value={recurrenceFrequency}
-            onChange={e => {
-              const next = e.target.value as RecurrenceFrequency;
+            onChange={value => {
+              const next = value as RecurrenceFrequency;
               setRecurrenceFrequency(next);
               if (next !== 'monthly') {
                 setMonthlyAnchor('day_of_month');
@@ -1382,13 +1381,11 @@ export function AddTaskForm({
             }}
             className="min-w-0 flex-1 rounded-lg border border-border bg-field px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
             aria-label={t('task_repeat')}
-          >
-            {recurrenceOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>
-                {t(opt.labelKey)}
-              </option>
-            ))}
-          </select>
+            options={recurrenceOptions.map(option => ({
+              value: option.value,
+              label: t(option.labelKey),
+            }))}
+          />
 
           {recurrenceFrequency !== 'none' && (
             <label className="flex items-center gap-1 text-xs text-text-muted">
@@ -1471,25 +1468,20 @@ export function AddTaskForm({
             </p>
 
             {useBusinessDays ? (
-              <select
+              <SimpleSelect
                 value={
                   monthlyAnchor === 'first_business' ||
                   monthlyAnchor === 'last_business'
                     ? monthlyAnchor
                     : 'last_business'
                 }
-                onChange={e =>
-                  setMonthlyAnchor(e.target.value as MonthlyAnchor)
-                }
+                onChange={value => setMonthlyAnchor(value as MonthlyAnchor)}
                 className="w-full rounded-lg border border-border bg-field px-2 py-1.5 text-xs text-text-primary"
-              >
-                <option value="first_business">
-                  {t('task_repeat_first_business')}
-                </option>
-                <option value="last_business">
-                  {t('task_repeat_last_business')}
-                </option>
-              </select>
+                options={[
+                  { value: 'first_business', label: t('task_repeat_first_business') },
+                  { value: 'last_business', label: t('task_repeat_last_business') },
+                ]}
+              />
             ) : (
               monthlyAnchor === 'last_day' && (
                 <p className="text-[11px] font-medium text-accent-teal">

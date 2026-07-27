@@ -28,7 +28,7 @@ interface TimeInputProps {
  * - escribe 930 o 9:30 → normaliza a 09:30
  * - botón Ahora
  * - limpia con una pulsación
- * - picker nativo opcional (icono reloj)
+ * - selector propio de hora/minutos (no depende del popup nativo del navegador)
  */
 export function TimeInput({
   value,
@@ -45,12 +45,36 @@ export function TimeInput({
 }: TimeInputProps) {
   const [text, setText] = useState(value || '');
   const focused = useRef(false);
-  const nativeRef = useRef<HTMLInputElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  const parsedTime = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value);
+  const selectedHour = parsedTime?.[1] ?? '';
+  const selectedMinute = parsedTime?.[2] ?? '';
 
   useEffect(() => {
     if (focused.current) return;
     setText(value || '');
   }, [value]);
+
+  useEffect(() => {
+    if (!isPickerOpen) return;
+
+    function closeOnOutsidePointer(event: PointerEvent) {
+      if (!pickerRef.current?.contains(event.target as Node)) setIsPickerOpen(false);
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsPickerOpen(false);
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isPickerOpen]);
 
   function commit(raw: string) {
     const normalized = normalizeTimeInput(raw);
@@ -68,7 +92,7 @@ export function TimeInput({
     Boolean(minTime && text && normalizeTimeInput(text) && minTime > (normalizeTimeInput(text) as string));
 
   return (
-    <div className={cn('inline-flex items-center gap-1', className)}>
+    <div ref={pickerRef} className={cn('relative inline-flex items-center gap-1', className)}>
       <div
         className={cn(
           'flex min-w-0 flex-1 items-center gap-1 rounded-lg border bg-field px-1.5',
@@ -110,36 +134,17 @@ export function TimeInput({
             inputClassName
           )}
         />
-        {/* Picker nativo oculto; se abre con el icono */}
-        <input
-          ref={nativeRef}
-          type="time"
-          tabIndex={-1}
-          value={value && /^\d{2}:\d{2}$/.test(value) ? value : ''}
-          onChange={e => {
-            const n = normalizeTimeInput(e.target.value);
-            if (n) {
-              setText(n);
-              onChange(n);
-            }
-          }}
-          className="pointer-events-none absolute h-0 w-0 opacity-0"
-          aria-hidden
-        />
         <button
           type="button"
           disabled={disabled}
-          title="Selector de hora"
-          onClick={() => {
-            const el = nativeRef.current;
-            if (!el) return;
-            try {
-              el.showPicker?.();
-            } catch {
-              el.click();
-            }
-          }}
-          className="rounded p-1 text-text-muted hover:text-text-primary"
+          title="Elegir hora"
+          aria-label="Elegir hora"
+          aria-expanded={isPickerOpen}
+          onClick={() => setIsPickerOpen(open => !open)}
+          className={cn(
+            'rounded-md p-1 text-text-muted transition-colors hover:bg-white/10 hover:text-text-primary',
+            isPickerOpen && 'bg-accent-teal/18 text-accent-teal'
+          )}
         >
           <Clock className="h-3.5 w-3.5" />
         </button>
@@ -171,6 +176,60 @@ export function TimeInput({
         >
           {nowLabel}
         </button>
+      )}
+      {isPickerOpen && (
+        <div
+          data-glass-float
+          role="dialog"
+          aria-label="Selector de hora"
+          className="absolute left-0 top-[calc(100%+0.5rem)] z-[90] w-52 rounded-2xl border p-2"
+        >
+          <div className="mb-2 flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">
+            <span>Hora</span>
+            <span>Minutos</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1">
+            <div className="grid max-h-44 grid-cols-2 gap-1 overflow-y-auto pr-1">
+              {Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0')).map(hour => (
+                <button
+                  key={hour}
+                  type="button"
+                  className={cn(
+                    'rounded-lg px-2 py-1.5 text-xs tabular-nums text-text-primary transition-colors hover:bg-white/12',
+                    selectedHour === hour && 'bg-accent-teal/24 font-semibold text-accent-teal'
+                  )}
+                  onClick={() => {
+                    const next = `${hour}:${selectedMinute || '00'}`;
+                    setText(next);
+                    onChange(next);
+                  }}
+                >
+                  {hour}
+                </button>
+              ))}
+            </div>
+            <div className="grid max-h-44 grid-cols-2 gap-1 overflow-y-auto pl-1">
+              {Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, '0')).map(minute => (
+                <button
+                  key={minute}
+                  type="button"
+                  className={cn(
+                    'rounded-lg px-2 py-1.5 text-xs tabular-nums text-text-primary transition-colors hover:bg-white/12',
+                    selectedMinute === minute && 'bg-accent-teal/24 font-semibold text-accent-teal'
+                  )}
+                  onClick={() => {
+                    const next = `${selectedHour || '00'}:${minute}`;
+                    setText(next);
+                    onChange(next);
+                    setIsPickerOpen(false);
+                  }}
+                >
+                  {minute}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
