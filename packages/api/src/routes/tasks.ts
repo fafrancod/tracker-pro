@@ -205,12 +205,6 @@ function assertTimeRange(
   }
 }
 
-const taskStepSchema = z.object({
-  id: z.string().min(1).max(80),
-  title: z.string().min(1).max(280).trim(),
-  completed: z.boolean().optional().default(false),
-});
-
 function normalizeSteps(raw: unknown): Array<{
   id: string;
   title: string;
@@ -219,12 +213,21 @@ function normalizeSteps(raw: unknown): Array<{
   if (!Array.isArray(raw)) return [];
   const out: Array<{ id: string; title: string; completed: boolean }> = [];
   for (const item of raw) {
-    const parsed = taskStepSchema.safeParse(item);
-    if (!parsed.success) continue;
+    if (!item || typeof item !== 'object') continue;
+    const o = item as Record<string, unknown>;
+    const title = typeof o.title === 'string' ? o.title.trim() : '';
+    if (!title) continue;
+    const idRaw = o.id;
+    const id =
+      typeof idRaw === 'string' && idRaw.trim()
+        ? idRaw.trim().slice(0, 80)
+        : typeof idRaw === 'number'
+          ? String(idRaw).slice(0, 80)
+          : `step-${out.length + 1}`;
     out.push({
-      id: parsed.data.id,
-      title: parsed.data.title,
-      completed: Boolean(parsed.data.completed),
+      id,
+      title: title.slice(0, 280),
+      completed: Boolean(o.completed),
     });
     if (out.length >= 40) break;
   }
@@ -252,7 +255,12 @@ const createSchema = taskLocation.extend({
   involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
   location: z.string().max(200).nullable().optional(),
   departureTime: timeSchema,
-  steps: z.array(taskStepSchema).max(40).optional(),
+  // Preprocess steps so a single bad item does not 400 the whole create.
+  steps: z
+    .array(z.unknown())
+    .max(40)
+    .optional()
+    .transform(arr => (arr === undefined ? undefined : normalizeSteps(arr))),
   finance: financeMetaSchema,
   financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
   financeCurrency: z.string().min(1).max(8).optional(),
@@ -285,7 +293,12 @@ const updateSchema = z
     involvedContactIds: z.array(z.string().min(1).max(80)).max(40).optional(),
     location: z.string().max(200).nullable().optional(),
     departureTime: timeSchema,
-    steps: z.array(taskStepSchema).max(40).optional(),
+    // Same as create: normalize steps without failing the whole patch.
+    steps: z
+      .array(z.unknown())
+      .max(40)
+      .optional()
+      .transform(arr => (arr === undefined ? undefined : normalizeSteps(arr))),
     finance: financeMetaSchema,
     financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
     financeCurrency: z.string().min(1).max(8).optional(),
@@ -872,12 +885,19 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       financeCertainty: patch.financeCertainty,
       existing: existing.finance_meta,
     });
+    // Only write finance_meta when kind is (or becomes) finance, or when
+    // converting away from finance (clear). Never touch it on normal task saves
+    // that happen to send finance: null.
+    const wasFinance = isFinanceKind(existingKind);
     const financeTouched =
-      patch.finance !== undefined ||
-      patch.financeAmount !== undefined ||
-      patch.financeCurrency !== undefined ||
-      patch.financeCertainty !== undefined ||
-      (patch.kind !== undefined && isFinanceKind(patch.kind));
+      nextIsFinance &&
+      (patch.finance !== undefined ||
+        patch.financeAmount !== undefined ||
+        patch.financeCurrency !== undefined ||
+        patch.financeCertainty !== undefined ||
+        patch.kind !== undefined);
+    const financeClear =
+      wasFinance && !nextIsFinance && patch.kind !== undefined;
 
     // Metadata compartida de la serie (no fechas ni completed).
     const seriesUpdate: Record<string, unknown> = { updated_at: now };
@@ -898,6 +918,8 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     }
     if (financeTouched) {
       seriesUpdate.finance_meta = financePatch;
+    } else if (financeClear) {
+      seriesUpdate.finance_meta = null;
     }
     if (patch.involvedContactIds !== undefined) {
       seriesUpdate.involved_contact_ids = patch.involvedContactIds;
@@ -1101,6 +1123,8 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       }
       if (financeTouched) {
         update.finance_meta = financePatch;
+      } else if (financeClear) {
+        update.finance_meta = null;
       }
       if (patch.involvedContactIds !== undefined) {
         update.involved_contact_ids = patch.involvedContactIds;

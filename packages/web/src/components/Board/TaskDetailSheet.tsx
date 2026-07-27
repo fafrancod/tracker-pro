@@ -605,25 +605,42 @@ function TaskDetailInner({
             endTime: endN,
             steps: kindSupportsSteps(saveKind)
               ? snap.steps
-                  .map(s => ({ ...s, title: s.title.trim() }))
+                  .map(s => ({
+                    id: s.id,
+                    title: s.title.trim(),
+                    completed: Boolean(s.completed),
+                  }))
                   .filter(s => s.title.length > 0)
               : [],
-            finance: saveIsFinance
+            // Solo tocar finance_meta si el kind es finanzas (evita PATCH
+            // a columna inexistente o null accidental en tareas normales).
+            ...(saveIsFinance
               ? {
-                  amount: snap.financeAmount,
-                  currency: snap.financeCurrency,
-                  certainty: snap.financeCertainty,
+                  finance: {
+                    amount: snap.financeAmount,
+                    currency: snap.financeCurrency,
+                    certainty: snap.financeCertainty,
+                  },
                 }
-              : null,
+              : isFinanceKind(taskSnap.kind)
+                ? { finance: null }
+                : {}),
             applyTo: taskSnap.seriesId ? applyTo : 'instance',
           });
         }
-      } catch {
+      } catch (err) {
         const wasPlan =
           isRxKind(taskSnap.kind) &&
           !phasesEqual(snap.rxPhases, clonePhases(taskSnap.rx?.phases));
+        const detail =
+          err instanceof Error && err.message
+            ? ` ${err.message}`
+            : '';
+        console.error('task save failed', err);
         showToast(
-          wasPlan ? t('rx_plan_error') : t('task_save_error'),
+          wasPlan
+            ? t('rx_plan_error')
+            : `${t('task_save_error')}${detail}`,
           'error'
         );
       }
