@@ -79,6 +79,9 @@ interface BackendVersionInfo {
   buildId: string;
   nodeEnv: string;
   database?: string;
+  emailConfigured?: boolean;
+  emailWorkerEnabled?: boolean;
+  emailFrom?: string | null;
 }
 
 type ApiState = 'checking' | 'reachable' | 'unreachable';
@@ -136,6 +139,9 @@ export function SettingsPage() {
         buildId: new Date().toISOString(),
         nodeEnv: 'demo',
         database: 'supabase',
+        emailConfigured: false,
+        emailWorkerEnabled: false,
+        emailFrom: null,
       });
       setApiState('reachable');
       return;
@@ -935,7 +941,63 @@ export function SettingsPage() {
                   <dd className="text-right text-text-primary">{backendInfo.database}</dd>
                 </>
               )}
+
+              <dt className="text-text-muted">{t('settings_status_email')}</dt>
+              <dd className="text-right">
+                {demo ? (
+                  <Badge variant="secondary">{t('settings_status_email_na')}</Badge>
+                ) : backendInfo?.emailConfigured ? (
+                  <Badge variant="green">{t('settings_status_email_ok')}</Badge>
+                ) : apiState === 'reachable' ? (
+                  <Badge variant="red">{t('settings_status_email_off')}</Badge>
+                ) : (
+                  <Badge variant="secondary">—</Badge>
+                )}
+              </dd>
+              {backendInfo?.emailConfigured && backendInfo.emailFrom && (
+                <>
+                  <dt className="text-text-muted">{t('settings_status_email_from')}</dt>
+                  <dd
+                    className="truncate text-right text-[11px] text-text-primary"
+                    title={backendInfo.emailFrom}
+                  >
+                    {backendInfo.emailFrom}
+                  </dd>
+                </>
+              )}
+              <dt className="text-text-muted">{t('settings_status_email_worker')}</dt>
+              <dd className="text-right">
+                {demo ? (
+                  <Badge variant="secondary">—</Badge>
+                ) : backendInfo?.emailWorkerEnabled ? (
+                  <Badge variant="green">{t('status_ok')}</Badge>
+                ) : apiState === 'reachable' ? (
+                  <Badge variant="secondary">{t('settings_status_email_worker_off')}</Badge>
+                ) : (
+                  <Badge variant="secondary">—</Badge>
+                )}
+              </dd>
             </dl>
+            <p className="mt-3 text-[11px] text-text-muted">
+              {t('settings_status_auth_hint')}{' '}
+              <a
+                href="https://github.com/fafrancod/tracker-pro/blob/main/docs/AUTH_AND_EMAIL.md"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-accent-teal hover:underline"
+              >
+                docs/AUTH_AND_EMAIL.md
+              </a>
+              {' · '}
+              <a
+                href="https://github.com/fafrancod/tracker-pro/blob/main/roadmap_mail.md"
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-accent-teal hover:underline"
+              >
+                roadmap_mail.md
+              </a>
+            </p>
             {demo && (
               <p className="mt-3 rounded border border-accent-pink/30 bg-accent-pink/5 p-2 text-[11px] text-text-muted">
                 Estás en demo. Los cambios se guardan en este navegador (localStorage) hasta que cierres

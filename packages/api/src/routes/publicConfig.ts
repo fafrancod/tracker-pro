@@ -16,5 +16,13 @@ publicConfigRouter.get('/', (_req, res) => {
     configured: Boolean(supabaseUrl && supabaseAnonKey),
     api: 'daily-tracker-api',
     spaHint: 'same-origin',
+    /** Sin secretos: solo si la API puede enviar mail (Resend key presente). */
+    emailConfigured: Boolean(config.email.resendApiKey?.trim()),
+    /**
+     * Google OAuth se configura en Supabase/Google Cloud (no en la API).
+     * El cliente solo muestra docs; no se puede saber el estado del provider sin service role.
+     */
+    googleAuth: 'supabase-provider',
+    docsAuthEmail: '/docs/AUTH_AND_EMAIL.md',
   });
 });

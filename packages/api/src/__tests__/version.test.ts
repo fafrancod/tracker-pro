@@ -12,6 +12,8 @@ describe('GET /api/version', () => {
       service: 'daily-tracker-api',
       channel: expect.any(String),
       version: expect.any(String),
+      emailConfigured: expect.any(Boolean),
+      emailWorkerEnabled: expect.any(Boolean),
     });
     expect(res.body.database).toBe('supabase');
   });

@@ -568,6 +568,14 @@ export interface TranslationDict {
   settings_skin_glass_light: string;
   settings_skin_glass_dark: string;
   settings_skin_glass_desc: string;
+  settings_status_email: string;
+  settings_status_email_ok: string;
+  settings_status_email_off: string;
+  settings_status_email_na: string;
+  settings_status_email_from: string;
+  settings_status_email_worker: string;
+  settings_status_email_worker_off: string;
+  settings_status_auth_hint: string;
   settings_day_start_hour: string;
   settings_day_end_hour: string;
   settings_schedule_hours_desc: string;
@@ -1393,6 +1401,15 @@ const es_dict: TranslationDict = {
   settings_skin_glass_dark: 'Liquid Glass · oscuro',
   settings_skin_glass_desc:
     'Como macOS: malla de fondo, chrome esmerilado (blur + saturación) y controles sólidos. 10 tonos por modo.',
+  settings_status_email: 'Email (Resend)',
+  settings_status_email_ok: 'Configurado',
+  settings_status_email_off: 'Sin API key',
+  settings_status_email_na: 'N/A demo',
+  settings_status_email_from: 'Remitente',
+  settings_status_email_worker: 'Worker email',
+  settings_status_email_worker_off: 'Desactivado',
+  settings_status_auth_hint:
+    'Google OAuth y DNS de Resend se configuran fuera de la app. Guía:',
   settings_day_start_hour: 'Inicio de la grilla horaria',
   settings_day_end_hour: 'Fin de la grilla horaria',
   settings_schedule_hours_desc:
@@ -2235,6 +2252,15 @@ const en_dict: TranslationDict = {
   settings_skin_glass_dark: 'Liquid Glass · dark',
   settings_skin_glass_desc:
     'Like macOS: mesh wallpaper, frosted chrome (blur + saturate) and solid controls. 10 tones per mode.',
+  settings_status_email: 'Email (Resend)',
+  settings_status_email_ok: 'Configured',
+  settings_status_email_off: 'No API key',
+  settings_status_email_na: 'N/A demo',
+  settings_status_email_from: 'From',
+  settings_status_email_worker: 'Email worker',
+  settings_status_email_worker_off: 'Off',
+  settings_status_auth_hint:
+    'Google OAuth and Resend DNS are configured outside the app. Guide:',
   settings_day_start_hour: 'Schedule grid start',
   settings_day_end_hour: 'Schedule grid end',
   settings_schedule_hours_desc:
