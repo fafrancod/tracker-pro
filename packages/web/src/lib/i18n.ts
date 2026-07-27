@@ -518,6 +518,16 @@ export interface TranslationDict {
   settings_plan: string;
   settings_preferences: string;
   settings_status: string;
+  settings_tab_account: string;
+  settings_tab_preferences: string;
+  settings_tab_appearance: string;
+  settings_tab_notifications: string;
+  settings_tab_finances: string;
+  settings_tab_system: string;
+  settings_finances_title: string;
+  settings_finances_intro: string;
+  settings_preferred_currency: string;
+  settings_preferred_currency_desc: string;
   settings_language: string;
   settings_language_es: string;
   settings_language_en: string;
@@ -1301,6 +1311,18 @@ const es_dict: TranslationDict = {
   settings_plan: 'Plan',
   settings_preferences: 'Preferencias',
   settings_status: 'Estado',
+  settings_tab_account: 'Cuenta',
+  settings_tab_preferences: 'Preferencias',
+  settings_tab_appearance: 'Apariencia',
+  settings_tab_notifications: 'Avisos',
+  settings_tab_finances: 'Finances',
+  settings_tab_system: 'Sistema',
+  settings_finances_title: 'Finances',
+  settings_finances_intro:
+    'Define cómo se comportan los movimientos de dinero en la app.',
+  settings_preferred_currency: 'Divisa preferida',
+  settings_preferred_currency_desc:
+    'Se usa por defecto en el módulo Finances y al crear ingresos o gastos en el calendario.',
   settings_language: 'Idioma',
   settings_language_es: 'Español',
   settings_language_en: 'English',
@@ -2101,6 +2123,18 @@ const en_dict: TranslationDict = {
   settings_plan: 'Plan',
   settings_preferences: 'Preferences',
   settings_status: 'Status',
+  settings_tab_account: 'Account',
+  settings_tab_preferences: 'Preferences',
+  settings_tab_appearance: 'Appearance',
+  settings_tab_notifications: 'Alerts',
+  settings_tab_finances: 'Finances',
+  settings_tab_system: 'System',
+  settings_finances_title: 'Finances',
+  settings_finances_intro:
+    'How money movements behave in the app.',
+  settings_preferred_currency: 'Preferred currency',
+  settings_preferred_currency_desc:
+    'Default for the Finances module and when creating income or expenses on the calendar.',
   settings_language: 'Language',
   settings_language_es: 'Spanish',
   settings_language_en: 'English',

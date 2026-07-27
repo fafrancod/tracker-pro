@@ -51,9 +51,11 @@ import {
 } from '@core/lib/financeKinds';
 import {
   defaultCurrencyFromLocale,
+  normalizeCurrencyCode,
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
 import { kindSupportsSteps } from '@core/lib/steps';
+import { useSettings } from '@/contexts/SettingsContext';
 import {
   contactHandles,
   extractHashtags,
@@ -165,6 +167,7 @@ export function AddTaskForm({
 }: AddTaskFormProps) {
   const { t } = useT();
   const { showToast } = useToast();
+  const { settings } = useSettings();
   const resolvedInitialEnd =
     initialEndTime ?? (initialStartTime ? defaultEndFromStart(initialStartTime) : '');
   const [open, setOpen] = useState(startOpen);
@@ -194,8 +197,11 @@ export function AddTaskForm({
   const [steps, setSteps] = useState<TaskStep[]>([]);
   const [financeAmount, setFinanceAmount] = useState(0);
   const [financeCurrency, setFinanceCurrency] = useState(() =>
-    defaultCurrencyFromLocale(
-      typeof navigator !== 'undefined' ? navigator.language : 'es'
+    normalizeCurrencyCode(
+      settings.preferredCurrency,
+      defaultCurrencyFromLocale(
+        typeof navigator !== 'undefined' ? navigator.language : 'es'
+      )
     )
   );
   const [financeCertainty, setFinanceCertainty] =
@@ -312,6 +318,14 @@ export function AddTaskForm({
     setSteps([]);
     setFinanceAmount(0);
     setFinanceCertainty('fixed');
+    setFinanceCurrency(
+      normalizeCurrencyCode(
+        settings.preferredCurrency,
+        defaultCurrencyFromLocale(
+          typeof navigator !== 'undefined' ? navigator.language : 'es'
+        )
+      )
+    );
     if (startDayId) {
       setFormStartDayId(startDayId);
       setEndDayId(startDayId);

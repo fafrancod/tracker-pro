@@ -46,8 +46,10 @@ import type {
 } from '@core/types';
 import {
   defaultCurrencyFromLocale,
+  normalizeCurrencyCode,
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
+import { useSettings } from '@/contexts/SettingsContext';
 
 function money(n: number, currency: string): string {
   try {
@@ -61,12 +63,15 @@ function money(n: number, currency: string): string {
   }
 }
 
-function emptyForm(): CreateFinanceEntryPayload {
+function emptyForm(preferredCurrency?: string): CreateFinanceEntryPayload {
   return {
     title: '',
     amount: 0,
-    currency: defaultCurrencyFromLocale(
-      typeof navigator !== 'undefined' ? navigator.language : 'es'
+    currency: normalizeCurrencyCode(
+      preferredCurrency,
+      defaultCurrencyFromLocale(
+        typeof navigator !== 'undefined' ? navigator.language : 'es'
+      )
     ),
     flow: 'expense',
     kind: 'specific',
@@ -81,12 +86,15 @@ function emptyForm(): CreateFinanceEntryPayload {
 export function FinancesPage() {
   const { t, locale } = useT();
   const { showToast } = useToast();
+  const { settings } = useSettings();
   const [entries, setEntries] = useState<FinanceEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<FinanceEntry | null>(null);
-  const [form, setForm] = useState<CreateFinanceEntryPayload>(emptyForm);
+  const [form, setForm] = useState<CreateFinanceEntryPayload>(() =>
+    emptyForm(settings.preferredCurrency)
+  );
   const [filterFlow, setFilterFlow] = useState<'all' | FinanceFlow>('all');
   const [filterKind, setFilterKind] = useState<'all' | FinanceKind>('all');
 
@@ -120,16 +128,23 @@ export function FinancesPage() {
   useEffect(() => {
     if (currencyKeys.length === 0) {
       setSummaryCurrency(
-        defaultCurrencyFromLocale(
-          typeof navigator !== 'undefined' ? navigator.language : 'es'
+        normalizeCurrencyCode(
+          settings.preferredCurrency,
+          defaultCurrencyFromLocale(
+            typeof navigator !== 'undefined' ? navigator.language : 'es'
+          )
         )
       );
       return;
     }
     if (!currencyKeys.includes(summaryCurrency)) {
-      setSummaryCurrency(currencyKeys[0]);
+      // Prefer user preferred if present in month, else first key.
+      const pref = normalizeCurrencyCode(settings.preferredCurrency, currencyKeys[0]);
+      setSummaryCurrency(
+        currencyKeys.includes(pref) ? pref : currencyKeys[0]
+      );
     }
-  }, [currencyKeys, summaryCurrency]);
+  }, [currencyKeys, summaryCurrency, settings.preferredCurrency]);
   const summary = useMemo(() => {
     if (summariesByCurrency[summaryCurrency]) {
       return summariesByCurrency[summaryCurrency];
@@ -159,7 +174,7 @@ export function FinancesPage() {
   function openCreate() {
     setEditing(null);
     setForm({
-      ...emptyForm(),
+      ...emptyForm(settings.preferredCurrency),
       entryDate: format(monthCursor, 'yyyy-MM-dd'),
     });
     setDialogOpen(true);

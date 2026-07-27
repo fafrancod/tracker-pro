@@ -52,7 +52,11 @@ import {
   defaultFinanceColor,
   isFinanceKind,
 } from '@core/lib/financeKinds';
-import { SUPPORTED_CURRENCIES } from '@core/lib/currencies';
+import {
+  normalizeCurrencyCode,
+  SUPPORTED_CURRENCIES,
+} from '@core/lib/currencies';
+import { useSettings } from '@/contexts/SettingsContext';
 import type {
   DoseUnit,
   FinanceCertainty,
@@ -173,6 +177,21 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
   };
 }
 
+function taskToDraftWithPreferred(
+  task: Task,
+  fallbackDayId: string,
+  preferredCurrency?: string
+): DraftState {
+  const base = taskToDraft(task, fallbackDayId);
+  if (!task.finance && isFinanceKind(task.kind)) {
+    base.financeCurrency = normalizeCurrencyCode(
+      preferredCurrency,
+      base.financeCurrency
+    );
+  }
+  return base;
+}
+
 function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
   const base = taskToDraft(task, dayId);
   return (
@@ -275,6 +294,7 @@ function TaskDetailInner({
     dayId
   );
   const contacts = useStore(s => s.contacts);
+  const { settings } = useSettings();
 
   const task = useMemo(() => tasks.find(x => x.id === taskId) ?? null, [tasks, taskId]);
 
@@ -284,10 +304,12 @@ function TaskDetailInner({
 
   useEffect(() => {
     if (task) {
-      setDraft(taskToDraft(task, dayId));
+      setDraft(
+        taskToDraftWithPreferred(task, dayId, settings.preferredCurrency)
+      );
       setTagInput('');
     }
-  }, [task?.id, dayId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [task?.id, dayId, settings.preferredCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!task || !draft) {
     return (

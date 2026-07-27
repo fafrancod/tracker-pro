@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Bell, Download, Mail, RefreshCw, Sparkles } from 'lucide-react';
+import {
+  Bell,
+  Download,
+  Mail,
+  RefreshCw,
+  Sparkles,
+  User,
+  SlidersHorizontal,
+  Palette,
+  Wallet,
+  Monitor,
+} from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +27,7 @@ import {
   NOTIFY_PAST_AFTER_OPTIONS,
 } from '@core/lib/notifications';
 import { useStore } from '@core/store';
+import { SUPPORTED_CURRENCIES, normalizeCurrencyCode } from '@core/lib/currencies';
 
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
@@ -47,6 +59,14 @@ import {
   isStandaloneDisplay,
 } from '@/lib/pwaUpdate';
 
+type SettingsTab =
+  | 'account'
+  | 'preferences'
+  | 'appearance'
+  | 'notifications'
+  | 'finances'
+  | 'system';
+
 interface BackendVersionInfo {
   service: string;
   version: string;
@@ -73,8 +93,30 @@ export function SettingsPage() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [checkingPwa, setCheckingPwa] = useState(false);
   const [resettingPwa, setResettingPwa] = useState(false);
+  const [tab, setTab] = useState<SettingsTab>('account');
   const tasksByDay = useStore(s => s.tasksByDay);
   const isInstalledApp = isStandaloneDisplay();
+
+  const tabs: Array<{
+    id: SettingsTab;
+    label: string;
+    icon: typeof User;
+  }> = [
+    { id: 'account', label: t('settings_tab_account'), icon: User },
+    {
+      id: 'preferences',
+      label: t('settings_tab_preferences'),
+      icon: SlidersHorizontal,
+    },
+    { id: 'appearance', label: t('settings_tab_appearance'), icon: Palette },
+    {
+      id: 'notifications',
+      label: t('settings_tab_notifications'),
+      icon: Bell,
+    },
+    { id: 'finances', label: t('settings_tab_finances'), icon: Wallet },
+    { id: 'system', label: t('settings_tab_system'), icon: Monitor },
+  ];
 
   useEffect(() => {
     void getLocalPermissionState().then(setLocalPerm);
@@ -209,9 +251,44 @@ export function SettingsPage() {
 
   return (
     <Layout title={t('nav_settings')} showFab={false}>
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* Tabs */}
+        <div className="shrink-0 border-b border-border bg-surface/80 px-2 pt-2 md:px-4">
+          <div
+            role="tablist"
+            aria-label={t('nav_settings')}
+            className="mx-auto flex max-w-3xl gap-0.5 overflow-x-auto pb-0"
+          >
+            {tabs.map(item => {
+              const Icon = item.icon;
+              const active = tab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setTab(item.id)}
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-1.5 rounded-t-md border border-b-0 px-3 py-2 text-xs font-medium transition-colors',
+                    active
+                      ? 'border-border bg-background text-accent-teal'
+                      : 'border-transparent text-text-muted hover:bg-background/60 hover:text-text-primary'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="whitespace-nowrap">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="mx-auto max-w-2xl space-y-6">
           {/* Cuenta */}
+          {tab === 'account' && (
+          <>
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('settings_account')}</h2>
             <div className="flex items-center gap-3">
@@ -262,8 +339,11 @@ export function SettingsPage() {
               <dd className="text-right">{limits.canExportCsv ? '✓' : '—'}</dd>
             </dl>
           </section>
+          </>
+          )}
 
           {/* Notificaciones */}
+          {tab === 'notifications' && (
           <section className="rounded-lg border border-border bg-surface p-4">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-text-primary">
@@ -450,8 +530,10 @@ export function SettingsPage() {
               onChange={v => handleToggle('notifyRx', v)}
             />
           </section>
+          )}
 
           {/* Preferencias */}
+          {tab === 'preferences' && (
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('settings_preferences')}</h2>
 
@@ -642,8 +724,62 @@ export function SettingsPage() {
               </div>
             </div>
           </section>
+          )}
+
+          {/* Finances */}
+          {tab === 'finances' && (
+          <section className="rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-text-primary">
+              <Wallet className="h-4 w-4 text-accent-teal" />
+              {t('settings_finances_title')}
+            </h2>
+            <p className="mb-4 text-[11px] text-text-muted">
+              {t('settings_finances_intro')}
+            </p>
+            <label className="mb-1.5 block text-sm font-medium text-text-primary">
+              {t('settings_preferred_currency')}
+            </label>
+            <p className="mb-2 text-[11px] text-text-muted">
+              {t('settings_preferred_currency_desc')}
+            </p>
+            <select
+              value={normalizeCurrencyCode(
+                settings.preferredCurrency,
+                'EUR'
+              )}
+              onChange={e => {
+                void (async () => {
+                  try {
+                    await updateSettings({
+                      preferredCurrency: e.target.value,
+                    });
+                    showToast('Preferencias guardadas.', 'success');
+                  } catch {
+                    showToast('No pudimos guardar las preferencias.', 'error');
+                  }
+                })();
+              }}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {SUPPORTED_CURRENCIES.map(c => (
+                <option key={c.code} value={c.code}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-4 text-[11px] text-text-muted">
+              <a
+                href="/finances"
+                className="font-medium text-accent-teal hover:underline"
+              >
+                {t('nav_finances')} →
+              </a>
+            </p>
+          </section>
+          )}
 
           {/* Skins */}
+          {tab === 'appearance' && (
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-1 text-sm font-semibold text-text-primary">{t('settings_skin')}</h2>
             <p className="mb-4 text-[11px] text-text-muted">{t('settings_skin_desc')}</p>
@@ -664,8 +800,11 @@ export function SettingsPage() {
               className="mt-5"
             />
           </section>
+          )}
 
           {/* App instalada / PWA updates */}
+          {tab === 'system' && (
+          <>
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-text-primary">
               <Download className="h-4 w-4 text-accent-teal" />
@@ -793,6 +932,9 @@ export function SettingsPage() {
               </Button>
             </section>
           )}
+          </>
+          )}
+        </div>
         </div>
       </div>
     </Layout>

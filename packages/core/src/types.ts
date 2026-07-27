@@ -188,6 +188,11 @@ export interface UserSettings {
    * Se poda en cliente a los últimos ~90 días.
    */
   dailyJournal: DailyJournalEntry[];
+  /**
+   * Divisa preferida (ISO 4217, ej. CLP, EUR, USD).
+   * Default del módulo Finances y de ingresos/gastos en calendario.
+   */
+  preferredCurrency: string;
 }
 
 /** 1 = muy bajo … 5 = excelente (ánimo o energía). */

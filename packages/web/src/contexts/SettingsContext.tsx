@@ -3,6 +3,7 @@ import { useStore } from '@core/store';
 import { updateUserSettings } from '@core/services/userService';
 import type { UserSettings } from '@core/types';
 import { applySkin, DEFAULT_SKIN_ID } from '@/lib/skins';
+import { defaultCurrencyFromLocale } from '@core/lib/currencies';
 import { useToast } from './ToastContext';
 
 const LOCAL_KEY = 'daily-tracker:settings:v1';
@@ -54,6 +55,9 @@ const DEFAULTS: UserSettings = {
   expectedLifespanYears: 80,
   lifeGoals: [],
   dailyJournal: [],
+  preferredCurrency: defaultCurrencyFromLocale(
+    typeof navigator !== 'undefined' ? navigator.language : 'es'
+  ),
 };
 
 function loadLocal(): Partial<UserSettings> | null {

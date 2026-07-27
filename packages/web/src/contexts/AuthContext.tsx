@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           expectedLifespanYears: 80,
           lifeGoals: [],
           dailyJournal: [],
+          preferredCurrency: 'EUR',
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;
