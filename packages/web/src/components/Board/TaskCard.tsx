@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { GripVertical, MoreHorizontal, Pencil, Check, ChevronDown, ChevronUp, Maximize2, Repeat } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ import type { Task, Project, Priority } from '@core/types';
 import { formatDose, isRxKind } from '@core/lib/rx';
 import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
 import { useT } from '@/hooks/useT';
+import { rescheduleTaskSpan } from './rescheduleSpan';
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; variant: 'green' | 'teal' | 'red' }> = {
   low: { label: 'Low', variant: 'green' },
@@ -38,8 +39,10 @@ interface TaskCardProps {
   locationDayId?: string;
   onToggle: () => void;
   onEdit: (payload: { title?: string; notes?: string; priority?: Priority; completed?: boolean }) => void;
-  onMove: (toDate: Date) => void;
-  onMoveNextWeek: () => void;
+  /** @deprecated Fechas se cambian con inicio/fin o arrastre en el tablero. */
+  onMove?: (toDate: Date) => void;
+  /** @deprecated */
+  onMoveNextWeek?: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onOpenDetail?: () => void;
@@ -54,14 +57,12 @@ interface TaskCardProps {
 export function TaskCard({
   task,
   projects,
-  weekDays,
+  weekDays: _weekDays,
   startDayId,
   locationWeekId,
   locationDayId,
   onToggle,
   onEdit,
-  onMove,
-  onMoveNextWeek,
   onDuplicate,
   onDelete,
   onOpenDetail,
@@ -150,6 +151,68 @@ export function TaskCard({
     setEditingNotes(false);
   }
 
+  const spanStart = startDayId ?? locationDayId;
+  const spanEnd = task.endDayId || spanStart;
+  const isMultiDay = Boolean(spanStart && spanEnd && spanEnd > spanStart);
+  const edgeResizeRef = useRef<{
+    mode: 'start' | 'end';
+    originX: number;
+    start: string;
+    end: string;
+  } | null>(null);
+
+  function onEdgePointerDown(mode: 'start' | 'end', e: React.PointerEvent) {
+    if (!isMultiDay || !spanStart || !locationWeekId) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    edgeResizeRef.current = {
+      mode,
+      originX: e.clientX,
+      start: spanStart,
+      end: spanEnd!,
+    };
+  }
+
+  async function onEdgePointerUp(e: React.PointerEvent) {
+    const st = edgeResizeRef.current;
+    edgeResizeRef.current = null;
+    if (!st || !spanStart || !locationWeekId) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+    const deltaDays = Math.round((e.clientX - st.originX) / 36);
+    if (deltaDays === 0) return;
+    let nextStart = st.start;
+    let nextEnd = st.end;
+    if (st.mode === 'start') {
+      nextStart = format(
+        addDays(parseISO(`${st.start}T00:00:00`), deltaDays),
+        'yyyy-MM-dd'
+      );
+      if (nextStart > nextEnd) nextStart = nextEnd;
+    } else {
+      nextEnd = format(
+        addDays(parseISO(`${st.end}T00:00:00`), deltaDays),
+        'yyyy-MM-dd'
+      );
+      if (nextEnd < nextStart) nextEnd = nextStart;
+    }
+    try {
+      await rescheduleTaskSpan({
+        task,
+        startWeekId: locationWeekId,
+        startDayId: spanStart,
+        nextStartDayId: nextStart,
+        nextEndDayId: nextEnd,
+      });
+    } catch {
+      /* taskHistory rolls back on hard failure */
+    }
+  }
+
   return (
     <motion.div
       layout
@@ -176,12 +239,38 @@ export function TaskCard({
       )}
       style={
         task.color
-          ? { borderLeftWidth: dense ? 2 : 3, borderLeftColor: task.color }
+          ? {
+              borderLeftWidth: dense ? 2 : 3,
+              borderLeftColor: task.color,
+            }
           : project
             ? { borderLeftWidth: dense ? 2 : 3, borderLeftColor: project.color }
             : undefined
       }
     >
+      {/* Extremos multi-día: arrastrar horizontalmente (~36px = 1 día) */}
+      {isMultiDay && locationWeekId && (
+        <>
+          <span
+            role="separator"
+            aria-label={t('task_start_date')}
+            title={t('task_date_range_drag_hint')}
+            className="absolute bottom-0 left-0 top-0 z-20 w-1.5 cursor-ew-resize rounded-l bg-accent-teal/0 transition-colors group-hover:bg-accent-teal/35"
+            onPointerDown={e => onEdgePointerDown('start', e)}
+            onPointerUp={e => void onEdgePointerUp(e)}
+            onPointerCancel={e => void onEdgePointerUp(e)}
+          />
+          <span
+            role="separator"
+            aria-label={t('task_end_date')}
+            title={t('task_date_range_drag_hint')}
+            className="absolute bottom-0 right-0 top-0 z-20 w-1.5 cursor-ew-resize rounded-r bg-accent-teal/0 transition-colors group-hover:bg-accent-teal/35"
+            onPointerDown={e => onEdgePointerDown('end', e)}
+            onPointerUp={e => void onEdgePointerUp(e)}
+            onPointerCancel={e => void onEdgePointerUp(e)}
+          />
+        </>
+      )}
       <div className={cn('flex items-start', dense ? 'gap-1 pr-5' : 'gap-2')}>
         {/*
           Checkbox SIEMPRE a la izquierda del título (también en semana dense).
@@ -512,25 +601,15 @@ export function TaskCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <div className="px-2 py-1 text-xs font-semibold text-text-muted">Move to</div>
-              {weekDays.map(day => (
-                <DropdownMenuItem key={day.dayId} onClick={() => onMove(day.date)} className="text-xs">
-                  {day.label} {day.dateLabel}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuItem onClick={onMoveNextWeek} className="text-xs">
-                Next week →
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onDuplicate} className="text-xs">
-                Duplicate
+                {t('task_duplicate')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={onDelete}
                 className="text-xs text-accent-red focus:text-accent-red"
               >
-                Delete
+                {t('action_delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

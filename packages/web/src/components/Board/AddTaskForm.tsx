@@ -4,19 +4,13 @@ import {
   X,
   Repeat,
   CalendarRange,
-  CheckSquare,
-  Bell,
   Flame,
   Snowflake,
   Star,
   CircleDashed,
-  Pill,
   PawPrint,
   User,
-  CalendarHeart,
   MapPin,
-  Leaf,
-  Ban,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +62,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { ApiClientError } from '@core/lib/api';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
+import { DateRangeField } from './DateRangeField';
 
 const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
@@ -169,6 +164,7 @@ export function AddTaskForm({
   const [priority, setPriority] = useState<Priority>('medium');
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('none');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [formStartDayId, setFormStartDayId] = useState(startDayId ?? '');
   const [endDayId, setEndDayId] = useState(startDayId ?? '');
   const [kind, setKind] = useState<TaskKind>(initialKind);
   const [urgency, setUrgency] = useState<Urgency | null>(null);
@@ -225,16 +221,19 @@ export function AddTaskForm({
 
   const rxPlanDays = useMemo(() => totalRxPlanDays(rxPhases), [rxPhases]);
   const rxEndDayId = useMemo(() => {
-    if (!startDayId || !isRx) return '';
-    return rxPlanEndDayId(startDayId, rxPhases);
-  }, [startDayId, isRx, rxPhases]);
+    if (!formStartDayId || !isRx) return '';
+    return rxPlanEndDayId(formStartDayId, rxPhases);
+  }, [formStartDayId, isRx, rxPhases]);
   const rxPhaseRanges = useMemo(() => {
-    if (!startDayId || !isRx) return [];
-    return rxPhaseDateRanges(startDayId, rxPhases);
-  }, [startDayId, isRx, rxPhases]);
+    if (!formStartDayId || !isRx) return [];
+    return rxPhaseDateRanges(formStartDayId, rxPhases);
+  }, [formStartDayId, isRx, rxPhases]);
 
   useEffect(() => {
-    if (startDayId) setEndDayId(prev => (prev && prev >= startDayId ? prev : startDayId));
+    if (startDayId) {
+      setFormStartDayId(startDayId);
+      setEndDayId(prev => (prev && prev >= startDayId ? prev : startDayId));
+    }
   }, [startDayId]);
 
   useEffect(() => {
@@ -252,7 +251,9 @@ export function AddTaskForm({
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  const isMultiDay = Boolean(startDayId && endDayId && endDayId > startDayId);
+  const isMultiDay = Boolean(
+    formStartDayId && endDayId && endDayId > formStartDayId
+  );
   const recurrenceOptions = useMemo(
     () => (isMultiDay ? SPAN_RECURRENCE : ALL_RECURRENCE),
     [isMultiDay]
@@ -291,7 +292,10 @@ export function AddTaskForm({
     setLocation('');
     setDepartureTime('');
     setSteps([]);
-    if (startDayId) setEndDayId(startDayId);
+    if (startDayId) {
+      setFormStartDayId(startDayId);
+      setEndDayId(startDayId);
+    }
   }
 
   function toggleInvolvedContact(id: string) {
@@ -387,6 +391,7 @@ export function AddTaskForm({
         rxPhases,
         rxSubject: subject,
         tags,
+        startDayId: formStartDayId || startDayId,
       };
       // Fase 4.1: toast + reset al instante; red en background.
       resetForm();
@@ -398,17 +403,18 @@ export function AddTaskForm({
       return;
     }
 
+    const startForCreate = formStartDayId || startDayId;
     const safeEnd = isHabit
-      ? startDayId
-      : startDayId && endDayId && endDayId >= startDayId
+      ? startForCreate
+      : startForCreate && endDayId && endDayId >= startForCreate
         ? endDayId
-        : startDayId;
+        : startForCreate;
     let frequency = isHabit && recurrenceFrequency === 'none' ? 'daily' : recurrenceFrequency;
     if (
       !isHabit &&
       safeEnd &&
-      startDayId &&
-      safeEnd > startDayId &&
+      startForCreate &&
+      safeEnd > startForCreate &&
       !isMultiDayRecurrenceAllowed(frequency)
     ) {
       frequency = 'none';
@@ -429,7 +435,10 @@ export function AddTaskForm({
     const endN = isHabit ? null : normalizeTimeInput(endTime);
     const depN = normalizeTimeInput(departureTime);
     // Multi-día: se permite 20:00 → 03:00 (cruce de medianoche).
-    if (!isHabit && !isValidTaskTimeRange(startN, endN, startDayId, safeEnd)) {
+    if (
+      !isHabit &&
+      !isValidTaskTimeRange(startN, endN, startForCreate, safeEnd)
+    ) {
       showToast(t('task_time_range_error'), 'error');
       return;
     }
@@ -438,6 +447,7 @@ export function AddTaskForm({
       title: trimmed,
       projectId: isEventLike || isHabit ? null : projectId,
       priority,
+      startDayId: startForCreate,
       endDayId: safeEnd,
       recurrenceFrequency: frequency,
       recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
@@ -579,111 +589,31 @@ export function AddTaskForm({
         />
       )}
 
-      {/* Kind: Tarea | Recordatorio | Rx | Evento | Evento posible */}
-      <div
-        className={cn(
-          'grid gap-2',
-          isModal
-            ? 'grid-cols-2 sm:grid-cols-3'
-            : 'grid-cols-2 gap-1 sm:grid-cols-3'
+      {/* Tipo de evento / tarea — combobox (no botones múltiples) */}
+      <div className={cn(isModal && 'space-y-1.5')}>
+        {isModal && (
+          <label className="text-xs font-medium uppercase tracking-wide text-text-muted">
+            {t('task_kind_convert')}
+          </label>
         )}
-        role="group"
-        aria-label={t('task_kind_convert')}
-      >
-        {(
-          [
-            {
-              value: 'task' as const,
-              icon: CheckSquare,
-              label: t('task_kind_task'),
-              activeClass:
-                'border-accent-teal/50 bg-accent-teal/15 text-accent-teal ring-accent-teal/30',
-            },
-            {
-              value: 'reminder' as const,
-              icon: Bell,
-              label: t('task_kind_reminder'),
-              activeClass:
-                'border-amber-500/50 bg-amber-500/15 text-amber-100 ring-amber-500/30',
-            },
-            {
-              value: 'rx_human' as const,
-              icon: Pill,
-              label: t('task_kind_rx_human'),
-              activeClass:
-                'border-violet-500/50 bg-violet-500/15 text-violet-100 ring-violet-500/30',
-            },
-            {
-              value: 'rx_pet' as const,
-              icon: PawPrint,
-              label: t('task_kind_rx_pet'),
-              activeClass:
-                'border-pink-500/50 bg-pink-500/15 text-pink-100 ring-pink-500/30',
-            },
-            {
-              value: 'event' as const,
-              icon: MapPin,
-              label: t('task_kind_event'),
-              activeClass:
-                'border-sky-500/50 bg-sky-500/15 text-sky-100 ring-sky-500/30',
-            },
-            {
-              value: 'possible_event' as const,
-              icon: CalendarHeart,
-              label: t('task_kind_possible_event'),
-              activeClass:
-                'border-fuchsia-500/50 bg-fuchsia-500/15 text-fuchsia-100 ring-fuchsia-500/30',
-            },
-            {
-              value: 'habit_good' as const,
-              icon: Leaf,
-              label: t('task_kind_habit_good'),
-              activeClass:
-                'border-emerald-500/50 bg-emerald-500/15 text-emerald-100 ring-emerald-500/30',
-            },
-            {
-              value: 'habit_quit' as const,
-              icon: Ban,
-              label: t('task_kind_habit_quit'),
-              activeClass:
-                'border-red-500/50 bg-red-500/15 text-red-100 ring-red-500/30',
-            },
-          ] as const
-        ).map(opt => {
-          const Icon = opt.icon;
-          const active = kind === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setKind(opt.value)}
-              title={opt.label}
-              className={cn(
-                'flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-center transition-all sm:min-h-[3.5rem] sm:px-3',
-                active
-                  ? cn('shadow-sm ring-1 font-semibold', opt.activeClass)
-                  : 'border-border bg-background/60 font-medium text-text-muted hover:border-border hover:bg-surface hover:text-text-primary',
-                !isModal && 'min-h-[2.75rem] rounded-md py-1.5'
-              )}
-            >
-              <Icon
-                className={cn(
-                  'h-4 w-4 shrink-0',
-                  !isModal && 'h-3.5 w-3.5',
-                  active && 'opacity-100'
-                )}
-              />
-              <span
-                className={cn(
-                  'w-full whitespace-normal break-words text-[11px] leading-tight sm:text-xs',
-                  !isModal && 'text-[10px] leading-snug'
-                )}
-              >
-                {opt.label}
-              </span>
-            </button>
-          );
-        })}
+        <select
+          value={kind}
+          onChange={e => setKind(e.target.value as TaskKind)}
+          aria-label={t('task_kind_convert')}
+          className={cn(
+            'w-full rounded-xl border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+            isModal ? 'h-11' : 'h-9 rounded-md text-xs'
+          )}
+        >
+          <option value="task">{t('task_kind_task')}</option>
+          <option value="reminder">{t('task_kind_reminder')}</option>
+          <option value="event">{t('task_kind_event')}</option>
+          <option value="possible_event">{t('task_kind_possible_event')}</option>
+          <option value="habit_good">{t('task_kind_habit_good')}</option>
+          <option value="habit_quit">{t('task_kind_habit_quit')}</option>
+          <option value="rx_human">{t('task_kind_rx_human')}</option>
+          <option value="rx_pet">{t('task_kind_rx_pet')}</option>
+        </select>
       </div>
 
       {/* Title */}
@@ -1178,26 +1108,30 @@ export function AddTaskForm({
         </div>
       </div>
 
-      {/* Dates — recetario: solo inicio; el fin sale de los N días de fases */}
-      {startDayId && (
-        <div
-          className={cn(
-            'flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50',
-            isModal ? 'px-3 py-3' : 'px-2 py-1.5 rounded border'
-          )}
-        >
-          <CalendarRange className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
-          <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
-            <span>{isRx ? t('rx_plan_start') : t('task_start_date')}</span>
-            <input
-              type="date"
-              value={startDayId}
-              readOnly
-              className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary opacity-80"
-              aria-label={t('task_start_date')}
-            />
-          </label>
-          {isRx ? (
+      {/* Fechas: editables + arrastre de extremos (no-rx/no-hábito) */}
+      {(formStartDayId || startDayId) &&
+        (isRx ? (
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50',
+              isModal ? 'px-3 py-3' : 'px-2 py-1.5 rounded border'
+            )}
+          >
+            <CalendarRange className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
+            <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('rx_plan_start')}</span>
+              <input
+                type="date"
+                value={formStartDayId}
+                onChange={e => {
+                  const next = e.target.value || formStartDayId;
+                  setFormStartDayId(next);
+                  setEndDayId(next);
+                }}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                aria-label={t('rx_plan_start')}
+              />
+            </label>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
               <span>{t('rx_plan_duration')}</span>
               <div className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary">
@@ -1229,25 +1163,31 @@ export function AddTaskForm({
                 )}
               </div>
             </div>
-          ) : isHabit ? (
-            <p className="min-w-0 flex-1 text-[10px] leading-snug text-text-muted">
-              {t('board_category_habits_hint')}
-            </p>
-          ) : (
-            <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
-              <span>{t('task_end_date')}</span>
-              <input
-                type="date"
-                value={endDayId || startDayId}
-                min={startDayId}
-                onChange={e => setEndDayId(e.target.value || startDayId)}
-                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-                aria-label={t('task_end_date')}
-              />
-            </label>
-          )}
-        </div>
-      )}
+          </div>
+        ) : isHabit ? (
+          <DateRangeField
+            startDayId={formStartDayId}
+            endDayId={formStartDayId}
+            onChange={({ startDayId: s }) => {
+              setFormStartDayId(s);
+              setEndDayId(s);
+            }}
+            endReadOnly
+            showDragStrip={false}
+            compact={!isModal}
+          />
+        ) : (
+          <DateRangeField
+            startDayId={formStartDayId}
+            endDayId={endDayId || formStartDayId}
+            onChange={({ startDayId: s, endDayId: e }) => {
+              setFormStartDayId(s);
+              setEndDayId(e);
+            }}
+            compact={!isModal}
+            showDragStrip={isModal}
+          />
+        ))}
 
       {/* Schedule times — no aplica a recetario ni hábitos */}
       <div

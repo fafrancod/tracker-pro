@@ -3,8 +3,6 @@ import { format, parseISO } from 'date-fns';
 import {
   Trash2,
   Copy,
-  ArrowRight,
-  Calendar,
   Tag as TagIcon,
   X,
   CheckCircle2,
@@ -13,6 +11,7 @@ import {
   PawPrint,
   User,
   RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 import {
   Dialog,
@@ -27,7 +26,6 @@ import { Badge } from '@/components/ui/badge';
 import { useStore } from '@core/store';
 import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
-import { useWeek } from '@core/hooks/useWeek';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
@@ -47,6 +45,7 @@ import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
+import { DateRangeField } from './DateRangeField';
 import { kindSupportsSteps, stepsEqual } from '@core/lib/steps';
 import type {
   DoseUnit,
@@ -119,6 +118,8 @@ interface DraftState {
   importance: Importance | null;
   color: string | null;
   projectId: string | null;
+  /** Editable start day (bucket day_id). */
+  startDayId: string;
   endDayId: string;
   startTime: string;
   endTime: string;
@@ -144,6 +145,7 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     importance: task.importance,
     color: task.color,
     projectId: task.projectId,
+    startDayId: fallbackDayId,
     endDayId: task.endDayId || fallbackDayId,
     startTime: task.startTime ?? '',
     endTime: task.endTime ?? '',
@@ -169,6 +171,7 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.importance !== base.importance ||
     draft.color !== base.color ||
     draft.projectId !== base.projectId ||
+    draft.startDayId !== base.startDayId ||
     draft.endDayId !== base.endDayId ||
     draft.startTime !== base.startTime ||
     draft.endTime !== base.endTime ||
@@ -245,7 +248,7 @@ function TaskDetailInner({
   taskId,
   locale,
   shortDateFormat,
-  weekdayFormat,
+  weekdayFormat: _weekdayFormat,
   projects,
   onClose,
   t,
@@ -255,7 +258,6 @@ function TaskDetailInner({
     weekId,
     dayId
   );
-  const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });
   const contacts = useStore(s => s.contacts);
 
   const task = useMemo(() => tasks.find(x => x.id === taskId) ?? null, [tasks, taskId]);
@@ -420,9 +422,11 @@ function TaskDetailInner({
         saveKind === 'habit_good' || saveKind === 'habit_quit';
       const startN = saveIsHabit ? null : normalizeTimeInput(draft.startTime);
       const endN = saveIsHabit ? null : normalizeTimeInput(draft.endTime);
+      const rangeStart = draft.startDayId || dayId;
+      const rangeEnd = draft.endDayId || rangeStart;
       if (
         !saveIsHabit &&
-        !isValidTaskTimeRange(startN, endN, dayId, draft.endDayId || dayId)
+        !isValidTaskTimeRange(startN, endN, rangeStart, rangeEnd)
       ) {
         showToast(t('task_time_range_error'), 'error');
         return;
@@ -513,6 +517,18 @@ function TaskDetailInner({
             : normalizeTimeInput(snap.startTime);
           const endN = saveIsHabit ? null : normalizeTimeInput(snap.endTime);
           const depN = normalizeTimeInput(snap.departureTime);
+          const nextStart = snap.startDayId || dayId;
+          const nextEnd = saveIsHabit
+            ? nextStart
+            : snap.endDayId >= nextStart
+              ? snap.endDayId
+              : nextStart;
+
+          // Cambiar día de inicio = mover (preserva duración), luego fijar fin.
+          if (nextStart !== dayId) {
+            await moveTaskToDay(taskSnap, parseISO(`${nextStart}T00:00:00`));
+          }
+
           await editTask(taskSnap.id, {
             title,
             notes: snap.notes,
@@ -534,7 +550,7 @@ function TaskDetailInner({
                       ? '#f85149'
                       : null),
             projectId: saveEventLike || saveIsHabit ? null : snap.projectId,
-            endDayId: saveIsHabit ? dayId : snap.endDayId,
+            endDayId: nextEnd,
             involvedContactIds: saveEventLike
               ? snap.involvedContactIds
               : [],
@@ -609,24 +625,6 @@ function TaskDetailInner({
     onClose();
   }
 
-  async function handleMoveDay(targetDate: Date) {
-    await moveTaskToDay(task!, targetDate);
-    showToast(t('task_moved'), 'success');
-    onClose();
-  }
-
-  async function handleMoveNextWeek() {
-    const [yearStr, weekStr] = nextWeekId.split('-W');
-    const year = parseInt(yearStr, 10);
-    const week = parseInt(weekStr, 10);
-    const jan4 = new Date(year, 0, 4);
-    const start = new Date(jan4);
-    start.setDate(jan4.getDate() + (week - 1) * 7);
-    await moveTaskToDay(task!, start);
-    showToast(t('task_moved_next_week'), 'success');
-    onClose();
-  }
-
   return (
     <>
       <DialogHeader className="shrink-0 pr-8 text-left">
@@ -690,31 +688,26 @@ function TaskDetailInner({
           </p>
         )}
 
-        {/* Tipo (tarea / recordatorio / evento / posible) — solo no-recetario */}
+        {/* Tipo — combobox (no botones múltiples) */}
         {!isRx && (
           <Field label={t('task_kind_convert')}>
-            <p className="mb-1.5 text-[10px] text-text-muted">{t('task_kind_convert_hint')}</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="mb-1.5 text-[10px] text-text-muted">
+              {t('task_kind_convert_hint')}
+            </p>
+            <select
+              value={draft.kind}
+              onChange={e =>
+                patchDraft({ kind: e.target.value as TaskKind })
+              }
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              aria-label={t('task_kind_convert')}
+            >
               {CONVERTIBLE_KINDS.map(k => (
-                <button
-                  key={k.value}
-                  type="button"
-                  onClick={() => patchDraft({ kind: k.value })}
-                  className={cn(
-                    'rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors',
-                    draft.kind === k.value
-                      ? k.value === 'event'
-                        ? 'border-sky-500/40 bg-sky-500/15 text-sky-200'
-                        : k.value === 'possible_event'
-                          ? 'border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-200'
-                          : 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
-                      : 'border-border text-text-muted hover:text-text-primary'
-                  )}
-                >
+                <option key={k.value} value={k.value}>
                   {k.label}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </Field>
         )}
 
@@ -1109,30 +1102,23 @@ function TaskDetailInner({
         ) : (
           <>
             <Field label={t('task_date_range')}>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
-                  <span>{t('task_start_date')}</span>
-                  <input
-                    type="date"
-                    value={dayId}
-                    readOnly
-                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary opacity-80"
-                  />
-                </label>
-                <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
-                  <span>{t('task_end_date')}</span>
-                  <input
-                    type="date"
-                    value={draft.endDayId || dayId}
-                    min={dayId}
-                    onChange={e => {
-                      const next = e.target.value || dayId;
-                      if (next >= dayId) patchDraft({ endDayId: next });
-                    }}
-                    className="rounded border border-border bg-background px-2 py-1 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </label>
-              </div>
+              <DateRangeField
+                startDayId={draft.startDayId || dayId}
+                endDayId={
+                  draftIsHabit
+                    ? draft.startDayId || dayId
+                    : draft.endDayId || draft.startDayId || dayId
+                }
+                onChange={({ startDayId: s, endDayId: e }) => {
+                  if (draftIsHabit) {
+                    patchDraft({ startDayId: s, endDayId: s });
+                  } else {
+                    patchDraft({ startDayId: s, endDayId: e });
+                  }
+                }}
+                endReadOnly={draftIsHabit}
+                showDragStrip={!draftIsHabit}
+              />
             </Field>
 
             <Field label={t('task_schedule')}>
@@ -1152,7 +1138,8 @@ function TaskDetailInner({
                     value={draft.endTime}
                     onChange={v => patchDraft({ endTime: v })}
                     minTime={
-                      draft.endDayId && draft.endDayId > dayId
+                      draft.endDayId &&
+                      draft.endDayId > (draft.startDayId || dayId)
                         ? undefined
                         : draft.startTime || undefined
                     }
@@ -1336,42 +1323,6 @@ function TaskDetailInner({
             placeholder={t('task_notes_placeholder')}
             className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
           />
-        </Field>
-
-        <Field
-          label={
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {t('task_move_to')}
-            </span>
-          }
-        >
-          <div className="grid grid-cols-3 gap-1">
-            {days.map(d => (
-              <button
-                key={d.dayId}
-                type="button"
-                onClick={() => handleMoveDay(d.date)}
-                disabled={d.dayId === dayId}
-                className={cn(
-                  'rounded-md border px-2 py-1.5 text-[11px] transition-colors',
-                  d.dayId === dayId
-                    ? 'cursor-not-allowed border-border bg-background text-text-muted opacity-50'
-                    : 'border-border bg-background text-text-primary hover:border-accent-teal/40'
-                )}
-              >
-                {d.label.slice(0, 3)}
-                <span className="ml-1 text-text-muted">{d.dateLabel}</span>
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={handleMoveNextWeek}
-              className="col-span-3 mt-1 rounded-md border border-border bg-background px-2 py-1.5 text-[11px] text-text-primary hover:border-accent-teal/40"
-            >
-              {t('task_move_next_week')}
-            </button>
-          </div>
         </Field>
 
         {task.movedFrom && (

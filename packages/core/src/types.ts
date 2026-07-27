@@ -390,6 +390,12 @@ export interface CreateTaskPayload {
   priority?: Priority;
   notes?: string;
   tags?: string[];
+  /**
+   * Optional start day override (YYYY-MM-DD). When set, the client creates the
+   * task on this day instead of the board column / sheet day context.
+   * Stripped before the API body if unused by the server schema.
+   */
+  startDayId?: string;
   /** Inclusive end day; defaults to start day when omitted. */
   endDayId?: string;
   recurrenceFrequency?: RecurrenceFrequency;

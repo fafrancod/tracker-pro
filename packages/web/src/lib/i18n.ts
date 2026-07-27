@@ -381,6 +381,8 @@ export interface TranslationDict {
   task_start_date: string;
   task_end_date: string;
   task_date_range: string;
+  /** Hint under dual-handle date range strip. */
+  task_date_range_drag_hint: string;
   task_schedule: string;
   task_start_time: string;
   task_end_time: string;
@@ -1099,6 +1101,8 @@ const es_dict: TranslationDict = {
   task_start_date: 'Inicio',
   task_end_date: 'Fin',
   task_date_range: 'Rango de fechas',
+  task_date_range_drag_hint:
+    'Arrastra los extremos para definir el rango, o elige fechas exactas arriba.',
   task_schedule: 'Horario',
   task_start_time: 'Hora inicio',
   task_end_time: 'Hora fin',
@@ -1835,6 +1839,8 @@ const en_dict: TranslationDict = {
   task_start_date: 'Start',
   task_end_date: 'End',
   task_date_range: 'Date range',
+  task_date_range_drag_hint:
+    'Drag the ends to set the range, or pick exact dates above.',
   task_schedule: 'Schedule',
   task_start_time: 'Start time',
   task_end_time: 'End time',

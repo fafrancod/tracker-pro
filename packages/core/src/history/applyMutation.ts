@@ -31,6 +31,8 @@ function taskToUpdatePayload(task: Task): UpdateTaskPayload {
     involvedContactIds: task.involvedContactIds,
     location: task.location,
     departureTime: task.departureTime,
+    // Instance-only checklist — must round-trip on undo/redo.
+    steps: task.steps ?? [],
   };
 }
 
@@ -74,6 +76,7 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
   }
   if (payload.location !== undefined) patch.location = payload.location;
   if (payload.departureTime !== undefined) patch.departureTime = payload.departureTime;
+  if (payload.steps !== undefined) patch.steps = payload.steps;
   if (payload.completed !== undefined) {
     patch.completed = payload.completed;
     patch.completedAt = payload.completed ? new Date().toISOString() : null;
@@ -101,8 +104,9 @@ function applyOptimisticUpdate(
     delete seriesPartial.endDayId;
     delete seriesPartial.order;
     delete seriesPartial.movedFrom;
+    delete seriesPartial.steps;
     store.patchSeriesOptimistic(seriesId, seriesPartial);
-    // instance-only bits on the one row
+    // instance-only bits on the one row (incl. checklist)
     const inst: Partial<Task> = {};
     if (payload.completed !== undefined) {
       inst.completed = payload.completed;
@@ -111,6 +115,7 @@ function applyOptimisticUpdate(
     if (payload.endDayId !== undefined) inst.endDayId = payload.endDayId;
     if (payload.order !== undefined) inst.order = payload.order;
     if (payload.movedFrom !== undefined) inst.movedFrom = payload.movedFrom;
+    if (payload.steps !== undefined) inst.steps = payload.steps;
     if (Object.keys(inst).length > 0) {
       store.updateTaskOptimistic(weekId, dayId, taskId, inst);
     }

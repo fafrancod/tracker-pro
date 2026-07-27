@@ -23,6 +23,7 @@ import type { HistoryEntry, HistoryMutation } from './types';
 import {
   normalizeRecurrence,
   addDaysToDayId,
+  getWeekIdFromDayId,
   inclusiveDurationDays,
 } from '../lib/recurrence';
 import { shouldQueueMutation } from '../lib/network';
@@ -61,74 +62,100 @@ export const taskHistory = {
     label?: string
   ): Promise<void> {
     const store = useStore.getState();
+    // Allow create form to target another start day than the open column/sheet.
+    const { startDayId: payloadStart, ...restPayload } = payload;
+    const targetDayId =
+      typeof payloadStart === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payloadStart)
+        ? payloadStart
+        : dayId;
+    const targetWeekId =
+      targetDayId === dayId ? weekId : getWeekIdFromDayId(targetDayId);
+    const apiPayload: CreateTaskPayload = {
+      ...restPayload,
+      endDayId: restPayload.endDayId ?? targetDayId,
+    };
+
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    const order = store.tasksByDay[weekId]?.[dayId]?.length ?? 0;
+    const order = store.tasksByDay[targetWeekId]?.[targetDayId]?.length ?? 0;
     const now = new Date().toISOString();
     const recurrence = normalizeRecurrence(
-      payload.recurrenceFrequency,
-      payload.recurrenceInterval
+      apiPayload.recurrenceFrequency,
+      apiPayload.recurrenceInterval
     );
     const optimisticTask: Task = {
       id: optimisticId,
-      title: payload.title,
+      title: apiPayload.title,
       completed: false,
       completedAt: null,
-      projectId: payload.projectId ?? null,
-      priority: payload.priority ?? 'medium',
-      notes: payload.notes ?? '',
+      projectId: apiPayload.projectId ?? null,
+      priority: apiPayload.priority ?? 'medium',
+      notes: apiPayload.notes ?? '',
       order,
-      tags: payload.tags ?? [],
+      tags: apiPayload.tags ?? [],
       movedFrom: null,
       seriesId: null,
       recurrence,
-      endDayId: payload.endDayId ?? dayId,
-      urgency: payload.urgency ?? null,
-      importance: payload.importance ?? null,
-      kind: payload.kind ?? 'task',
-      color: payload.color ?? null,
-      startTime: payload.startTime ?? null,
-      endTime: payload.endTime ?? null,
+      endDayId: apiPayload.endDayId ?? targetDayId,
+      urgency: apiPayload.urgency ?? null,
+      importance: apiPayload.importance ?? null,
+      kind: apiPayload.kind ?? 'task',
+      color: apiPayload.color ?? null,
+      startTime: apiPayload.startTime ?? null,
+      endTime: apiPayload.endTime ?? null,
       rx: null,
-      involvedContactIds: payload.involvedContactIds ?? [],
-      location: payload.location ?? null,
-      departureTime: payload.departureTime ?? null,
-      steps: payload.steps ?? [],
+      involvedContactIds: apiPayload.involvedContactIds ?? [],
+      location: apiPayload.location ?? null,
+      departureTime: apiPayload.departureTime ?? null,
+      steps: apiPayload.steps ?? [],
       createdAt: now,
       updatedAt: now,
     };
-    store.addTaskOptimistic(weekId, dayId, optimisticTask);
+    store.addTaskOptimistic(targetWeekId, targetDayId, optimisticTask);
 
     const uid = currentUid();
     if (queueIfNeeded(uid, {
       op: 'create',
-      weekId,
-      dayId,
-      payload,
+      weekId: targetWeekId,
+      dayId: targetDayId,
+      payload: apiPayload,
       clientId: optimisticId,
     })) {
       // Offline: keep optimistic row; server create deferred.
       const entry: HistoryEntry = {
         id: generateHistoryId(),
         at: Date.now(),
-        label: label ?? `Creaste «${truncateTitle(payload.title)}» (offline)`,
+        label: label ?? `Creaste «${truncateTitle(apiPayload.title)}» (offline)`,
         kind: 'create',
-        forward: { op: 'create', weekId, dayId, payload, created: [{ weekId, dayId, id: optimisticId }] },
+        forward: {
+          op: 'create',
+          weekId: targetWeekId,
+          dayId: targetDayId,
+          payload: apiPayload,
+          created: [{ weekId: targetWeekId, dayId: targetDayId, id: optimisticId }],
+        },
         inverse: {
           op: 'delete',
-          weekId,
-          dayId,
+          weekId: targetWeekId,
+          dayId: targetDayId,
           taskId: optimisticId,
-          snapshot: snapshotFromTask(weekId, dayId, optimisticTask),
+          snapshot: snapshotFromTask(targetWeekId, targetDayId, optimisticTask),
         },
       };
       useHistoryStore.getState().push(entry);
-      multiCreateMap.set(entry.id, [{ weekId, dayId, id: optimisticId }]);
+      multiCreateMap.set(entry.id, [
+        { weekId: targetWeekId, dayId: targetDayId, id: optimisticId },
+      ]);
       return;
     }
 
     try {
-      const result = await createTask(weekId, dayId, payload, optimisticId);
-      store.removeTaskOptimistic(weekId, dayId, optimisticId);
+      const result = await createTask(
+        targetWeekId,
+        targetDayId,
+        apiPayload,
+        optimisticId
+      );
+      store.removeTaskOptimistic(targetWeekId, targetDayId, optimisticId);
       const created: Array<{ weekId: string; dayId: string; id: string }> = [];
       for (const instance of result.instances) {
         store.addTaskOptimistic(instance.weekId, instance.dayId, {
@@ -168,9 +195,9 @@ export const taskHistory = {
 
       const forward: HistoryMutation = {
         op: 'create',
-        weekId,
-        dayId,
-        payload,
+        weekId: targetWeekId,
+        dayId: targetDayId,
+        payload: apiPayload,
         created,
       };
       // Undo create = delete all created instances
@@ -210,7 +237,7 @@ export const taskHistory = {
       const entry: HistoryEntry = {
         id: generateHistoryId(),
         at: Date.now(),
-        label: label ?? `Creaste «${truncateTitle(payload.title)}»`,
+        label: label ?? `Creaste «${truncateTitle(apiPayload.title)}»`,
         kind: 'create',
         forward,
         inverse,
@@ -224,37 +251,41 @@ export const taskHistory = {
       if (uid && shouldQueueMutation(err)) {
         enqueueOfflineMutation(uid, {
           op: 'create',
-          weekId,
-          dayId,
-          payload,
+          weekId: targetWeekId,
+          dayId: targetDayId,
+          payload: apiPayload,
           clientId: optimisticId,
         });
         notifyOfflineQueueChanged();
         const entry: HistoryEntry = {
           id: generateHistoryId(),
           at: Date.now(),
-          label: label ?? `Creaste «${truncateTitle(payload.title)}» (offline)`,
+          label: label ?? `Creaste «${truncateTitle(apiPayload.title)}» (offline)`,
           kind: 'create',
           forward: {
             op: 'create',
-            weekId,
-            dayId,
-            payload,
-            created: [{ weekId, dayId, id: optimisticId }],
+            weekId: targetWeekId,
+            dayId: targetDayId,
+            payload: apiPayload,
+            created: [
+              { weekId: targetWeekId, dayId: targetDayId, id: optimisticId },
+            ],
           },
           inverse: {
             op: 'delete',
-            weekId,
-            dayId,
+            weekId: targetWeekId,
+            dayId: targetDayId,
             taskId: optimisticId,
-            snapshot: snapshotFromTask(weekId, dayId, optimisticTask),
+            snapshot: snapshotFromTask(targetWeekId, targetDayId, optimisticTask),
           },
         };
         useHistoryStore.getState().push(entry);
-        multiCreateMap.set(entry.id, [{ weekId, dayId, id: optimisticId }]);
+        multiCreateMap.set(entry.id, [
+          { weekId: targetWeekId, dayId: targetDayId, id: optimisticId },
+        ]);
         return;
       }
-      store.removeTaskOptimistic(weekId, dayId, optimisticId);
+      store.removeTaskOptimistic(targetWeekId, targetDayId, optimisticId);
       throw err;
     }
   },
@@ -324,6 +355,8 @@ export const taskHistory = {
       delete seriesPartial.endDayId;
       delete seriesPartial.order;
       delete seriesPartial.movedFrom;
+      // steps never propagate to the whole series (API instance-only)
+      delete seriesPartial.steps;
       store.patchSeriesOptimistic(before.seriesId, seriesPartial);
       const inst: Partial<Task> = {};
       if (patch.completed !== undefined) {
@@ -331,6 +364,7 @@ export const taskHistory = {
         inst.completedAt = patch.completed ? new Date().toISOString() : null;
       }
       if (patch.endDayId !== undefined) inst.endDayId = patch.endDayId;
+      if (patch.steps !== undefined) inst.steps = patch.steps;
       if (Object.keys(inst).length) {
         store.updateTaskOptimistic(locWeekId, locDayId, taskId, inst);
       }
