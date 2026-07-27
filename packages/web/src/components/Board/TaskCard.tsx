@@ -155,35 +155,59 @@ export function TaskCard({
   const spanStart = startDayId ?? locationDayId;
   const spanEnd = task.endDayId || spanStart;
   const isMultiDay = Boolean(spanStart && spanEnd && spanEnd > spanStart);
+  /** Ignore tiny edge-handle wiggles so clicks/double-clicks still work. */
+  const EDGE_DRAG_THRESHOLD_PX = 12;
   const edgeResizeRef = useRef<{
     mode: 'start' | 'end';
     originX: number;
     start: string;
     end: string;
+    active: boolean;
+    pointerId: number;
+    target: HTMLElement;
   } | null>(null);
 
   function onEdgePointerDown(mode: 'start' | 'end', e: React.PointerEvent) {
     if (!isMultiDay || !spanStart || !locationWeekId) return;
-    e.preventDefault();
+    // No preventDefault until the press becomes a real drag (dblclick-friendly).
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     edgeResizeRef.current = {
       mode,
       originX: e.clientX,
       start: spanStart,
       end: spanEnd!,
+      active: false,
+      pointerId: e.pointerId,
+      target: e.currentTarget as HTMLElement,
     };
+  }
+
+  function onEdgePointerMove(e: React.PointerEvent) {
+    const st = edgeResizeRef.current;
+    if (!st || e.pointerId !== st.pointerId) return;
+    if (st.active) return;
+    if (Math.abs(e.clientX - st.originX) < EDGE_DRAG_THRESHOLD_PX) return;
+    st.active = true;
+    try {
+      st.target.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   }
 
   async function onEdgePointerUp(e: React.PointerEvent) {
     const st = edgeResizeRef.current;
     edgeResizeRef.current = null;
     if (!st || !spanStart || !locationWeekId) return;
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
+    if (st.active) {
+      try {
+        st.target.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
     }
+    // Never crossed threshold → leave click/dblclick alone.
+    if (!st.active) return;
     const deltaDays = Math.round((e.clientX - st.originX) / 36);
     if (deltaDays === 0) return;
     let nextStart = st.start;
@@ -258,6 +282,7 @@ export function TaskCard({
             title={t('task_date_range_drag_hint')}
             className="absolute bottom-0 left-0 top-0 z-20 w-1.5 cursor-ew-resize rounded-l bg-accent-teal/0 transition-colors group-hover:bg-accent-teal/35"
             onPointerDown={e => onEdgePointerDown('start', e)}
+            onPointerMove={onEdgePointerMove}
             onPointerUp={e => void onEdgePointerUp(e)}
             onPointerCancel={e => void onEdgePointerUp(e)}
           />
@@ -267,6 +292,7 @@ export function TaskCard({
             title={t('task_date_range_drag_hint')}
             className="absolute bottom-0 right-0 top-0 z-20 w-1.5 cursor-ew-resize rounded-r bg-accent-teal/0 transition-colors group-hover:bg-accent-teal/35"
             onPointerDown={e => onEdgePointerDown('end', e)}
+            onPointerMove={onEdgePointerMove}
             onPointerUp={e => void onEdgePointerUp(e)}
             onPointerCancel={e => void onEdgePointerUp(e)}
           />

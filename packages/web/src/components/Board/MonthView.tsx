@@ -329,6 +329,8 @@ export function MonthView({
   }
 
   type BarDragMode = 'start' | 'end' | 'move';
+  /** Pixels of movement before a bar press becomes a drag (keeps double-click usable). */
+  const BAR_DRAG_THRESHOLD_PX = 12;
   interface BarDragState {
     mode: BarDragMode;
     task: Task;
@@ -341,9 +343,18 @@ export function MonthView({
     previewEnd: string;
     pointerId: number;
   }
+  /** Press that has not yet exceeded the movement threshold. */
+  interface PendingBarPress {
+    mode: BarDragMode;
+    bar: BarSegment;
+    pointerId: number;
+    originX: number;
+    originY: number;
+  }
   const [barDrag, setBarDrag] = useState<BarDragState | null>(null);
   const barDragRef = useRef<BarDragState | null>(null);
   barDragRef.current = barDrag;
+  const pendingBarPressRef = useRef<PendingBarPress | null>(null);
   const calendarRootRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -435,15 +446,15 @@ export function MonthView({
     setBarDrag(next);
   }
 
-  function beginBarDrag(
-    e: React.PointerEvent,
-    mode: BarDragMode,
-    bar: BarSegment
+  function activateBarDrag(
+    pending: PendingBarPress,
+    clientX: number,
+    clientY: number
   ) {
-    e.preventDefault();
-    e.stopPropagation();
-    const pointerDay =
-      dayIdFromPoint(e.clientX, e.clientY) ?? bar.startDayId;
+    const { mode, bar, pointerId, originX, originY } = pending;
+    // Anchor move delta to the *press* day, not the threshold-crossing day.
+    const originPointerDay =
+      dayIdFromPoint(originX, originY) ?? bar.startDayId;
     const end = bar.task.endDayId || bar.startDayId;
     const state: BarDragState = {
       mode,
@@ -451,14 +462,70 @@ export function MonthView({
       startWeekId: bar.startWeekId,
       startDayId: bar.startDayId,
       endDayId: end,
-      originPointerDayId: pointerDay,
+      originPointerDayId: originPointerDay,
       previewStart: bar.startDayId,
       previewEnd: end,
-      pointerId: e.pointerId,
+      pointerId,
     };
+    pendingBarPressRef.current = null;
     barDragRef.current = state;
     setBarDrag(state);
+    // Apply current pointer so overshoot past threshold still updates preview.
+    applyBarDragPoint(clientX, clientY);
   }
+
+  /**
+   * Start a *pending* press. Drag only activates after BAR_DRAG_THRESHOLD_PX
+   * of movement so double-click can open the detail sheet.
+   */
+  function onBarPointerDown(
+    e: React.PointerEvent,
+    mode: BarDragMode,
+    bar: BarSegment
+  ) {
+    if (e.button !== 0) return;
+    // Do not preventDefault here — that would cancel dblclick.
+    e.stopPropagation();
+    pendingBarPressRef.current = {
+      mode,
+      bar,
+      pointerId: e.pointerId,
+      originX: e.clientX,
+      originY: e.clientY,
+    };
+  }
+
+  // Pending press → activate drag past threshold (or cancel on release).
+  useEffect(() => {
+    function onMove(ev: PointerEvent) {
+      const pending = pendingBarPressRef.current;
+      if (!pending || ev.pointerId !== pending.pointerId) return;
+      if (barDragRef.current) return;
+      const dx = ev.clientX - pending.originX;
+      const dy = ev.clientY - pending.originY;
+      if (Math.hypot(dx, dy) < BAR_DRAG_THRESHOLD_PX) return;
+      // Intentional drag: suppress text selection / synthetic clicks.
+      ev.preventDefault();
+      activateBarDrag(pending, ev.clientX, ev.clientY);
+    }
+
+    function onUp(ev: PointerEvent) {
+      const pending = pendingBarPressRef.current;
+      if (!pending || ev.pointerId !== pending.pointerId) return;
+      // Released without crossing threshold → treat as click/dblclick, no drag.
+      pendingBarPressRef.current = null;
+    }
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Document-level listeners so the pointer can leave the original week row
   // and land on the next/previous week row while resizing or moving.
@@ -930,7 +997,7 @@ export function MonthView({
                             aria-orientation="vertical"
                             aria-label={t('task_start_date')}
                             className="absolute left-0 top-0 z-20 h-full w-2 cursor-ew-resize rounded-l bg-black/15 hover:bg-black/30"
-                            onPointerDown={e => beginBarDrag(e, 'start', bar)}
+                            onPointerDown={e => onBarPointerDown(e, 'start', bar)}
                           />
                         )}
                         <button
@@ -981,10 +1048,7 @@ export function MonthView({
                               bar.startDayId
                             )
                           }
-                          onPointerDown={e => {
-                            if (e.button !== 0) return;
-                            beginBarDrag(e, 'move', bar);
-                          }}
+                          onPointerDown={e => onBarPointerDown(e, 'move', bar)}
                         >
                           {bar.continuesLeft ? '‹ ' : ''}
                           {bar.task.recurrence.frequency !== 'none' ? '↻ ' : ''}
@@ -1003,7 +1067,7 @@ export function MonthView({
                             aria-orientation="vertical"
                             aria-label={t('task_end_date')}
                             className="absolute right-0 top-0 z-20 h-full w-2 cursor-ew-resize rounded-r bg-black/15 hover:bg-black/30"
-                            onPointerDown={e => beginBarDrag(e, 'end', bar)}
+                            onPointerDown={e => onBarPointerDown(e, 'end', bar)}
                           />
                         )}
                       </div>

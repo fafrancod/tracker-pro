@@ -74,12 +74,13 @@ export function BoardLayout({
     return unsub;
   }, [uid, currentWeekId, days]);
 
-  // Touch: delay+tolerance so scroll/tap still work; mouse: small distance.
+  // Touch: delay+tolerance so scroll/tap still work.
+  // Mouse: higher distance so double-click can open detail without starting a drag.
   const sensors = useSensors(
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 8 },
+      activationConstraint: { delay: 220, tolerance: 10 },
     }),
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 12 } }),
     useSensor(KeyboardSensor)
   );
 
