@@ -447,6 +447,12 @@ export interface TranslationDict {
   task_date_pick_start: string;
   task_date_pick_end: string;
   task_date_pick_range: string;
+  task_date_single_day: string;
+  task_date_n_days: string;
+  task_date_make_single: string;
+  task_date_add_end: string;
+  task_date_today: string;
+  task_date_done: string;
   task_schedule: string;
   task_start_time: string;
   task_end_time: string;
@@ -1239,10 +1245,15 @@ const es_dict: TranslationDict = {
   task_date_range: 'Rango de fechas',
   task_date_range_drag_hint:
     'Arrastra los extremos para definir el rango, o elige fechas exactas arriba.',
-  task_date_pick_start: 'Elige el día de inicio (día de la semana · fecha).',
-  task_date_pick_end: 'Elige el día de fin (día de la semana · fecha).',
-  task_date_pick_range:
-    'Toca un día para inicio/fin. Se muestra día de la semana y fecha.',
+  task_date_pick_start: 'Elige el día de inicio',
+  task_date_pick_end: 'Elige el día de fin del rango',
+  task_date_pick_range: 'Toca inicio y luego fin del rango',
+  task_date_single_day: 'Un solo día',
+  task_date_n_days: '{n} días',
+  task_date_make_single: 'Solo un día',
+  task_date_add_end: 'Añadir fecha fin',
+  task_date_today: 'Hoy',
+  task_date_done: 'Listo',
   task_schedule: 'Horario',
   task_start_time: 'Hora inicio',
   task_end_time: 'Hora fin',
@@ -2055,10 +2066,15 @@ const en_dict: TranslationDict = {
   task_date_range: 'Date range',
   task_date_range_drag_hint:
     'Drag the ends to set the range, or pick exact dates above.',
-  task_date_pick_start: 'Pick the start day (weekday · date).',
-  task_date_pick_end: 'Pick the end day (weekday · date).',
-  task_date_pick_range:
-    'Tap a day for start/end. Weekday and date are shown.',
+  task_date_pick_start: 'Pick the start date',
+  task_date_pick_end: 'Pick the end date of the range',
+  task_date_pick_range: 'Tap start, then end of the range',
+  task_date_single_day: 'Single day',
+  task_date_n_days: '{n} days',
+  task_date_make_single: 'Single day only',
+  task_date_add_end: 'Add end date',
+  task_date_today: 'Today',
+  task_date_done: 'Done',
   task_schedule: 'Schedule',
   task_start_time: 'Start time',
   task_end_time: 'End time',
