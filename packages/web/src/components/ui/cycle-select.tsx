@@ -1,5 +1,12 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './select';
 
 export interface CycleSelectOption {
   value: string;
@@ -17,7 +24,8 @@ interface CycleSelectProps {
 }
 
 /**
- * Select with prev/next arrows to cycle options (wraps around).
+ * Select with prev/next arrows (wraps around).
+ * Dropdown is Radix (not native) so menus stay themed — no OS white list.
  */
 export function CycleSelect({
   value,
@@ -41,7 +49,7 @@ export function CycleSelect({
   return (
     <div
       className={cn(
-        'inline-flex h-9 min-h-9 items-stretch overflow-hidden rounded-md border border-border bg-field sm:h-8',
+        'inline-flex h-9 min-h-9 items-stretch overflow-hidden rounded-lg border border-border bg-field sm:h-8',
         className
       )}
       role="group"
@@ -55,26 +63,25 @@ export function CycleSelect({
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        aria-label={ariaLabel}
-        className={cn(
-          // Fondo field (opaco en Aero): dropdown nativo legible + option styles en index.css
-          'h-full min-w-0 max-w-[130px] flex-1 cursor-pointer appearance-none border-0 border-x border-border bg-field px-1.5 text-center text-xs text-text-primary focus:outline-none focus:ring-0',
-          selectClassName
-        )}
-      >
-        {options.map(o => (
-          <option
-            key={o.value}
-            value={o.value}
-            className="bg-field text-text-primary"
-          >
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          aria-label={ariaLabel}
+          className={cn(
+            'h-full min-w-0 max-w-[140px] flex-1 rounded-none border-0 border-x border-border bg-field px-1.5 text-center text-xs shadow-none focus:ring-0 focus:ring-offset-0',
+            '[&>svg]:hidden',
+            selectClassName
+          )}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map(o => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <button
         type="button"
         onClick={() => step(1)}

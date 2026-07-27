@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SimpleSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
 import { normalizeTag } from '@core/lib/tags';
@@ -188,20 +189,23 @@ export function ContactFormDialog({
               <label className="mb-1.5 block text-xs font-medium text-text-muted">
                 {t('circle_relationship')}
               </label>
-              <select
-                value={relationship}
-                onChange={e =>
-                  setRelationship((e.target.value || '') as PersonRelationship | '')
+              <SimpleSelect
+                aria-label={t('circle_relationship')}
+                value={relationship || '__none__'}
+                onChange={v =>
+                  setRelationship(
+                    (v === '__none__' ? '' : v) as PersonRelationship | ''
+                  )
                 }
-                className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">{t('circle_relationship_none')}</option>
-                {RELATIONSHIPS.map(r => (
-                  <option key={r} value={r}>
-                    {t(`circle_rel_${r}` as TKey)}
-                  </option>
-                ))}
-              </select>
+                className="w-full text-sm"
+                options={[
+                  { value: '__none__', label: t('circle_relationship_none') },
+                  ...RELATIONSHIPS.map(r => ({
+                    value: r,
+                    label: t(`circle_rel_${r}` as TKey),
+                  })),
+                ]}
+              />
             </div>
           )}
 
@@ -210,20 +214,23 @@ export function ContactFormDialog({
               <label className="mb-1.5 block text-xs font-medium text-text-muted">
                 {t('circle_pulse')}
               </label>
-              <select
-                value={relationPulse}
-                onChange={e =>
-                  setRelationPulse((e.target.value || '') as RelationPulse | '')
+              <SimpleSelect
+                aria-label={t('circle_pulse')}
+                value={relationPulse || '__none__'}
+                onChange={v =>
+                  setRelationPulse(
+                    (v === '__none__' ? '' : v) as RelationPulse | ''
+                  )
                 }
-                className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">{t('circle_pulse_none')}</option>
-                {RELATION_PULSES.map(p => (
-                  <option key={p} value={p}>
-                    {t(`circle_pulse_${p}` as TKey)}
-                  </option>
-                ))}
-              </select>
+                className="w-full text-sm"
+                options={[
+                  { value: '__none__', label: t('circle_pulse_none') },
+                  ...RELATION_PULSES.map(p => ({
+                    value: p,
+                    label: t(`circle_pulse_${p}` as TKey),
+                  })),
+                ]}
+              />
               <p className="mt-1 text-[10px] text-text-muted">{t('circle_pulse_hint')}</p>
             </div>
           )}

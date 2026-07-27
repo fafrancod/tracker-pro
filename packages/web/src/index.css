@@ -42,8 +42,14 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
 
-  --font-sans: Inter, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* SF Pro on Apple via system stack; Segoe/system elsewhere */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
+    'Segoe UI Variable', 'Segoe UI', system-ui, 'Helvetica Neue', Helvetica,
+    Arial, sans-serif;
+  --font-mono:
+    'SF Mono', ui-monospace, 'JetBrains Mono', 'Cascadia Code', 'Segoe UI Mono',
+    Menlo, Monaco, Consolas, monospace;
 
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
@@ -108,7 +114,11 @@
 
   body {
     @apply bg-background text-text-primary font-sans;
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    /* SF Pro optical size / tracking feel */
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
@@ -283,4 +293,44 @@ html[data-material='glass'].dark
   html[data-material='glass'] {
     --glass-blur: 20px;
   }
+}
+
+/**
+ * Floating glass: menus, modals, sheets, popovers.
+ * Always slightly translucent + blur (Aero), even on solid skins when marked.
+ */
+[data-glass-float],
+html[data-material='glass'] [data-glass-float] {
+  background-color: color-mix(in srgb, var(--color-surface) 82%, transparent) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow:
+    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.4),
+    0 12px 40px rgba(0, 0, 0, 0.18);
+}
+
+html.dark [data-glass-float],
+html[data-material='glass'].dark [data-glass-float] {
+  background-color: color-mix(in srgb, var(--color-surface) 78%, transparent) !important;
+  box-shadow:
+    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.12),
+    0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+/* Solid skins: still give float panels a soft glass so Aero look is consistent for menus */
+html:not([data-material='glass']) [data-glass-float] {
+  background-color: color-mix(in srgb, var(--color-surface) 92%, transparent) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+}
+
+/* Radix select portal menus */
+[data-radix-select-content],
+[data-radix-popper-content-wrapper] [data-glass-float] {
+  z-index: 80;
+}
+
+/* Soften accent teal toward macOS system blue when Aero is active */
+html[data-material='glass'] {
+  --mac-system-blue: #0a84ff;
 }

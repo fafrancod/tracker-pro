@@ -44,15 +44,16 @@ export const MobileSheetContent = React.forwardRef<
         'fixed z-50 grid gap-3 border-border bg-surface shadow-xl duration-200',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         // mobile: bottom sheet + safe area + keyboard-friendly max height
-        'bottom-0 left-0 right-0 max-h-[min(92dvh,100%)] overflow-y-auto rounded-t-2xl border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]',
+        'bottom-0 left-0 right-0 max-h-[min(92dvh,100%)] overflow-y-auto rounded-t-3xl border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]',
         'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
         // sm+: centered modal
-        'sm:bottom-auto sm:left-[50%] sm:right-auto sm:top-[50%] sm:w-full sm:max-w-md sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6',
+        'sm:bottom-auto sm:left-[50%] sm:right-auto sm:top-[50%] sm:w-full sm:max-w-md sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-2xl sm:border sm:p-6',
         'sm:data-[state=open]:slide-in-from-left-1/2 sm:data-[state=open]:slide-in-from-top-[48%]',
         'sm:data-[state=closed]:slide-out-to-left-1/2 sm:data-[state=closed]:slide-out-to-top-[48%]',
         'sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95',
         className
       )}
+      data-glass-float
       {...props}
     >
       {/* Grab handle visual mobile-only */}

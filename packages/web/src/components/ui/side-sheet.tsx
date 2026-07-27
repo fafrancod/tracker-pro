@@ -40,13 +40,14 @@ export const SideSheetContent = React.forwardRef<
         'fixed z-50 flex flex-col gap-3 border-border bg-surface shadow-xl duration-300',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         // mobile: bottom sheet
-        'bottom-0 left-0 right-0 max-h-[90vh] overflow-y-auto rounded-t-2xl border-t p-4',
+        'bottom-0 left-0 right-0 max-h-[90vh] overflow-y-auto rounded-t-3xl border-t p-4',
         'data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
         // sm+: side panel from right
         'sm:bottom-0 sm:left-auto sm:top-0 sm:h-full sm:max-h-full sm:w-[440px] sm:max-w-[90vw] sm:rounded-none sm:border-l sm:border-t-0 sm:p-6',
         'sm:data-[state=open]:slide-in-from-right sm:data-[state=closed]:slide-out-to-right',
         className
       )}
+      data-glass-float
       {...props}
     >
       <div className="mx-auto h-1 w-10 rounded-full bg-border sm:hidden" aria-hidden />

@@ -35,6 +35,7 @@ import type { BoardViewMode, Language, ScheduleLayout } from '@core/types';
 import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import { skinsByMode, type SkinDefinition } from '@/lib/skins';
+import { SimpleSelect } from '@/components/ui/select';
 import {
   DEFAULT_LIFESPAN_YEARS,
   MAX_LIFESPAN_YEARS,
@@ -365,17 +366,16 @@ export function SettingsPage() {
               <p className="mb-2 text-[11px] text-text-muted">
                 {t('settings_notify_timezone_desc')}
               </p>
-              <select
+              <SimpleSelect
+                aria-label={t('settings_notify_timezone')}
                 value={settings.timezone || getDeviceTimezone()}
-                onChange={e => void updateSettings({ timezone: e.target.value })}
-                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                {listTimezoneOptions().map(tz => (
-                  <option key={tz} value={tz}>
-                    {formatTimezoneLabel(tz)}
-                  </option>
-                ))}
-              </select>
+                onChange={v => void updateSettings({ timezone: v })}
+                className="w-full text-sm"
+                options={listTimezoneOptions().map(tz => ({
+                  value: tz,
+                  label: formatTimezoneLabel(tz),
+                }))}
+              />
               <button
                 type="button"
                 className="mt-2 text-[11px] text-accent-teal hover:underline"
@@ -445,21 +445,20 @@ export function SettingsPage() {
                 <p className="mb-1.5 text-[10px] text-text-muted">
                   {t('settings_notify_minutes_desc')}
                 </p>
-                <select
-                  value={settings.notifyMinutesBefore ?? 10}
-                  onChange={e =>
+                <SimpleSelect
+                  aria-label={t('settings_notify_minutes')}
+                  value={String(settings.notifyMinutesBefore ?? 10)}
+                  onChange={v =>
                     void updateSettings({
-                      notifyMinutesBefore: Number(e.target.value),
+                      notifyMinutesBefore: Number(v),
                     })
                   }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring sm:w-auto"
-                >
-                  {NOTIFY_MINUTES_OPTIONS.map(m => (
-                    <option key={m} value={m}>
-                      {m === 0 ? '0 min' : `${m} min`}
-                    </option>
-                  ))}
-                </select>
+                  className="w-full text-sm sm:w-auto"
+                  options={NOTIFY_MINUTES_OPTIONS.map(m => ({
+                    value: String(m),
+                    label: m === 0 ? '0 min' : `${m} min`,
+                  }))}
+                />
               </div>
             )}
 
@@ -499,21 +498,20 @@ export function SettingsPage() {
                 <label className="mb-1 block text-[11px] font-medium text-text-muted">
                   {t('settings_notify_past_after')}
                 </label>
-                <select
-                  value={settings.notifyPastAfterMinutes ?? 30}
-                  onChange={e =>
+                <SimpleSelect
+                  aria-label={t('settings_notify_past_after')}
+                  value={String(settings.notifyPastAfterMinutes ?? 30)}
+                  onChange={v =>
                     void updateSettings({
-                      notifyPastAfterMinutes: Number(e.target.value),
+                      notifyPastAfterMinutes: Number(v),
                     })
                   }
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring sm:w-auto"
-                >
-                  {NOTIFY_PAST_AFTER_OPTIONS.map(m => (
-                    <option key={m} value={m}>
-                      {m >= 60 ? `${m / 60} h` : `${m} min`}
-                    </option>
-                  ))}
-                </select>
+                  className="w-full text-sm sm:w-auto"
+                  options={NOTIFY_PAST_AFTER_OPTIONS.map(m => ({
+                    value: String(m),
+                    label: m >= 60 ? `${m / 60} h` : `${m} min`,
+                  }))}
+                />
               </div>
             )}
 
@@ -617,18 +615,21 @@ export function SettingsPage() {
               <label className="mb-1.5 block text-xs font-medium text-text-muted">
                 {t('settings_default_project')}
               </label>
-              <select
-                value={settings.defaultProjectId ?? ''}
-                onChange={e => handleDefaultProject(e.target.value)}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">{t('settings_none')}</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.icon} {p.name}
-                  </option>
-                ))}
-              </select>
+              <SimpleSelect
+                aria-label={t('settings_default_project')}
+                value={settings.defaultProjectId ?? '__none__'}
+                onChange={v =>
+                  handleDefaultProject(v === '__none__' ? '' : v)
+                }
+                className="w-full text-sm"
+                options={[
+                  { value: '__none__', label: t('settings_none') },
+                  ...projects.map(p => ({
+                    value: p.id,
+                    label: `${p.icon} ${p.name}`,
+                  })),
+                ]}
+              />
             </div>
 
             <div className="mt-4">
@@ -638,16 +639,18 @@ export function SettingsPage() {
               <p className="mb-1.5 text-[11px] text-text-muted">
                 {t('settings_default_board_view_desc')}
               </p>
-              <select
+              <SimpleSelect
+                aria-label={t('settings_default_board_view')}
                 value={settings.defaultBoardView ?? 'continuous'}
-                onChange={e => handleDefaultBoardView(e.target.value as BoardViewMode)}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="day">{t('board_day_view')}</option>
-                <option value="week">{t('board_week_view')}</option>
-                <option value="month">{t('board_month_view')}</option>
-                <option value="continuous">{t('board_continuous_view')}</option>
-              </select>
+                onChange={v => handleDefaultBoardView(v as BoardViewMode)}
+                className="w-full text-sm"
+                options={[
+                  { value: 'day', label: t('board_day_view') },
+                  { value: 'week', label: t('board_week_view') },
+                  { value: 'month', label: t('board_month_view') },
+                  { value: 'continuous', label: t('board_continuous_view') },
+                ]}
+              />
             </div>
 
             <div className="mt-4">
@@ -657,18 +660,20 @@ export function SettingsPage() {
               <p className="mb-1.5 text-[11px] text-text-muted">
                 {t('settings_default_schedule_layout_desc')}
               </p>
-              <select
+              <SimpleSelect
+                aria-label={t('settings_default_schedule_layout')}
                 value={settings.defaultScheduleLayout ?? 'list'}
-                onChange={e =>
+                onChange={v =>
                   void updateSettings({
-                    defaultScheduleLayout: e.target.value as ScheduleLayout,
+                    defaultScheduleLayout: v as ScheduleLayout,
                   })
                 }
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="list">{t('layout_list')}</option>
-                <option value="schedule">{t('layout_schedule')}</option>
-              </select>
+                className="w-full text-sm"
+                options={[
+                  { value: 'list', label: t('layout_list') },
+                  { value: 'schedule', label: t('layout_schedule') },
+                ]}
+              />
             </div>
 
             <div className="mt-4">
@@ -681,45 +686,43 @@ export function SettingsPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-xs text-text-muted">
                   <span>{t('settings_day_start_hour')}</span>
-                  <select
-                    value={settings.dayStartHour ?? 7}
-                    onChange={e => {
-                      const dayStartHour = Number(e.target.value);
+                  <SimpleSelect
+                    aria-label={t('settings_day_start_hour')}
+                    value={String(settings.dayStartHour ?? 7)}
+                    onChange={v => {
+                      const dayStartHour = Number(v);
                       const dayEndHour = Math.max(
                         dayStartHour + 1,
                         settings.dayEndHour ?? 22
                       );
                       void updateSettings({ dayStartHour, dayEndHour });
                     }}
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-text-primary"
-                  >
-                    {Array.from({ length: 24 }, (_, h) => (
-                      <option key={h} value={h}>
-                        {String(h).padStart(2, '0')}:00
-                      </option>
-                    ))}
-                  </select>
+                    className="w-[5.5rem] text-sm"
+                    options={Array.from({ length: 24 }, (_, h) => ({
+                      value: String(h),
+                      label: `${String(h).padStart(2, '0')}:00`,
+                    }))}
+                  />
                 </label>
                 <label className="flex items-center gap-2 text-xs text-text-muted">
                   <span>{t('settings_day_end_hour')}</span>
-                  <select
-                    value={settings.dayEndHour ?? 22}
-                    onChange={e => {
-                      const dayEndHour = Number(e.target.value);
+                  <SimpleSelect
+                    aria-label={t('settings_day_end_hour')}
+                    value={String(settings.dayEndHour ?? 22)}
+                    onChange={v => {
+                      const dayEndHour = Number(v);
                       const dayStartHour = Math.min(
-                        (settings.dayStartHour ?? 7),
+                        settings.dayStartHour ?? 7,
                         dayEndHour - 1
                       );
                       void updateSettings({ dayStartHour, dayEndHour });
                     }}
-                    className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-text-primary"
-                  >
-                    {Array.from({ length: 24 }, (_, i) => i + 1).map(h => (
-                      <option key={h} value={h}>
-                        {String(h).padStart(2, '0')}:00
-                      </option>
-                    ))}
-                  </select>
+                    className="w-[5.5rem] text-sm"
+                    options={Array.from({ length: 24 }, (_, i) => i + 1).map(h => ({
+                      value: String(h),
+                      label: `${String(h).padStart(2, '0')}:00`,
+                    }))}
+                  />
                 </label>
               </div>
             </div>
@@ -742,16 +745,17 @@ export function SettingsPage() {
             <p className="mb-2 text-[11px] text-text-muted">
               {t('settings_preferred_currency_desc')}
             </p>
-            <select
+            <SimpleSelect
+              aria-label={t('settings_preferred_currency')}
               value={normalizeCurrencyCode(
                 settings.preferredCurrency,
                 'EUR'
               )}
-              onChange={e => {
+              onChange={v => {
                 void (async () => {
                   try {
                     await updateSettings({
-                      preferredCurrency: e.target.value,
+                      preferredCurrency: v,
                     });
                     showToast('Preferencias guardadas.', 'success');
                   } catch {
@@ -759,14 +763,12 @@ export function SettingsPage() {
                   }
                 })();
               }}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {SUPPORTED_CURRENCIES.map(c => (
-                <option key={c.code} value={c.code}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+              className="w-full text-sm"
+              options={SUPPORTED_CURRENCIES.map(c => ({
+                value: c.code,
+                label: c.label,
+              }))}
+            />
             <p className="mt-4 text-[11px] text-text-muted">
               <a
                 href="/finances"

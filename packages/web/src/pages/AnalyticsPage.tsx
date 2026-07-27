@@ -21,6 +21,12 @@ import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
 import { useT } from '@/hooks/useT';
 import type { Task } from '@core/types';
+import {
+  chartTooltipStyle,
+  isDocumentDark,
+  macChartSeries,
+  macSystem,
+} from '@/lib/macPalette';
 
 export function AnalyticsPage() {
   const { t } = useT();
@@ -72,12 +78,15 @@ function AnalyticsContent() {
         }
       }
     }
-    return Object.entries(counts).map(([projectId, value]) => {
+    return Object.entries(counts).map(([projectId, value], idx) => {
       const project = projects.find(p => p.id === projectId);
       return {
         name: project ? `${project.icon} ${project.name}` : 'Sin proyecto',
         value,
-        color: project?.color ?? '#7d8590',
+        color:
+          project?.color ??
+          macChartSeries[idx % macChartSeries.length] ??
+          macSystem.gray,
       };
     });
   }, [backendAnalytics, tasksByDay, projects]);
@@ -85,6 +94,10 @@ function AnalyticsContent() {
   const totalCompleted = dailyChart.reduce((acc, d) => acc + d.completed, 0);
   const totalPending = dailyChart.reduce((acc, d) => acc + d.pending, 0);
   const streak = backendAnalytics?.streakCount ?? 0;
+  const dark = isDocumentDark();
+  const grid = dark ? macSystem.gridDark : macSystem.gridLight;
+  const axis = dark ? '#a1a1aa' : '#6b7280';
+  const tip = chartTooltipStyle(dark);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -112,27 +125,34 @@ function AnalyticsContent() {
         </div>
 
         {/* Bar chart */}
-        <section className="rounded-lg border border-border bg-surface p-4">
+        <section
+          data-glass-float
+          className="rounded-2xl border border-border bg-surface p-4"
+        >
           <h2 className="mb-3 text-sm font-semibold text-text-primary">Completadas por día</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyChart}>
-                <CartesianGrid stroke="#30363d" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" stroke="#7d8590" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#7d8590" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: 8 }}
-                  labelStyle={{ color: '#e6edf3', fontSize: 12 }}
+                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" stroke={axis} fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke={axis} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={tip} labelStyle={{ fontSize: 12 }} />
+                <Bar dataKey="completed" fill={macSystem.green} radius={[6, 6, 0, 0]} />
+                <Bar
+                  dataKey="pending"
+                  fill={dark ? 'rgba(142,142,147,0.35)' : 'rgba(60,60,67,0.15)'}
+                  radius={[6, 6, 0, 0]}
                 />
-                <Bar dataKey="completed" fill="#3fb950" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="pending" fill="#30363d" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </section>
 
         {/* Donut */}
-        <section className="rounded-lg border border-border bg-surface p-4">
+        <section
+          data-glass-float
+          className="rounded-2xl border border-border bg-surface p-4"
+        >
           <h2 className="mb-3 text-sm font-semibold text-text-primary">Completadas por proyecto</h2>
           {projectChart.length === 0 ? (
             <p className="py-12 text-center text-xs text-text-muted">
@@ -148,21 +168,15 @@ function AnalyticsContent() {
                     nameKey="name"
                     innerRadius={45}
                     outerRadius={80}
-                    paddingAngle={2}
+                    paddingAngle={3}
+                    stroke="transparent"
                   >
                     {projectChart.map((entry, idx) => (
                       <Cell key={idx} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#161b22',
-                      border: '1px solid #30363d',
-                      borderRadius: 8,
-                    }}
-                    labelStyle={{ color: '#e6edf3', fontSize: 12 }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#7d8590' }} />
+                  <Tooltip contentStyle={tip} labelStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: axis }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -192,12 +206,15 @@ function Kpi({
   accent: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-surface p-3">
+    <div
+      data-glass-float
+      className="rounded-2xl border border-border bg-surface p-3"
+    >
       <div className={`mb-1 flex items-center gap-1.5 text-xs ${accent}`}>
         {icon}
         <span className="text-text-muted">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-text-primary">{value}</p>
+      <p className="text-2xl font-semibold tracking-tight text-text-primary">{value}</p>
     </div>
   );
 }
