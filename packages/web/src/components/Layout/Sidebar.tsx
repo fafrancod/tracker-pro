@@ -60,10 +60,10 @@ interface SidebarProps {
 
 function navClass(active: boolean): string {
   return cn(
-    'mb-0.5 flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+    'sidebar-nav-item mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200',
     active
-      ? 'bg-accent-teal/10 text-accent-teal'
-      : 'text-text-muted hover:bg-background hover:text-text-primary'
+      ? 'sidebar-nav-item-active bg-accent-teal/10 text-accent-teal'
+      : 'text-text-muted'
   );
 }
 
