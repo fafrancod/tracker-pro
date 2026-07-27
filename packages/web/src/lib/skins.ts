@@ -1,16 +1,19 @@
-/**
- * 50 skins for Daily Tracker:
+﻿/**
+ * Skins for Daily Tracker:
  * - 20 dark solid
  * - 20 light solid
- * - 10 Aero (Apple-style Liquid Glass materials)
+ * - 10 Liquid Glass light + 10 Liquid Glass dark
  *
- * CSS variables drive Tailwind tokens. Aero skins add mesh backdrops +
- * backdrop-filter blur (same family of technique as macOS/iOS vibrancy).
+ * Liquid Glass approximates Apple materials (macOS/iOS):
+ * wallpaper mesh â†’ ultra-thin canvas â†’ thin chrome (blur+vibrancy) â†’ opaque fields.
+ * Web primitives: backdrop-filter blur/saturate, translucent rgba, specular inset edges.
+ *
+ * @see Apple HIG Materials / UIBlurEffect / Liquid Glass (system vibrancy)
  */
 
-export type SkinMode = 'dark' | 'light' | 'aero';
+export type SkinMode = 'dark' | 'light' | 'glass-light' | 'glass-dark';
 
-/** Text contrast tone (color-scheme / .dark class). Aero skins declare this explicitly. */
+/** Text contrast tone (color-scheme / .dark class). */
 export type SkinTone = 'dark' | 'light';
 
 export type SkinMaterial = 'solid' | 'glass';
@@ -31,19 +34,19 @@ export interface SkinTokens {
   scrollThumb: string;
   /**
    * Solid fill for form controls (inputs, selects, date/time).
-   * Defaults to `surface` for solid skins. Aero must set an opaque value.
+   * Defaults to `surface` for solid skins. Glass must set an opaque value
+   * (Apple â€œsecondarySystemGroupedBackgroundâ€).
    */
   field?: string;
   /**
-   * Opaque fallback for theme-color / under mesh.
-   * Aero: solid base behind the glass wallpaper.
+   * Opaque fallback for theme-color / under mesh wallpaper.
    */
   solidBackground?: string;
-  /** CSS multi-layer gradient / mesh used as “wallpaper” under glass */
+  /** CSS multi-layer gradient mesh used as desktop wallpaper */
   backdrop?: string;
-  /** backdrop-filter blur radius, e.g. "28px" */
+  /** backdrop-filter blur â€” Apple materials use ~20â€“60px equivalent */
   glassBlur?: string;
-  /** backdrop-filter saturate %, e.g. "180%" */
+  /** Vibrancy: saturate the blurred content (UIVibrancyEffect) */
   glassSaturate?: string;
 }
 
@@ -52,7 +55,7 @@ export interface SkinDefinition {
   name: string;
   nameEn: string;
   mode: SkinMode;
-  /** For aero: light or dark content. Defaults to mode when mode is dark|light. */
+  /** Explicit content tone for glass skins. */
   tone?: SkinTone;
   material?: SkinMaterial;
   tokens: SkinTokens;
@@ -75,32 +78,21 @@ function skin(
   };
 }
 
-function aeroSkin(
-  id: string,
-  name: string,
-  nameEn: string,
-  tone: SkinTone,
-  tokens: SkinTokens
-): SkinDefinition {
-  return {
-    id,
-    name,
-    nameEn,
-    mode: 'aero',
-    tone,
-    material: 'glass',
-    tokens: {
-      glassBlur: '28px',
-      glassSaturate: '180%',
-      ...tokens,
-    },
-  };
-}
-
 /** Resolve whether UI chrome uses dark (light text) or light (dark text). */
 export function skinTone(skin: SkinDefinition): SkinTone {
-  if (skin.mode === 'aero') return skin.tone ?? 'light';
-  return skin.mode;
+  if (skin.mode === 'glass-light') return 'light';
+  if (skin.mode === 'glass-dark') return 'dark';
+  if (skin.tone) return skin.tone;
+  if (skin.mode === 'dark' || skin.mode === 'light') return skin.mode;
+  return 'light';
+}
+
+export function isGlassSkin(skin: SkinDefinition): boolean {
+  return (
+    skin.material === 'glass' ||
+    skin.mode === 'glass-light' ||
+    skin.mode === 'glass-dark'
+  );
 }
 
 /** 20 dark skins */
@@ -157,7 +149,7 @@ const DARK_SKINS: SkinDefinition[] = [
     scrollTrack: '#12201c',
     scrollThumb: '#1e3a32',
   }),
-  skin('dark-ocean', 'Océano', 'Ocean', 'dark', {
+  skin('dark-ocean', 'OcÃ©ano', 'Ocean', 'dark', {
     background: '#071018',
     surface: '#0f1c2a',
     border: '#1a3348',
@@ -222,7 +214,7 @@ const DARK_SKINS: SkinDefinition[] = [
     scrollTrack: '#3b4252',
     scrollThumb: '#4c566a',
   }),
-  skin('dark-dracula', 'Drácula', 'Dracula', 'dark', {
+  skin('dark-dracula', 'DrÃ¡cula', 'Dracula', 'dark', {
     background: '#282a36',
     surface: '#21222c',
     border: '#44475a',
@@ -460,7 +452,7 @@ const LIGHT_SKINS: SkinDefinition[] = [
     scrollTrack: '#ffe4e6',
     scrollThumb: '#fda4af',
   }),
-  skin('light-lemon', 'Limón', 'Lemon', 'light', {
+  skin('light-lemon', 'LimÃ³n', 'Lemon', 'light', {
     background: '#fefce8',
     surface: '#ffffff',
     border: '#fde68a',
@@ -512,7 +504,7 @@ const LIGHT_SKINS: SkinDefinition[] = [
     scrollTrack: '#cffafe',
     scrollThumb: '#67e8f9',
   }),
-  skin('light-peach', 'Melocotón', 'Peach', 'light', {
+  skin('light-peach', 'MelocotÃ³n', 'Peach', 'light', {
     background: '#fff7ed',
     surface: '#ffffff',
     border: '#fed7aa',
@@ -551,7 +543,7 @@ const LIGHT_SKINS: SkinDefinition[] = [
     scrollTrack: '#f0ebe3',
     scrollThumb: '#cfc4b4',
   }),
-  skin('light-cotton', 'Algodón', 'Cotton', 'light', {
+  skin('light-cotton', 'AlgodÃ³n', 'Cotton', 'light', {
     background: '#f9fafb',
     surface: '#ffffff',
     border: '#e5e7eb',
@@ -631,251 +623,24 @@ const LIGHT_SKINS: SkinDefinition[] = [
   }),
 ];
 
-/**
- * 10 Aero skins — soft macOS-style materials (Frost is the reference).
- *
- * Design rules:
- * - Wallpaper: desaturated, low-contrast mesh (not neon blobs)
- * - Chrome surface: high opacity frosted white / dark gray for readable labels
- * - Field: fully opaque controls
- * - textPrimary / textMuted: WCAG-friendly on chrome glass
- */
-const AERO_SKINS: SkinDefinition[] = [
-  /* Reference look — cool system glass */
-  aeroSkin('aero-frost', 'Aero Frost', 'Aero Frost', 'light', {
-    solidBackground: '#d8dee8',
-    background: 'rgba(242, 245, 250, 0.22)',
-    surface: 'rgba(255, 255, 255, 0.82)',
-    field: '#ffffff',
-    border: 'rgba(15, 23, 42, 0.1)',
-    textPrimary: '#111827',
-    textMuted: '#4b5563',
-    accentGreen: '#0f766e',
-    accentTeal: '#2563eb',
-    accentRed: '#dc2626',
-    accentPink: '#db2777',
-    scrollTrack: 'rgba(255,255,255,0.4)',
-    scrollThumb: 'rgba(100,116,139,0.35)',
-    glassBlur: '40px',
-    glassSaturate: '160%',
-    backdrop: `
-      radial-gradient(90% 70% at 12% 8%, rgba(186, 200, 220, 0.55) 0%, transparent 55%),
-      radial-gradient(80% 60% at 88% 18%, rgba(200, 210, 225, 0.45) 0%, transparent 50%),
-      radial-gradient(70% 50% at 45% 100%, rgba(210, 218, 230, 0.5) 0%, transparent 55%),
-      linear-gradient(165deg, #eef2f7 0%, #dfe6ef 48%, #d2dae6 100%)
-    `,
-  }),
-  aeroSkin('aero-clear', 'Aero Clear', 'Aero Clear', 'light', {
-    solidBackground: '#d5e0ee',
-    background: 'rgba(248, 250, 252, 0.2)',
-    surface: 'rgba(255, 255, 255, 0.8)',
-    field: '#ffffff',
-    border: 'rgba(15, 23, 42, 0.1)',
-    textPrimary: '#0f172a',
-    textMuted: '#475569',
-    accentGreen: '#0f766e',
-    accentTeal: '#0284c7',
-    accentRed: '#dc2626',
-    accentPink: '#db2777',
-    scrollTrack: 'rgba(255,255,255,0.4)',
-    scrollThumb: 'rgba(100,116,139,0.32)',
-    glassBlur: '38px',
-    glassSaturate: '155%',
-    backdrop: `
-      radial-gradient(95% 70% at 15% 0%, rgba(176, 196, 222, 0.5) 0%, transparent 55%),
-      radial-gradient(80% 60% at 90% 20%, rgba(190, 205, 228, 0.4) 0%, transparent 50%),
-      linear-gradient(160deg, #eef4fb 0%, #dde8f4 50%, #d0dceb 100%)
-    `,
-  }),
-  aeroSkin('aero-sunset', 'Aero Sunset', 'Aero Sunset', 'light', {
-    solidBackground: '#e8ddd4',
-    background: 'rgba(255, 250, 245, 0.22)',
-    surface: 'rgba(255, 255, 255, 0.84)',
-    field: '#ffffff',
-    border: 'rgba(68, 40, 24, 0.1)',
-    textPrimary: '#1c1917',
-    textMuted: '#57534e',
-    accentGreen: '#15803d',
-    accentTeal: '#c2410c',
-    accentRed: '#dc2626',
-    accentPink: '#db2777',
-    scrollTrack: 'rgba(255,255,255,0.45)',
-    scrollThumb: 'rgba(120,90,70,0.3)',
-    glassBlur: '38px',
-    glassSaturate: '150%',
-    backdrop: `
-      radial-gradient(90% 65% at 8% 12%, rgba(232, 200, 175, 0.45) 0%, transparent 55%),
-      radial-gradient(75% 55% at 92% 8%, rgba(235, 190, 190, 0.35) 0%, transparent 50%),
-      linear-gradient(150deg, #faf6f2 0%, #f0e6dc 50%, #e8ddd6 100%)
-    `,
-  }),
-  aeroSkin('aero-ocean', 'Aero Ocean', 'Aero Ocean', 'light', {
-    solidBackground: '#d2e0ea',
-    background: 'rgba(245, 250, 252, 0.2)',
-    surface: 'rgba(255, 255, 255, 0.82)',
-    field: '#ffffff',
-    border: 'rgba(12, 50, 72, 0.1)',
-    textPrimary: '#0c1929',
-    textMuted: '#475569',
-    accentGreen: '#0f766e',
-    accentTeal: '#0369a1',
-    accentRed: '#dc2626',
-    accentPink: '#a21caf',
-    scrollTrack: 'rgba(255,255,255,0.4)',
-    scrollThumb: 'rgba(70,110,140,0.32)',
-    glassBlur: '38px',
-    glassSaturate: '155%',
-    backdrop: `
-      radial-gradient(90% 70% at 10% 5%, rgba(170, 200, 220, 0.45) 0%, transparent 55%),
-      radial-gradient(80% 55% at 95% 25%, rgba(165, 210, 210, 0.3) 0%, transparent 50%),
-      linear-gradient(165deg, #eef6fa 0%, #dceaf2 48%, #d0e0ea 100%)
-    `,
-  }),
-  aeroSkin('aero-aurora', 'Aero Aurora', 'Aero Aurora', 'light', {
-    solidBackground: '#d8e4df',
-    background: 'rgba(246, 252, 249, 0.2)',
-    surface: 'rgba(255, 255, 255, 0.82)',
-    field: '#ffffff',
-    border: 'rgba(20, 50, 40, 0.1)',
-    textPrimary: '#0f1f1a',
-    textMuted: '#3f5a50',
-    accentGreen: '#047857',
-    accentTeal: '#5b21b6',
-    accentRed: '#dc2626',
-    accentPink: '#a21caf',
-    scrollTrack: 'rgba(255,255,255,0.4)',
-    scrollThumb: 'rgba(70,120,100,0.3)',
-    glassBlur: '38px',
-    glassSaturate: '150%',
-    backdrop: `
-      radial-gradient(90% 65% at 5% 10%, rgba(175, 210, 195, 0.4) 0%, transparent 55%),
-      radial-gradient(75% 55% at 95% 15%, rgba(195, 185, 220, 0.28) 0%, transparent 50%),
-      linear-gradient(155deg, #f3faf6 0%, #e5efe9 50%, #dce6e8 100%)
-    `,
-  }),
-  aeroSkin('aero-bloom', 'Aero Bloom', 'Aero Bloom', 'light', {
-    solidBackground: '#e8dce2',
-    background: 'rgba(253, 248, 250, 0.22)',
-    surface: 'rgba(255, 255, 255, 0.84)',
-    field: '#ffffff',
-    border: 'rgba(60, 30, 45, 0.1)',
-    textPrimary: '#1a1016',
-    textMuted: '#5c4a54',
-    accentGreen: '#15803d',
-    accentTeal: '#be185d',
-    accentRed: '#dc2626',
-    accentPink: '#db2777',
-    scrollTrack: 'rgba(255,255,255,0.45)',
-    scrollThumb: 'rgba(140,90,110,0.3)',
-    glassBlur: '38px',
-    glassSaturate: '150%',
-    backdrop: `
-      radial-gradient(90% 65% at 12% 8%, rgba(225, 195, 210, 0.4) 0%, transparent 55%),
-      radial-gradient(75% 55% at 90% 20%, rgba(215, 200, 225, 0.3) 0%, transparent 50%),
-      linear-gradient(150deg, #fbf6f8 0%, #f0e6eb 50%, #e8dde4 100%)
-    `,
-  }),
-  aeroSkin('aero-sierra', 'Aero Sierra', 'Aero Sierra', 'light', {
-    solidBackground: '#dce6dd',
-    background: 'rgba(246, 250, 246, 0.2)',
-    surface: 'rgba(255, 255, 255, 0.82)',
-    field: '#ffffff',
-    border: 'rgba(25, 45, 30, 0.1)',
-    textPrimary: '#122018',
-    textMuted: '#3f5548',
-    accentGreen: '#15803d',
-    accentTeal: '#0f766e',
-    accentRed: '#dc2626',
-    accentPink: '#be185d',
-    scrollTrack: 'rgba(255,255,255,0.4)',
-    scrollThumb: 'rgba(80,120,90,0.3)',
-    glassBlur: '38px',
-    glassSaturate: '150%',
-    backdrop: `
-      radial-gradient(90% 65% at 15% 5%, rgba(185, 210, 185, 0.4) 0%, transparent 55%),
-      radial-gradient(75% 55% at 90% 30%, rgba(175, 205, 195, 0.28) 0%, transparent 50%),
-      linear-gradient(160deg, #f4faf5 0%, #e5efe7 50%, #dbe6dc 100%)
-    `,
-  }),
-  /* Dark glass — high-luminance labels on frosted dark chrome */
-  aeroSkin('aero-midnight', 'Aero Midnight', 'Aero Midnight', 'dark', {
-    solidBackground: '#0c121c',
-    background: 'rgba(12, 18, 28, 0.35)',
-    surface: 'rgba(36, 48, 68, 0.88)',
-    field: '#1e293b',
-    border: 'rgba(226, 232, 240, 0.16)',
-    textPrimary: '#f8fafc',
-    textMuted: '#cbd5e1',
-    accentGreen: '#4ade80',
-    accentTeal: '#7dd3fc',
-    accentRed: '#fda4af',
-    accentPink: '#f0abfc',
-    scrollTrack: 'rgba(15,23,42,0.5)',
-    scrollThumb: 'rgba(203,213,225,0.35)',
-    glassBlur: '40px',
-    glassSaturate: '140%',
-    backdrop: `
-      radial-gradient(90% 70% at 12% 0%, rgba(70, 100, 140, 0.35) 0%, transparent 55%),
-      radial-gradient(80% 55% at 90% 20%, rgba(60, 70, 120, 0.28) 0%, transparent 50%),
-      linear-gradient(165deg, #0a1018 0%, #121a28 50%, #151c30 100%)
-    `,
-  }),
-  aeroSkin('aero-nebula', 'Aero Nebula', 'Aero Nebula', 'dark', {
-    solidBackground: '#14101c',
-    background: 'rgba(18, 14, 28, 0.35)',
-    surface: 'rgba(48, 40, 68, 0.88)',
-    field: '#2a2340',
-    border: 'rgba(233, 213, 255, 0.16)',
-    textPrimary: '#faf5ff',
-    textMuted: '#ddd6fe',
-    accentGreen: '#86efac',
-    accentTeal: '#c4b5fd',
-    accentRed: '#fda4af',
-    accentPink: '#f9a8d4',
-    scrollTrack: 'rgba(30,20,50,0.5)',
-    scrollThumb: 'rgba(196,181,253,0.35)',
-    glassBlur: '40px',
-    glassSaturate: '145%',
-    backdrop: `
-      radial-gradient(90% 65% at 8% 8%, rgba(90, 70, 130, 0.35) 0%, transparent 55%),
-      radial-gradient(75% 55% at 92% 15%, rgba(100, 60, 110, 0.25) 0%, transparent 50%),
-      linear-gradient(155deg, #100c18 0%, #1a1428 50%, #1c1430 100%)
-    `,
-  }),
-  aeroSkin('aero-graphite', 'Aero Graphite', 'Aero Graphite', 'dark', {
-    solidBackground: '#0c0c0e',
-    background: 'rgba(18, 18, 20, 0.38)',
-    surface: 'rgba(48, 48, 52, 0.9)',
-    field: '#27272a',
-    border: 'rgba(255, 255, 255, 0.14)',
-    textPrimary: '#fafafa',
-    textMuted: '#d4d4d8',
-    accentGreen: '#86efac',
-    accentTeal: '#e4e4e7',
-    accentRed: '#fca5a5',
-    accentPink: '#f0abfc',
-    scrollTrack: 'rgba(24,24,27,0.55)',
-    scrollThumb: 'rgba(212,212,216,0.35)',
-    glassBlur: '36px',
-    glassSaturate: '130%',
-    backdrop: `
-      radial-gradient(90% 65% at 15% 5%, rgba(80, 80, 88, 0.3) 0%, transparent 55%),
-      radial-gradient(75% 55% at 90% 25%, rgba(55, 55, 62, 0.35) 0%, transparent 50%),
-      linear-gradient(160deg, #09090b 0%, #141416 50%, #1c1c1f 100%)
-    `,
-  }),
-];
+import {
+  GLASS_DARK_SKINS,
+  GLASS_LIGHT_SKINS,
+  SKIN_ALIASES,
+} from './liquidGlassSkins';
 
 export const SKINS: SkinDefinition[] = [
   ...DARK_SKINS,
   ...LIGHT_SKINS,
-  ...AERO_SKINS,
+  ...GLASS_LIGHT_SKINS,
+  ...GLASS_DARK_SKINS,
 ];
 
 export const DEFAULT_SKIN_ID = 'dark-github';
 
 export function getSkinById(id: string | null | undefined): SkinDefinition {
-  return SKINS.find(s => s.id === id) ?? SKINS[0];
+  const resolved = (id && SKIN_ALIASES[id]) || id;
+  return SKINS.find(s => s.id === resolved) ?? SKINS[0];
 }
 
 export function applySkin(skinId: string | null | undefined): void {
@@ -884,11 +649,10 @@ export function applySkin(skinId: string | null | undefined): void {
   const root = document.documentElement;
   const t = skin.tokens;
   const tone = skinTone(skin);
-  const material = skin.material ?? (skin.mode === 'aero' ? 'glass' : 'solid');
+  const material = isGlassSkin(skin) ? 'glass' : 'solid';
 
   root.style.setProperty('--color-background', t.background);
   root.style.setProperty('--color-surface', t.surface);
-  // Opaque form fills (inputs/selects). Solid skins fall back to surface.
   root.style.setProperty('--color-field', t.field ?? t.surface);
   root.style.setProperty('--color-border', t.border);
   root.style.setProperty('--color-text-primary', t.textPrimary);
@@ -899,18 +663,15 @@ export function applySkin(skinId: string | null | undefined): void {
   root.style.setProperty('--color-accent-pink', t.accentPink);
   root.style.setProperty('--color-scroll-track', t.scrollTrack);
   root.style.setProperty('--color-scroll-thumb', t.scrollThumb);
-  // Keep native form chrome + selection readable on glass skins
   root.style.setProperty('color', t.textPrimary);
 
-  // Solid underlay + mesh wallpaper for glass materials
   const solidBg = t.solidBackground ?? t.background;
   root.style.setProperty('--color-background-solid', solidBg);
 
   if (t.backdrop && material === 'glass') {
-    // Collapse whitespace so multi-line template strings stay valid CSS
     const backdrop = t.backdrop.replace(/\s+/g, ' ').trim();
     root.style.setProperty('--app-backdrop', backdrop);
-    root.style.setProperty('--glass-blur', t.glassBlur ?? '28px');
+    root.style.setProperty('--glass-blur', t.glassBlur ?? '48px');
     root.style.setProperty('--glass-saturate', t.glassSaturate ?? '180%');
   } else {
     root.style.removeProperty('--app-backdrop');
@@ -925,18 +686,19 @@ export function applySkin(skinId: string | null | undefined): void {
   root.classList.toggle('dark', tone === 'dark');
   root.classList.toggle('light', tone === 'light');
   root.classList.toggle('aero', material === 'glass');
+  root.classList.toggle('liquid-glass', material === 'glass');
 
-  /**
-   * color-scheme hace que los <select> nativos (Windows/Chrome) usen
-   * dropdown oscuro o claro según el skin — evita texto blanco sobre fondo blanco.
-   */
   root.style.colorScheme = tone === 'dark' ? 'dark' : 'light';
 
-  // Android / browser status bar color (always opaque)
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', solidBg);
 }
 
-export function skinsByMode(mode: SkinMode): SkinDefinition[] {
+export function skinsByMode(mode: SkinMode | 'aero'): SkinDefinition[] {
+  if (mode === 'aero') return SKINS.filter(isGlassSkin);
   return SKINS.filter(s => s.mode === mode);
+}
+
+export function skinsByGlassTone(tone: SkinTone): SkinDefinition[] {
+  return SKINS.filter(s => isGlassSkin(s) && skinTone(s) === tone);
 }

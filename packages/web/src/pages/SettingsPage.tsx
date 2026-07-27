@@ -34,7 +34,11 @@ import { useT } from '@/hooks/useT';
 import type { BoardViewMode, Language, ScheduleLayout } from '@core/types';
 import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
-import { skinsByMode, type SkinDefinition } from '@/lib/skins';
+import {
+  isGlassSkin,
+  skinsByMode,
+  type SkinDefinition,
+} from '@/lib/skins';
 import { SimpleSelect } from '@/components/ui/select';
 import {
   DEFAULT_LIFESPAN_YEARS,
@@ -787,12 +791,21 @@ export function SettingsPage() {
             <p className="mb-4 text-[11px] text-text-muted">{t('settings_skin_desc')}</p>
 
             <SkinGrid
-              title={t('settings_skin_aero')}
-              subtitle={t('settings_skin_aero_desc')}
-              skins={skinsByMode('aero')}
+              title={t('settings_skin_glass_light')}
+              subtitle={t('settings_skin_glass_desc')}
+              skins={skinsByMode('glass-light')}
               selectedId={settings.skinId}
               language={settings.language}
               onSelect={id => void handleSkin(id)}
+            />
+            <SkinGrid
+              title={t('settings_skin_glass_dark')}
+              subtitle={t('settings_skin_glass_desc')}
+              skins={skinsByMode('glass-dark')}
+              selectedId={settings.skinId}
+              language={settings.language}
+              onSelect={id => void handleSkin(id)}
+              className="mt-5"
             />
             <SkinGrid
               title={t('settings_skin_dark')}
@@ -1017,7 +1030,7 @@ function SkinGrid({
         {skins.map(skin => {
           const label = language === 'en' ? skin.nameEn : skin.name;
           const selected = selectedId === skin.id;
-          const isGlass = skin.material === 'glass' || skin.mode === 'aero';
+          const isGlass = isGlassSkin(skin)
           const previewBg = skin.tokens.solidBackground ?? skin.tokens.background;
           const backdrop = skin.tokens.backdrop
             ? skin.tokens.backdrop.replace(/\s+/g, ' ').trim()
@@ -1045,8 +1058,8 @@ function SkinGrid({
                 }}
               >
                 {isGlass && (
-                  <span className="absolute right-1 top-1 rounded bg-black/25 px-1 py-px text-[8px] font-semibold uppercase tracking-wide text-white/90">
-                    glass
+                  <span className="absolute right-1 top-1 rounded bg-black/30 px-1 py-px text-[8px] font-semibold uppercase tracking-wide text-white/95">
+                    LG
                   </span>
                 )}
                 <span

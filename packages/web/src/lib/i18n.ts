@@ -565,6 +565,9 @@ export interface TranslationDict {
   settings_skin_light: string;
   settings_skin_aero: string;
   settings_skin_aero_desc: string;
+  settings_skin_glass_light: string;
+  settings_skin_glass_dark: string;
+  settings_skin_glass_desc: string;
   settings_day_start_hour: string;
   settings_day_end_hour: string;
   settings_schedule_hours_desc: string;
@@ -1380,12 +1383,16 @@ const es_dict: TranslationDict = {
   settings_none: 'Ninguno',
   settings_skin: 'Apariencia',
   settings_skin_desc:
-    'Elige un skin sólido (claro/oscuro) o Aero con cristal líquido. Se aplica de inmediato en toda la app.',
+    'Sólidos o Liquid Glass (claro/oscuro, estilo macOS). Se aplica de inmediato en toda la app.',
   settings_skin_dark: 'Oscuros',
   settings_skin_light: 'Claros',
-  settings_skin_aero: 'Aero · cristal macOS',
+  settings_skin_aero: 'Liquid Glass',
   settings_skin_aero_desc:
-    'Vidrio esmerilado suave (Frost es la referencia). Blur + saturación como UIBlurEffect; campos de formulario siempre opacos.',
+    'Materiales Apple: wallpaper, vibrancy y blur (UIBlurEffect). Campos de formulario siempre opacos.',
+  settings_skin_glass_light: 'Liquid Glass · claro',
+  settings_skin_glass_dark: 'Liquid Glass · oscuro',
+  settings_skin_glass_desc:
+    'Como macOS: malla de fondo, chrome esmerilado (blur + saturación) y controles sólidos. 10 tonos por modo.',
   settings_day_start_hour: 'Inicio de la grilla horaria',
   settings_day_end_hour: 'Fin de la grilla horaria',
   settings_schedule_hours_desc:
@@ -2218,12 +2225,16 @@ const en_dict: TranslationDict = {
   settings_none: 'None',
   settings_skin: 'Appearance',
   settings_skin_desc:
-    'Pick a solid (light/dark) skin or Aero liquid glass. Applies immediately across the app.',
+    'Solid skins or Liquid Glass (light/dark, macOS-style). Applies immediately across the app.',
   settings_skin_dark: 'Dark',
   settings_skin_light: 'Light',
-  settings_skin_aero: 'Aero · macOS glass',
+  settings_skin_aero: 'Liquid Glass',
   settings_skin_aero_desc:
-    'Soft frosted glass (Frost is the reference). Blur + saturate like UIBlurEffect; form fields stay opaque.',
+    'Apple materials: wallpaper, vibrancy and blur (UIBlurEffect). Form fields stay opaque.',
+  settings_skin_glass_light: 'Liquid Glass · light',
+  settings_skin_glass_dark: 'Liquid Glass · dark',
+  settings_skin_glass_desc:
+    'Like macOS: mesh wallpaper, frosted chrome (blur + saturate) and solid controls. 10 tones per mode.',
   settings_day_start_hour: 'Schedule grid start',
   settings_day_end_hour: 'Schedule grid end',
   settings_schedule_hours_desc:

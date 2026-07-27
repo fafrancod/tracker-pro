@@ -104,7 +104,7 @@ Agents must treat the following as **in-tree product**, not optional experiments
 
 ### Appearance & settings
 
-- **50 skins** (20 dark + 20 light + **10 Aero** liquid glass) via CSS variables; `settings.skinId`.
+- **60 skins** (20 dark + 20 light + **10 Liquid Glass light + 10 Liquid Glass dark**) via CSS variables; `settings.skinId`.
 - Language es/en; week start; auto-roll setting; default board view / schedule layout / day hours.
 
 ### Notifications

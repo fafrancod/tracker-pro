@@ -77,7 +77,7 @@ These features are **shipped product** on `main` and must exist on **both** remo
 
 ### Appearance
 
-- 50 skins (20 dark + 20 light + 10 Aero liquid glass), `settings.skinId`; `theme-color` follows skin.
+- 60 skins (20 dark + 20 light + 10 Liquid Glass light + 10 dark), `settings.skinId`; `theme-color` follows skin.
 
 ### Android / PWA
 

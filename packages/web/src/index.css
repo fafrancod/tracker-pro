@@ -159,11 +159,19 @@
 }
 
 /**
- * Aero materials — soft macOS-like hierarchy:
- * wallpaper → transparent canvas → frosted chrome → opaque fields
+ * Liquid Glass (Apple materials approximation)
+ * Hierarchy:
+ * 1. Wallpaper (body::before) — desktop mesh
+ * 2. Ultra-thin canvas (.bg-background) — no blur, lets wallpaper show
+ * 3. Thin chrome (.bg-surface / [data-chrome]) — blur + vibrancy + specular
+ * 4. Fields (.bg-field) — opaque (secondarySystemGroupedBackground)
+ *
+ * @see UIBlurEffect / UIVibrancyEffect / macOS NSVisualEffectView
  */
 html[data-material='glass'] {
-  --radius: 0.85rem;
+  --radius: 0.9rem;
+  --glass-specular: rgba(255, 255, 255, 0.55);
+  --glass-specular-dark: rgba(255, 255, 255, 0.14);
   min-height: 100%;
   background-color: var(--color-background-solid);
 }
@@ -196,25 +204,28 @@ html[data-material='glass'] .bg-background {
   box-shadow: none !important;
 }
 
-/* Frosted chrome */
+/* Thin material chrome — vibrancy via saturate() on blurred backdrop */
 html[data-material='glass'] .bg-surface,
 html[data-material='glass'] [data-chrome='glass'] {
   background-color: var(--color-surface) !important;
   color: var(--color-text-primary);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  /* Specular top edge (light catching the glass lip) */
   box-shadow:
-    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.55),
+    inset 0 0.5px 0 0 var(--glass-specular),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
     0 1px 2px rgba(15, 23, 42, 0.04),
-    0 8px 28px rgba(15, 23, 42, 0.06);
+    0 8px 32px rgba(15, 23, 42, 0.06);
 }
 
 html[data-material='glass'].dark .bg-surface,
 html[data-material='glass'].dark [data-chrome='glass'] {
   box-shadow:
-    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.14),
-    0 1px 2px rgba(0, 0, 0, 0.2),
-    0 12px 36px rgba(0, 0, 0, 0.28);
+    inset 0 0.5px 0 0 var(--glass-specular-dark),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 14px 40px rgba(0, 0, 0, 0.32);
 }
 
 /* Chrome text must always use skin tokens (avoid inherited low-contrast) */
@@ -291,7 +302,8 @@ html[data-material='glass'].dark
 
 @media (max-width: 768px) {
   html[data-material='glass'] {
-    --glass-blur: 20px;
+    /* Mobile GPU: thinner material blur (still vibant) */
+    --glass-blur: 28px;
   }
 }
 
