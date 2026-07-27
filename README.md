@@ -11,6 +11,8 @@ Planificador semanal de tareas. Monorepo npm workspaces: `packages/core`, `packa
 3. En Authentication → Providers, activa Email y Google (opcional).
 4. Copia URL y keys a los `.env` de web y api.
 
+**Google + Resend (checklist operativo):** [`docs/AUTH_AND_EMAIL.md`](docs/AUTH_AND_EMAIL.md).
+
 ## Desarrollo local
 
 ```bash
@@ -40,8 +42,13 @@ Variables del servicio:
 | `SUPABASE_SERVICE_ROLE_KEY` | runtime | **solo servidor** |
 | `ALLOWED_ORIGINS` | runtime | `https://tu-app.up.railway.app` |
 | `NODE_ENV` | runtime | `production` |
+| `RESEND_API_KEY` | runtime (email) | Notificaciones por correo |
+| `EMAIL_FROM` | runtime (email) | Remitente con dominio verificado en Resend |
+| `APP_PUBLIC_URL` | runtime | URL pública de la app (enlaces en emails) |
 
 Tras el deploy: abre `https://tu-app.up.railway.app/` → UI. Health: `/api/version`.
+
+Auth Google y correo: [`docs/AUTH_AND_EMAIL.md`](docs/AUTH_AND_EMAIL.md).
 
 ## Instalar en Android (PWA)
 

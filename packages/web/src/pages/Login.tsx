@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Loader2, ListChecks } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -12,21 +12,58 @@ function describeAuthError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes('Invalid login credentials')) return 'Credenciales inválidas.';
   if (msg.includes('User already registered')) return 'Ese email ya está registrado.';
-  if (msg.includes('Password should be at least')) return 'La contraseña debe tener al menos 6 caracteres.';
+  if (msg.includes('Password should be at least'))
+    return 'La contraseña debe tener al menos 6 caracteres.';
   if (msg.includes('Unable to validate email')) return 'Email inválido.';
-  return 'No pude completar el login. Revisa la consola para más detalles.';
+  if (msg.includes('Email not confirmed'))
+    return 'Debes confirmar el email antes de entrar. Revisa tu bandeja.';
+  if (msg.includes('redirect_uri_mismatch') || msg.includes('Redirect'))
+    return 'Google OAuth mal configurado (redirect URI). Revisa docs/AUTH_AND_EMAIL.md.';
+  if (msg.includes('provider is not enabled') || msg.includes('Unsupported provider'))
+    return 'Google no está habilitado en Supabase (Authentication → Providers).';
+  if (msg.includes('Popup closed') || msg.includes('user_cancelled'))
+    return 'Inicio de sesión con Google cancelado.';
+  return 'No pude completar el login. Revisa la consola o docs/AUTH_AND_EMAIL.md.';
+}
+
+function describeOAuthQueryError(error: string, desc: string | null): string {
+  const d = (desc ?? '').toLowerCase();
+  if (error === 'access_denied' || d.includes('denied'))
+    return 'Acceso con Google denegado o cancelado.';
+  if (d.includes('redirect')) return 'Redirect OAuth incorrecto. Revisa Supabase y Google Cloud.';
+  return `Error de Google: ${desc || error}`;
 }
 
 export function LoginPage() {
   const { user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
   const { showToast } = useToast();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const fromPath =
+    (location.state as { from?: string } | null)?.from &&
+    String((location.state as { from?: string }).from).startsWith('/')
+      ? String((location.state as { from?: string }).from)
+      : '/board';
+
+  // Errores devueltos por Supabase/Google en la query al volver del OAuth.
+  useEffect(() => {
+    const err = searchParams.get('error');
+    const desc = searchParams.get('error_description');
+    if (!err) return;
+    showToast(describeOAuthQueryError(err, desc), 'error');
+    const next = new URLSearchParams(searchParams);
+    next.delete('error');
+    next.delete('error_description');
+    next.delete('error_code');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, showToast]);
 
   if (loading) {
     return (
@@ -37,20 +74,19 @@ export function LoginPage() {
   }
 
   if (user) {
-    const target = (location.state as { from?: string } | null)?.from ?? '/board';
-    return <Navigate to={target} replace />;
+    return <Navigate to={fromPath} replace />;
   }
 
   async function handleGoogle() {
     try {
       setBusy(true);
-      await signInWithGoogle();
+      await signInWithGoogle(fromPath === '/' ? '/board' : fromPath);
     } catch (err) {
       console.error(err);
       showToast(describeAuthError(err), 'error');
-    } finally {
       setBusy(false);
     }
+    // Si OAuth redirige, no desactivamos busy (navegación completa).
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -62,6 +98,10 @@ export function LoginPage() {
         await signInWithEmail(email.trim(), password);
       } else {
         await signUpWithEmail(email.trim(), password, name.trim());
+        showToast(
+          'Cuenta creada. Si el proyecto exige confirmar email, revisa tu bandeja.',
+          'success'
+        );
       }
     } catch (err) {
       console.error(err);
@@ -73,7 +113,10 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-xl">
+      <div
+        data-glass-float
+        className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-xl"
+      >
         <div className="mb-6 flex items-center gap-2">
           <ListChecks className="h-6 w-6 text-accent-teal" />
           <h1 className="text-lg font-bold tracking-tight text-text-primary">Daily Tracker</h1>
@@ -84,14 +127,14 @@ export function LoginPage() {
         </h2>
         <p className="mb-4 text-xs text-text-muted">
           {mode === 'signin'
-            ? 'Volvé a tu semana donde la dejaste.'
-            : 'Empezá a planificar tu primera semana.'}
+            ? 'Vuelve a tu semana donde la dejaste.'
+            : 'Empieza a planificar tu primera semana.'}
         </p>
 
         <Button
           type="button"
           variant="outline"
-          onClick={handleGoogle}
+          onClick={() => void handleGoogle()}
           disabled={busy}
           className="mb-4 w-full gap-2"
         >
@@ -105,7 +148,7 @@ export function LoginPage() {
           <div className="flex-1 border-t border-border" />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={e => void handleSubmit(e)} className="space-y-3">
           {mode === 'signup' && (
             <Input
               type="text"
@@ -133,7 +176,13 @@ export function LoginPage() {
             required
           />
           <Button type="submit" disabled={busy || !email.trim() || !password} className="w-full">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signin' ? 'Entrar' : 'Crear cuenta'}
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : mode === 'signin' ? (
+              'Entrar'
+            ) : (
+              'Crear cuenta'
+            )}
           </Button>
         </form>
 
@@ -142,7 +191,9 @@ export function LoginPage() {
           onClick={() => setMode(m => (m === 'signin' ? 'signup' : 'signin'))}
           className="mt-4 w-full text-center text-xs text-text-muted hover:text-text-primary"
         >
-          {mode === 'signin' ? '¿No tenés cuenta? Crear una' : '¿Ya tenés cuenta? Iniciar sesión'}
+          {mode === 'signin'
+            ? '¿No tienes cuenta? Crear una'
+            : '¿Ya tienes cuenta? Iniciar sesión'}
         </button>
       </div>
     </div>

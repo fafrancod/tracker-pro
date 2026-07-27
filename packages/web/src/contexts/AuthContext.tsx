@@ -14,7 +14,8 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   profileError: boolean;
-  signInWithGoogle: () => Promise<void>;
+  /** @param nextPath ruta interna post-OAuth (default /board). */
+  signInWithGoogle: (nextPath?: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -181,11 +182,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [setUid, setProfile, setAuthLoading, setProjects, setDayTasks, setCurrentWeek, showToast]);
 
-  const signInWithGoogle = useCallback(async () => {
-    const redirectTo = window.location.origin;
+  const signInWithGoogle = useCallback(async (nextPath?: string) => {
+    // Allowlist-friendly absolute URL; Supabase Redirect URLs must include this origin/path.
+    const path =
+      nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')
+        ? nextPath
+        : '/board';
+    const redirectTo = `${window.location.origin}${path}`;
     const { error } = await getSupabase().auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        queryParams: {
+          // Prefer account picker when multiple Google sessions exist.
+          prompt: 'select_account',
+        },
+      },
     });
     if (error) throw error;
   }, []);
