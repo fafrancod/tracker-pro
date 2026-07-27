@@ -74,6 +74,7 @@ import { ApiClientError } from '@core/lib/api';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
 import { DateRangeField } from './DateRangeField';
+import { TaskKindPicker } from './TaskKindPicker';
 
 const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
@@ -634,33 +635,19 @@ export function AddTaskForm({
         />
       )}
 
-      {/* Tipo de evento / tarea — combobox (no botones múltiples) */}
+      {/* Tipo: chip con icono → despliega botones con iconos al clic */}
       <div className={cn(isModal && 'space-y-1.5')}>
         {isModal && (
           <label className="text-xs font-medium uppercase tracking-wide text-text-muted">
             {t('task_kind_convert')}
           </label>
         )}
-        <select
+        <TaskKindPicker
           value={kind}
-          onChange={e => setKind(e.target.value as TaskKind)}
-          aria-label={t('task_kind_convert')}
-          className={cn(
-            'w-full rounded-xl border border-border bg-background px-3 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-            isModal ? 'h-11' : 'h-9 rounded-md text-xs'
-          )}
-        >
-          <option value="task">{t('task_kind_task')}</option>
-          <option value="reminder">{t('task_kind_reminder')}</option>
-          <option value="event">{t('task_kind_event')}</option>
-          <option value="possible_event">{t('task_kind_possible_event')}</option>
-          <option value="habit_good">{t('task_kind_habit_good')}</option>
-          <option value="habit_quit">{t('task_kind_habit_quit')}</option>
-          <option value="finance_income">{t('task_kind_finance_income')}</option>
-          <option value="finance_expense">{t('task_kind_finance_expense')}</option>
-          <option value="rx_human">{t('task_kind_rx_human')}</option>
-          <option value="rx_pet">{t('task_kind_rx_pet')}</option>
-        </select>
+          onChange={setKind}
+          compact={!isModal}
+          defaultOpen={isModal && !startOpen}
+        />
       </div>
 
       {/* Finanzas: importe, moneda, fijo/potencial (sin horarios) */}

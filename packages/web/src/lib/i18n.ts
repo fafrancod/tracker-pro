@@ -444,6 +444,9 @@ export interface TranslationDict {
   task_date_range: string;
   /** Hint under dual-handle date range strip. */
   task_date_range_drag_hint: string;
+  task_date_pick_start: string;
+  task_date_pick_end: string;
+  task_date_pick_range: string;
   task_schedule: string;
   task_start_time: string;
   task_end_time: string;
@@ -1125,7 +1128,7 @@ const es_dict: TranslationDict = {
   task_confirm_event_done: 'Ahora es un evento confirmado.',
   task_kind_convert: 'Tipo de entrada',
   task_kind_convert_hint:
-    'Puedes cambiar entre tarea, recordatorio, evento y evento posible. Los campos que no aplican se ocultan pero se conservan hasta que pulses Guardar.',
+    'Toca el tipo para ver todas las opciones con icono. Al elegir una, se cierra la rejilla y queda el chip seleccionado.',
   task_event_departure_draft_hint:
     'La salida prevista se usa al guardar como evento real. Si dejas «evento posible», no se aplica a notificaciones.',
 
@@ -1236,6 +1239,10 @@ const es_dict: TranslationDict = {
   task_date_range: 'Rango de fechas',
   task_date_range_drag_hint:
     'Arrastra los extremos para definir el rango, o elige fechas exactas arriba.',
+  task_date_pick_start: 'Elige el día de inicio (día de la semana · fecha).',
+  task_date_pick_end: 'Elige el día de fin (día de la semana · fecha).',
+  task_date_pick_range:
+    'Toca un día para inicio/fin. Se muestra día de la semana y fecha.',
   task_schedule: 'Horario',
   task_start_time: 'Hora inicio',
   task_end_time: 'Hora fin',
@@ -1937,7 +1944,7 @@ const en_dict: TranslationDict = {
   task_confirm_event_done: 'Now it’s a confirmed event.',
   task_kind_convert: 'Entry type',
   task_kind_convert_hint:
-    'Switch between task, reminder, event and possible event. Fields that don’t apply are hidden but kept until you Save.',
+    'Tap the type to see all options with icons. After you pick one, the grid closes and only the selected chip stays.',
   task_event_departure_draft_hint:
     'Planned departure applies when saved as a real event. As a possible event it is not used for notifications.',
 
@@ -2048,6 +2055,10 @@ const en_dict: TranslationDict = {
   task_date_range: 'Date range',
   task_date_range_drag_hint:
     'Drag the ends to set the range, or pick exact dates above.',
+  task_date_pick_start: 'Pick the start day (weekday · date).',
+  task_date_pick_end: 'Pick the end day (weekday · date).',
+  task_date_pick_range:
+    'Tap a day for start/end. Weekday and date are shown.',
   task_schedule: 'Schedule',
   task_start_time: 'Start time',
   task_end_time: 'End time',

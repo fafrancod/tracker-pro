@@ -320,62 +320,69 @@ export function MonthView({
     originPointerDayId: string;
     previewStart: string;
     previewEnd: string;
+    pointerId: number;
   }
   const [barDrag, setBarDrag] = useState<BarDragState | null>(null);
   const barDragRef = useRef<BarDragState | null>(null);
   barDragRef.current = barDrag;
+  const calendarRootRef = useRef<HTMLDivElement>(null);
 
-  function dayIdFromClientX(
-    clientX: number,
-    weekDates: Date[],
-    rowEl: HTMLElement | null
-  ): string | null {
-    if (!rowEl || weekDates.length === 0) return null;
-    const rect = rowEl.getBoundingClientRect();
-    // Allow overflow past the week row so drag can cross into next/prev week.
-    const rawCol = ((clientX - rect.left) / Math.max(1, rect.width)) * 7;
-    const col = Math.round(rawCol - 0.0001);
-    return format(addDays(weekDates[0], col), 'yyyy-MM-dd');
+  /**
+   * Resolve calendar day from screen point — works across week rows so you can
+   * drag into the next week (next row) or previous week.
+   */
+  function dayIdFromPoint(clientX: number, clientY: number): string | null {
+    const root = calendarRootRef.current;
+    if (!root) return null;
+
+    // Prefer the week row under the pointer (may be a different row than start).
+    const stack = document.elementsFromPoint(clientX, clientY);
+    let row: HTMLElement | null = null;
+    for (const node of stack) {
+      if (!(node instanceof HTMLElement)) continue;
+      const hit = node.closest('[data-month-week-row]') as HTMLElement | null;
+      if (hit && root.contains(hit)) {
+        row = hit;
+        break;
+      }
+    }
+
+    // Fallback: nearest week row by vertical center.
+    if (!row) {
+      const rows = Array.from(
+        root.querySelectorAll<HTMLElement>('[data-month-week-row]')
+      );
+      if (rows.length === 0) return null;
+      let best: HTMLElement | null = null;
+      let bestDist = Infinity;
+      for (const r of rows) {
+        const rect = r.getBoundingClientRect();
+        const mid = (rect.top + rect.bottom) / 2;
+        const dist = Math.abs(clientY - mid);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = r;
+        }
+      }
+      row = best;
+    }
+    if (!row) return null;
+
+    const weekStart = row.dataset.weekStart;
+    if (!weekStart || !/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) return null;
+    const rect = row.getBoundingClientRect();
+    if (rect.width <= 0) return null;
+    // Clamp X to row so vertical moves between rows keep a valid column.
+    const x = Math.max(rect.left, Math.min(rect.right - 0.001, clientX));
+    const rawCol = ((x - rect.left) / rect.width) * 7;
+    const col = Math.max(0, Math.min(6, Math.floor(rawCol)));
+    return format(addDays(parseISO(`${weekStart}T00:00:00`), col), 'yyyy-MM-dd');
   }
 
-  function beginBarDrag(
-    e: React.PointerEvent,
-    mode: BarDragMode,
-    bar: BarSegment,
-    weekDates: Date[]
-  ) {
-    e.preventDefault();
-    e.stopPropagation();
-    const rowEl = (e.currentTarget as HTMLElement).closest(
-      '[data-month-week-row]'
-    ) as HTMLElement | null;
-    const pointerDay =
-      dayIdFromClientX(e.clientX, weekDates, rowEl) ?? bar.startDayId;
-    const end = bar.task.endDayId || bar.startDayId;
-    const state: BarDragState = {
-      mode,
-      task: bar.task,
-      startWeekId: bar.startWeekId,
-      startDayId: bar.startDayId,
-      endDayId: end,
-      originPointerDayId: pointerDay,
-      previewStart: bar.startDayId,
-      previewEnd: end,
-    };
-    setBarDrag(state);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-
-  function updateBarDrag(
-    e: React.PointerEvent,
-    weekDates: Date[]
-  ) {
+  function applyBarDragPoint(clientX: number, clientY: number) {
     const cur = barDragRef.current;
     if (!cur) return;
-    const rowEl = (e.currentTarget as HTMLElement).closest(
-      '[data-month-week-row]'
-    ) as HTMLElement | null;
-    const pointerDay = dayIdFromClientX(e.clientX, weekDates, rowEl);
+    const pointerDay = dayIdFromPoint(clientX, clientY);
     if (!pointerDay) return;
 
     let previewStart = cur.startDayId;
@@ -404,36 +411,81 @@ export function MonthView({
       );
     }
 
-    setBarDrag({ ...cur, previewStart, previewEnd });
+    const next = { ...cur, previewStart, previewEnd };
+    barDragRef.current = next;
+    setBarDrag(next);
   }
 
-  async function endBarDrag(e: React.PointerEvent) {
-    const cur = barDragRef.current;
-    if (!cur) return;
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-    setBarDrag(null);
-    if (
-      cur.previewStart === cur.startDayId &&
-      cur.previewEnd === cur.endDayId
-    ) {
-      return;
-    }
-    try {
-      await rescheduleTaskSpan({
-        task: cur.task,
-        startWeekId: cur.startWeekId,
-        startDayId: cur.startDayId,
-        nextStartDayId: cur.previewStart,
-        nextEndDayId: cur.previewEnd,
-      });
-    } catch {
-      /* optimistic rollback handled by taskHistory */
-    }
+  function beginBarDrag(
+    e: React.PointerEvent,
+    mode: BarDragMode,
+    bar: BarSegment
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const pointerDay =
+      dayIdFromPoint(e.clientX, e.clientY) ?? bar.startDayId;
+    const end = bar.task.endDayId || bar.startDayId;
+    const state: BarDragState = {
+      mode,
+      task: bar.task,
+      startWeekId: bar.startWeekId,
+      startDayId: bar.startDayId,
+      endDayId: end,
+      originPointerDayId: pointerDay,
+      previewStart: bar.startDayId,
+      previewEnd: end,
+      pointerId: e.pointerId,
+    };
+    barDragRef.current = state;
+    setBarDrag(state);
   }
+
+  // Document-level listeners so the pointer can leave the original week row
+  // and land on the next/previous week row while resizing or moving.
+  useEffect(() => {
+    if (!barDrag) return;
+
+    function onMove(ev: PointerEvent) {
+      const cur = barDragRef.current;
+      if (!cur || ev.pointerId !== cur.pointerId) return;
+      applyBarDragPoint(ev.clientX, ev.clientY);
+    }
+
+    async function onUp(ev: PointerEvent) {
+      const cur = barDragRef.current;
+      if (!cur || ev.pointerId !== cur.pointerId) return;
+      barDragRef.current = null;
+      setBarDrag(null);
+      if (
+        cur.previewStart === cur.startDayId &&
+        cur.previewEnd === cur.endDayId
+      ) {
+        return;
+      }
+      try {
+        await rescheduleTaskSpan({
+          task: cur.task,
+          startWeekId: cur.startWeekId,
+          startDayId: cur.startDayId,
+          nextStartDayId: cur.previewStart,
+          nextEndDayId: cur.previewEnd,
+        });
+      } catch {
+        /* optimistic rollback handled by taskHistory */
+      }
+    }
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+    return () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barDrag?.pointerId]);
 
   function openCtx(
     e: React.MouseEvent,
@@ -539,19 +591,61 @@ export function MonthView({
         )}
 
         <div
+          ref={calendarRootRef}
           className={cn(
             'flex flex-col gap-1',
-            mode === 'single' ? 'flex-1 overflow-y-auto' : ''
+            mode === 'single' ? 'flex-1 overflow-y-auto' : '',
+            barDrag && 'select-none'
           )}
         >
           {weekRows.map((weekDates, rowIdx) => {
             const { bars, overflowByCol } = buildBarsForWeek(weekDates, located);
             const laneCount = Math.max(1, ...bars.map(b => b.lane + 1), 1);
+            const weekStartId = getDayId(weekDates[0]);
+            const weekEndId = getDayId(weekDates[6]);
+
+            // Ghost segment when dragging a bar that intersects this week row
+            // (incl. the next week when extending past Sunday).
+            let ghost: {
+              colStart: number;
+              colSpan: number;
+              lane: number;
+              color: string;
+              title: string;
+            } | null = null;
+            if (barDrag) {
+              const pStart = barDrag.previewStart;
+              const pEnd = barDrag.previewEnd;
+              if (pStart <= weekEndId && pEnd >= weekStartId) {
+                const dayIndex = new Map(
+                  weekDates.map((d, i) => [getDayId(d), i])
+                );
+                const clipStart =
+                  pStart < weekStartId ? weekStartId : pStart;
+                const clipEnd = pEnd > weekEndId ? weekEndId : pEnd;
+                const cs = dayIndex.get(clipStart);
+                const ce = dayIndex.get(clipEnd);
+                if (cs !== undefined && ce !== undefined) {
+                  const project = barDrag.task.projectId
+                    ? allProjects.find(p => p.id === barDrag.task.projectId)
+                    : null;
+                  ghost = {
+                    colStart: cs,
+                    colSpan: ce - cs + 1,
+                    lane: 0,
+                    color:
+                      barDrag.task.color ?? project?.color ?? '#58a6ff',
+                    title: barDrag.task.title,
+                  };
+                }
+              }
+            }
 
             return (
               <div
                 key={rowIdx}
                 data-month-week-row
+                data-week-start={weekStartId}
                 className="relative grid min-h-[132px] grid-cols-7 gap-1"
               >
                 {weekDates.map((date, col) => {
@@ -768,28 +862,9 @@ export function MonthView({
                       ? allProjects.find(p => p.id === bar.task.projectId)
                       : null;
                     const color = bar.task.color ?? project?.color ?? '#58a6ff';
-                    const draggingThis =
-                      barDrag?.task.id === bar.task.id ? barDrag : null;
-                    // Live preview geometry when this bar is being resized/moved.
-                    let colStart = bar.colStart;
-                    let colSpan = bar.colSpan;
-                    if (draggingThis) {
-                      const weekStart = getDayId(weekDates[0]);
-                      const weekEnd = getDayId(weekDates[6]);
-                      const pStart = draggingThis.previewStart;
-                      const pEnd = draggingThis.previewEnd;
-                      const clipStart = pStart < weekStart ? weekStart : pStart;
-                      const clipEnd = pEnd > weekEnd ? weekEnd : pEnd;
-                      const dayIndex = new Map(
-                        weekDates.map((d, i) => [getDayId(d), i])
-                      );
-                      const cs = dayIndex.get(clipStart);
-                      const ce = dayIndex.get(clipEnd);
-                      if (cs !== undefined && ce !== undefined) {
-                        colStart = cs;
-                        colSpan = ce - cs + 1;
-                      }
-                    }
+                    const draggingThis = barDrag?.task.id === bar.task.id;
+                    // While dragging, the ghost segment (below) owns the live preview.
+                    if (draggingThis) return null;
                     return (
                       <div
                         key={`${bar.task.id}-${bar.colStart}-${bar.lane}`}
@@ -804,22 +879,18 @@ export function MonthView({
                           bar.task.kind === 'possible_event' &&
                             !bar.task.completed &&
                             'opacity-60',
-                          bar.continuesLeft && !draggingThis && 'rounded-l-none',
-                          bar.continuesRight && !draggingThis && 'rounded-r-none',
-                          draggingThis && 'z-20 ring-1 ring-white/50'
+                          bar.continuesLeft && 'rounded-l-none',
+                          bar.continuesRight && 'rounded-r-none'
                         )}
                         style={{
                           top: `${22 + bar.lane * 18}px`,
-                          left: `calc(${(colStart / 7) * 100}% + 2px)`,
-                          width: `calc(${(colSpan / 7) * 100}% - 4px)`,
+                          left: `calc(${(bar.colStart / 7) * 100}% + 2px)`,
+                          width: `calc(${(bar.colSpan / 7) * 100}% - 4px)`,
                           backgroundColor: bar.task.completed
                             ? `${color}33`
                             : `${color}cc`,
                           color: bar.task.completed ? undefined : '#0d1117',
                         }}
-                        onPointerMove={e => updateBarDrag(e, weekDates)}
-                        onPointerUp={e => void endBarDrag(e)}
-                        onPointerCancel={e => void endBarDrag(e)}
                       >
                         {/* Resize start */}
                         {!bar.continuesLeft && (
@@ -828,9 +899,7 @@ export function MonthView({
                             aria-orientation="vertical"
                             aria-label={t('task_start_date')}
                             className="absolute left-0 top-0 z-20 h-full w-2 cursor-ew-resize rounded-l bg-black/15 hover:bg-black/30"
-                            onPointerDown={e =>
-                              beginBarDrag(e, 'start', bar, weekDates)
-                            }
+                            onPointerDown={e => beginBarDrag(e, 'start', bar)}
                           />
                         )}
                         <button
@@ -882,9 +951,8 @@ export function MonthView({
                             )
                           }
                           onPointerDown={e => {
-                            // Body drag moves the whole span
                             if (e.button !== 0) return;
-                            beginBarDrag(e, 'move', bar, weekDates);
+                            beginBarDrag(e, 'move', bar);
                           }}
                         >
                           {bar.continuesLeft ? '‹ ' : ''}
@@ -904,14 +972,27 @@ export function MonthView({
                             aria-orientation="vertical"
                             aria-label={t('task_end_date')}
                             className="absolute right-0 top-0 z-20 h-full w-2 cursor-ew-resize rounded-r bg-black/15 hover:bg-black/30"
-                            onPointerDown={e =>
-                              beginBarDrag(e, 'end', bar, weekDates)
-                            }
+                            onPointerDown={e => beginBarDrag(e, 'end', bar)}
                           />
                         )}
                       </div>
                     );
                   })}
+                  {/* Live ghost while dragging — visible on every week the preview covers */}
+                  {ghost && (
+                    <div
+                      className="pointer-events-none absolute z-30 flex items-center rounded px-1 text-[10px] font-medium leading-[16px] shadow-md ring-1 ring-white/60"
+                      style={{
+                        top: `${22 + ghost.lane * 18}px`,
+                        left: `calc(${(ghost.colStart / 7) * 100}% + 2px)`,
+                        width: `calc(${(ghost.colSpan / 7) * 100}% - 4px)`,
+                        backgroundColor: `${ghost.color}dd`,
+                        color: '#0d1117',
+                      }}
+                    >
+                      <span className="truncate">{ghost.title}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

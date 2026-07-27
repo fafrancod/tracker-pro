@@ -1,8 +1,16 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns';
-import { Calendar } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  addDays,
+  differenceInCalendarDays,
+  format,
+  parseISO,
+  startOfWeek,
+} from 'date-fns';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
+import { capitalize } from '@/lib/i18n';
 
 export interface DateRangeFieldProps {
   startDayId: string;
@@ -30,7 +38,7 @@ function clampDayId(dayId: string, min?: string, max?: string): string {
 }
 
 /**
- * Editable desde/hasta with calendar affordance + optional dual-handle strip.
+ * Editable desde/hasta with weekday labels + mini calendar chips.
  * Dates are always inclusive (start ≤ end).
  */
 export function DateRangeField({
@@ -43,17 +51,43 @@ export function DateRangeField({
   compact = false,
   showDragStrip = true,
 }: DateRangeFieldProps) {
-  const { t } = useT();
-  const safeStart = isDayId(startDayId) ? startDayId : format(new Date(), 'yyyy-MM-dd');
+  const { t, locale, shortDateFormat } = useT();
+  const { settings } = useSettings();
+  const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
+
+  const safeStart = isDayId(startDayId)
+    ? startDayId
+    : format(new Date(), 'yyyy-MM-dd');
   const safeEnd =
     isDayId(endDayId) && endDayId >= safeStart ? endDayId : safeStart;
 
+  const [pickerCursor, setPickerCursor] = useState(() =>
+    startOfWeek(parseISO(`${safeStart}T00:00:00`), { weekStartsOn })
+  );
+  const [picking, setPicking] = useState<'start' | 'end' | null>(null);
+
+  // Keep cursor near selected range when it jumps far.
+  useEffect(() => {
+    const target = parseISO(`${safeStart}T00:00:00`);
+    setPickerCursor(prev => {
+      const curEnd = addDays(prev, 20);
+      if (target < prev || target > curEnd) {
+        return startOfWeek(target, { weekStartsOn });
+      }
+      return prev;
+    });
+  }, [safeStart, weekStartsOn]);
+
+  const chipDays = useMemo(() => {
+    // 3 weeks of chips for clearer weekday + day-month selection
+    return Array.from({ length: 21 }, (_, i) => addDays(pickerCursor, i));
+  }, [pickerCursor]);
+
   const strip = useMemo(() => {
-    // ~14 days before start and after end, min 21 days window
     const start = parseISO(`${safeStart}T00:00:00`);
     const end = parseISO(`${safeEnd}T00:00:00`);
-    const windowStart = addDays(start, -14);
-    const windowEnd = addDays(end, 14);
+    const windowStart = addDays(start, -10);
+    const windowEnd = addDays(end, 10);
     const days = Math.max(
       21,
       differenceInCalendarDays(windowEnd, windowStart) + 1
@@ -61,7 +95,6 @@ export function DateRangeField({
     return {
       origin: windowStart,
       days,
-      originId: format(windowStart, 'yyyy-MM-dd'),
     };
   }, [safeStart, safeEnd]);
 
@@ -107,6 +140,25 @@ export function DateRangeField({
     onChange({ startDayId: safeStart, endDayId: end });
   }
 
+  function pickDay(dayId: string) {
+    if (picking === 'end' || endReadOnly) {
+      setEnd(dayId);
+      setPicking(null);
+      return;
+    }
+    if (picking === 'start' || startReadOnly) {
+      setStart(dayId);
+      setPicking(picking === 'start' ? 'end' : null);
+      return;
+    }
+    // Default: if click before start → set start; else set end (or start if single)
+    if (dayId < safeStart || (safeStart === safeEnd && dayId === safeStart)) {
+      setStart(dayId);
+    } else if (dayId >= safeStart) {
+      setEnd(dayId);
+    }
+  }
+
   function onPointerDown(which: 'start' | 'end', e: React.PointerEvent) {
     if (which === 'start' && startReadOnly) return;
     if (which === 'end' && endReadOnly) return;
@@ -120,7 +172,6 @@ export function DateRangeField({
     if (!dragging) return;
     const day = dayFromClientX(e.clientX);
     if (dragging === 'start') {
-      // Keep end fixed when possible
       const end = day > safeEnd ? day : safeEnd;
       onChange({ startDayId: day, endDayId: end });
     } else {
@@ -143,6 +194,24 @@ export function DateRangeField({
   const widthPct =
     ((endOffset - startOffset) / Math.max(1, strip.days - 1)) * 100;
 
+  function formatChipLabel(d: Date): { weekday: string; dayMonth: string } {
+    return {
+      weekday: capitalize(format(d, 'EEE', { locale })),
+      dayMonth: format(d, shortDateFormat.includes('M') ? 'd MMM' : 'd MMM', {
+        locale,
+      }),
+    };
+  }
+
+  function formatSelected(dayId: string): string {
+    const d = parseISO(`${dayId}T00:00:00`);
+    return capitalize(
+      format(d, `EEE ${shortDateFormat.includes('yyyy') ? shortDateFormat : 'd MMM'}`, {
+        locale,
+      })
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -157,43 +226,125 @@ export function DateRangeField({
             <Calendar className="h-3 w-3 shrink-0" aria-hidden />
             {t('task_start_date')}
           </span>
-          <div className="relative">
-            <input
-              type="date"
-              value={safeStart}
-              readOnly={startReadOnly}
-              onChange={e => setStart(e.target.value)}
-              className={cn(
-                'w-full rounded-lg border border-border bg-background py-1.5 pl-2 pr-2 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-                startReadOnly && 'opacity-80'
-              )}
-              aria-label={t('task_start_date')}
-            />
-          </div>
+          <button
+            type="button"
+            disabled={startReadOnly}
+            onClick={() => setPicking(p => (p === 'start' ? null : 'start'))}
+            className={cn(
+              'rounded-lg border border-border bg-background px-2 py-1.5 text-left text-xs font-medium text-text-primary',
+              picking === 'start' && 'ring-1 ring-accent-teal',
+              startReadOnly && 'opacity-80'
+            )}
+          >
+            {formatSelected(safeStart)}
+          </button>
+          <input
+            type="date"
+            value={safeStart}
+            readOnly={startReadOnly}
+            onChange={e => setStart(e.target.value)}
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+          />
         </label>
         <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
           <span className="inline-flex items-center gap-1 font-medium uppercase tracking-wide">
             <Calendar className="h-3 w-3 shrink-0" aria-hidden />
             {t('task_end_date')}
           </span>
+          <button
+            type="button"
+            disabled={endReadOnly}
+            onClick={() => setPicking(p => (p === 'end' ? null : 'end'))}
+            className={cn(
+              'rounded-lg border border-border bg-background px-2 py-1.5 text-left text-xs font-medium text-text-primary',
+              picking === 'end' && 'ring-1 ring-accent-teal',
+              endReadOnly && 'opacity-80'
+            )}
+          >
+            {formatSelected(safeEnd)}
+          </button>
           <input
             type="date"
             value={safeEnd}
             min={safeStart}
             readOnly={endReadOnly}
             onChange={e => setEnd(e.target.value || safeStart)}
-            className={cn(
-              'w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-              endReadOnly && 'opacity-80'
-            )}
-            aria-label={t('task_end_date')}
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
           />
         </label>
       </div>
 
+      {/* Weekday + day-month chips (3 weeks) */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] text-text-muted">
+            {picking === 'start'
+              ? t('task_date_pick_start')
+              : picking === 'end'
+                ? t('task_date_pick_end')
+                : t('task_date_pick_range')}
+          </p>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              className="rounded p-1 text-text-muted hover:bg-background hover:text-text-primary"
+              onClick={() => setPickerCursor(c => addDays(c, -7))}
+              aria-label={t('board_prev_week')}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              className="rounded p-1 text-text-muted hover:bg-background hover:text-text-primary"
+              onClick={() => setPickerCursor(c => addDays(c, 7))}
+              aria-label={t('board_next_week')}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {chipDays.map(d => {
+            const dayId = format(d, 'yyyy-MM-dd');
+            const { weekday, dayMonth } = formatChipLabel(d);
+            const inRange = dayId >= safeStart && dayId <= safeEnd;
+            const isEdge = dayId === safeStart || dayId === safeEnd;
+            return (
+              <button
+                key={dayId}
+                type="button"
+                onClick={() => pickDay(dayId)}
+                title={formatSelected(dayId)}
+                className={cn(
+                  'flex flex-col items-center rounded-md border px-0.5 py-1 transition-colors',
+                  isEdge
+                    ? 'border-accent-teal bg-accent-teal/20 text-accent-teal'
+                    : inRange
+                      ? 'border-accent-teal/30 bg-accent-teal/10 text-text-primary'
+                      : 'border-border/60 bg-background text-text-muted hover:border-border hover:text-text-primary'
+                )}
+              >
+                <span className="text-[9px] font-semibold uppercase leading-none">
+                  {weekday}
+                </span>
+                <span className="mt-0.5 text-[10px] tabular-nums leading-tight">
+                  {dayMonth}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {showDragStrip && !startReadOnly && !endReadOnly && (
         <div className="space-y-1">
-          <p className="text-[10px] text-text-muted">{t('task_date_range_drag_hint')}</p>
+          <p className="text-[10px] text-text-muted">
+            {t('task_date_range_drag_hint')}
+          </p>
           <div
             ref={trackRef}
             className="relative h-8 select-none rounded-lg bg-border/40 px-1"
@@ -201,7 +352,6 @@ export function DateRangeField({
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           >
-            {/* filled range */}
             <div
               className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-accent-teal/50"
               style={{
@@ -209,7 +359,6 @@ export function DateRangeField({
                 width: `max(8px, ${widthPct}%)`,
               }}
             />
-            {/* start thumb */}
             <button
               type="button"
               aria-label={t('task_start_date')}
@@ -220,7 +369,6 @@ export function DateRangeField({
               style={{ left: `${leftPct}%` }}
               onPointerDown={e => onPointerDown('start', e)}
             />
-            {/* end thumb */}
             <button
               type="button"
               aria-label={t('task_end_date')}
@@ -233,10 +381,15 @@ export function DateRangeField({
             />
           </div>
           <p className="text-center text-[10px] tabular-nums text-text-muted">
-            {safeStart}
-            {safeEnd > safeStart ? ` → ${safeEnd}` : ''}
+            {formatSelected(safeStart)}
+            {safeEnd > safeStart ? ` → ${formatSelected(safeEnd)}` : ''}
             {safeEnd > safeStart
-              ? ` · ${differenceInCalendarDays(parseISO(`${safeEnd}T00:00:00`), parseISO(`${safeStart}T00:00:00`)) + 1} d`
+              ? ` · ${
+                  differenceInCalendarDays(
+                    parseISO(`${safeEnd}T00:00:00`),
+                    parseISO(`${safeStart}T00:00:00`)
+                  ) + 1
+                } d`
               : ''}
           </p>
         </div>

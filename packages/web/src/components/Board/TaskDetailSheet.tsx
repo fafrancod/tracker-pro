@@ -47,6 +47,7 @@ import { TimeInput } from '@/components/ui/time-input';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
 import { DateRangeField } from './DateRangeField';
+import { TaskKindPicker, defaultKindOptions } from './TaskKindPicker';
 import { kindSupportsSteps, stepsEqual } from '@core/lib/steps';
 import {
   defaultFinanceColor,
@@ -339,16 +340,11 @@ function TaskDetailInner({
   const draftSupportsSteps = kindSupportsSteps(draftKind);
 
   /** Kinds intercambiables en el menú de edición (no incluye rx). */
-  const CONVERTIBLE_KINDS: Array<{ value: TaskKind; label: string }> = [
-    { value: 'task', label: t('task_kind_task') },
-    { value: 'reminder', label: t('task_kind_reminder') },
-    { value: 'event', label: t('task_kind_event') },
-    { value: 'possible_event', label: t('task_kind_possible_event') },
-    { value: 'habit_good', label: t('task_kind_habit_good') },
-    { value: 'habit_quit', label: t('task_kind_habit_quit') },
-    { value: 'finance_income', label: t('task_kind_finance_income') },
-    { value: 'finance_expense', label: t('task_kind_finance_expense') },
-  ];
+  const CONVERTIBLE_KINDS = defaultKindOptions(k =>
+    t(k as Parameters<typeof t>[0])
+  ).filter(
+    o => o.value !== 'rx_human' && o.value !== 'rx_pet'
+  );
 
   const rxPlanStart = task.rx?.planStartDayId || dayId;
   const rxPlanDays = isRx ? totalRxPlanDays(draft.rxPhases) : 0;
@@ -776,26 +772,17 @@ function TaskDetailInner({
           </p>
         )}
 
-        {/* Tipo — combobox (no botones múltiples) */}
+        {/* Tipo — chip con icono; al clic se despliegan botones */}
         {!isRx && (
           <Field label={t('task_kind_convert')}>
             <p className="mb-1.5 text-[10px] text-text-muted">
               {t('task_kind_convert_hint')}
             </p>
-            <select
+            <TaskKindPicker
               value={draft.kind}
-              onChange={e =>
-                patchDraft({ kind: e.target.value as TaskKind })
-              }
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              aria-label={t('task_kind_convert')}
-            >
-              {CONVERTIBLE_KINDS.map(k => (
-                <option key={k.value} value={k.value}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
+              onChange={k => patchDraft({ kind: k })}
+              options={CONVERTIBLE_KINDS}
+            />
           </Field>
         )}
 
