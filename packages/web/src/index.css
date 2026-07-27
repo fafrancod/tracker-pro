@@ -378,6 +378,38 @@ html[data-material='glass'].dark [data-glass-overlay] {
     radial-gradient(ellipse at center, rgba(0, 0, 0, 0.04) 0%, rgba(0, 0, 0, 0.3) 100%) !important;
 }
 
+/* The time chooser is a precision control, not a floating sheet: it needs an
+   opaque grouped-background so hours remain readable over every wallpaper. */
+.time-picker-panel[data-glass-float] {
+  background-color: var(--color-field) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 18px 48px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .time-picker-panel[data-glass-float] {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* Persistent analytics cards use a quieter material than menus and modals. */
+html[data-material='glass'] .analytics-surface {
+  background-color: color-mix(in srgb, var(--color-surface) 70%, transparent) !important;
+  background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.15), transparent 42%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 12px 34px rgba(0, 0, 0, 0.1);
+}
+
+html[data-material='glass'].dark .analytics-surface {
+  background-image: linear-gradient(145deg, rgba(125, 181, 255, 0.1), transparent 42%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 16px 42px rgba(0, 0, 0, 0.26);
+}
+
 /* Radix select portal menus */
 [data-radix-select-content],
 [data-radix-popper-content-wrapper] [data-glass-float] {

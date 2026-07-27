@@ -182,7 +182,7 @@ export function TimeInput({
           data-glass-float
           role="dialog"
           aria-label="Selector de hora"
-          className="absolute left-0 top-[calc(100%+0.5rem)] z-[90] w-52 rounded-2xl border p-2"
+          className="time-picker-panel absolute left-0 top-[calc(100%+0.5rem)] z-[90] w-52 rounded-2xl border p-2"
         >
           <div className="mb-2 flex items-center justify-between px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-muted">
             <span>Hora</span>

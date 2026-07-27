@@ -37,6 +37,7 @@ import {
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { WellbeingAnalyticsPanel } from '@/components/Dashboard/WellbeingAnalyticsPanel';
+import { TaskSummaryDialog, type TaskSummaryStatus } from '@/components/Board/TaskSummaryDialog';
 import type { Task } from '@core/types';
 
 function capitalize(s: string): string {
@@ -50,6 +51,7 @@ export function DashboardPage() {
   const uid = useStore(s => s.uid);
   const tasksByDay = useStore(s => s.tasksByDay);
   const [remoteRx, setRemoteRx] = useState<Task[]>([]);
+  const [summaryStatus, setSummaryStatus] = useState<TaskSummaryStatus | `day:${string}` | null>(null);
 
   // Siempre la semana ISO de HOY (no la del tablero, que puede estar en otro mes).
   const today = useMemo(() => new Date(), []);
@@ -129,22 +131,26 @@ export function DashboardPage() {
   }, [days, tasksByDay, todayId]);
 
   // KPIs de la semana: tareas únicas que tocan algún día de la semana.
-  const weekStats = useMemo(() => {
-    const seen = new Map<string, boolean>();
+  const weekTasks = useMemo(() => {
+    const seen = new Map<string, Task>();
     for (const d of days) {
       for (const t of collectTasksCovering(tasksByDay, d.dayId)) {
-        if (!seen.has(t.id)) seen.set(t.id, t.completed);
+        if (!seen.has(t.id)) seen.set(t.id, t);
       }
     }
-    const total = seen.size;
-    const completed = [...seen.values()].filter(Boolean).length;
+    return [...seen.values()];
+  }, [days, tasksByDay]);
+
+  const weekStats = useMemo(() => {
+    const total = weekTasks.length;
+    const completed = weekTasks.filter(task => task.completed).length;
     return {
       total,
       completed,
       pending: total - completed,
       rate: total > 0 ? Math.round((completed / total) * 100) : 0,
     };
-  }, [days, tasksByDay]);
+  }, [weekTasks]);
 
   // Streak local: días seguidos hacia atrás con ≥1 tarea y todas completadas.
   const streak = useMemo(() => {
@@ -190,6 +196,14 @@ export function DashboardPage() {
     return listPhasesEndingInRange(treatments, todayId, to);
   }, [rxGroups, today, todayId]);
 
+  const summaryDayId = summaryStatus?.startsWith('day:') ? summaryStatus.slice(4) : null;
+  const summaryDay = summaryDayId
+    ? weekDayStats.find(day => day.dayId === summaryDayId) ?? null
+    : null;
+  const summaryTasks = summaryDayId
+    ? collectTasksCovering(tasksByDay, summaryDayId)
+    : weekTasks;
+
   return (
     <Layout title={t('dashboard_title')} showFab={false}>
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -207,18 +221,21 @@ export function DashboardPage() {
               label={t('dashboard_completed')}
               value={weekStats.completed}
               accent="text-accent-green"
+              onClick={() => setSummaryStatus('completed')}
             />
             <Kpi
               icon={<Circle className="h-4 w-4" />}
               label={t('dashboard_pending')}
               value={weekStats.pending}
               accent="text-text-muted"
+              onClick={() => setSummaryStatus('pending')}
             />
             <Kpi
               icon={<ListChecks className="h-4 w-4" />}
               label={t('dashboard_completion_rate')}
               value={`${weekStats.rate}%`}
               accent="text-accent-teal"
+              onClick={() => setSummaryStatus('all')}
             />
           </div>
 
@@ -323,7 +340,7 @@ export function DashboardPage() {
                 <button
                   key={d.dayId}
                   type="button"
-                  onClick={() => navigate('/board')}
+                  onClick={() => setSummaryStatus(`day:${d.dayId}`)}
                   className={cn(
                     'flex flex-col items-center gap-1 rounded-md border border-border bg-background p-2 text-xs transition-colors hover:border-accent-teal/40',
                     d.isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30'
@@ -353,6 +370,15 @@ export function DashboardPage() {
             </Button>
           </section>
         </div>
+        <TaskSummaryDialog
+          open={summaryStatus !== null}
+          onOpenChange={open => !open && setSummaryStatus(null)}
+          title={summaryDay ? `${summaryDay.label} · ${summaryDay.dateLabel}` : 'Resumen de la semana'}
+          tasks={summaryTasks}
+          initialStatus={
+            summaryStatus === 'completed' || summaryStatus === 'pending' ? summaryStatus : 'all'
+          }
+        />
       </div>
     </Layout>
   );
@@ -363,19 +389,39 @@ function Kpi({
   label,
   value,
   accent,
+  onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number | string;
   accent: string;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="rounded-lg border border-border bg-surface p-3">
+  const content = (
+    <>
       <div className={cn('mb-1 flex items-center gap-1.5 text-xs', accent)}>
         {icon}
         <span className="text-text-muted">{label}</span>
       </div>
       <p className="text-2xl font-bold text-text-primary">{value}</p>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="rounded-lg border border-border bg-surface p-3 text-left transition-all hover:-translate-y-0.5 hover:border-accent-teal/45 hover:bg-surface/85 focus:outline-none focus:ring-2 focus:ring-accent-teal/25"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-surface p-3">
+      {content}
     </div>
   );
 }
@@ -429,5 +475,3 @@ function TaskRow({
     </li>
   );
 }
-
-
