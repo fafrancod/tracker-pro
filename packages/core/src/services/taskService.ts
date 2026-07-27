@@ -24,6 +24,11 @@ import {
   parseVirtualHabitId,
 } from '../lib/habits';
 import { kindSupportsSteps, normalizeTaskSteps } from '../lib/steps';
+import {
+  buildFinanceMeta,
+  isFinanceKind,
+  normalizeFinanceMeta,
+} from '../lib/financeKinds';
 import { extractHashtags, mergeTags } from '../lib/tags';
 import { mergeDayTaskLists } from '../lib/mergeDayTasks';
 import {
@@ -495,6 +500,15 @@ function expandCreateInstances(
     kindSupportsSteps(kind) && payload.steps?.length
       ? normalizeTaskSteps(payload.steps)
       : [];
+  const isFinance = isFinanceKind(kind);
+  const finance = isFinance
+    ? buildFinanceMeta({
+        amount: payload.financeAmount ?? payload.finance?.amount,
+        currency: payload.financeCurrency ?? payload.finance?.currency,
+        certainty: payload.financeCertainty ?? payload.finance?.certainty,
+        existing: payload.finance,
+      })
+    : null;
 
   return stubs.map((raw, index) => {
     const row = raw as Record<string, unknown>;
@@ -525,7 +539,8 @@ function expandCreateInstances(
       title: payload.title,
       completed: false,
       completedAt: null,
-      projectId: isHabit || isEventLike ? null : (payload.projectId ?? null),
+      projectId:
+        isHabit || isEventLike || isFinance ? null : (payload.projectId ?? null),
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: index,
@@ -534,8 +549,12 @@ function expandCreateInstances(
       seriesId: instSeries,
       recurrence,
       endDayId: instEnd,
-      urgency: isHabit || isEventLike ? null : (payload.urgency ?? null),
-      importance: isHabit || isEventLike ? null : (payload.importance ?? null),
+      urgency:
+        isHabit || isEventLike || isFinance ? null : (payload.urgency ?? null),
+      importance:
+        isHabit || isEventLike || isFinance
+          ? null
+          : (payload.importance ?? null),
       kind,
       color:
         payload.color ??
@@ -547,9 +566,13 @@ function expandCreateInstances(
               ? '#3fb950'
               : kind === 'habit_quit'
                 ? '#f85149'
-                : null),
-      startTime: isHabit ? null : (payload.startTime ?? null),
-      endTime: isHabit ? null : (payload.endTime ?? null),
+                : kind === 'finance_income'
+                  ? '#3fb950'
+                  : kind === 'finance_expense'
+                    ? '#f85149'
+                    : null),
+      startTime: isHabit || isFinance ? null : (payload.startTime ?? null),
+      endTime: isHabit || isFinance ? null : (payload.endTime ?? null),
       rx: null,
       involvedContactIds: isEventLike ? (payload.involvedContactIds ?? []) : [],
       location:
@@ -558,6 +581,7 @@ function expandCreateInstances(
           : null,
       departureTime: kind === 'event' ? (payload.departureTime ?? null) : null,
       steps,
+      finance,
       createdAt: res.createdAt ?? now,
       updatedAt: res.updatedAt ?? now,
       weekId: instWeekId,
@@ -596,6 +620,10 @@ export async function createTask(
     location: payload.location ?? null,
     departureTime: payload.departureTime ?? null,
     steps: payload.steps,
+    finance: payload.finance,
+    financeAmount: payload.financeAmount,
+    financeCurrency: payload.financeCurrency,
+    financeCertainty: payload.financeCertainty,
     eventId,
   });
 
@@ -665,6 +693,7 @@ function materializeDemoCreate(
         location: null,
         departureTime: null,
         steps: [],
+        finance: null,
         createdAt: now,
         updatedAt: now,
         weekId: occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId),
@@ -676,10 +705,19 @@ function materializeDemoCreate(
   }
 
   const isHabit = kind === 'habit_good' || kind === 'habit_quit';
+  const isFinance = isFinanceKind(kind);
   const steps =
     kindSupportsSteps(kind) && payload.steps?.length
       ? normalizeTaskSteps(payload.steps)
       : [];
+  const finance = isFinance
+    ? buildFinanceMeta({
+        amount: payload.financeAmount ?? payload.finance?.amount,
+        currency: payload.financeCurrency ?? payload.finance?.currency,
+        certainty: payload.financeCertainty ?? payload.finance?.certainty,
+        existing: payload.finance,
+      })
+    : null;
   const recurrence = normalizeRecurrence(
     isHabit &&
       (!payload.recurrenceFrequency || payload.recurrenceFrequency === 'none')
@@ -708,7 +746,7 @@ function materializeDemoCreate(
       title: payload.title,
       completed: false,
       completedAt: null,
-      projectId: isHabit ? null : (payload.projectId ?? null),
+      projectId: isHabit || isFinance ? null : (payload.projectId ?? null),
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: 0,
@@ -717,8 +755,8 @@ function materializeDemoCreate(
       seriesId,
       recurrence,
       endDayId: range.endDayId,
-      urgency: isHabit ? null : (payload.urgency ?? null),
-      importance: isHabit ? null : (payload.importance ?? null),
+      urgency: isHabit || isFinance ? null : (payload.urgency ?? null),
+      importance: isHabit || isFinance ? null : (payload.importance ?? null),
       kind,
       color:
         payload.color ??
@@ -726,11 +764,15 @@ function materializeDemoCreate(
           ? '#3fb950'
           : kind === 'habit_quit'
             ? '#f85149'
-            : null),
-      startTime: isHabit ? null : (payload.startTime ?? null),
-      endTime: isHabit ? null : (payload.endTime ?? null),
+            : kind === 'finance_income'
+              ? '#3fb950'
+              : kind === 'finance_expense'
+                ? '#f85149'
+                : null),
+      startTime: isHabit || isFinance ? null : (payload.startTime ?? null),
+      endTime: isHabit || isFinance ? null : (payload.endTime ?? null),
       rx: null,
-      involvedContactIds: isHabit ? [] : involved,
+      involvedContactIds: isHabit || isFinance ? [] : involved,
       location:
         kind === 'event' || kind === 'possible_event'
           ? (payload.location?.trim() || null)
@@ -738,6 +780,7 @@ function materializeDemoCreate(
       departureTime:
         kind === 'event' ? (payload.departureTime ?? null) : null,
       steps,
+      finance,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -934,6 +977,7 @@ export async function rematerializeRxSeries(
       location: instance.location ?? null,
       departureTime: instance.departureTime ?? null,
       steps: instance.steps ?? [],
+      finance: instance.finance ?? null,
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
     });
@@ -1036,6 +1080,7 @@ function rematerializeDemoRx(
       location: null,
       departureTime: null,
       steps: [],
+      finance: null,
       color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
       startTime: occ.startTime,
       endTime: null,
@@ -1132,6 +1177,7 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     location: normalizeLocationField(raw.location),
     departureTime: normalizeTimeField(raw.departure_time ?? raw.departureTime),
     steps: normalizeTaskSteps(raw.steps),
+    finance: normalizeFinanceMeta(raw.finance_meta ?? raw.finance),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };
@@ -1145,6 +1191,8 @@ function normalizeTaskKind(raw: unknown): Task['kind'] {
   if (raw === 'event') return 'event';
   if (raw === 'habit_good') return 'habit_good';
   if (raw === 'habit_quit') return 'habit_quit';
+  if (raw === 'finance_income') return 'finance_income';
+  if (raw === 'finance_expense') return 'finance_expense';
   return 'task';
 }
 

@@ -430,3 +430,22 @@ create table if not exists public.finance_entries (
 );
 create index if not exists finance_entries_user_idx on public.finance_entries (user_id, flow, kind);
 create index if not exists finance_entries_user_date_idx on public.finance_entries (user_id, entry_date);
+
+-- Finanzas en calendario (task kinds + meta)
+alter table public.tasks add column if not exists finance_meta jsonb;
+do $$
+begin
+  alter table public.tasks drop constraint if exists tasks_kind_check;
+exception when undefined_object then null;
+end $$;
+do $$
+begin
+  alter table public.tasks
+    add constraint tasks_kind_check
+    check (kind in (
+      'task', 'reminder', 'rx_human', 'rx_pet',
+      'possible_event', 'event', 'habit_good', 'habit_quit',
+      'finance_income', 'finance_expense'
+    ));
+exception when duplicate_object then null;
+end $$;

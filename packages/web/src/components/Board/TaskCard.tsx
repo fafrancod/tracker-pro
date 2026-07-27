@@ -18,6 +18,7 @@ import {
 import type { Task, Project, Priority } from '@core/types';
 import { formatDose, isRxKind } from '@core/lib/rx';
 import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
+import { isFinanceKind } from '@core/lib/financeKinds';
 import { useT } from '@/hooks/useT';
 import { rescheduleTaskSpan } from './rescheduleSpan';
 
@@ -399,6 +400,23 @@ export function TaskCard({
                     String(task.steps.filter(s => s.completed).length)
                   )
                   .replace('{total}', String(task.steps.length))}
+              </span>
+            )}
+            {isFinanceKind(task.kind) && task.finance && (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                  task.kind === 'finance_income'
+                    ? 'bg-accent-green/15 text-accent-green'
+                    : 'bg-accent-red/15 text-accent-red'
+                )}
+              >
+                {task.kind === 'finance_income' ? '+' : '−'}
+                {task.finance.amount.toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                })}{' '}
+                {task.finance.currency}
+                {task.finance.certainty === 'potential' ? ' · ~' : ''}
               </span>
             )}
             {isRxKind(task.kind) && task.rx && (

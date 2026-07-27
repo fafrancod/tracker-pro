@@ -27,6 +27,7 @@ import type {
   RxPhase,
   RxScheduleMode,
   DoseUnit,
+  FinanceCertainty,
 } from '@core/types';
 import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
 import {
@@ -44,6 +45,14 @@ import {
   defaultHabitColor,
   isHabitKind,
 } from '@core/lib/habits';
+import {
+  defaultFinanceColor,
+  isFinanceKind,
+} from '@core/lib/financeKinds';
+import {
+  defaultCurrencyFromLocale,
+  SUPPORTED_CURRENCIES,
+} from '@core/lib/currencies';
 import { kindSupportsSteps } from '@core/lib/steps';
 import {
   contactHandles,
@@ -183,6 +192,14 @@ export function AddTaskForm({
   const [location, setLocation] = useState('');
   const [departureTime, setDepartureTime] = useState('');
   const [steps, setSteps] = useState<TaskStep[]>([]);
+  const [financeAmount, setFinanceAmount] = useState(0);
+  const [financeCurrency, setFinanceCurrency] = useState(() =>
+    defaultCurrencyFromLocale(
+      typeof navigator !== 'undefined' ? navigator.language : 'es'
+    )
+  );
+  const [financeCertainty, setFinanceCertainty] =
+    useState<FinanceCertainty>('fixed');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
@@ -190,6 +207,7 @@ export function AddTaskForm({
   const isEvent = isEventKind(kind);
   const isEventLike = isPossible || isEvent;
   const isHabit = isHabitKind(kind);
+  const isFinance = isFinanceKind(kind);
   const supportsSteps = kindSupportsSteps(kind);
   const tasksByDay = useStore(s => s.tasksByDay);
   const contacts = useStore(s => s.contacts);
@@ -292,6 +310,8 @@ export function AddTaskForm({
     setLocation('');
     setDepartureTime('');
     setSteps([]);
+    setFinanceAmount(0);
+    setFinanceCertainty('fixed');
     if (startDayId) {
       setFormStartDayId(startDayId);
       setEndDayId(startDayId);
@@ -431,12 +451,14 @@ export function AddTaskForm({
       extractMentions(trimmed),
       contactTagHandles
     );
-    const startN = isHabit ? null : normalizeTimeInput(startTime);
-    const endN = isHabit ? null : normalizeTimeInput(endTime);
+    const startN =
+      isHabit || isFinance ? null : normalizeTimeInput(startTime);
+    const endN = isHabit || isFinance ? null : normalizeTimeInput(endTime);
     const depN = normalizeTimeInput(departureTime);
-    // Multi-día: se permite 20:00 → 03:00 (cruce de medianoche).
+    // Multi-día: se permite 20:00 → 03:00 (cruce de medianoche). Finanzas: sin hora.
     if (
       !isHabit &&
+      !isFinance &&
       !isValidTaskTimeRange(startN, endN, startForCreate, safeEnd)
     ) {
       showToast(t('task_time_range_error'), 'error');
@@ -445,15 +467,15 @@ export function AddTaskForm({
 
     const payload = {
       title: trimmed,
-      projectId: isEventLike || isHabit ? null : projectId,
+      projectId: isEventLike || isHabit || isFinance ? null : projectId,
       priority,
       startDayId: startForCreate,
       endDayId: safeEnd,
       recurrenceFrequency: frequency,
       recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
       kind,
-      urgency: isEventLike || isHabit ? null : urgency,
-      importance: isEventLike || isHabit ? null : importance,
+      urgency: isEventLike || isHabit || isFinance ? null : urgency,
+      importance: isEventLike || isHabit || isFinance ? null : importance,
       color:
         color ??
         (isEvent
@@ -462,7 +484,9 @@ export function AddTaskForm({
             ? '#a371f7'
             : isHabit
               ? defaultHabitColor(kind)
-              : null),
+              : isFinance
+                ? defaultFinanceColor(kind)
+                : null),
       startTime: startN,
       endTime: endN,
       tags,
@@ -476,6 +500,13 @@ export function AddTaskForm({
               title: s.title.trim(),
             }))
             .filter(s => s.title.length > 0)
+        : undefined,
+      finance: isFinance
+        ? {
+            amount: financeAmount,
+            currency: financeCurrency,
+            certainty: financeCertainty,
+          }
         : undefined,
     };
     // Fase 4.1: toast + reset al instante; red en background.
@@ -611,10 +642,63 @@ export function AddTaskForm({
           <option value="possible_event">{t('task_kind_possible_event')}</option>
           <option value="habit_good">{t('task_kind_habit_good')}</option>
           <option value="habit_quit">{t('task_kind_habit_quit')}</option>
+          <option value="finance_income">{t('task_kind_finance_income')}</option>
+          <option value="finance_expense">{t('task_kind_finance_expense')}</option>
           <option value="rx_human">{t('task_kind_rx_human')}</option>
           <option value="rx_pet">{t('task_kind_rx_pet')}</option>
         </select>
       </div>
+
+      {/* Finanzas: importe, moneda, fijo/potencial (sin horarios) */}
+      {isFinance && (
+        <div
+          className={cn(
+            'space-y-2 rounded-xl border border-border/60 bg-background/50',
+            isModal ? 'p-3' : 'p-2'
+          )}
+        >
+          <p className="text-[10px] text-text-muted">{t('task_finance_hint')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('fin_field_amount')}</span>
+              <DecimalInput
+                value={financeAmount}
+                onChange={setFinanceAmount}
+                min={0}
+                max={1_000_000_000}
+                className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-text-primary"
+              />
+            </label>
+            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('fin_field_currency')}</span>
+              <select
+                value={financeCurrency}
+                onChange={e => setFinanceCurrency(e.target.value)}
+                className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-text-primary"
+              >
+                {SUPPORTED_CURRENCIES.map(c => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+            <span>{t('task_finance_certainty')}</span>
+            <select
+              value={financeCertainty}
+              onChange={e =>
+                setFinanceCertainty(e.target.value as FinanceCertainty)
+              }
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-text-primary"
+            >
+              <option value="fixed">{t('task_finance_fixed')}</option>
+              <option value="potential">{t('task_finance_potential')}</option>
+            </select>
+          </label>
+        </div>
+      )}
 
       {/* Title */}
       <div className={cn(isModal && 'space-y-1.5')}>
@@ -889,8 +973,8 @@ export function AddTaskForm({
         </div>
       )}
 
-      {/* Project + priority + Eisenhower — no aplica a recetario, eventos ni hábitos */}
-      {!isRx && !isEventLike && !isHabit && (
+      {/* Project + priority + Eisenhower — no aplica a recetario, eventos, hábitos ni finanzas */}
+      {!isRx && !isEventLike && !isHabit && !isFinance && (
         <>
           <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
             <select
@@ -1189,12 +1273,12 @@ export function AddTaskForm({
           />
         ))}
 
-      {/* Schedule times — no aplica a recetario ni hábitos */}
+      {/* Schedule times — no aplica a recetario, hábitos ni finanzas */}
       <div
         className={cn(
           'flex flex-wrap items-end gap-2',
           isModal && 'gap-3',
-          (isRx || isHabit) && 'hidden'
+          (isRx || isHabit || isFinance) && 'hidden'
         )}
       >
         <label className="flex min-w-0 flex-col gap-0.5 text-[10px] text-text-muted">

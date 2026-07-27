@@ -7,7 +7,8 @@ export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yea
  * possible_event = evento posible (dÃ­a o rango, con personas/mascotas);
  * event = evento confirmado (lugar, fechas, horario, salida prevista);
  * habit_good = hÃ¡bito a cultivar (checkbox diario);
- * habit_quit = hÃ¡bito a dejar (checkbox diario).
+ * habit_quit = hÃ¡bito a dejar (checkbox diario);
+ * finance_income / finance_expense = movimiento en calendario (sin horario).
  */
 export type TaskKind =
   | 'task'
@@ -17,7 +18,9 @@ export type TaskKind =
   | 'possible_event'
   | 'event'
   | 'habit_good'
-  | 'habit_quit';
+  | 'habit_quit'
+  | 'finance_income'
+  | 'finance_expense';
 export type Urgency = 'urgent' | 'not_urgent';
 export type Importance = 'important' | 'not_important';
 export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
@@ -25,9 +28,17 @@ export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
 export type ScheduleLayout = 'list' | 'schedule';
 /** Unidad de dosis por sesiÃ³n. */
 export type DoseUnit = 'pills' | 'ml';
+/** Fijo (confirmado) vs potencial (esperado / no seguro). */
+export type FinanceCertainty = 'fixed' | 'potential';
+/** Meta de un movimiento de finanzas en el calendario. */
+export interface FinanceMeta {
+  amount: number;
+  currency: string;
+  certainty: FinanceCertainty;
+}
 /**
  * Filtro de categorÃ­a en el tablero:
- * all | projects | rx | possible | events | habits.
+ * all | projects | rx | possible | events | habits | finances.
  */
 export type BoardCategoryFilter =
   | 'all'
@@ -35,7 +46,8 @@ export type BoardCategoryFilter =
   | 'rx'
   | 'possible'
   | 'events'
-  | 'habits';
+  | 'habits'
+  | 'finances';
 
 /**
  * CÃ³mo se definen los horarios de la fase:
@@ -363,6 +375,11 @@ export interface Task {
    * Pasos asociados (checklist). Solo aplica a task / reminder / event / possible_event.
    */
   steps: TaskStep[];
+  /**
+   * Movimiento de finanzas en calendario (kind finance_income | finance_expense).
+   * null en el resto de kinds.
+   */
+  finance: FinanceMeta | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -421,6 +438,11 @@ export interface CreateTaskPayload {
   departureTime?: string | null;
   /** Pasos asociados (tarea / recordatorio / evento / posible). */
   steps?: TaskStep[];
+  /** Meta finanzas (kind finance_income | finance_expense). */
+  finance?: FinanceMeta | null;
+  financeAmount?: number;
+  financeCurrency?: string;
+  financeCertainty?: FinanceCertainty;
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -452,6 +474,10 @@ export interface UpdateTaskPayload {
   location?: string | null;
   departureTime?: string | null;
   steps?: TaskStep[];
+  finance?: FinanceMeta | null;
+  financeAmount?: number;
+  financeCurrency?: string;
+  financeCertainty?: FinanceCertainty;
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (tÃ­tulo, color, â€¦) a toda la serie.
@@ -498,7 +524,8 @@ export interface BoardTaskFilters {
    * rx = legacy: solo recetarios (el board ya no expone esta pestaÃ±a);
    * possible = solo eventos posibles;
    * events = eventos confirmados;
-   * habits = hÃ¡bitos buenos y a dejar.
+   * habits = hÃ¡bitos buenos y a dejar;
+   * finances = ingresos/gastos de calendario.
    */
   category?: BoardCategoryFilter;
 }
@@ -509,6 +536,7 @@ export function taskMatchesFilters(
 ): boolean {
   const kind = task.kind ?? 'task';
   const isRx = kind === 'rx_human' || kind === 'rx_pet';
+  const isFinance = kind === 'finance_income' || kind === 'finance_expense';
 
   // El calendario no muestra tomas de recetario salvo filtro legacy `rx`.
   if (isRx && filters.category !== 'rx') {
@@ -519,6 +547,7 @@ export function taskMatchesFilters(
     if (filters.category === 'projects') {
       if (
         isRx ||
+        isFinance ||
         kind === 'possible_event' ||
         kind === 'event' ||
         kind === 'habit_good' ||
@@ -534,6 +563,8 @@ export function taskMatchesFilters(
       if (kind !== 'event') return false;
     } else if (filters.category === 'habits') {
       if (kind !== 'habit_good' && kind !== 'habit_quit') return false;
+    } else if (filters.category === 'finances') {
+      if (!isFinance) return false;
     }
   }
   if (filters.projectId && filters.projectId !== 'all') {
@@ -586,7 +617,7 @@ export interface TaskLocation {
   taskId: string;
 }
 
-// ——— Finances ———
+// ï¿½ï¿½ï¿½ Finances ï¿½ï¿½ï¿½
 export type FinanceFlow = 'expense' | 'income';
 export type FinanceKind = 'recurring' | 'expected' | 'specific';
 export type FinanceFrequency = 'monthly' | 'weekly';
@@ -599,7 +630,7 @@ export interface FinanceEntry {
   flow: FinanceFlow;
   kind: FinanceKind;
   frequency: FinanceFrequency | null;
-  /** monthly: 1–31; weekly: 0–6 (Sun–Sat) */
+  /** monthly: 1ï¿½31; weekly: 0ï¿½6 (Sunï¿½Sat) */
   recurrenceDay: number | null;
   entryDate: string | null;
   notes: string;

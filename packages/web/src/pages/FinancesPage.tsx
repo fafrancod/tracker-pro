@@ -35,7 +35,7 @@ import {
 import {
   entriesForMonth,
   monthIdFromDate,
-  summarizeFinanceMonth,
+  summarizeFinanceMonthByCurrency,
 } from '@core/lib/financeSummary';
 import type {
   CreateFinanceEntryPayload,
@@ -44,6 +44,10 @@ import type {
   FinanceFrequency,
   FinanceKind,
 } from '@core/types';
+import {
+  defaultCurrencyFromLocale,
+  SUPPORTED_CURRENCIES,
+} from '@core/lib/currencies';
 
 function money(n: number, currency: string): string {
   try {
@@ -57,18 +61,22 @@ function money(n: number, currency: string): string {
   }
 }
 
-const EMPTY_FORM: CreateFinanceEntryPayload = {
-  title: '',
-  amount: 0,
-  currency: 'EUR',
-  flow: 'expense',
-  kind: 'specific',
-  frequency: null,
-  recurrenceDay: null,
-  entryDate: format(new Date(), 'yyyy-MM-dd'),
-  notes: '',
-  active: true,
-};
+function emptyForm(): CreateFinanceEntryPayload {
+  return {
+    title: '',
+    amount: 0,
+    currency: defaultCurrencyFromLocale(
+      typeof navigator !== 'undefined' ? navigator.language : 'es'
+    ),
+    flow: 'expense',
+    kind: 'specific',
+    frequency: null,
+    recurrenceDay: null,
+    entryDate: format(new Date(), 'yyyy-MM-dd'),
+    notes: '',
+    active: true,
+  };
+}
 
 export function FinancesPage() {
   const { t, locale } = useT();
@@ -78,7 +86,7 @@ export function FinancesPage() {
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<FinanceEntry | null>(null);
-  const [form, setForm] = useState<CreateFinanceEntryPayload>(EMPTY_FORM);
+  const [form, setForm] = useState<CreateFinanceEntryPayload>(emptyForm);
   const [filterFlow, setFilterFlow] = useState<'all' | FinanceFlow>('all');
   const [filterKind, setFilterKind] = useState<'all' | FinanceKind>('all');
 
@@ -100,10 +108,46 @@ export function FinancesPage() {
     void reload();
   }, [reload]);
 
-  const summary = useMemo(
-    () => summarizeFinanceMonth(entries, monthId),
+  const summariesByCurrency = useMemo(
+    () => summarizeFinanceMonthByCurrency(entries, monthId),
     [entries, monthId]
   );
+  const currencyKeys = useMemo(
+    () => Object.keys(summariesByCurrency).sort(),
+    [summariesByCurrency]
+  );
+  const [summaryCurrency, setSummaryCurrency] = useState<string>('');
+  useEffect(() => {
+    if (currencyKeys.length === 0) {
+      setSummaryCurrency(
+        defaultCurrencyFromLocale(
+          typeof navigator !== 'undefined' ? navigator.language : 'es'
+        )
+      );
+      return;
+    }
+    if (!currencyKeys.includes(summaryCurrency)) {
+      setSummaryCurrency(currencyKeys[0]);
+    }
+  }, [currencyKeys, summaryCurrency]);
+  const summary = useMemo(() => {
+    if (summariesByCurrency[summaryCurrency]) {
+      return summariesByCurrency[summaryCurrency];
+    }
+    return {
+      monthId,
+      currency: summaryCurrency || 'EUR',
+      incomeRecurring: 0,
+      incomeExpected: 0,
+      incomeSpecific: 0,
+      expenseRecurring: 0,
+      expenseExpected: 0,
+      expenseSpecific: 0,
+      totalIncome: 0,
+      totalExpense: 0,
+      balance: 0,
+    };
+  }, [summariesByCurrency, summaryCurrency, monthId]);
 
   const monthEntries = useMemo(() => {
     let list = entriesForMonth(entries, monthId);
@@ -115,7 +159,7 @@ export function FinancesPage() {
   function openCreate() {
     setEditing(null);
     setForm({
-      ...EMPTY_FORM,
+      ...emptyForm(),
       entryDate: format(monthCursor, 'yyyy-MM-dd'),
     });
     setDialogOpen(true);
@@ -237,6 +281,26 @@ export function FinancesPage() {
             {t('fin_this_month')}
           </Button>
         </div>
+
+        {/* Currency for summary (multi-moneda: LATAM, EU, USD) */}
+        {currencyKeys.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-text-muted">
+              {t('fin_field_currency')}:
+            </span>
+            <select
+              value={summaryCurrency}
+              onChange={e => setSummaryCurrency(e.target.value)}
+              className="h-8 rounded-md border border-border bg-background px-2 text-xs text-text-primary"
+            >
+              {currencyKeys.map(c => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Summary cards */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -463,14 +527,19 @@ export function FinancesPage() {
               </label>
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_currency')}</span>
-                <Input
+                <select
                   value={form.currency ?? 'EUR'}
                   onChange={e =>
-                    setForm(f => ({ ...f, currency: e.target.value.toUpperCase() }))
+                    setForm(f => ({ ...f, currency: e.target.value }))
                   }
-                  className="h-9 text-sm"
-                  maxLength={8}
-                />
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-text-primary"
+                >
+                  {SUPPORTED_CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
 

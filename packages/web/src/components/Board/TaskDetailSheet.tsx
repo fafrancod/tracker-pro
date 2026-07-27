@@ -43,12 +43,19 @@ import { normalizeTimeInput } from '@core/lib/time';
 import { isValidTaskTimeRange } from '@core/lib/schedule';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import { TimeInput } from '@/components/ui/time-input';
+// DecimalInput reused for finance amounts
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
 import { DateRangeField } from './DateRangeField';
 import { kindSupportsSteps, stepsEqual } from '@core/lib/steps';
+import {
+  defaultFinanceColor,
+  isFinanceKind,
+} from '@core/lib/financeKinds';
+import { SUPPORTED_CURRENCIES } from '@core/lib/currencies';
 import type {
   DoseUnit,
+  FinanceCertainty,
   Importance,
   Priority,
   RxPhase,
@@ -132,6 +139,9 @@ interface DraftState {
   location: string;
   departureTime: string;
   steps: TaskStep[];
+  financeAmount: number;
+  financeCurrency: string;
+  financeCertainty: FinanceCertainty;
 }
 
 function taskToDraft(task: Task, fallbackDayId: string): DraftState {
@@ -157,6 +167,9 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     location: task.location ?? '',
     departureTime: task.departureTime ?? '',
     steps: [...(task.steps ?? [])].map(s => ({ ...s })),
+    financeAmount: task.finance?.amount ?? 0,
+    financeCurrency: task.finance?.currency ?? 'EUR',
+    financeCertainty: task.finance?.certainty ?? 'fixed',
   };
 }
 
@@ -183,7 +196,10 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.involvedContactIds.join('\0') !== base.involvedContactIds.join('\0') ||
     draft.location !== base.location ||
     draft.departureTime !== base.departureTime ||
-    !stepsEqual(draft.steps, base.steps)
+    !stepsEqual(draft.steps, base.steps) ||
+    draft.financeAmount !== base.financeAmount ||
+    draft.financeCurrency !== base.financeCurrency ||
+    draft.financeCertainty !== base.financeCertainty
   );
 }
 
@@ -297,7 +313,7 @@ function TaskDetailInner({
   const draftIsEventLike = draftIsPossible || draftIsEvent;
   const draftIsProjectKind = draftKind === 'task' || draftKind === 'reminder';
   const draftIsHabit =
-    draftKind === 'habit_good' || draftKind === 'habit_quit';
+    draftKind === 'habit_good' || draftKind === 'habit_quit';  const draftIsFinance = isFinanceKind(draftKind);
   const draftSupportsSteps = kindSupportsSteps(draftKind);
 
   /** Kinds intercambiables en el menú de edición (no incluye rx). */
@@ -308,6 +324,8 @@ function TaskDetailInner({
     { value: 'possible_event', label: t('task_kind_possible_event') },
     { value: 'habit_good', label: t('task_kind_habit_good') },
     { value: 'habit_quit', label: t('task_kind_habit_quit') },
+    { value: 'finance_income', label: t('task_kind_finance_income') },
+    { value: 'finance_expense', label: t('task_kind_finance_expense') },
   ];
 
   const rxPlanStart = task.rx?.planStartDayId || dayId;
@@ -415,17 +433,25 @@ function TaskDetailInner({
       }
     }
 
-    // Validar horarios antes de cerrar (no-async).
+    // Validar horarios antes de cerrar (no-async). Finanzas: sin hora.
     if (!isRx) {
       const saveKind = draft.kind;
       const saveIsHabit =
         saveKind === 'habit_good' || saveKind === 'habit_quit';
-      const startN = saveIsHabit ? null : normalizeTimeInput(draft.startTime);
-      const endN = saveIsHabit ? null : normalizeTimeInput(draft.endTime);
+      const saveIsFinance = isFinanceKind(saveKind);
+      const startN =
+        saveIsHabit || saveIsFinance
+          ? null
+          : normalizeTimeInput(draft.startTime);
+      const endN =
+        saveIsHabit || saveIsFinance
+          ? null
+          : normalizeTimeInput(draft.endTime);
       const rangeStart = draft.startDayId || dayId;
       const rangeEnd = draft.endDayId || rangeStart;
       if (
         !saveIsHabit &&
+        !saveIsFinance &&
         !isValidTaskTimeRange(startN, endN, rangeStart, rangeEnd)
       ) {
         showToast(t('task_time_range_error'), 'error');
@@ -506,23 +532,29 @@ function TaskDetailInner({
           const saveIsEvent = saveKind === 'event';
           const saveIsHabit =
             saveKind === 'habit_good' || saveKind === 'habit_quit';
+          const saveIsFinance = isFinanceKind(saveKind);
           const tags = mergeTags(
             snap.tags,
             extractHashtags(title),
             extractMentions(title),
             extractMentions(snap.notes)
           );
-          const startN = saveIsHabit
-            ? null
-            : normalizeTimeInput(snap.startTime);
-          const endN = saveIsHabit ? null : normalizeTimeInput(snap.endTime);
+          const startN =
+            saveIsHabit || saveIsFinance
+              ? null
+              : normalizeTimeInput(snap.startTime);
+          const endN =
+            saveIsHabit || saveIsFinance
+              ? null
+              : normalizeTimeInput(snap.endTime);
           const depN = normalizeTimeInput(snap.departureTime);
           const nextStart = snap.startDayId || dayId;
-          const nextEnd = saveIsHabit
-            ? nextStart
-            : snap.endDayId >= nextStart
-              ? snap.endDayId
-              : nextStart;
+          const nextEnd =
+            saveIsHabit
+              ? nextStart
+              : snap.endDayId >= nextStart
+                ? snap.endDayId
+                : nextStart;
 
           // Cambiar día de inicio = mover (preserva duración), luego fijar fin.
           if (nextStart !== dayId) {
@@ -535,9 +567,14 @@ function TaskDetailInner({
             tags,
             kind: saveKind,
             priority: snap.priority,
-            urgency: saveEventLike || saveIsHabit ? null : snap.urgency,
+            urgency:
+              saveEventLike || saveIsHabit || saveIsFinance
+                ? null
+                : snap.urgency,
             importance:
-              saveEventLike || saveIsHabit ? null : snap.importance,
+              saveEventLike || saveIsHabit || saveIsFinance
+                ? null
+                : snap.importance,
             color:
               snap.color ??
               (saveIsEvent
@@ -548,8 +585,13 @@ function TaskDetailInner({
                     ? '#3fb950'
                     : saveKind === 'habit_quit'
                       ? '#f85149'
-                      : null),
-            projectId: saveEventLike || saveIsHabit ? null : snap.projectId,
+                      : saveIsFinance
+                        ? defaultFinanceColor(saveKind)
+                        : null),
+            projectId:
+              saveEventLike || saveIsHabit || saveIsFinance
+                ? null
+                : snap.projectId,
             endDayId: nextEnd,
             involvedContactIds: saveEventLike
               ? snap.involvedContactIds
@@ -566,6 +608,13 @@ function TaskDetailInner({
                   .map(s => ({ ...s, title: s.title.trim() }))
                   .filter(s => s.title.length > 0)
               : [],
+            finance: saveIsFinance
+              ? {
+                  amount: snap.financeAmount,
+                  currency: snap.financeCurrency,
+                  certainty: snap.financeCertainty,
+                }
+              : null,
             applyTo: taskSnap.seriesId ? applyTo : 'instance',
           });
         }
@@ -708,6 +757,58 @@ function TaskDetailInner({
                 </option>
               ))}
             </select>
+          </Field>
+        )}
+
+        {/* Finanzas: importe / moneda / fijo vs potencial */}
+        {!isRx && draftIsFinance && (
+          <Field label={t('nav_finances')}>
+            <p className="mb-1.5 text-[10px] text-text-muted">
+              {t('task_finance_hint')}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                <span>{t('fin_field_amount')}</span>
+                <DecimalInput
+                  value={draft.financeAmount}
+                  onChange={v => patchDraft({ financeAmount: v })}
+                  min={0}
+                  max={1_000_000_000}
+                  className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+                <span>{t('fin_field_currency')}</span>
+                <select
+                  value={draft.financeCurrency}
+                  onChange={e =>
+                    patchDraft({ financeCurrency: e.target.value })
+                  }
+                  className="h-9 rounded-md border border-border bg-background px-2 text-xs text-text-primary"
+                >
+                  {SUPPORTED_CURRENCIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <label className="mt-2 flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('task_finance_certainty')}</span>
+              <select
+                value={draft.financeCertainty}
+                onChange={e =>
+                  patchDraft({
+                    financeCertainty: e.target.value as FinanceCertainty,
+                  })
+                }
+                className="h-9 rounded-md border border-border bg-background px-2 text-xs text-text-primary"
+              >
+                <option value="fixed">{t('task_finance_fixed')}</option>
+                <option value="potential">{t('task_finance_potential')}</option>
+              </select>
+            </label>
           </Field>
         )}
 
@@ -1121,6 +1222,7 @@ function TaskDetailInner({
               />
             </Field>
 
+            {!draftIsHabit && !draftIsFinance && (
             <Field label={t('task_schedule')}>
               <div className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
@@ -1158,6 +1260,7 @@ function TaskDetailInner({
                 )}
               </div>
             </Field>
+            )}
 
           </>
         )}

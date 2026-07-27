@@ -16,6 +16,8 @@ export function emptyMessageKeyForCategory(
       return 'empty_no_rx';
     case 'projects':
       return 'empty_no_projects_cat';
+    case 'finances':
+      return 'empty_no_finances';
     case 'all':
     default:
       return 'empty_no_tasks';

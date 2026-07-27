@@ -92,7 +92,18 @@ const kindSchema = z.enum([
   'event',
   'habit_good',
   'habit_quit',
+  'finance_income',
+  'finance_expense',
 ]);
+const financeCertaintySchema = z.enum(['fixed', 'potential']);
+const financeMetaSchema = z
+  .object({
+    amount: z.number().nonnegative().max(1_000_000_000),
+    currency: z.string().min(1).max(8),
+    certainty: financeCertaintySchema.default('fixed'),
+  })
+  .nullable()
+  .optional();
 const colorSchema = z
   .string()
   .regex(/^#[0-9A-Fa-f]{6}$/, 'color hex #RRGGBB')
@@ -242,6 +253,10 @@ const createSchema = taskLocation.extend({
   location: z.string().max(200).nullable().optional(),
   departureTime: timeSchema,
   steps: z.array(taskStepSchema).max(40).optional(),
+  finance: financeMetaSchema,
+  financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
+  financeCurrency: z.string().min(1).max(8).optional(),
+  financeCertainty: financeCertaintySchema.optional(),
 });
 
 const updateSchema = z
@@ -271,6 +286,10 @@ const updateSchema = z
     location: z.string().max(200).nullable().optional(),
     departureTime: timeSchema,
     steps: z.array(taskStepSchema).max(40).optional(),
+    finance: financeMetaSchema,
+    financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
+    financeCurrency: z.string().min(1).max(8).optional(),
+    financeCertainty: financeCertaintySchema.optional(),
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -339,6 +358,7 @@ function toClientTask(
       (row.departureTime as string | null | undefined) ??
       null,
     steps: normalizeSteps(row.steps),
+    finance: parseFinanceMeta(row.finance_meta ?? row.finance),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -354,7 +374,9 @@ function normalizeKind(
   | 'possible_event'
   | 'event'
   | 'habit_good'
-  | 'habit_quit' {
+  | 'habit_quit'
+  | 'finance_income'
+  | 'finance_expense' {
   if (raw === 'reminder') return 'reminder';
   if (raw === 'rx_human') return 'rx_human';
   if (raw === 'rx_pet') return 'rx_pet';
@@ -362,11 +384,79 @@ function normalizeKind(
   if (raw === 'event') return 'event';
   if (raw === 'habit_good') return 'habit_good';
   if (raw === 'habit_quit') return 'habit_quit';
+  if (raw === 'finance_income') return 'finance_income';
+  if (raw === 'finance_expense') return 'finance_expense';
   return 'task';
 }
 
 function isHabitKind(kind: string | null | undefined): boolean {
   return kind === 'habit_good' || kind === 'habit_quit';
+}
+
+function isFinanceKind(kind: string | null | undefined): boolean {
+  return kind === 'finance_income' || kind === 'finance_expense';
+}
+
+function parseFinanceMeta(raw: unknown): {
+  amount: number;
+  currency: string;
+  certainty: 'fixed' | 'potential';
+} | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const amount = Number(o.amount);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  const currency =
+    typeof o.currency === 'string' && o.currency.trim()
+      ? o.currency.trim().toUpperCase().slice(0, 8)
+      : 'EUR';
+  const certainty = o.certainty === 'potential' ? 'potential' : 'fixed';
+  return { amount, currency, certainty };
+}
+
+function resolveFinanceMeta(
+  kind: string,
+  opts: {
+    finance?: { amount: number; currency: string; certainty?: 'fixed' | 'potential' } | null;
+    financeAmount?: number;
+    financeCurrency?: string;
+    financeCertainty?: 'fixed' | 'potential';
+    existing?: unknown;
+  }
+): { amount: number; currency: string; certainty: 'fixed' | 'potential' } | null {
+  if (!isFinanceKind(kind)) return null;
+  const prev = parseFinanceMeta(opts.existing);
+  if (opts.finance && typeof opts.finance === 'object') {
+    return {
+      amount: Math.max(0, Number(opts.finance.amount) || 0),
+      currency: (opts.finance.currency || prev?.currency || 'EUR')
+        .toString()
+        .toUpperCase()
+        .slice(0, 8),
+      certainty:
+        opts.finance.certainty === 'potential'
+          ? 'potential'
+          : opts.finance.certainty === 'fixed'
+            ? 'fixed'
+            : (prev?.certainty ?? 'fixed'),
+    };
+  }
+  return {
+    amount:
+      typeof opts.financeAmount === 'number'
+        ? Math.max(0, opts.financeAmount)
+        : (prev?.amount ?? 0),
+    currency: (opts.financeCurrency || prev?.currency || 'EUR')
+      .toString()
+      .toUpperCase()
+      .slice(0, 8),
+    certainty:
+      opts.financeCertainty === 'potential'
+        ? 'potential'
+        : opts.financeCertainty === 'fixed'
+          ? 'fixed'
+          : (prev?.certainty ?? 'fixed'),
+  };
 }
 
 function kindSupportsSteps(kind: string | null | undefined): boolean {
@@ -407,13 +497,21 @@ tasksRouter.post('/', async (req, res, next) => {
       location,
       departureTime,
       steps: rawSteps,
+      finance: rawFinance,
+      financeAmount,
+      financeCurrency,
+      financeCertainty,
     } = createSchema.parse(req.body);
 
+    const taskKind = kind ?? 'task';
+    const isFinance = isFinanceKind(taskKind);
     const resolvedEndDayId =
       typeof rawEndDayId === 'string' && rawEndDayId >= dayId ? rawEndDayId : dayId;
-    assertTimeRange(startTime, endTime, dayId, resolvedEndDayId);
+    // Finanzas no usan horario.
+    if (!isFinance) {
+      assertTimeRange(startTime, endTime, dayId, resolvedEndDayId);
+    }
 
-    const taskKind = kind ?? 'task';
     const now = new Date().toISOString();
     const seriesId = generateId();
     const rows: Record<string, unknown>[] = [];
@@ -432,6 +530,12 @@ tasksRouter.post('/', async (req, res, next) => {
     const stepsValue = kindSupportsSteps(taskKind)
       ? normalizeSteps(rawSteps)
       : [];
+    const financeValue = resolveFinanceMeta(taskKind, {
+      finance: rawFinance,
+      financeAmount,
+      financeCurrency,
+      financeCertainty,
+    });
 
     // ——— Recetario: materializa 1 fila por (día × horario) con plan por fases ———
     if (isRxKind(taskKind)) {
@@ -601,7 +705,8 @@ tasksRouter.post('/', async (req, res, next) => {
           title,
           completed: false,
           completed_at: null,
-          project_id: isEventLike || isHabit ? null : (projectId ?? null),
+          project_id:
+            isEventLike || isHabit || isFinance ? null : (projectId ?? null),
           priority: priority ?? (isHabit ? 'medium' : 'medium'),
           notes: notes ?? '',
           order,
@@ -612,8 +717,10 @@ tasksRouter.post('/', async (req, res, next) => {
             isHabit || recurrence.frequency !== 'none' ? seriesId : null,
           recurrence_frequency: recurrence.frequency,
           recurrence_interval: recurrence.interval,
-          urgency: isEventLike || isHabit ? null : (urgency ?? null),
-          importance: isEventLike || isHabit ? null : (importance ?? null),
+          urgency:
+            isEventLike || isHabit || isFinance ? null : (urgency ?? null),
+          importance:
+            isEventLike || isHabit || isFinance ? null : (importance ?? null),
           kind: taskKind,
           color:
             color ??
@@ -625,14 +732,20 @@ tasksRouter.post('/', async (req, res, next) => {
                   ? '#3fb950'
                   : taskKind === 'habit_quit'
                     ? '#f85149'
-                    : null),
-          start_time: isHabit ? null : (startTime ?? null),
-          end_time: isHabit ? null : (endTime ?? null),
+                    : taskKind === 'finance_income'
+                      ? '#3fb950'
+                      : taskKind === 'finance_expense'
+                        ? '#f85149'
+                        : null),
+          // Finanzas y hábitos: sin hora inicio/fin
+          start_time: isHabit || isFinance ? null : (startTime ?? null),
+          end_time: isHabit || isFinance ? null : (endTime ?? null),
           rx_meta: null,
+          finance_meta: isFinance ? financeValue : null,
           involved_contact_ids: isEventLike ? involvedIds : [],
-          location: isHabit ? null : locationValue,
-          departure_time: isHabit ? null : departureValue,
-          steps: isHabit ? [] : stepsValue,
+          location: isHabit || isFinance ? null : locationValue,
+          departure_time: isHabit || isFinance ? null : departureValue,
+          steps: isHabit || isFinance ? [] : stepsValue,
           created_at: now,
           updated_at: now,
         });
@@ -730,6 +843,11 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     const applyTo = patch.applyTo ?? 'instance';
     const seriesId = (existing.series_id as string | null | undefined) ?? null;
 
+    const existingKind = normalizeKind(existing.kind as string);
+    const nextKind =
+      patch.kind !== undefined ? patch.kind : existingKind;
+    const nextIsFinance = isFinanceKind(nextKind);
+
     const nextStart =
       patch.startTime !== undefined
         ? patch.startTime
@@ -743,7 +861,23 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       patch.endDayId !== undefined
         ? patch.endDayId
         : ((existing.end_day_id as string | undefined) ?? rangeStartDay);
-    assertTimeRange(nextStart, nextEnd, rangeStartDay, rangeEndDay);
+    if (!nextIsFinance) {
+      assertTimeRange(nextStart, nextEnd, rangeStartDay, rangeEndDay);
+    }
+
+    const financePatch = resolveFinanceMeta(nextKind, {
+      finance: patch.finance,
+      financeAmount: patch.financeAmount,
+      financeCurrency: patch.financeCurrency,
+      financeCertainty: patch.financeCertainty,
+      existing: existing.finance_meta,
+    });
+    const financeTouched =
+      patch.finance !== undefined ||
+      patch.financeAmount !== undefined ||
+      patch.financeCurrency !== undefined ||
+      patch.financeCertainty !== undefined ||
+      (patch.kind !== undefined && isFinanceKind(patch.kind));
 
     // Metadata compartida de la serie (no fechas ni completed).
     const seriesUpdate: Record<string, unknown> = { updated_at: now };
@@ -758,6 +892,13 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.color !== undefined) seriesUpdate.color = patch.color;
     if (patch.startTime !== undefined) seriesUpdate.start_time = patch.startTime;
     if (patch.endTime !== undefined) seriesUpdate.end_time = patch.endTime;
+    if (nextIsFinance) {
+      seriesUpdate.start_time = null;
+      seriesUpdate.end_time = null;
+    }
+    if (financeTouched) {
+      seriesUpdate.finance_meta = financePatch;
+    }
     if (patch.involvedContactIds !== undefined) {
       seriesUpdate.involved_contact_ids = patch.involvedContactIds;
     }
@@ -954,6 +1095,13 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       if (patch.color !== undefined) update.color = patch.color;
       if (patch.startTime !== undefined) update.start_time = patch.startTime;
       if (patch.endTime !== undefined) update.end_time = patch.endTime;
+      if (nextIsFinance) {
+        update.start_time = null;
+        update.end_time = null;
+      }
+      if (financeTouched) {
+        update.finance_meta = financePatch;
+      }
       if (patch.involvedContactIds !== undefined) {
         update.involved_contact_ids = patch.involvedContactIds;
       }
@@ -1292,6 +1440,7 @@ tasksRouter.post('/habit-ensure', async (req, res, next) => {
       location: null,
       departure_time: null,
       steps: Array.isArray(template.steps) ? template.steps : [],
+      finance_meta: template.finance_meta ?? null,
       created_at: now,
       updated_at: now,
     };

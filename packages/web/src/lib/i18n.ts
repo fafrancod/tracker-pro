@@ -330,6 +330,14 @@ export interface TranslationDict {
   board_category_habits_hint: string;
   task_kind_habit_good: string;
   task_kind_habit_quit: string;
+  task_kind_finance_income: string;
+  task_kind_finance_expense: string;
+  task_finance_hint: string;
+  task_finance_certainty: string;
+  task_finance_fixed: string;
+  task_finance_potential: string;
+  board_filter_category_finances: string;
+  board_category_finances_hint: string;
   task_habit_placeholder: string;
   task_habit_quit_placeholder: string;
   action_add_habit: string;
@@ -684,6 +692,7 @@ export interface TranslationDict {
   empty_no_rx: string;
   empty_no_habits: string;
   empty_no_projects_cat: string;
+  empty_no_finances: string;
   empty_no_projects: string;
   task_steps_label: string;
   task_steps_hint: string;
@@ -1122,6 +1131,15 @@ const es_dict: TranslationDict = {
   task_kind_event: 'Evento',
   task_kind_habit_good: 'Hábito bueno',
   task_kind_habit_quit: 'Hábito a dejar',
+  task_kind_finance_income: 'Ingreso',
+  task_kind_finance_expense: 'Gasto',
+  task_finance_hint:
+    'Movimiento de finanzas en el calendario. Sin hora de inicio ni fin. Define si es fijo o potencial, y usa la recurrencia si se repite.',
+  task_finance_certainty: 'Certeza',
+  task_finance_fixed: 'Fijo (confirmado)',
+  task_finance_potential: 'Potencial (esperado)',
+  board_filter_category_finances: 'Finances',
+  board_category_finances_hint: 'Ingresos y gastos del calendario.',
   task_habit_placeholder: 'Ej. Tocar guitarra, leer, ir al gym…',
   task_habit_quit_placeholder: 'Ej. Redes sociales, azúcares, procrastinar…',
   action_add_habit: 'Guardar hábito',
@@ -1469,6 +1487,7 @@ const es_dict: TranslationDict = {
   empty_no_rx: 'Aún no hay tomas de recetario.',
   empty_no_habits: 'Aún no hay hábitos.',
   empty_no_projects_cat: 'Aún no hay tareas de proyectos.',
+  empty_no_finances: 'Aún no hay ingresos ni gastos en el calendario.',
   empty_no_projects: 'Aún no hay proyectos.',
   task_steps_label: 'Pasos asociados',
   task_steps_hint: 'Pulsa para desplegar y añadir una checklist.',
@@ -1912,6 +1931,15 @@ const en_dict: TranslationDict = {
   task_kind_event: 'Event',
   task_kind_habit_good: 'Good habit',
   task_kind_habit_quit: 'Habit to quit',
+  task_kind_finance_income: 'Income',
+  task_kind_finance_expense: 'Expense',
+  task_finance_hint:
+    'Calendar finance entry. No start/end time. Mark fixed or potential, and use recurrence if it repeats.',
+  task_finance_certainty: 'Certainty',
+  task_finance_fixed: 'Fixed (confirmed)',
+  task_finance_potential: 'Potential (expected)',
+  board_filter_category_finances: 'Finances',
+  board_category_finances_hint: 'Calendar income and expenses.',
   task_habit_placeholder: 'e.g. Play guitar, read, go to the gym…',
   task_habit_quit_placeholder: 'e.g. Social media, sugar, procrastinating…',
   action_add_habit: 'Save habit',
@@ -2258,6 +2286,7 @@ const en_dict: TranslationDict = {
   empty_no_possible: 'No possible events yet.',
   empty_no_rx: 'No prescription doses yet.',
   empty_no_habits: 'No habits yet.',
+  empty_no_finances: 'No calendar finance entries yet.',
   empty_no_projects_cat: 'No project tasks yet.',
   empty_no_projects: 'No projects yet.',
   task_steps_label: 'Associated steps',

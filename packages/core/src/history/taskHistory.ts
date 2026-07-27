@@ -107,6 +107,7 @@ export const taskHistory = {
       location: apiPayload.location ?? null,
       departureTime: apiPayload.departureTime ?? null,
       steps: apiPayload.steps ?? [],
+      finance: apiPayload.finance ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -183,6 +184,7 @@ export const taskHistory = {
           location: instance.location ?? null,
           departureTime: instance.departureTime ?? null,
           steps: instance.steps ?? [],
+          finance: instance.finance ?? null,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

@@ -291,6 +291,7 @@ async function applyOne(mut: OfflineMutation, idMap: Map<string, string>): Promi
           location: instance.location ?? null,
           departureTime: instance.departureTime ?? null,
           steps: instance.steps ?? [],
+          finance: instance.finance ?? null,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });

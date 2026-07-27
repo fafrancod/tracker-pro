@@ -77,6 +77,19 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
   if (payload.location !== undefined) patch.location = payload.location;
   if (payload.departureTime !== undefined) patch.departureTime = payload.departureTime;
   if (payload.steps !== undefined) patch.steps = payload.steps;
+  if (payload.finance !== undefined) {
+    patch.finance = payload.finance;
+  } else if (
+    payload.financeAmount !== undefined ||
+    payload.financeCurrency !== undefined ||
+    payload.financeCertainty !== undefined
+  ) {
+    patch.finance = {
+      amount: payload.financeAmount ?? 0,
+      currency: payload.financeCurrency ?? 'EUR',
+      certainty: payload.financeCertainty ?? 'fixed',
+    };
+  }
   if (payload.completed !== undefined) {
     patch.completed = payload.completed;
     patch.completedAt = payload.completed ? new Date().toISOString() : null;
@@ -182,6 +195,7 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           location: instance.location ?? null,
           departureTime: instance.departureTime ?? null,
           steps: instance.steps ?? [],
+          finance: instance.finance ?? null,
           rx: instance.rx,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,

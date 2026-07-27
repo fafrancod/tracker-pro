@@ -12,6 +12,7 @@ import {
   CalendarHeart,
   MapPin,
   Leaf,
+  Wallet,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -183,6 +184,11 @@ export function BoardPage() {
       value: 'habits',
       label: t('board_filter_category_habits'),
       icon: Leaf,
+    },
+    {
+      value: 'finances',
+      label: t('board_filter_category_finances'),
+      icon: Wallet,
     },
   ];
 
