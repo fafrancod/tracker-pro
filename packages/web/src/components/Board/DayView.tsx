@@ -40,6 +40,7 @@ import {
 
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
+import { tintEventBorder, tintPossibleBorder } from '@/lib/tintClasses';
 import { ScheduleGrid } from './ScheduleGrid';
 import { TaskCard } from './TaskCard';
 import { AddTaskForm } from './AddTaskForm';
@@ -66,19 +67,20 @@ const SLOT_KIND_OPTIONS: Array<{
     kind: 'event',
     labelKey: 'task_kind_event',
     icon: MapPin,
-    className: 'border-sky-500/30 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20',
+    className: tintEventBorder,
   },
   {
     kind: 'possible_event',
     labelKey: 'task_kind_possible_event',
     icon: CalendarHeart,
-    className: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-200 hover:bg-fuchsia-500/20',
+    className: tintPossibleBorder,
   },
   {
     kind: 'rx_human',
     labelKey: 'task_kind_rx_human',
     icon: Pill,
-    className: 'border-violet-500/30 bg-violet-500/10 text-violet-200 hover:bg-violet-500/20',
+    className:
+      'border-violet-600/35 bg-violet-500/10 text-violet-800 hover:bg-violet-500/20 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-200 dark:hover:bg-violet-500/20',
   },
 ];
 

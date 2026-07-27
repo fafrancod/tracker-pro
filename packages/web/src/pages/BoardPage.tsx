@@ -48,6 +48,12 @@ import type {
 
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
+import {
+  tintEvent,
+  tintHabit,
+  tintHoliday,
+  tintPossible,
+} from '@/lib/tintClasses';
 import { cn } from '@/lib/utils';
 import { CycleSelect } from '@/components/ui/cycle-select';
 
@@ -357,14 +363,16 @@ export function BoardPage() {
                   'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition-colors sm:flex-none sm:py-1.5',
                   active
                     ? tab.value === 'possible'
-                      ? 'bg-fuchsia-500/20 text-fuchsia-200'
+                      ? tintPossible
                       : tab.value === 'events'
-                        ? 'bg-sky-500/20 text-sky-200'
+                        ? tintEvent
                         : tab.value === 'habits'
-                          ? 'bg-emerald-500/20 text-emerald-200'
-                          : tab.value === 'projects'
-                            ? 'bg-accent-teal/15 text-accent-teal'
-                            : 'bg-accent-teal/15 text-accent-teal'
+                          ? tintHabit
+                          : tab.value === 'holidays'
+                            ? tintHoliday
+                            : tab.value === 'projects'
+                              ? 'bg-accent-teal/15 text-accent-teal'
+                              : 'bg-accent-teal/15 text-accent-teal'
                     : 'text-text-muted hover:bg-surface hover:text-text-primary'
                 )}
               >

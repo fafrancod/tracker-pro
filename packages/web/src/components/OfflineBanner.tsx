@@ -76,7 +76,7 @@ export function OfflineBanner() {
         'fixed left-1/2 z-40 flex max-w-[min(96vw,28rem)] -translate-x-1/2 items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-lg',
         'top-[max(0.5rem,env(safe-area-inset-top,0px))]',
         showOffline
-          ? 'border-amber-500/40 bg-amber-500/15 text-amber-100'
+          ? 'border-amber-600/40 bg-amber-500/15 text-amber-900 dark:border-amber-500/40 dark:text-amber-100'
           : showQueue
             ? 'border-accent-teal/40 bg-accent-teal/15 text-text-primary'
             : 'border-accent-green/40 bg-accent-green/15 text-text-primary'

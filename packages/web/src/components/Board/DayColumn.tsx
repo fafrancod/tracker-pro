@@ -11,6 +11,7 @@ import { taskMatchesFilters, type BoardTaskFilters } from '@core/types';
 import { chileHolidayName } from '@core/lib/chileHolidays';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
+import { tintHoliday } from '@/lib/tintClasses';
 import { ProgressRing } from './ProgressRing';
 import { TaskCard } from './TaskCard';
 import { AddTaskForm } from './AddTaskForm';
@@ -132,7 +133,12 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
         )}
       >
         {holidayName && (
-          <div className="rounded-md bg-rose-500/15 px-1.5 py-1 text-[10px] font-semibold leading-snug text-rose-200 ring-1 ring-rose-500/25">
+          <div
+            className={cn(
+              'rounded-md px-1.5 py-1 text-[10px] font-semibold leading-snug',
+              tintHoliday
+            )}
+          >
             🇨🇱 {holidayName}
           </div>
         )}

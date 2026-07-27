@@ -20,6 +20,7 @@ import { formatDose, isRxKind } from '@core/lib/rx';
 import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
 import { isFinanceKind } from '@core/lib/financeKinds';
 import { useT } from '@/hooks/useT';
+import { tintEvent, tintHabit, tintPossible } from '@/lib/tintClasses';
 import { rescheduleTaskSpan } from './rescheduleSpan';
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; variant: 'green' | 'teal' | 'red' }> = {
@@ -411,8 +412,8 @@ export function TaskCard({
                 className={cn(
                   'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
                   habitGood
-                    ? 'bg-emerald-500/15 text-emerald-200'
-                    : 'bg-red-500/15 text-red-200'
+                    ? tintHabit
+                    : 'bg-red-500/15 text-red-800 dark:bg-red-500/15 dark:text-red-200'
                 )}
               >
                 {habitGood ? `✓ ${t('habit_badge_good')}` : `⊘ ${t('habit_badge_quit')}`}
@@ -450,8 +451,8 @@ export function TaskCard({
                 className={cn(
                   'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
                   task.kind === 'rx_pet'
-                    ? 'bg-amber-500/15 text-amber-200'
-                    : 'bg-violet-500/15 text-violet-200'
+                    ? 'bg-amber-500/15 text-amber-900 dark:bg-amber-500/15 dark:text-amber-200'
+                    : 'bg-violet-500/15 text-violet-800 dark:bg-violet-500/15 dark:text-violet-200'
                 )}
                 title={task.rx.subject ?? undefined}
               >
@@ -467,12 +468,17 @@ export function TaskCard({
               </span>
             )}
             {task.kind === 'reminder' && (
-              <span className="inline-flex items-center rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+              <span className="inline-flex items-center rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:text-amber-300">
                 🔔
               </span>
             )}
             {task.kind === 'possible_event' && (
-              <span className="inline-flex items-center rounded-full bg-fuchsia-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-fuchsia-200">
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                  tintPossible
+                )}
+              >
                 ✨{' '}
                 {(task.involvedContactIds?.length ?? 0) > 0
                   ? `${task.involvedContactIds.length}`
@@ -480,7 +486,12 @@ export function TaskCard({
               </span>
             )}
             {task.kind === 'event' && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-200">
+              <span
+                className={cn(
+                  'inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                  tintEvent
+                )}
+              >
                 📍
                 {task.location
                   ? ` ${task.location.length > 16 ? `${task.location.slice(0, 16)}…` : task.location}`

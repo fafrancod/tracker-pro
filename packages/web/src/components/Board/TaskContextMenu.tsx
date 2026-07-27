@@ -121,13 +121,13 @@ export function TaskContextMenu({
         <button
           type="button"
           role="menuitem"
-          className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-sky-200 hover:bg-background active:bg-background"
+          className="flex min-h-11 w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-sky-800 hover:bg-background active:bg-background dark:text-sky-200"
           onClick={() => {
             onConfirmAsEvent(menu);
             onClose();
           }}
         >
-          <CalendarCheck className="h-4 w-4 text-sky-300" />
+          <CalendarCheck className="h-4 w-4 text-sky-700 dark:text-sky-300" />
           {t('task_ctx_confirm_event')}
         </button>
       )}

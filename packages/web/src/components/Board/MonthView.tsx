@@ -46,6 +46,7 @@ import {
 } from './DayContextMenu';
 import { rescheduleTaskSpan } from './rescheduleSpan';
 import { getChileHolidaysInRange } from '@core/lib/chileHolidays';
+import { tintHoliday } from '@/lib/tintClasses';
 
 export interface MonthViewProps {
   onPickDay: (date: Date) => void;
@@ -826,7 +827,10 @@ export function MonthView({
                         {holidayName && (
                           <span
                             title={holidayName}
-                            className="truncate rounded px-1 py-0.5 text-[9px] font-semibold leading-tight bg-rose-500/20 text-rose-200 ring-1 ring-rose-500/30"
+                            className={cn(
+                              'truncate rounded px-1 py-0.5 text-[9px] font-semibold leading-tight',
+                              tintHoliday
+                            )}
                           >
                             🇨🇱 {holidayName}
                           </span>

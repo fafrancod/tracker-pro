@@ -15,6 +15,11 @@ import {
 import type { TaskKind } from '@core/types';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
+import {
+  tintEventActive,
+  tintHabitActive,
+  tintPossibleActive,
+} from '@/lib/tintClasses';
 
 export interface TaskKindOption {
   value: TaskKind;
@@ -48,49 +53,53 @@ export function defaultKindOptions(
       value: 'reminder',
       label: t('task_kind_reminder'),
       icon: Bell,
-      activeClass: 'border-amber-500/50 bg-amber-500/15 text-amber-100',
+      activeClass:
+        'border-amber-600/50 bg-amber-500/15 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/15 dark:text-amber-100',
     },
     {
       value: 'event',
       label: t('task_kind_event'),
       icon: MapPin,
-      activeClass: 'border-sky-500/50 bg-sky-500/15 text-sky-200',
+      activeClass: tintEventActive,
     },
     {
       value: 'possible_event',
       label: t('task_kind_possible_event'),
       icon: CalendarHeart,
-      activeClass: 'border-fuchsia-500/50 bg-fuchsia-500/15 text-fuchsia-200',
+      activeClass: tintPossibleActive,
     },
     {
       value: 'habit_good',
       label: t('task_kind_habit_good'),
       icon: Leaf,
-      activeClass: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200',
+      activeClass: tintHabitActive,
     },
     {
       value: 'habit_quit',
       label: t('task_kind_habit_quit'),
       icon: Ban,
-      activeClass: 'border-red-500/50 bg-red-500/15 text-red-200',
+      activeClass:
+        'border-red-600/50 bg-red-500/15 text-red-800 dark:border-red-500/50 dark:bg-red-500/15 dark:text-red-200',
     },
     {
       value: 'finance_income',
       label: t('task_kind_finance_income'),
       icon: TrendingUp,
-      activeClass: 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200',
+      activeClass: tintHabitActive,
     },
     {
       value: 'finance_expense',
       label: t('task_kind_finance_expense'),
       icon: TrendingDown,
-      activeClass: 'border-red-500/50 bg-red-500/15 text-red-200',
+      activeClass:
+        'border-red-600/50 bg-red-500/15 text-red-800 dark:border-red-500/50 dark:bg-red-500/15 dark:text-red-200',
     },
     {
       value: 'rx_human',
       label: t('task_kind_rx_human'),
       icon: Pill,
-      activeClass: 'border-violet-500/50 bg-violet-500/15 text-violet-200',
+      activeClass:
+        'border-violet-600/50 bg-violet-500/15 text-violet-800 dark:border-violet-500/50 dark:bg-violet-500/15 dark:text-violet-200',
     },
     {
       value: 'rx_pet',
