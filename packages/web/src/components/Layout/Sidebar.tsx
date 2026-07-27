@@ -166,7 +166,7 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
         </div>
         <button
           onClick={signOut}
-          className="w-full rounded-md border border-border bg-field px-2 py-1.5 text-xs text-text-muted transition-colors hover:bg-background hover:text-text-primary"
+          className="sidebar-sign-out w-full rounded-xl border border-border bg-field px-2 py-1.5 text-xs text-text-muted transition-all duration-200"
         >
           {t('action_sign_out')}
         </button>
