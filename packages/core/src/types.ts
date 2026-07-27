@@ -585,3 +585,65 @@ export interface TaskLocation {
   dayId: string;
   taskId: string;
 }
+
+// ——— Finances ———
+export type FinanceFlow = 'expense' | 'income';
+export type FinanceKind = 'recurring' | 'expected' | 'specific';
+export type FinanceFrequency = 'monthly' | 'weekly';
+
+export interface FinanceEntry {
+  id: string;
+  title: string;
+  amount: number;
+  currency: string;
+  flow: FinanceFlow;
+  kind: FinanceKind;
+  frequency: FinanceFrequency | null;
+  /** monthly: 1–31; weekly: 0–6 (Sun–Sat) */
+  recurrenceDay: number | null;
+  entryDate: string | null;
+  notes: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFinanceEntryPayload {
+  title: string;
+  amount: number;
+  currency?: string;
+  flow: FinanceFlow;
+  kind: FinanceKind;
+  frequency?: FinanceFrequency | null;
+  recurrenceDay?: number | null;
+  entryDate?: string | null;
+  notes?: string;
+  active?: boolean;
+}
+
+export interface UpdateFinanceEntryPayload {
+  title?: string;
+  amount?: number;
+  currency?: string;
+  flow?: FinanceFlow;
+  kind?: FinanceKind;
+  frequency?: FinanceFrequency | null;
+  recurrenceDay?: number | null;
+  entryDate?: string | null;
+  notes?: string;
+  active?: boolean;
+}
+
+export interface FinanceMonthSummary {
+  monthId: string;
+  currency: string;
+  incomeRecurring: number;
+  incomeExpected: number;
+  incomeSpecific: number;
+  expenseRecurring: number;
+  expenseExpected: number;
+  expenseSpecific: number;
+  totalIncome: number;
+  totalExpense: number;
+  balance: number;
+}

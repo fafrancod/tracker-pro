@@ -22,6 +22,59 @@ export interface TranslationDict {
   nav_life_goals: string;
   nav_reflections: string;
   nav_recetario: string;
+  nav_finances: string;
+
+  // Finances
+  fin_add: string;
+  fin_edit: string;
+  fin_this_month: string;
+  fin_total_income: string;
+  fin_total_expense: string;
+  fin_balance: string;
+  fin_income_recurring: string;
+  fin_income_expected: string;
+  fin_income_specific: string;
+  fin_expense_recurring: string;
+  fin_expense_expected: string;
+  fin_expense_specific: string;
+  fin_flow_income: string;
+  fin_flow_expense: string;
+  fin_kind_recurring: string;
+  fin_kind_expected: string;
+  fin_kind_specific: string;
+  fin_freq_monthly: string;
+  fin_freq_weekly: string;
+  fin_filter_all_flows: string;
+  fin_filter_all_kinds: string;
+  fin_empty_title: string;
+  fin_empty_hint: string;
+  fin_field_title: string;
+  fin_title_ph: string;
+  fin_field_flow: string;
+  fin_field_kind: string;
+  fin_field_amount: string;
+  fin_field_currency: string;
+  fin_field_frequency: string;
+  fin_field_monthday: string;
+  fin_field_weekday: string;
+  fin_field_date: string;
+  fin_field_notes: string;
+  fin_field_active: string;
+  fin_weekday_0: string;
+  fin_weekday_1: string;
+  fin_weekday_2: string;
+  fin_weekday_3: string;
+  fin_weekday_4: string;
+  fin_weekday_5: string;
+  fin_weekday_6: string;
+  fin_title_required: string;
+  fin_amount_required: string;
+  fin_saved: string;
+  fin_created: string;
+  fin_deleted: string;
+  fin_delete_confirm: string;
+  fin_save_error: string;
+  fin_load_error: string;
 
   // Memento mori
   memento_title: string;
@@ -709,6 +762,58 @@ const es_dict: TranslationDict = {
   nav_life_goals: 'Metas de vida',
   nav_reflections: 'Reflexiones',
   nav_recetario: 'Recetario',
+  nav_finances: 'Finances',
+  fin_add: 'Añadir movimiento',
+  fin_edit: 'Editar movimiento',
+  fin_this_month: 'Este mes',
+  fin_total_income: 'Ingresos',
+  fin_total_expense: 'Gastos',
+  fin_balance: 'Balance',
+  fin_income_recurring: 'Ingresos recurrentes',
+  fin_income_expected: 'Ingresos esperados',
+  fin_income_specific: 'Ingresos puntuales',
+  fin_expense_recurring: 'Gastos recurrentes',
+  fin_expense_expected: 'Gastos esperados',
+  fin_expense_specific: 'Gastos puntuales',
+  fin_flow_income: 'Ingreso',
+  fin_flow_expense: 'Gasto',
+  fin_kind_recurring: 'Recurrente',
+  fin_kind_expected: 'Esperado',
+  fin_kind_specific: 'Específico',
+  fin_freq_monthly: 'Mensual',
+  fin_freq_weekly: 'Semanal',
+  fin_filter_all_flows: 'Todos los flujos',
+  fin_filter_all_kinds: 'Todos los tipos',
+  fin_empty_title: 'Sin movimientos este mes',
+  fin_empty_hint:
+    'Registra gastos e ingresos recurrentes, esperados o específicos para ver el balance mensual.',
+  fin_field_title: 'Concepto',
+  fin_title_ph: 'Ej. Alquiler, nómina, cena…',
+  fin_field_flow: 'Flujo',
+  fin_field_kind: 'Tipo',
+  fin_field_amount: 'Importe',
+  fin_field_currency: 'Moneda',
+  fin_field_frequency: 'Frecuencia',
+  fin_field_monthday: 'Día del mes',
+  fin_field_weekday: 'Día de la semana',
+  fin_field_date: 'Fecha',
+  fin_field_notes: 'Notas',
+  fin_field_active: 'Activo (cuenta en el resumen)',
+  fin_weekday_0: 'Domingo',
+  fin_weekday_1: 'Lunes',
+  fin_weekday_2: 'Martes',
+  fin_weekday_3: 'Miércoles',
+  fin_weekday_4: 'Jueves',
+  fin_weekday_5: 'Viernes',
+  fin_weekday_6: 'Sábado',
+  fin_title_required: 'Escribe un concepto.',
+  fin_amount_required: 'Indica un importe válido.',
+  fin_saved: 'Movimiento actualizado.',
+  fin_created: 'Movimiento creado.',
+  fin_deleted: 'Movimiento eliminado.',
+  fin_delete_confirm: '¿Eliminar «{title}»?',
+  fin_save_error: 'No pudimos guardar el movimiento.',
+  fin_load_error: 'No pudimos cargar finances.',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Cada cuadrado es una semana de tu vida. Vive con intención.',
@@ -1447,6 +1552,58 @@ const en_dict: TranslationDict = {
   nav_life_goals: 'Life goals',
   nav_reflections: 'Reflections',
   nav_recetario: 'Prescriptions',
+  nav_finances: 'Finances',
+  fin_add: 'Add entry',
+  fin_edit: 'Edit entry',
+  fin_this_month: 'This month',
+  fin_total_income: 'Income',
+  fin_total_expense: 'Expenses',
+  fin_balance: 'Balance',
+  fin_income_recurring: 'Recurring income',
+  fin_income_expected: 'Expected income',
+  fin_income_specific: 'One-off income',
+  fin_expense_recurring: 'Recurring expenses',
+  fin_expense_expected: 'Expected expenses',
+  fin_expense_specific: 'One-off expenses',
+  fin_flow_income: 'Income',
+  fin_flow_expense: 'Expense',
+  fin_kind_recurring: 'Recurring',
+  fin_kind_expected: 'Expected',
+  fin_kind_specific: 'Specific',
+  fin_freq_monthly: 'Monthly',
+  fin_freq_weekly: 'Weekly',
+  fin_filter_all_flows: 'All flows',
+  fin_filter_all_kinds: 'All kinds',
+  fin_empty_title: 'No entries this month',
+  fin_empty_hint:
+    'Track recurring, expected, and specific expenses and income to see your monthly balance.',
+  fin_field_title: 'Title',
+  fin_title_ph: 'e.g. Rent, payroll, dinner…',
+  fin_field_flow: 'Flow',
+  fin_field_kind: 'Kind',
+  fin_field_amount: 'Amount',
+  fin_field_currency: 'Currency',
+  fin_field_frequency: 'Frequency',
+  fin_field_monthday: 'Day of month',
+  fin_field_weekday: 'Weekday',
+  fin_field_date: 'Date',
+  fin_field_notes: 'Notes',
+  fin_field_active: 'Active (counts in summary)',
+  fin_weekday_0: 'Sunday',
+  fin_weekday_1: 'Monday',
+  fin_weekday_2: 'Tuesday',
+  fin_weekday_3: 'Wednesday',
+  fin_weekday_4: 'Thursday',
+  fin_weekday_5: 'Friday',
+  fin_weekday_6: 'Saturday',
+  fin_title_required: 'Enter a title.',
+  fin_amount_required: 'Enter a valid amount.',
+  fin_saved: 'Entry updated.',
+  fin_created: 'Entry created.',
+  fin_deleted: 'Entry deleted.',
+  fin_delete_confirm: 'Delete “{title}”?',
+  fin_save_error: 'Could not save the entry.',
+  fin_load_error: 'Could not load finances.',
 
   memento_title: 'Memento mori',
   memento_subtitle: 'Each square is one week of your life. Live with intention.',

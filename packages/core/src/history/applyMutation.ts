@@ -195,9 +195,12 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
       const fromDayId = fromLoc?.dayId ?? mut.fromDayId;
       const task = fromLoc?.task ?? mut.taskBefore;
 
-      const duration =
-        inclusiveDurationDays(fromDayId, task.endDayId || fromDayId) - 1;
-      const newEnd = duration > 0 ? addDaysToDayId(mut.toDayId, duration) : mut.toDayId;
+      // inclusiveDurationDays = day offset (not length − 1 again)
+      const duration = inclusiveDurationDays(
+        fromDayId,
+        task.endDayId || fromDayId
+      );
+      const newEnd = addDaysToDayId(mut.toDayId, duration);
 
       store.removeTaskOptimistic(fromWeekId, fromDayId, mut.taskId);
       store.addTaskOptimistic(mut.toWeekId, mut.toDayId, {

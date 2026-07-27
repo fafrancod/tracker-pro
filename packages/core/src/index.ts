@@ -14,6 +14,8 @@ export * from './services/projectService';
 export * from './services/contactService';
 export * from './services/analyticsService';
 export * from './services/userService';
+export * from './services/financeService';
+export * from './lib/financeSummary';
 export * from './lib/planLimits';
 export * from './lib/api';
 export * from './lib/demoMode';

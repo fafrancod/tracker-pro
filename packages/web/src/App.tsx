@@ -22,6 +22,7 @@ import { NotificationsPage } from '@/pages/NotificationsPage';
 import { MementoMoriPage } from '@/pages/MementoMoriPage';
 import { ReflectionsPage } from '@/pages/ReflectionsPage';
 import { RecetarioPage } from '@/pages/RecetarioPage';
+import { FinancesPage } from '@/pages/FinancesPage';
 import { LoginPage } from '@/pages/Login';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
@@ -150,6 +151,14 @@ function App() {
                         element={
                           <RouteErrorBoundary>
                             <RecetarioPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="finances"
+                        element={
+                          <RouteErrorBoundary>
+                            <FinancesPage />
                           </RouteErrorBoundary>
                         }
                       />

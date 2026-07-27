@@ -408,3 +408,25 @@ begin
       for select using (auth.uid() = user_id);
   end if;
 end $$;
+-- Finances: gastos/ingresos recurrentes, esperados y específicos
+create table if not exists public.finance_entries (
+  id text primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  title text not null,
+  amount numeric(14, 2) not null check (amount >= 0),
+  currency text not null default 'EUR',
+  flow text not null check (flow in ('expense', 'income')),
+  kind text not null check (kind in ('recurring', 'expected', 'specific')),
+  -- recurring: monthly | weekly
+  frequency text check (frequency is null or frequency in ('monthly', 'weekly')),
+  -- day of month 1-31 for monthly; 0-6 (Sun-Sat) for weekly
+  recurrence_day int check (recurrence_day is null or (recurrence_day >= 0 and recurrence_day <= 31)),
+  -- expected / specific date
+  entry_date text check (entry_date is null or entry_date ~ '^\d{4}-\d{2}-\d{2}$'),
+  notes text not null default '',
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists finance_entries_user_idx on public.finance_entries (user_id, flow, kind);
+create index if not exists finance_entries_user_date_idx on public.finance_entries (user_id, entry_date);

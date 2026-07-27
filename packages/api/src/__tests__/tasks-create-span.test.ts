@@ -576,14 +576,12 @@ describe('POST /api/tasks/:weekId/:dayId/:taskId/move — keep duration', () => 
             };
             return c;
           }),
-          insert: vi.fn(async (row: Record<string, unknown>) => {
-            lastTaskInsert = [row];
-            return { data: null, error: null };
-          }),
-          delete: vi.fn(() => {
+          update: vi.fn((patch: Record<string, unknown>) => {
+            lastTaskInsert = [patch];
             const c: Record<string, unknown> = {
               eq: vi.fn(() => c),
-              then: (resolve: (v: unknown) => void) => resolve({ data: null, error: null }),
+              then: (resolve: (v: unknown) => void) =>
+                resolve({ data: null, error: null }),
             };
             return c;
           }),
@@ -599,7 +597,7 @@ describe('POST /api/tasks/:weekId/:dayId/:taskId/move — keep duration', () => 
     expect(res.status).toBe(200);
     expect(lastTaskInsert).toHaveLength(1);
     expect(lastTaskInsert[0].day_id).toBe('2026-03-17');
-    // duration 5 days → end = 2026-03-22
+    // duration offset 5 days → end = 2026-03-22
     expect(lastTaskInsert[0].end_day_id).toBe('2026-03-22');
     expect(lastTaskInsert[0].week_id).toBe('2026-W12');
   });

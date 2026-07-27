@@ -544,40 +544,50 @@ export const taskHistory = {
     label?: string
   ): Promise<void> {
     const store = useStore.getState();
-    const duration = inclusiveDurationDays(fromDayId, task.endDayId || fromDayId) - 1;
-    const newEnd = duration > 0 ? addDaysToDayId(toDayId, duration) : toDayId;
+    // Always resolve the real start bucket (drag may start from a mid-span day).
+    const loc = findTaskLocation(task.id);
+    const srcWeekId = loc?.weekId ?? fromWeekId;
+    const srcDayId = loc?.dayId ?? fromDayId;
+    const live = loc?.task ?? task;
+    // inclusiveDurationDays already returns offset (end − start in days).
+    const duration = inclusiveDurationDays(srcDayId, live.endDayId || srcDayId);
+    const newEnd = addDaysToDayId(toDayId, duration);
     const now = new Date().toISOString();
-    const before = { ...task, tags: [...task.tags] };
+    const before = { ...live, tags: [...(live.tags ?? [])] };
 
-    store.removeTaskOptimistic(fromWeekId, fromDayId, task.id);
+    store.removeTaskOptimistic(srcWeekId, srcDayId, live.id);
+    // Guard: also clear any duplicate if it was under a wrong bucket.
+    if (srcWeekId !== fromWeekId || srcDayId !== fromDayId) {
+      store.removeTaskOptimistic(fromWeekId, fromDayId, live.id);
+    }
     store.addTaskOptimistic(toWeekId, toDayId, {
-      ...task,
+      ...live,
       endDayId: newEnd,
-      movedFrom: `${fromWeekId}/${fromDayId}`,
+      movedFrom: `${srcWeekId}/${srcDayId}`,
       order: 0,
       updatedAt: now,
     });
 
     const forward: HistoryMutation = {
       op: 'move',
-      fromWeekId,
-      fromDayId,
+      fromWeekId: srcWeekId,
+      fromDayId: srcDayId,
       toWeekId,
       toDayId,
-      taskId: task.id,
+      taskId: live.id,
       taskBefore: before,
     };
     const inverse: HistoryMutation = {
       op: 'move',
       fromWeekId: toWeekId,
       fromDayId: toDayId,
-      toWeekId: fromWeekId,
-      toDayId: fromDayId,
-      taskId: task.id,
+      toWeekId: srcWeekId,
+      toDayId: srcDayId,
+      taskId: live.id,
       taskBefore: {
         ...before,
         endDayId: newEnd,
-        movedFrom: `${fromWeekId}/${fromDayId}`,
+        movedFrom: `${srcWeekId}/${srcDayId}`,
       },
     };
 
@@ -586,7 +596,7 @@ export const taskHistory = {
         id: generateHistoryId(),
         at: Date.now(),
         label:
-          (label ?? `Moviste «${truncateTitle(task.title)}»`) +
+          (label ?? `Moviste «${truncateTitle(live.title)}»`) +
           (offline ? ' (offline)' : ''),
         kind: 'move',
         forward,
@@ -598,11 +608,11 @@ export const taskHistory = {
     if (
       queueIfNeeded(uid, {
         op: 'move',
-        fromWeekId,
-        fromDayId,
+        fromWeekId: srcWeekId,
+        fromDayId: srcDayId,
         toWeekId,
         toDayId,
-        taskId: task.id,
+        taskId: live.id,
       })
     ) {
       pushMove(true);
@@ -610,24 +620,24 @@ export const taskHistory = {
     }
 
     try {
-      await moveTask(fromWeekId, fromDayId, task.id, toWeekId, toDayId);
+      await moveTask(srcWeekId, srcDayId, live.id, toWeekId, toDayId);
       pushMove(false);
     } catch (err) {
       if (uid && shouldQueueMutation(err)) {
         enqueueOfflineMutation(uid, {
           op: 'move',
-          fromWeekId,
-          fromDayId,
+          fromWeekId: srcWeekId,
+          fromDayId: srcDayId,
           toWeekId,
           toDayId,
-          taskId: task.id,
+          taskId: live.id,
         });
         notifyOfflineQueueChanged();
         pushMove(true);
         return;
       }
-      store.removeTaskOptimistic(toWeekId, toDayId, task.id);
-      store.addTaskOptimistic(fromWeekId, fromDayId, before);
+      store.removeTaskOptimistic(toWeekId, toDayId, live.id);
+      store.addTaskOptimistic(srcWeekId, srcDayId, before);
       throw err;
     }
   },

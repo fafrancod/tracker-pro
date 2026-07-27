@@ -332,9 +332,10 @@ export function MonthView({
   ): string | null {
     if (!rowEl || weekDates.length === 0) return null;
     const rect = rowEl.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(0.999, (clientX - rect.left) / rect.width));
-    const col = Math.floor(ratio * 7);
-    return getDayId(weekDates[Math.min(6, Math.max(0, col))]);
+    // Allow overflow past the week row so drag can cross into next/prev week.
+    const rawCol = ((clientX - rect.left) / Math.max(1, rect.width)) * 7;
+    const col = Math.round(rawCol - 0.0001);
+    return format(addDays(weekDates[0], col), 'yyyy-MM-dd');
   }
 
   function beginBarDrag(

@@ -1355,48 +1355,46 @@ tasksRouter.post('/:weekId/:dayId/:taskId/move', async (req, res, next) => {
     }
     const { toWeekId, toDayId } = moveSchema.parse(req.body);
 
+    // Lookup by id+user first (path week/day may be stale if dragged from mid-span).
     const { data: fromTask, error: fetchError } = await getSupabaseAdmin()
       .from('tasks')
       .select('*')
       .eq('id', taskId)
       .eq('user_id', uid)
-      .eq('week_id', weekId)
-      .eq('day_id', dayId)
       .maybeSingle();
     if (fetchError) throw fetchError;
     if (!fromTask) throw ApiError.notFound('Task not found');
 
     const oldStart = (fromTask.day_id as string) ?? dayId;
     const oldEnd = (fromTask.end_day_id as string | undefined) ?? oldStart;
+    // inclusiveDurationDays = offset (span length − 1)
     const duration = inclusiveDurationDays(oldStart, oldEnd);
     const newEndDayId = addDaysToDayId(toDayId, duration);
+    const movedFrom =
+      `${(fromTask.week_id as string) ?? weekId}/${oldStart}` || dayId;
 
     const now = new Date().toISOString();
-    const { error: insertError } = await getSupabaseAdmin().from('tasks').insert({
-      ...fromTask,
-      week_id: toWeekId,
-      day_id: toDayId,
-      end_day_id: newEndDayId,
-      moved_from: dayId,
-      updated_at: now,
-    });
-    if (insertError) throw insertError;
-
-    const { error: deleteError } = await getSupabaseAdmin()
+    // UPDATE in place — never insert+delete same PK (that failed in prod and
+    // left the optimistic client move orphaned / "disappeared").
+    const { error: updateError } = await getSupabaseAdmin()
       .from('tasks')
-      .delete()
+      .update({
+        week_id: toWeekId,
+        day_id: toDayId,
+        end_day_id: newEndDayId,
+        moved_from: movedFrom,
+        updated_at: now,
+      })
       .eq('id', taskId)
-      .eq('user_id', uid)
-      .eq('week_id', weekId)
-      .eq('day_id', dayId);
-    if (deleteError) throw deleteError;
+      .eq('user_id', uid);
+    if (updateError) throw updateError;
 
     res.json({
       id: taskId,
       weekId: toWeekId,
       dayId: toDayId,
       endDayId: newEndDayId,
-      movedFrom: dayId,
+      movedFrom,
     });
   } catch (err) {
     next(err);
