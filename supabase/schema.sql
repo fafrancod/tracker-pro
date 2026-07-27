@@ -449,3 +449,23 @@ begin
     ));
 exception when duplicate_object then null;
 end $$;
+
+-- Ancla de recurrencia mensual (último día / día hábil Chile)
+alter table public.tasks add column if not exists recurrence_anchor text;
+do $$
+begin
+  alter table public.tasks drop constraint if exists tasks_recurrence_anchor_check;
+exception when undefined_object then null;
+end $$;
+do $$
+begin
+  alter table public.tasks
+    add constraint tasks_recurrence_anchor_check
+    check (
+      recurrence_anchor is null
+      or recurrence_anchor in (
+        'day_of_month', 'last_day', 'first_business', 'last_business'
+      )
+    );
+exception when duplicate_object then null;
+end $$;

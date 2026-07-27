@@ -45,6 +45,7 @@ import {
   type DayContextMenuState,
 } from './DayContextMenu';
 import { rescheduleTaskSpan } from './rescheduleSpan';
+import { getChileHolidaysInRange } from '@core/lib/chileHolidays';
 
 export interface MonthViewProps {
   onPickDay: (date: Date) => void;
@@ -250,11 +251,29 @@ export function MonthView({
 
   const tasksByDay = useStore(s => s.tasksByDay);
   const allProjects = useStore(s => s.projects);
+  const showHolidays =
+    !filter?.category ||
+    filter.category === 'all' ||
+    filter.category === 'holidays';
+  const holidaysOnly = filter?.category === 'holidays';
+
   const located = useMemo(() => {
+    if (holidaysOnly) return [];
     const all = collectAllLocated(tasksByDay);
     if (!filter) return all;
     return all.filter(t => taskMatchesFilters(t, filter));
-  }, [tasksByDay, filter]);
+  }, [tasksByDay, filter, holidaysOnly]);
+
+  const holidaysByDay = useMemo(() => {
+    if (!showHolidays) return new Map<string, string>();
+    const from = getDayId(gridStart);
+    const to = getDayId(gridEnd);
+    const map = new Map<string, string>();
+    for (const h of getChileHolidaysInRange(from, to)) {
+      map.set(h.dayId, h.name);
+    }
+    return map;
+  }, [showHolidays, gridStart.getTime(), gridEnd.getTime()]);
 
   function getSingleDayChips(date: Date): LocatedTask[] {
     const dayId = getDayId(date);
@@ -651,10 +670,14 @@ export function MonthView({
                 {weekDates.map((date, col) => {
                   const inMonth = isSameMonth(date, cursor);
                   const isToday = isSameDay(date, today);
-                  const chips = getSingleDayChips(date);
-                  const covering = collectTasksCovering(tasksByDay, getDayId(date)).filter(
-                    t => !filter || taskMatchesFilters(t, filter)
-                  );
+                  const dayIdStr = getDayId(date);
+                  const holidayName = holidaysByDay.get(dayIdStr) ?? null;
+                  const chips = holidaysOnly ? [] : getSingleDayChips(date);
+                  const covering = holidaysOnly
+                    ? []
+                    : collectTasksCovering(tasksByDay, dayIdStr).filter(
+                        t => !filter || taskMatchesFilters(t, filter)
+                      );
                   const completed = covering.filter(task => task.completed).length;
                   const total = covering.length;
                   // Overflow only from multi-day bars that don't fit in lanes
@@ -733,6 +756,14 @@ export function MonthView({
                           }
                         }}
                       >
+                        {holidayName && (
+                          <span
+                            title={holidayName}
+                            className="truncate rounded px-1 py-0.5 text-[9px] font-semibold leading-tight bg-rose-500/20 text-rose-200 ring-1 ring-rose-500/30"
+                          >
+                            🇨🇱 {holidayName}
+                          </span>
+                        )}
                         {chips.map(task => {
                           const project = task.projectId
                             ? allProjects.find(p => p.id === task.projectId)

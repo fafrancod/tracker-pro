@@ -80,7 +80,8 @@ export const taskHistory = {
     const now = new Date().toISOString();
     const recurrence = normalizeRecurrence(
       apiPayload.recurrenceFrequency,
-      apiPayload.recurrenceInterval
+      apiPayload.recurrenceInterval,
+      apiPayload.recurrenceMonthlyAnchor
     );
     const optimisticTask: Task = {
       id: optimisticId,

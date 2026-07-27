@@ -8,6 +8,7 @@ import { useWeek } from '@core/hooks/useWeek';
 import { useStore } from '@core/store';
 import { collectTasksCovering } from '@core/lib/taskPresence';
 import { taskMatchesFilters, type BoardTaskFilters } from '@core/types';
+import { chileHolidayName } from '@core/lib/chileHolidays';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import { ProgressRing } from './ProgressRing';
@@ -52,6 +53,8 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
   const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });
   const setDetailTask = useStore(s => s.setDetailTask);
   const tasksByDay = useStore(s => s.tasksByDay);
+  const holidayName = chileHolidayName(dayId);
+  const holidaysOnly = filter?.category === 'holidays';
   const locatedById = new Map(
     collectTasksCovering(tasksByDay, dayId).map(loc => [loc.id, loc] as const)
   );
@@ -128,8 +131,13 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
           isOver && 'rounded bg-accent-teal/5 ring-1 ring-accent-teal/30'
         )}
       >
+        {holidayName && (
+          <div className="rounded-md bg-rose-500/15 px-1.5 py-1 text-[10px] font-semibold leading-snug text-rose-200 ring-1 ring-rose-500/25">
+            🇨🇱 {holidayName}
+          </div>
+        )}
         <AnimatePresence initial={false}>
-          {tasks.map(task => {
+          {(holidaysOnly ? [] : tasks).map(task => {
             const loc = locatedById.get(task.id);
             const isMidSpan = Boolean(loc && loc.startDayId !== dayId);
             const dragWeekId = loc?.weekId ?? weekId;

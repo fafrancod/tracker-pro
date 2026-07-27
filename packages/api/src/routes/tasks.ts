@@ -14,7 +14,9 @@ import {
   inclusiveDurationDays,
   isMultiDayRecurrenceAllowed,
   materializeOccurrenceRanges,
+  normalizeMonthlyAnchor,
   normalizeRecurrence,
+  type MonthlyAnchor,
   type RecurrenceFrequency,
 } from '../lib/recurrence.js';
 import {
@@ -81,6 +83,12 @@ const taskLocation = z.object({
 
 const prioritySchema = z.enum(['low', 'medium', 'high']);
 const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']);
+const monthlyAnchorSchema = z.enum([
+  'day_of_month',
+  'last_day',
+  'first_business',
+  'last_business',
+]);
 const urgencySchema = z.enum(['urgent', 'not_urgent']);
 const importanceSchema = z.enum(['important', 'not_important']);
 const kindSchema = z.enum([
@@ -244,6 +252,7 @@ const createSchema = taskLocation.extend({
   endDayId: z.string().refine(isValidDayId, 'endDayId formato YYYY-MM-DD').optional(),
   recurrenceFrequency: recurrenceFrequencySchema.optional(),
   recurrenceInterval: z.number().int().min(1).max(365).optional(),
+  recurrenceMonthlyAnchor: monthlyAnchorSchema.nullable().optional(),
   urgency: urgencySchema.nullable().optional(),
   importance: importanceSchema.nullable().optional(),
   kind: kindSchema.optional(),
@@ -280,6 +289,7 @@ const updateSchema = z
     endDayId: z.string().refine(isValidDayId, 'endDayId formato YYYY-MM-DD').optional(),
     recurrenceFrequency: recurrenceFrequencySchema.optional(),
     recurrenceInterval: z.number().int().min(1).max(365).optional(),
+    recurrenceMonthlyAnchor: monthlyAnchorSchema.nullable().optional(),
     urgency: urgencySchema.nullable().optional(),
     importance: importanceSchema.nullable().optional(),
     kind: kindSchema.optional(),
@@ -349,7 +359,12 @@ function toClientTask(
     tags: Array.isArray(row.tags) ? row.tags : [],
     movedFrom: (row.moved_from as string | null) ?? null,
     seriesId: (row.series_id as string | null) ?? null,
-    recurrence: normalizeRecurrence(frequency, interval),
+    recurrence: normalizeRecurrence(
+      frequency,
+      interval,
+      (row.recurrence_anchor as MonthlyAnchor | undefined) ??
+        (row.recurrenceMonthlyAnchor as MonthlyAnchor | undefined)
+    ),
     urgency: (row.urgency as string | null | undefined) ?? null,
     importance: (row.importance as string | null | undefined) ?? null,
     kind: normalizeKind(row.kind),
@@ -498,6 +513,7 @@ tasksRouter.post('/', async (req, res, next) => {
       endDayId: rawEndDayId,
       recurrenceFrequency,
       recurrenceInterval,
+      recurrenceMonthlyAnchor,
       urgency,
       importance,
       kind,
@@ -654,7 +670,8 @@ tasksRouter.post('/', async (req, res, next) => {
         isHabit && (!recurrenceFrequency || recurrenceFrequency === 'none')
           ? 'daily'
           : recurrenceFrequency,
-        recurrenceInterval
+        recurrenceInterval,
+        recurrenceMonthlyAnchor
       );
       const isMultiDay = endDayId > dayId;
       if (isMultiDay && !isMultiDayRecurrenceAllowed(recurrence.frequency)) {
@@ -671,7 +688,8 @@ tasksRouter.post('/', async (req, res, next) => {
             dayId,
             endDayId,
             recurrence.frequency,
-            recurrence.interval
+            recurrence.interval,
+            recurrence.monthlyAnchor
           );
 
       const [plan, usage] = await Promise.all([
@@ -730,6 +748,10 @@ tasksRouter.post('/', async (req, res, next) => {
             isHabit || recurrence.frequency !== 'none' ? seriesId : null,
           recurrence_frequency: recurrence.frequency,
           recurrence_interval: recurrence.interval,
+          recurrence_anchor:
+            recurrence.frequency === 'monthly'
+              ? (recurrence.monthlyAnchor ?? 'day_of_month')
+              : null,
           urgency:
             isEventLike || isHabit || isFinance ? null : (urgency ?? null),
           importance:
@@ -948,6 +970,12 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.recurrenceInterval !== undefined) {
       instanceUpdate.recurrence_interval = patch.recurrenceInterval;
     }
+    if (patch.recurrenceMonthlyAnchor !== undefined) {
+      instanceUpdate.recurrence_anchor =
+        patch.recurrenceMonthlyAnchor === null
+          ? null
+          : normalizeMonthlyAnchor(patch.recurrenceMonthlyAnchor);
+    }
     // Dosis de esta toma (rx_meta merge) — instancia por defecto
     if (
       patch.rxAmount !== undefined ||
@@ -1110,6 +1138,12 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       }
       if (patch.recurrenceInterval !== undefined) {
         update.recurrence_interval = patch.recurrenceInterval;
+      }
+      if (patch.recurrenceMonthlyAnchor !== undefined) {
+        update.recurrence_anchor =
+          patch.recurrenceMonthlyAnchor === null
+            ? null
+            : normalizeMonthlyAnchor(patch.recurrenceMonthlyAnchor);
       }
       if (patch.urgency !== undefined) update.urgency = patch.urgency;
       if (patch.importance !== undefined) update.importance = patch.importance;

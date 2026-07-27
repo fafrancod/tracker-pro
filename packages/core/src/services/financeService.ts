@@ -8,9 +8,15 @@ import type {
 
 const DEMO_KEY = 'daily-tracker:demo-finances';
 
+type Ls = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+};
+
 function loadDemo(): FinanceEntry[] {
   try {
-    const raw = globalThis.localStorage?.getItem(DEMO_KEY);
+    const ls = (globalThis as { localStorage?: Ls }).localStorage;
+    const raw = ls?.getItem(DEMO_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as FinanceEntry[];
     return Array.isArray(parsed) ? parsed : [];
@@ -21,7 +27,8 @@ function loadDemo(): FinanceEntry[] {
 
 function saveDemo(entries: FinanceEntry[]): void {
   try {
-    globalThis.localStorage?.setItem(DEMO_KEY, JSON.stringify(entries));
+    const ls = (globalThis as { localStorage?: Ls }).localStorage;
+    ls?.setItem(DEMO_KEY, JSON.stringify(entries));
   } catch {
     /* ignore */
   }

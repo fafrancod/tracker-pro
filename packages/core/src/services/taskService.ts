@@ -29,6 +29,11 @@ import {
   isFinanceKind,
   normalizeFinanceMeta,
 } from '../lib/financeKinds';
+import { normalizeMonthlyAnchor } from '../lib/recurrence';
+
+function normalizeMonthlyAnchorFromRaw(raw: unknown) {
+  return normalizeMonthlyAnchor(raw);
+}
 import { extractHashtags, mergeTags } from '../lib/tags';
 import { mergeDayTaskLists } from '../lib/mergeDayTasks';
 import {
@@ -478,7 +483,8 @@ function expandCreateInstances(
     payload.recurrenceFrequency ?? res.recurrence?.frequency;
   const recurrence = normalizeRecurrence(
     isHabit && (!rawFreq || rawFreq === 'none') ? 'daily' : rawFreq,
-    payload.recurrenceInterval ?? res.recurrence?.interval
+    payload.recurrenceInterval ?? res.recurrence?.interval,
+    payload.recurrenceMonthlyAnchor ?? res.recurrence?.monthlyAnchor
   );
   const seriesId =
     (res.seriesId as string | null | undefined) ??
@@ -608,6 +614,7 @@ export async function createTask(
     tags: payload.tags ?? [],
     recurrenceFrequency: payload.recurrenceFrequency ?? 'none',
     recurrenceInterval: payload.recurrenceInterval ?? 1,
+    recurrenceMonthlyAnchor: payload.recurrenceMonthlyAnchor,
     urgency: payload.urgency ?? null,
     importance: payload.importance ?? null,
     kind: payload.kind ?? 'task',
@@ -723,7 +730,8 @@ function materializeDemoCreate(
       (!payload.recurrenceFrequency || payload.recurrenceFrequency === 'none')
       ? 'daily'
       : payload.recurrenceFrequency,
-    payload.recurrenceInterval
+    payload.recurrenceInterval,
+    payload.recurrenceMonthlyAnchor
   );
   const endDayId = isHabit ? dayId : (payload.endDayId ?? dayId);
   // Hábitos lazy (Fase 2): solo seed; el resto es virtual en collectTasksCovering.
@@ -733,7 +741,8 @@ function materializeDemoCreate(
         dayId,
         endDayId,
         recurrence.frequency,
-        recurrence.interval
+        recurrence.interval,
+        recurrence.monthlyAnchor
       );
   const seriesId =
     isHabit || recurrence.frequency !== 'none' ? firstId : null;
@@ -1160,7 +1169,16 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     tags: Array.isArray(raw.tags) ? (raw.tags as string[]) : [],
     movedFrom: (raw.moved_from as string | null) ?? (raw.movedFrom as string | null) ?? null,
     seriesId: (raw.series_id as string | null) ?? (raw.seriesId as string | null) ?? null,
-    recurrence: normalizeRecurrence(frequency, interval),
+    recurrence: normalizeRecurrence(
+      frequency,
+      interval,
+      normalizeMonthlyAnchorFromRaw(
+        (raw.recurrence_anchor as string | undefined) ??
+          (raw.recurrenceMonthlyAnchor as string | undefined) ??
+          (raw.recurrence as { monthlyAnchor?: string } | undefined)
+            ?.monthlyAnchor
+      )
+    ),
     endDayId: endDayId || startDayId,
     urgency: urgencyRaw === 'urgent' || urgencyRaw === 'not_urgent' ? urgencyRaw : null,
     importance:

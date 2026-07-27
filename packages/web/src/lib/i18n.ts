@@ -338,6 +338,17 @@ export interface TranslationDict {
   task_finance_potential: string;
   board_filter_category_finances: string;
   board_category_finances_hint: string;
+  board_filter_category_holidays: string;
+  board_category_holidays_hint: string;
+  empty_no_holidays: string;
+  task_repeat_last_day_prompt: string;
+  task_repeat_last_day_prompt_hint: string;
+  task_repeat_use_last_day: string;
+  task_repeat_keep_day_n: string;
+  task_repeat_business_days: string;
+  task_repeat_business_days_hint: string;
+  task_repeat_first_business: string;
+  task_repeat_last_business: string;
   task_habit_placeholder: string;
   task_habit_quit_placeholder: string;
   action_add_habit: string;
@@ -1159,6 +1170,19 @@ const es_dict: TranslationDict = {
   task_finance_potential: 'Potencial (esperado)',
   board_filter_category_finances: 'Finances',
   board_category_finances_hint: 'Ingresos y gastos del calendario.',
+  board_filter_category_holidays: 'Feriados CL',
+  board_category_holidays_hint: 'Feriados nacionales de Chile.',
+  empty_no_holidays: 'No hay feriados en este rango.',
+  task_repeat_last_day_prompt: '¿Repetir el último día de cada mes?',
+  task_repeat_last_day_prompt_hint:
+    'Elegiste el último día de este mes (p. ej. 31). No todos los meses tienen ese número. Recomendamos anclar al último día del mes.',
+  task_repeat_use_last_day: 'Sí, último día del mes',
+  task_repeat_keep_day_n: 'No, usar el mismo número (clamp)',
+  task_repeat_business_days: 'Usar días hábiles (Chile)',
+  task_repeat_business_days_hint:
+    'Lunes a viernes, excluyendo feriados nacionales de Chile.',
+  task_repeat_first_business: 'Primer día hábil del mes',
+  task_repeat_last_business: 'Último día hábil del mes',
   task_habit_placeholder: 'Ej. Tocar guitarra, leer, ir al gym…',
   task_habit_quit_placeholder: 'Ej. Redes sociales, azúcares, procrastinar…',
   action_add_habit: 'Guardar hábito',
@@ -1980,6 +2004,19 @@ const en_dict: TranslationDict = {
   task_finance_potential: 'Potential (expected)',
   board_filter_category_finances: 'Finances',
   board_category_finances_hint: 'Calendar income and expenses.',
+  board_filter_category_holidays: 'CL holidays',
+  board_category_holidays_hint: 'Chile national holidays.',
+  empty_no_holidays: 'No holidays in this range.',
+  task_repeat_last_day_prompt: 'Repeat on the last day of each month?',
+  task_repeat_last_day_prompt_hint:
+    'You picked the last day of this month (e.g. 31). Not every month has that number. We recommend anchoring to the last day of the month.',
+  task_repeat_use_last_day: 'Yes, last day of month',
+  task_repeat_keep_day_n: 'No, keep day number (clamp)',
+  task_repeat_business_days: 'Use business days (Chile)',
+  task_repeat_business_days_hint:
+    'Monday–Friday, excluding Chile national holidays.',
+  task_repeat_first_business: 'First business day of the month',
+  task_repeat_last_business: 'Last business day of the month',
   task_habit_placeholder: 'e.g. Play guitar, read, go to the gym…',
   task_habit_quit_placeholder: 'e.g. Social media, sugar, procrastinating…',
   action_add_habit: 'Save habit',

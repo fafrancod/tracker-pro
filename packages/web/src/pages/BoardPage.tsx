@@ -13,6 +13,7 @@ import {
   MapPin,
   Leaf,
   Wallet,
+  Flag,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -189,6 +190,11 @@ export function BoardPage() {
       value: 'finances',
       label: t('board_filter_category_finances'),
       icon: Wallet,
+    },
+    {
+      value: 'holidays',
+      label: t('board_filter_category_holidays'),
+      icon: Flag,
     },
   ];
 

@@ -18,6 +18,7 @@ export * from './services/financeService';
 export * from './lib/financeSummary';
 export * from './lib/financeKinds';
 export * from './lib/currencies';
+export * from './lib/chileHolidays';
 export * from './lib/planLimits';
 export * from './lib/api';
 export * from './lib/demoMode';

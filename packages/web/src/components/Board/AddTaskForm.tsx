@@ -28,8 +28,10 @@ import type {
   RxScheduleMode,
   DoseUnit,
   FinanceCertainty,
+  MonthlyAnchor,
 } from '@core/types';
 import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
+import { isLastCalendarDayOfMonth } from '@core/lib/chileHolidays';
 import {
   expandIntervalTimes,
   isEventKind,
@@ -177,6 +179,10 @@ export function AddTaskForm({
   const [priority, setPriority] = useState<Priority>('medium');
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('none');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [monthlyAnchor, setMonthlyAnchor] =
+    useState<MonthlyAnchor>('day_of_month');
+  const [useBusinessDays, setUseBusinessDays] = useState(false);
+  const [lastDayPrompt, setLastDayPrompt] = useState(false);
   const [formStartDayId, setFormStartDayId] = useState(startDayId ?? '');
   const [endDayId, setEndDayId] = useState(startDayId ?? '');
   const [kind, setKind] = useState<TaskKind>(initialKind);
@@ -290,6 +296,36 @@ export function AddTaskForm({
     }
   }, [isMultiDay, recurrenceFrequency]);
 
+  // Si eliges mensual y el día es el último del mes → ofrecer "último día"
+  useEffect(() => {
+    if (
+      recurrenceFrequency === 'monthly' &&
+      formStartDayId &&
+      isLastCalendarDayOfMonth(formStartDayId) &&
+      monthlyAnchor === 'day_of_month' &&
+      !useBusinessDays
+    ) {
+      setLastDayPrompt(true);
+    } else if (recurrenceFrequency !== 'monthly') {
+      setLastDayPrompt(false);
+    }
+  }, [
+    recurrenceFrequency,
+    formStartDayId,
+    monthlyAnchor,
+    useBusinessDays,
+  ]);
+
+  useEffect(() => {
+    if (!useBusinessDays) return;
+    if (
+      monthlyAnchor !== 'first_business' &&
+      monthlyAnchor !== 'last_business'
+    ) {
+      setMonthlyAnchor('last_business');
+    }
+  }, [useBusinessDays, monthlyAnchor]);
+
   function resetForm() {
     setTitle('');
     setProjectId(null);
@@ -327,6 +363,11 @@ export function AddTaskForm({
         )
       )
     );
+    setRecurrenceFrequency('none');
+    setRecurrenceInterval(1);
+    setMonthlyAnchor('day_of_month');
+    setUseBusinessDays(false);
+    setLastDayPrompt(false);
     if (startDayId) {
       setFormStartDayId(startDayId);
       setEndDayId(startDayId);
@@ -488,6 +529,8 @@ export function AddTaskForm({
       endDayId: safeEnd,
       recurrenceFrequency: frequency,
       recurrenceInterval: frequency === 'none' ? 1 : recurrenceInterval,
+      recurrenceMonthlyAnchor:
+        frequency === 'monthly' ? monthlyAnchor : undefined,
       kind,
       urgency: isEventLike || isHabit || isFinance ? null : urgency,
       importance: isEventLike || isHabit || isFinance ? null : importance,
@@ -1320,48 +1363,141 @@ export function AddTaskForm({
       {/* Recurrence — recetario materializa su propio plan */}
       <div
         className={cn(
-          'flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50',
+          'space-y-2 rounded-xl border border-border/60 bg-background/50',
           isModal ? 'px-3 py-3' : 'px-2 py-1.5 rounded border',
           isRx && 'hidden'
         )}
       >
-        <Repeat className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
-        <select
-          value={recurrenceFrequency}
-          onChange={e => setRecurrenceFrequency(e.target.value as RecurrenceFrequency)}
-          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-          aria-label={t('task_repeat')}
-        >
-          {recurrenceOptions.map(opt => (
-            <option key={opt.value} value={opt.value}>
-              {t(opt.labelKey)}
-            </option>
-          ))}
-        </select>
-
-        {recurrenceFrequency !== 'none' && (
-          <label className="flex items-center gap-1 text-xs text-text-muted">
-            <span>{t('task_repeat_every')}</span>
-            <input
-              type="number"
-              min={1}
-              max={365}
-              value={recurrenceInterval}
-              onChange={e =>
-                setRecurrenceInterval(Math.max(1, Math.min(365, Number(e.target.value) || 1)))
+        <div className="flex flex-wrap items-center gap-2">
+          <Repeat className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
+          <select
+            value={recurrenceFrequency}
+            onChange={e => {
+              const next = e.target.value as RecurrenceFrequency;
+              setRecurrenceFrequency(next);
+              if (next !== 'monthly') {
+                setMonthlyAnchor('day_of_month');
+                setUseBusinessDays(false);
               }
-              className="w-12 rounded-lg border border-border bg-background px-1 py-1 text-center text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <span>
-              {recurrenceFrequency === 'daily'
-                ? t('task_repeat_unit_days')
-                : recurrenceFrequency === 'weekly'
-                  ? t('task_repeat_unit_weeks')
-                  : recurrenceFrequency === 'monthly'
-                    ? t('task_repeat_unit_months')
-                    : t('task_repeat_unit_years')}
-            </span>
-          </label>
+            }}
+            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            aria-label={t('task_repeat')}
+          >
+            {recurrenceOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+
+          {recurrenceFrequency !== 'none' && (
+            <label className="flex items-center gap-1 text-xs text-text-muted">
+              <span>{t('task_repeat_every')}</span>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={recurrenceInterval}
+                onChange={e =>
+                  setRecurrenceInterval(
+                    Math.max(1, Math.min(365, Number(e.target.value) || 1))
+                  )
+                }
+                className="w-12 rounded-lg border border-border bg-background px-1 py-1 text-center text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <span>
+                {recurrenceFrequency === 'daily'
+                  ? t('task_repeat_unit_days')
+                  : recurrenceFrequency === 'weekly'
+                    ? t('task_repeat_unit_weeks')
+                    : recurrenceFrequency === 'monthly'
+                      ? t('task_repeat_unit_months')
+                      : t('task_repeat_unit_years')}
+              </span>
+            </label>
+          )}
+        </div>
+
+        {recurrenceFrequency === 'monthly' && (
+          <div className="space-y-2 border-t border-border/50 pt-2">
+            {lastDayPrompt && !useBusinessDays && (
+              <div className="rounded-lg border border-accent-teal/30 bg-accent-teal/10 px-2.5 py-2 text-[11px] text-text-primary">
+                <p className="font-medium">{t('task_repeat_last_day_prompt')}</p>
+                <p className="mt-0.5 text-text-muted">
+                  {t('task_repeat_last_day_prompt_hint')}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="rounded-md bg-accent-teal/20 px-2.5 py-1 text-[11px] font-semibold text-accent-teal"
+                    onClick={() => {
+                      setMonthlyAnchor('last_day');
+                      setLastDayPrompt(false);
+                    }}
+                  >
+                    {t('task_repeat_use_last_day')}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-md border border-border px-2.5 py-1 text-[11px] text-text-muted hover:text-text-primary"
+                    onClick={() => {
+                      setMonthlyAnchor('day_of_month');
+                      setLastDayPrompt(false);
+                    }}
+                  >
+                    {t('task_repeat_keep_day_n')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <label className="flex items-center gap-2 text-xs text-text-primary">
+              <input
+                type="checkbox"
+                checked={useBusinessDays}
+                onChange={e => {
+                  const on = e.target.checked;
+                  setUseBusinessDays(on);
+                  setLastDayPrompt(false);
+                  if (on) setMonthlyAnchor('last_business');
+                  else setMonthlyAnchor('day_of_month');
+                }}
+                className="rounded border-border"
+              />
+              <span>{t('task_repeat_business_days')}</span>
+            </label>
+            <p className="text-[10px] text-text-muted">
+              {t('task_repeat_business_days_hint')}
+            </p>
+
+            {useBusinessDays ? (
+              <select
+                value={
+                  monthlyAnchor === 'first_business' ||
+                  monthlyAnchor === 'last_business'
+                    ? monthlyAnchor
+                    : 'last_business'
+                }
+                onChange={e =>
+                  setMonthlyAnchor(e.target.value as MonthlyAnchor)
+                }
+                className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+              >
+                <option value="first_business">
+                  {t('task_repeat_first_business')}
+                </option>
+                <option value="last_business">
+                  {t('task_repeat_last_business')}
+                </option>
+              </select>
+            ) : (
+              monthlyAnchor === 'last_day' && (
+                <p className="text-[11px] font-medium text-accent-teal">
+                  ✓ {t('task_repeat_use_last_day')}
+                </p>
+              )
+            )}
+          </div>
         )}
       </div>
 

@@ -1,9 +1,15 @@
-import { addDays, addMonths, addWeeks, addYears, format, parseISO, getISOWeek } from 'date-fns';
-import type { Recurrence, RecurrenceFrequency } from '../types';
+import { addDays, addWeeks, format, parseISO, getISOWeek } from 'date-fns';
+import type { MonthlyAnchor, Recurrence, RecurrenceFrequency } from '../types';
+import {
+  firstBusinessDayOfMonth,
+  lastBusinessDayOfMonth,
+  lastCalendarDayOfMonth,
+} from './chileHolidays';
 
 export const DEFAULT_RECURRENCE: Recurrence = {
   frequency: 'none',
   interval: 1,
+  monthlyAnchor: 'day_of_month',
 };
 
 export interface OccurrenceRange {
@@ -17,16 +23,55 @@ export function isMultiDayRecurrenceAllowed(frequency: RecurrenceFrequency): boo
   return MULTI_DAY_FREQUENCIES.includes(frequency);
 }
 
+export function normalizeMonthlyAnchor(
+  raw: unknown
+): MonthlyAnchor {
+  if (
+    raw === 'last_day' ||
+    raw === 'first_business' ||
+    raw === 'last_business' ||
+    raw === 'day_of_month'
+  ) {
+    return raw;
+  }
+  return 'day_of_month';
+}
+
 export function normalizeRecurrence(
   frequency?: RecurrenceFrequency | null,
-  interval?: number | null
+  interval?: number | null,
+  monthlyAnchor?: MonthlyAnchor | null
 ): Recurrence {
   const freq = frequency ?? 'none';
   const n = typeof interval === 'number' && Number.isFinite(interval) ? Math.floor(interval) : 1;
   return {
     frequency: freq,
     interval: Math.max(1, Math.min(365, n)),
+    monthlyAnchor:
+      freq === 'monthly'
+        ? normalizeMonthlyAnchor(monthlyAnchor)
+        : undefined,
   };
+}
+
+/** Day-of-month anchor for a calendar month. */
+export function monthlyOccurrenceDayId(
+  year: number,
+  monthIndex0: number,
+  dayOfMonth: number,
+  anchor: MonthlyAnchor
+): string {
+  switch (anchor) {
+    case 'last_day':
+      return lastCalendarDayOfMonth(year, monthIndex0);
+    case 'first_business':
+      return firstBusinessDayOfMonth(year, monthIndex0);
+    case 'last_business':
+      return lastBusinessDayOfMonth(year, monthIndex0);
+    case 'day_of_month':
+    default:
+      return clampToMonth(year, monthIndex0, dayOfMonth);
+  }
 }
 
 export function isRecurring(recurrence: Recurrence | null | undefined): boolean {
@@ -84,11 +129,13 @@ export function materializeOccurrenceRanges(
   startDayId: string,
   endDayId: string,
   frequency: RecurrenceFrequency,
-  interval: number
+  interval: number,
+  monthlyAnchor?: MonthlyAnchor | null
 ): OccurrenceRange[] {
-  const rec = normalizeRecurrence(frequency, interval);
+  const rec = normalizeRecurrence(frequency, interval, monthlyAnchor);
   const end = endDayId || startDayId;
   const isMultiDay = end > startDayId;
+  const anchor = rec.monthlyAnchor ?? 'day_of_month';
 
   if (rec.frequency === 'none') {
     return [{ dayId: startDayId, endDayId: end }];
@@ -102,14 +149,19 @@ export function materializeOccurrenceRanges(
     }
     const startDOM = start.getDate();
     const endDOM = endDate.getDate();
+    const duration = inclusiveDurationDays(startDayId, end);
     const max = recurrenceHorizon('monthly');
     const ranges: OccurrenceRange[] = [];
     for (let i = 0; i < max; i++) {
       const base = new Date(start.getFullYear(), start.getMonth() + i * rec.interval, 1);
       const y = base.getFullYear();
       const m = base.getMonth();
-      const occStart = clampToMonth(y, m, startDOM);
-      let occEnd = clampToMonth(y, m, endDOM);
+      const occStart = monthlyOccurrenceDayId(y, m, startDOM, anchor);
+      // For last_day / business anchors, keep same span length from start.
+      let occEnd =
+        anchor === 'day_of_month'
+          ? clampToMonth(y, m, endDOM)
+          : addDaysToDayId(occStart, duration);
       if (occEnd < occStart) occEnd = occStart;
       ranges.push({ dayId: occStart, endDayId: occEnd });
     }
@@ -135,7 +187,12 @@ export function materializeOccurrenceRanges(
     return ranges;
   }
 
-  const dayIds = materializeOccurrenceDayIds(startDayId, rec.frequency, rec.interval);
+  const dayIds = materializeOccurrenceDayIds(
+    startDayId,
+    rec.frequency,
+    rec.interval,
+    rec.monthlyAnchor
+  );
   return dayIds.map(dayId => ({ dayId, endDayId: dayId }));
 }
 
@@ -146,9 +203,10 @@ export function materializeOccurrenceRanges(
 export function materializeOccurrenceDayIds(
   startDayId: string,
   frequency: RecurrenceFrequency,
-  interval: number
+  interval: number,
+  monthlyAnchor?: MonthlyAnchor | null
 ): string[] {
-  const rec = normalizeRecurrence(frequency, interval);
+  const rec = normalizeRecurrence(frequency, interval, monthlyAnchor);
   if (rec.frequency === 'none') return [startDayId];
 
   const start = parseISO(startDayId);
@@ -156,17 +214,32 @@ export function materializeOccurrenceDayIds(
 
   const max = recurrenceHorizon(rec.frequency);
   const ids: string[] = [];
+  const dom = start.getDate();
+  const anchor = rec.monthlyAnchor ?? 'day_of_month';
+
   for (let i = 0; i < max; i++) {
-    let d: Date;
-    if (rec.frequency === 'daily') d = addDays(start, i * rec.interval);
-    else if (rec.frequency === 'weekly') d = addWeeks(start, i * rec.interval);
-    else if (rec.frequency === 'monthly') d = addMonths(start, i * rec.interval);
-    else d = addYears(start, i * rec.interval);
-    // Clamp leap-day yearly: addYears may shift; re-clamp month/day for yearly
-    if (rec.frequency === 'yearly') {
-      ids.push(clampToMonth(d.getFullYear(), start.getMonth(), start.getDate()));
+    if (rec.frequency === 'daily') {
+      ids.push(format(addDays(start, i * rec.interval), 'yyyy-MM-dd'));
+    } else if (rec.frequency === 'weekly') {
+      ids.push(format(addWeeks(start, i * rec.interval), 'yyyy-MM-dd'));
+    } else if (rec.frequency === 'monthly') {
+      const base = new Date(
+        start.getFullYear(),
+        start.getMonth() + i * rec.interval,
+        1
+      );
+      ids.push(
+        monthlyOccurrenceDayId(
+          base.getFullYear(),
+          base.getMonth(),
+          dom,
+          anchor
+        )
+      );
     } else {
-      ids.push(format(d, 'yyyy-MM-dd'));
+      // yearly — clamp leap day
+      const y = start.getFullYear() + i * rec.interval;
+      ids.push(clampToMonth(y, start.getMonth(), start.getDate()));
     }
   }
   return ids;

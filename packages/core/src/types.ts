@@ -2,6 +2,17 @@ export type Plan = 'free' | 'pro';
 export type Priority = 'low' | 'medium' | 'high';
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 /**
+ * Ancla para recurrencia mensual (y anual cuando aplique día-del-mes).
+ * - day_of_month: mismo N del mes (clamp si el mes es más corto)
+ * - last_day: último día calendario del mes
+ * - first_business / last_business: primer/último día hábil (Chile: lun–vie sin feriado)
+ */
+export type MonthlyAnchor =
+  | 'day_of_month'
+  | 'last_day'
+  | 'first_business'
+  | 'last_business';
+/**
  * task/reminder = proyectos y pendientes;
  * rx_* = recetario;
  * possible_event = evento posible (día o rango, con personas/mascotas);
@@ -47,7 +58,8 @@ export type BoardCategoryFilter =
   | 'possible'
   | 'events'
   | 'habits'
-  | 'finances';
+  | 'finances'
+  | 'holidays';
 
 /**
  * Cómo se definen los horarios de la fase:
@@ -101,6 +113,11 @@ export interface Recurrence {
   frequency: RecurrenceFrequency;
   /** Cada N días / semanas / meses (mínimo 1). */
   interval: number;
+  /**
+   * Solo relevante si frequency === 'monthly'.
+   * Default implícito: day_of_month.
+   */
+  monthlyAnchor?: MonthlyAnchor;
 }
 
 export interface UserProfile {
@@ -422,6 +439,8 @@ export interface CreateTaskPayload {
   endDayId?: string;
   recurrenceFrequency?: RecurrenceFrequency;
   recurrenceInterval?: number;
+  /** Ancla mensual (solo monthly). */
+  recurrenceMonthlyAnchor?: MonthlyAnchor;
   urgency?: Urgency | null;
   importance?: Importance | null;
   kind?: TaskKind;
@@ -465,6 +484,7 @@ export interface UpdateTaskPayload {
   endDayId?: string;
   recurrenceFrequency?: RecurrenceFrequency;
   recurrenceInterval?: number;
+  recurrenceMonthlyAnchor?: MonthlyAnchor | null;
   urgency?: Urgency | null;
   importance?: Importance | null;
   kind?: TaskKind;
@@ -530,7 +550,8 @@ export interface BoardTaskFilters {
    * possible = solo eventos posibles;
    * events = eventos confirmados;
    * habits = hábitos buenos y a dejar;
-   * finances = ingresos/gastos de calendario.
+   * finances = ingresos/gastos de calendario;
+   * holidays = feriados (capa aparte; no filtra tasks del store).
    */
   category?: BoardCategoryFilter;
 }
@@ -570,6 +591,9 @@ export function taskMatchesFilters(
       if (kind !== 'habit_good' && kind !== 'habit_quit') return false;
     } else if (filters.category === 'finances') {
       if (!isFinance) return false;
+    } else if (filters.category === 'holidays') {
+      // Las tareas no son feriados; se ocultan en este filtro.
+      return false;
     }
   }
   if (filters.projectId && filters.projectId !== 'all') {
