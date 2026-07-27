@@ -785,11 +785,20 @@ export function SettingsPage() {
             <p className="mb-4 text-[11px] text-text-muted">{t('settings_skin_desc')}</p>
 
             <SkinGrid
+              title={t('settings_skin_aero')}
+              subtitle={t('settings_skin_aero_desc')}
+              skins={skinsByMode('aero')}
+              selectedId={settings.skinId}
+              language={settings.language}
+              onSelect={id => void handleSkin(id)}
+            />
+            <SkinGrid
               title={t('settings_skin_dark')}
               skins={skinsByMode('dark')}
               selectedId={settings.skinId}
               language={settings.language}
               onSelect={id => void handleSkin(id)}
+              className="mt-5"
             />
             <SkinGrid
               title={t('settings_skin_light')}
@@ -979,6 +988,7 @@ function SettingRow({
 
 function SkinGrid({
   title,
+  subtitle,
   skins,
   selectedId,
   language,
@@ -986,6 +996,7 @@ function SkinGrid({
   className,
 }: {
   title: string;
+  subtitle?: string;
   skins: SkinDefinition[];
   selectedId: string;
   language: Language;
@@ -994,13 +1005,21 @@ function SkinGrid({
 }) {
   return (
     <div className={className}>
-      <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-text-muted">
+      <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-text-muted">
         {title}
       </p>
+      {subtitle && (
+        <p className="mb-2 text-[10px] leading-snug text-text-muted">{subtitle}</p>
+      )}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
         {skins.map(skin => {
           const label = language === 'en' ? skin.nameEn : skin.name;
           const selected = selectedId === skin.id;
+          const isGlass = skin.material === 'glass' || skin.mode === 'aero';
+          const previewBg = skin.tokens.solidBackground ?? skin.tokens.background;
+          const backdrop = skin.tokens.backdrop
+            ? skin.tokens.backdrop.replace(/\s+/g, ' ').trim()
+            : undefined;
           return (
             <button
               key={skin.id}
@@ -1015,12 +1034,30 @@ function SkinGrid({
               )}
             >
               <div
-                className="flex h-10 items-end gap-0.5 px-1.5 pb-1.5 pt-1"
-                style={{ backgroundColor: skin.tokens.background }}
+                className="relative flex h-12 items-end gap-0.5 px-1.5 pb-1.5 pt-1"
+                style={{
+                  backgroundColor: previewBg,
+                  backgroundImage: backdrop,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
               >
+                {isGlass && (
+                  <span className="absolute right-1 top-1 rounded bg-black/25 px-1 py-px text-[8px] font-semibold uppercase tracking-wide text-white/90">
+                    glass
+                  </span>
+                )}
                 <span
-                  className="h-4 flex-1 rounded-sm"
-                  style={{ backgroundColor: skin.tokens.surface, border: `1px solid ${skin.tokens.border}` }}
+                  className="h-5 flex-1 rounded-md"
+                  style={{
+                    backgroundColor: skin.tokens.surface,
+                    border: `1px solid ${skin.tokens.border}`,
+                    boxShadow: isGlass
+                      ? 'inset 0 1px 0 rgba(255,255,255,0.45)'
+                      : undefined,
+                    backdropFilter: isGlass ? 'blur(8px)' : undefined,
+                    WebkitBackdropFilter: isGlass ? 'blur(8px)' : undefined,
+                  }}
                 />
                 <span
                   className="h-3 w-3 shrink-0 rounded-full"

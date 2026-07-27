@@ -16,6 +16,10 @@
     --color-accent-pink: #f778ba;
     --color-scroll-track: #161b22;
     --color-scroll-thumb: #30363d;
+    --color-background-solid: #0d1117;
+    --app-backdrop: none;
+    --glass-blur: 0px;
+    --glass-saturate: 100%;
 
     /* shadcn HSL tokens (kept for components that use them) */
     --background: 216 28% 7%;
@@ -90,5 +94,71 @@
 
   ::-webkit-scrollbar-thumb:hover {
     filter: brightness(1.15);
+  }
+}
+
+/**
+ * Aero / Liquid Glass materials (Apple-style vibrancy).
+ * Uses the same web primitives as iOS/macOS materials:
+ * - translucent layers (rgba surfaces)
+ * - backdrop-filter blur + saturate (vibrancy)
+ * - specular edge highlight (inset light edge)
+ * - multi-stop mesh wallpaper behind the UI
+ */
+html[data-material='glass'] {
+  --radius: 0.75rem;
+  min-height: 100%;
+  background-color: var(--color-background-solid);
+  background-image: var(--app-backdrop);
+  background-attachment: fixed;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+html[data-material='glass'] body {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* Frosted elevated surfaces (sidebar, header, cards with bg-surface) */
+html[data-material='glass'] .bg-surface {
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.38),
+    0 8px 28px rgba(15, 23, 42, 0.08);
+}
+
+html[data-material='glass'].dark .bg-surface {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+    0 10px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* Content canvas: lighter glass so the mesh shows through */
+html[data-material='glass'] .bg-background {
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.45)) saturate(140%);
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.45)) saturate(140%);
+}
+
+/* Slightly softer borders on glass skins */
+html[data-material='glass'] .border-border {
+  border-color: var(--color-border);
+}
+
+/* Performance / a11y: reduce expensive blurs when requested */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-material='glass'] .bg-surface,
+  html[data-material='glass'] .bg-background {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (max-width: 768px) {
+  html[data-material='glass'] {
+    /* Lighter blur on phones — GPU cost of backdrop-filter is high */
+    --glass-blur: 16px;
   }
 }

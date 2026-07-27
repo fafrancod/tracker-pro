@@ -563,6 +563,8 @@ export interface TranslationDict {
   settings_skin_desc: string;
   settings_skin_dark: string;
   settings_skin_light: string;
+  settings_skin_aero: string;
+  settings_skin_aero_desc: string;
   settings_day_start_hour: string;
   settings_day_end_hour: string;
   settings_schedule_hours_desc: string;
@@ -1377,9 +1379,13 @@ const es_dict: TranslationDict = {
   settings_default_board_view_desc: 'Cómo se abre el tablero al entrar en Calendario.',
   settings_none: 'Ninguno',
   settings_skin: 'Apariencia',
-  settings_skin_desc: 'Elige un skin claro u oscuro. Se aplica de inmediato en toda la app.',
+  settings_skin_desc:
+    'Elige un skin sólido (claro/oscuro) o Aero con cristal líquido. Se aplica de inmediato en toda la app.',
   settings_skin_dark: 'Oscuros',
   settings_skin_light: 'Claros',
+  settings_skin_aero: 'Aero · cristal líquido',
+  settings_skin_aero_desc:
+    'Materiales translúcidos con desenfoque y saturación (vibrancy), la misma familia de técnicas que usa Apple en macOS e iOS (Liquid Glass / UIBlurEffect).',
   settings_day_start_hour: 'Inicio de la grilla horaria',
   settings_day_end_hour: 'Fin de la grilla horaria',
   settings_schedule_hours_desc:
@@ -2211,9 +2217,13 @@ const en_dict: TranslationDict = {
   settings_default_board_view_desc: 'How the board opens when you go to Calendar.',
   settings_none: 'None',
   settings_skin: 'Appearance',
-  settings_skin_desc: 'Pick a light or dark skin. Applies immediately across the app.',
+  settings_skin_desc:
+    'Pick a solid (light/dark) skin or Aero liquid glass. Applies immediately across the app.',
   settings_skin_dark: 'Dark',
   settings_skin_light: 'Light',
+  settings_skin_aero: 'Aero · liquid glass',
+  settings_skin_aero_desc:
+    'Translucent materials with blur and saturation (vibrancy)—the same family of techniques Apple uses on macOS and iOS (Liquid Glass / UIBlurEffect).',
   settings_day_start_hour: 'Schedule grid start',
   settings_day_end_hour: 'Schedule grid end',
   settings_schedule_hours_desc:

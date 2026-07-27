@@ -1,9 +1,19 @@
 /**
- * 40 skins (20 dark + 20 light) for Daily Tracker.
- * CSS variables drive Tailwind tokens (background, surface, accents…).
+ * 50 skins for Daily Tracker:
+ * - 20 dark solid
+ * - 20 light solid
+ * - 10 Aero (Apple-style Liquid Glass materials)
+ *
+ * CSS variables drive Tailwind tokens. Aero skins add mesh backdrops +
+ * backdrop-filter blur (same family of technique as macOS/iOS vibrancy).
  */
 
-export type SkinMode = 'dark' | 'light';
+export type SkinMode = 'dark' | 'light' | 'aero';
+
+/** Text contrast tone (color-scheme / .dark class). Aero skins declare this explicitly. */
+export type SkinTone = 'dark' | 'light';
+
+export type SkinMaterial = 'solid' | 'glass';
 
 export interface SkinTokens {
   background: string;
@@ -19,6 +29,17 @@ export interface SkinTokens {
   scrollTrack: string;
   /** Scrollbar thumb */
   scrollThumb: string;
+  /**
+   * Opaque fallback for theme-color / under mesh.
+   * Aero: solid base behind the glass wallpaper.
+   */
+  solidBackground?: string;
+  /** CSS multi-layer gradient / mesh used as “wallpaper” under glass */
+  backdrop?: string;
+  /** backdrop-filter blur radius, e.g. "28px" */
+  glassBlur?: string;
+  /** backdrop-filter saturate %, e.g. "180%" */
+  glassSaturate?: string;
 }
 
 export interface SkinDefinition {
@@ -26,6 +47,9 @@ export interface SkinDefinition {
   name: string;
   nameEn: string;
   mode: SkinMode;
+  /** For aero: light or dark content. Defaults to mode when mode is dark|light. */
+  tone?: SkinTone;
+  material?: SkinMaterial;
   tokens: SkinTokens;
 }
 
@@ -36,7 +60,42 @@ function skin(
   mode: SkinMode,
   tokens: SkinTokens
 ): SkinDefinition {
-  return { id, name, nameEn, mode, tokens };
+  return {
+    id,
+    name,
+    nameEn,
+    mode,
+    material: 'solid',
+    tokens,
+  };
+}
+
+function aeroSkin(
+  id: string,
+  name: string,
+  nameEn: string,
+  tone: SkinTone,
+  tokens: SkinTokens
+): SkinDefinition {
+  return {
+    id,
+    name,
+    nameEn,
+    mode: 'aero',
+    tone,
+    material: 'glass',
+    tokens: {
+      glassBlur: '28px',
+      glassSaturate: '180%',
+      ...tokens,
+    },
+  };
+}
+
+/** Resolve whether UI chrome uses dark (light text) or light (dark text). */
+export function skinTone(skin: SkinDefinition): SkinTone {
+  if (skin.mode === 'aero') return skin.tone ?? 'light';
+  return skin.mode;
 }
 
 /** 20 dark skins */
@@ -567,7 +626,238 @@ const LIGHT_SKINS: SkinDefinition[] = [
   }),
 ];
 
-export const SKINS: SkinDefinition[] = [...DARK_SKINS, ...LIGHT_SKINS];
+/**
+ * 10 Aero skins — Liquid Glass materials (backdrop blur + vibrancy + mesh wallpaper).
+ * Surfaces use translucent colors; html gets a multi-stop mesh so the glass can refract light.
+ */
+const AERO_SKINS: SkinDefinition[] = [
+  aeroSkin('aero-clear', 'Aero Clear', 'Aero Clear', 'light', {
+    solidBackground: '#d7e3f4',
+    background: 'rgba(255, 255, 255, 0.42)',
+    surface: 'rgba(255, 255, 255, 0.58)',
+    border: 'rgba(255, 255, 255, 0.55)',
+    textPrimary: '#0f172a',
+    textMuted: '#475569',
+    accentGreen: '#059669',
+    accentTeal: '#0284c7',
+    accentRed: '#e11d48',
+    accentPink: '#db2777',
+    scrollTrack: 'rgba(255,255,255,0.25)',
+    scrollThumb: 'rgba(15,23,42,0.28)',
+    glassBlur: '32px',
+    glassSaturate: '190%',
+    backdrop: `
+      radial-gradient(120% 80% at 10% 0%, rgba(147, 197, 253, 0.95) 0%, transparent 55%),
+      radial-gradient(90% 70% at 90% 10%, rgba(196, 181, 253, 0.85) 0%, transparent 50%),
+      radial-gradient(80% 60% at 50% 100%, rgba(125, 211, 252, 0.75) 0%, transparent 55%),
+      linear-gradient(160deg, #e8f1fc 0%, #d4e4f7 45%, #c7d7f0 100%)
+    `,
+  }),
+  aeroSkin('aero-frost', 'Aero Frost', 'Aero Frost', 'light', {
+    solidBackground: '#e8eef5',
+    background: 'rgba(248, 250, 252, 0.4)',
+    surface: 'rgba(255, 255, 255, 0.62)',
+    border: 'rgba(226, 232, 240, 0.7)',
+    textPrimary: '#0c4a6e',
+    textMuted: '#64748b',
+    accentGreen: '#0d9488',
+    accentTeal: '#0ea5e9',
+    accentRed: '#f43f5e',
+    accentPink: '#a855f7',
+    scrollTrack: 'rgba(241,245,249,0.4)',
+    scrollThumb: 'rgba(100,116,139,0.35)',
+    glassBlur: '30px',
+    glassSaturate: '175%',
+    backdrop: `
+      radial-gradient(100% 80% at 0% 0%, rgba(224, 242, 254, 0.98) 0%, transparent 50%),
+      radial-gradient(90% 70% at 100% 20%, rgba(207, 250, 254, 0.9) 0%, transparent 50%),
+      radial-gradient(70% 50% at 40% 100%, rgba(226, 232, 240, 0.85) 0%, transparent 50%),
+      linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)
+    `,
+  }),
+  aeroSkin('aero-sunset', 'Aero Sunset', 'Aero Sunset', 'light', {
+    solidBackground: '#ffe4d6',
+    background: 'rgba(255, 247, 237, 0.45)',
+    surface: 'rgba(255, 255, 255, 0.58)',
+    border: 'rgba(254, 215, 170, 0.65)',
+    textPrimary: '#7c2d12',
+    textMuted: '#9a3412',
+    accentGreen: '#65a30d',
+    accentTeal: '#ea580c',
+    accentRed: '#dc2626',
+    accentPink: '#db2777',
+    scrollTrack: 'rgba(255,237,213,0.4)',
+    scrollThumb: 'rgba(234,88,12,0.35)',
+    glassBlur: '28px',
+    glassSaturate: '185%',
+    backdrop: `
+      radial-gradient(100% 80% at 0% 10%, rgba(253, 186, 116, 0.95) 0%, transparent 55%),
+      radial-gradient(90% 70% at 100% 0%, rgba(251, 113, 133, 0.75) 0%, transparent 50%),
+      radial-gradient(80% 60% at 60% 100%, rgba(252, 211, 77, 0.7) 0%, transparent 55%),
+      linear-gradient(145deg, #fff7ed 0%, #ffedd5 50%, #fecdd3 100%)
+    `,
+  }),
+  aeroSkin('aero-ocean', 'Aero Ocean', 'Aero Ocean', 'light', {
+    solidBackground: '#bae6fd',
+    background: 'rgba(224, 242, 254, 0.42)',
+    surface: 'rgba(255, 255, 255, 0.55)',
+    border: 'rgba(125, 211, 252, 0.55)',
+    textPrimary: '#0c4a6e',
+    textMuted: '#0369a1',
+    accentGreen: '#14b8a6',
+    accentTeal: '#0284c7',
+    accentRed: '#e11d48',
+    accentPink: '#c026d3',
+    scrollTrack: 'rgba(186,230,253,0.35)',
+    scrollThumb: 'rgba(2,132,199,0.35)',
+    glassBlur: '30px',
+    glassSaturate: '200%',
+    backdrop: `
+      radial-gradient(110% 80% at 15% 0%, rgba(56, 189, 248, 0.9) 0%, transparent 55%),
+      radial-gradient(90% 70% at 90% 30%, rgba(45, 212, 191, 0.65) 0%, transparent 50%),
+      radial-gradient(80% 60% at 40% 100%, rgba(14, 165, 233, 0.55) 0%, transparent 55%),
+      linear-gradient(165deg, #e0f2fe 0%, #bae6fd 40%, #7dd3fc 100%)
+    `,
+  }),
+  aeroSkin('aero-aurora', 'Aero Aurora', 'Aero Aurora', 'light', {
+    solidBackground: '#d1fae5',
+    background: 'rgba(236, 253, 245, 0.4)',
+    surface: 'rgba(255, 255, 255, 0.56)',
+    border: 'rgba(167, 243, 208, 0.6)',
+    textPrimary: '#064e3b',
+    textMuted: '#047857',
+    accentGreen: '#10b981',
+    accentTeal: '#8b5cf6',
+    accentRed: '#f43f5e',
+    accentPink: '#d946ef',
+    scrollTrack: 'rgba(209,250,229,0.35)',
+    scrollThumb: 'rgba(16,185,129,0.35)',
+    glassBlur: '32px',
+    glassSaturate: '195%',
+    backdrop: `
+      radial-gradient(100% 80% at 0% 20%, rgba(52, 211, 153, 0.85) 0%, transparent 55%),
+      radial-gradient(90% 70% at 100% 10%, rgba(167, 139, 250, 0.75) 0%, transparent 50%),
+      radial-gradient(80% 60% at 50% 100%, rgba(45, 212, 191, 0.7) 0%, transparent 55%),
+      linear-gradient(155deg, #ecfdf5 0%, #e0e7ff 50%, #f5d0fe 100%)
+    `,
+  }),
+  aeroSkin('aero-bloom', 'Aero Bloom', 'Aero Bloom', 'light', {
+    solidBackground: '#fce7f3',
+    background: 'rgba(253, 242, 248, 0.45)',
+    surface: 'rgba(255, 255, 255, 0.6)',
+    border: 'rgba(249, 168, 212, 0.55)',
+    textPrimary: '#831843',
+    textMuted: '#9d174d',
+    accentGreen: '#16a34a',
+    accentTeal: '#db2777',
+    accentRed: '#e11d48',
+    accentPink: '#ec4899',
+    scrollTrack: 'rgba(252,231,243,0.4)',
+    scrollThumb: 'rgba(219,39,119,0.3)',
+    glassBlur: '28px',
+    glassSaturate: '180%',
+    backdrop: `
+      radial-gradient(100% 80% at 10% 0%, rgba(244, 114, 182, 0.85) 0%, transparent 55%),
+      radial-gradient(90% 70% at 95% 15%, rgba(251, 113, 133, 0.65) 0%, transparent 50%),
+      radial-gradient(80% 60% at 40% 100%, rgba(192, 132, 252, 0.55) 0%, transparent 55%),
+      linear-gradient(150deg, #fdf2f8 0%, #fce7f3 45%, #fae8ff 100%)
+    `,
+  }),
+  aeroSkin('aero-sierra', 'Aero Sierra', 'Aero Sierra', 'light', {
+    solidBackground: '#dcfce7',
+    background: 'rgba(240, 253, 244, 0.42)',
+    surface: 'rgba(255, 255, 255, 0.58)',
+    border: 'rgba(134, 239, 172, 0.55)',
+    textPrimary: '#14532d',
+    textMuted: '#166534',
+    accentGreen: '#16a34a',
+    accentTeal: '#0d9488',
+    accentRed: '#dc2626',
+    accentPink: '#db2777',
+    scrollTrack: 'rgba(220,252,231,0.35)',
+    scrollThumb: 'rgba(22,163,74,0.35)',
+    glassBlur: '28px',
+    glassSaturate: '175%',
+    backdrop: `
+      radial-gradient(100% 80% at 20% 0%, rgba(74, 222, 128, 0.75) 0%, transparent 55%),
+      radial-gradient(90% 70% at 100% 30%, rgba(52, 211, 153, 0.6) 0%, transparent 50%),
+      radial-gradient(80% 60% at 30% 100%, rgba(163, 230, 53, 0.45) 0%, transparent 55%),
+      linear-gradient(160deg, #f0fdf4 0%, #dcfce7 50%, #bbf7d0 100%)
+    `,
+  }),
+  aeroSkin('aero-midnight', 'Aero Midnight', 'Aero Midnight', 'dark', {
+    solidBackground: '#0b1220',
+    background: 'rgba(15, 23, 42, 0.45)',
+    surface: 'rgba(30, 41, 59, 0.55)',
+    border: 'rgba(148, 163, 184, 0.22)',
+    textPrimary: '#e2e8f0',
+    textMuted: '#94a3b8',
+    accentGreen: '#34d399',
+    accentTeal: '#38bdf8',
+    accentRed: '#fb7185',
+    accentPink: '#e879f9',
+    scrollTrack: 'rgba(15,23,42,0.5)',
+    scrollThumb: 'rgba(148,163,184,0.35)',
+    glassBlur: '32px',
+    glassSaturate: '180%',
+    backdrop: `
+      radial-gradient(100% 80% at 10% 0%, rgba(56, 189, 248, 0.35) 0%, transparent 55%),
+      radial-gradient(90% 70% at 95% 20%, rgba(99, 102, 241, 0.4) 0%, transparent 50%),
+      radial-gradient(80% 60% at 40% 100%, rgba(14, 165, 233, 0.25) 0%, transparent 55%),
+      linear-gradient(165deg, #0b1220 0%, #111827 45%, #1e1b4b 100%)
+    `,
+  }),
+  aeroSkin('aero-nebula', 'Aero Nebula', 'Aero Nebula', 'dark', {
+    solidBackground: '#1a0b2e',
+    background: 'rgba(24, 16, 40, 0.48)',
+    surface: 'rgba(46, 16, 64, 0.52)',
+    border: 'rgba(216, 180, 254, 0.2)',
+    textPrimary: '#f3e8ff',
+    textMuted: '#c4b5fd',
+    accentGreen: '#4ade80',
+    accentTeal: '#a78bfa',
+    accentRed: '#fb7185',
+    accentPink: '#f472b6',
+    scrollTrack: 'rgba(30,10,50,0.5)',
+    scrollThumb: 'rgba(167,139,250,0.4)',
+    glassBlur: '34px',
+    glassSaturate: '200%',
+    backdrop: `
+      radial-gradient(100% 80% at 0% 10%, rgba(168, 85, 247, 0.45) 0%, transparent 55%),
+      radial-gradient(90% 70% at 100% 0%, rgba(236, 72, 153, 0.35) 0%, transparent 50%),
+      radial-gradient(80% 60% at 50% 100%, rgba(99, 102, 241, 0.4) 0%, transparent 55%),
+      linear-gradient(155deg, #1a0b2e 0%, #2e1065 50%, #4a044e 100%)
+    `,
+  }),
+  aeroSkin('aero-graphite', 'Aero Graphite', 'Aero Graphite', 'dark', {
+    solidBackground: '#18181b',
+    background: 'rgba(24, 24, 27, 0.5)',
+    surface: 'rgba(39, 39, 42, 0.55)',
+    border: 'rgba(255, 255, 255, 0.12)',
+    textPrimary: '#fafafa',
+    textMuted: '#a1a1aa',
+    accentGreen: '#4ade80',
+    accentTeal: '#a1a1aa',
+    accentRed: '#f87171',
+    accentPink: '#e879f9',
+    scrollTrack: 'rgba(24,24,27,0.5)',
+    scrollThumb: 'rgba(161,161,170,0.4)',
+    glassBlur: '26px',
+    glassSaturate: '160%',
+    backdrop: `
+      radial-gradient(100% 80% at 20% 0%, rgba(113, 113, 122, 0.35) 0%, transparent 55%),
+      radial-gradient(90% 70% at 100% 30%, rgba(63, 63, 70, 0.5) 0%, transparent 50%),
+      radial-gradient(80% 60% at 40% 100%, rgba(39, 39, 42, 0.6) 0%, transparent 55%),
+      linear-gradient(160deg, #09090b 0%, #18181b 50%, #27272a 100%)
+    `,
+  }),
+];
+
+export const SKINS: SkinDefinition[] = [
+  ...DARK_SKINS,
+  ...LIGHT_SKINS,
+  ...AERO_SKINS,
+];
 
 export const DEFAULT_SKIN_ID = 'dark-github';
 
@@ -580,6 +870,8 @@ export function applySkin(skinId: string | null | undefined): void {
   const skin = getSkinById(skinId);
   const root = document.documentElement;
   const t = skin.tokens;
+  const tone = skinTone(skin);
+  const material = skin.material ?? (skin.mode === 'aero' ? 'glass' : 'solid');
 
   root.style.setProperty('--color-background', t.background);
   root.style.setProperty('--color-surface', t.surface);
@@ -593,19 +885,39 @@ export function applySkin(skinId: string | null | undefined): void {
   root.style.setProperty('--color-scroll-track', t.scrollTrack);
   root.style.setProperty('--color-scroll-thumb', t.scrollThumb);
 
+  // Solid underlay + mesh wallpaper for glass materials
+  const solidBg = t.solidBackground ?? t.background;
+  root.style.setProperty('--color-background-solid', solidBg);
+
+  if (t.backdrop && material === 'glass') {
+    // Collapse whitespace so multi-line template strings stay valid CSS
+    const backdrop = t.backdrop.replace(/\s+/g, ' ').trim();
+    root.style.setProperty('--app-backdrop', backdrop);
+    root.style.setProperty('--glass-blur', t.glassBlur ?? '28px');
+    root.style.setProperty('--glass-saturate', t.glassSaturate ?? '180%');
+  } else {
+    root.style.removeProperty('--app-backdrop');
+    root.style.setProperty('--glass-blur', '0px');
+    root.style.setProperty('--glass-saturate', '100%');
+  }
+
   root.dataset.skin = skin.id;
-  root.dataset.theme = skin.mode;
-  root.classList.toggle('dark', skin.mode === 'dark');
-  root.classList.toggle('light', skin.mode === 'light');
+  root.dataset.theme = tone;
+  root.dataset.material = material;
+  root.dataset.skinMode = skin.mode;
+  root.classList.toggle('dark', tone === 'dark');
+  root.classList.toggle('light', tone === 'light');
+  root.classList.toggle('aero', material === 'glass');
+
   /**
    * color-scheme hace que los <select> nativos (Windows/Chrome) usen
    * dropdown oscuro o claro según el skin — evita texto blanco sobre fondo blanco.
    */
-  root.style.colorScheme = skin.mode === 'dark' ? 'dark' : 'light';
+  root.style.colorScheme = tone === 'dark' ? 'dark' : 'light';
 
-  // Android / browser status bar color
+  // Android / browser status bar color (always opaque)
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute('content', t.background);
+  if (meta) meta.setAttribute('content', solidBg);
 }
 
 export function skinsByMode(mode: SkinMode): SkinDefinition[] {
