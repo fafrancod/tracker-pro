@@ -1383,9 +1383,9 @@ const es_dict: TranslationDict = {
     'Elige un skin sólido (claro/oscuro) o Aero con cristal líquido. Se aplica de inmediato en toda la app.',
   settings_skin_dark: 'Oscuros',
   settings_skin_light: 'Claros',
-  settings_skin_aero: 'Aero · cristal líquido',
+  settings_skin_aero: 'Aero · cristal macOS',
   settings_skin_aero_desc:
-    'Materiales translúcidos con desenfoque y saturación (vibrancy), la misma familia de técnicas que usa Apple en macOS e iOS (Liquid Glass / UIBlurEffect).',
+    'Vidrio esmerilado suave (Frost es la referencia). Blur + saturación como UIBlurEffect; campos de formulario siempre opacos.',
   settings_day_start_hour: 'Inicio de la grilla horaria',
   settings_day_end_hour: 'Fin de la grilla horaria',
   settings_schedule_hours_desc:
@@ -2221,9 +2221,9 @@ const en_dict: TranslationDict = {
     'Pick a solid (light/dark) skin or Aero liquid glass. Applies immediately across the app.',
   settings_skin_dark: 'Dark',
   settings_skin_light: 'Light',
-  settings_skin_aero: 'Aero · liquid glass',
+  settings_skin_aero: 'Aero · macOS glass',
   settings_skin_aero_desc:
-    'Translucent materials with blur and saturation (vibrancy)—the same family of techniques Apple uses on macOS and iOS (Liquid Glass / UIBlurEffect).',
+    'Soft frosted glass (Frost is the reference). Blur + saturate like UIBlurEffect; form fields stay opaque.',
   settings_day_start_hour: 'Schedule grid start',
   settings_day_end_hour: 'Schedule grid end',
   settings_schedule_hours_desc:

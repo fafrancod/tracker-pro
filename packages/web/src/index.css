@@ -1,49 +1,100 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-@layer base {
-  :root {
-    /* App skin tokens (overridden by applySkin) */
-    --color-background: #0d1117;
-    --color-surface: #161b22;
-    --color-field: #161b22;
-    --color-border: #30363d;
-    --color-text-primary: #e6edf3;
-    --color-text-muted: #7d8590;
-    --color-accent-green: #3fb950;
-    --color-accent-teal: #58a6ff;
-    --color-accent-red: #f85149;
-    --color-accent-pink: #f778ba;
-    --color-scroll-track: #161b22;
-    --color-scroll-thumb: #30363d;
-    --color-background-solid: #0d1117;
-    --app-backdrop: none;
-    --glass-blur: 0px;
-    --glass-saturate: 100%;
+/* Class-based dark mode (applySkin toggles html.dark / html.light) */
+@custom-variant dark (&:where(.dark, .dark *));
 
-    /* shadcn HSL tokens (kept for components that use them) */
-    --background: 216 28% 7%;
-    --foreground: 210 40% 92%;
-    --card: 216 24% 10%;
-    --card-foreground: 210 40% 92%;
-    --popover: 216 24% 10%;
-    --popover-foreground: 210 40% 92%;
-    --primary: 213 93% 68%;
-    --primary-foreground: 222 47% 11%;
-    --secondary: 217 19% 17%;
-    --secondary-foreground: 210 40% 92%;
-    --muted: 217 19% 17%;
-    --muted-foreground: 215 14% 53%;
-    --accent: 217 19% 17%;
-    --accent-foreground: 210 40% 92%;
-    --destructive: 3 87% 62%;
-    --destructive-foreground: 210 40% 92%;
-    --border: 216 13% 20%;
-    --input: 216 13% 20%;
-    --ring: 213 93% 68%;
-    --radius: 0.5rem;
+/**
+ * Theme tokens — CSS variables so applySkin can override at runtime.
+ * Names match utilities: bg-background, text-text-primary, bg-field, etc.
+ */
+@theme {
+  --color-background: #0d1117;
+  --color-surface: #161b22;
+  --color-field: #161b22;
+  --color-border: #30363d;
+  --color-text-primary: #e6edf3;
+  --color-text-muted: #7d8590;
+  --color-accent-green: #3fb950;
+  --color-accent-teal: #58a6ff;
+  --color-accent-red: #f85149;
+  --color-accent-pink: #f778ba;
+
+  /* shadcn-compatible (HSL components still live on :root) */
+  --color-ring: hsl(var(--ring));
+  --color-input: hsl(var(--input));
+  --color-foreground: hsl(var(--foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
   }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+/* Non-theme runtime tokens for Aero materials */
+:root {
+  --color-background-solid: #0d1117;
+  --app-backdrop: none;
+  --glass-blur: 0px;
+  --glass-saturate: 100%;
+  --radius: 0.5rem;
+
+  /* shadcn HSL raw channels */
+  --background: 216 28% 7%;
+  --foreground: 210 40% 92%;
+  --card: 216 24% 10%;
+  --card-foreground: 210 40% 92%;
+  --popover: 216 24% 10%;
+  --popover-foreground: 210 40% 92%;
+  --primary: 213 93% 68%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 19% 17%;
+  --secondary-foreground: 210 40% 92%;
+  --muted: 217 19% 17%;
+  --muted-foreground: 215 14% 53%;
+  --accent: 217 19% 17%;
+  --accent-foreground: 210 40% 92%;
+  --destructive: 3 87% 62%;
+  --destructive-foreground: 210 40% 92%;
+  --border: 216 13% 20%;
+  --input: 216 13% 20%;
+  --ring: 213 93% 68%;
 }
 
 @layer base {
@@ -52,22 +103,21 @@
   }
 
   html {
-    /* Avoid pull-to-refresh fighting the board scroll on Android Chrome */
     overscroll-behavior-y: none;
   }
 
   body {
-    @apply bg-background text-text-primary;
+    @apply bg-background text-text-primary font-sans;
     font-feature-settings: 'rlig' 1, 'calt' 1;
-    /* Touch: remove 300ms tap delay legacy, improve scrolling */
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
 
-  /**
-   * Native <select> / <option> must follow skin tokens.
-   * Without this, dark skins often get OS white dropdown + light text (unreadable).
-   */
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+
   select {
     color: var(--color-text-primary);
     background-color: var(--color-field);
@@ -85,11 +135,11 @@
   }
 
   ::-webkit-scrollbar-track {
-    background: var(--color-scroll-track);
+    background: var(--color-scroll-track, var(--color-surface));
   }
 
   ::-webkit-scrollbar-thumb {
-    background: var(--color-scroll-thumb);
+    background: var(--color-scroll-thumb, var(--color-border));
     border-radius: 3px;
   }
 
@@ -99,23 +149,16 @@
 }
 
 /**
- * Aero / Liquid Glass materials (Apple-style vibrancy).
- *
- * Architecture:
- * 1. Fixed wallpaper layer (html::before) — mesh always visible under UI
- * 2. Transparent canvas (.bg-background) — no blur (blur here blocked sidebar glass)
- * 3. Frosted chrome (.bg-surface) — sidebar, header, cards
- * 4. Opaque fields (.bg-field + form controls) — inputs never translucent
+ * Aero materials — soft macOS-like hierarchy:
+ * wallpaper → transparent canvas → frosted chrome → opaque fields
  */
 html[data-material='glass'] {
-  --radius: 0.75rem;
+  --radius: 0.85rem;
   min-height: 100%;
   background-color: var(--color-background-solid);
-  background-image: none;
 }
 
 html[data-material='glass'] body {
-  /* Stacking context so wallpaper (::before) sits behind UI and chrome can blur it */
   position: relative;
   isolation: isolate;
   background-color: transparent !important;
@@ -135,7 +178,7 @@ html[data-material='glass'] body::before {
   background-repeat: no-repeat;
 }
 
-/* Canvas: let wallpaper show; do NOT blur (blur on shell kills chrome glass) */
+/* Canvas: no blur (keeps chrome glass working) */
 html[data-material='glass'] .bg-background {
   background-color: var(--color-background) !important;
   -webkit-backdrop-filter: none !important;
@@ -143,32 +186,41 @@ html[data-material='glass'] .bg-background {
   box-shadow: none !important;
 }
 
-/* Frosted chrome — sidebar, header, cards, sheets */
-html[data-material='glass'] .bg-surface {
+/* Frosted chrome */
+html[data-material='glass'] .bg-surface,
+html[data-material='glass'] [data-chrome='glass'] {
   background-color: var(--color-surface) !important;
+  color: var(--color-text-primary);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.45),
-    0 1px 0 0 rgba(255, 255, 255, 0.08),
-    0 12px 40px rgba(15, 23, 42, 0.1);
+    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 28px rgba(15, 23, 42, 0.06);
 }
 
-html[data-material='glass'].dark .bg-surface {
+html[data-material='glass'].dark .bg-surface,
+html[data-material='glass'].dark [data-chrome='glass'] {
   box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
-    0 12px 40px rgba(0, 0, 0, 0.4);
+    inset 0 0.5px 0 0 rgba(255, 255, 255, 0.14),
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 12px 36px rgba(0, 0, 0, 0.28);
 }
 
-/* Explicit chrome targets (sidebar / top bar) — guarantee glass even if class order changes */
-html[data-material='glass'] aside.bg-surface,
-html[data-material='glass'] header.bg-surface {
-  background-color: var(--color-surface) !important;
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+/* Chrome text must always use skin tokens (avoid inherited low-contrast) */
+html[data-material='glass'] [data-chrome='glass'] .text-text-primary,
+html[data-material='glass'] aside .text-text-primary,
+html[data-material='glass'] header .text-text-primary {
+  color: var(--color-text-primary) !important;
 }
 
-/* Opaque form fills — never glass */
+html[data-material='glass'] [data-chrome='glass'] .text-text-muted,
+html[data-material='glass'] aside .text-text-muted,
+html[data-material='glass'] header .text-text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+/* Opaque form fills */
 html[data-material='glass'] .bg-field {
   background-color: var(--color-field) !important;
   -webkit-backdrop-filter: none !important;
@@ -176,10 +228,6 @@ html[data-material='glass'] .bg-field {
   box-shadow: none !important;
 }
 
-/**
- * All real form controls: solid field fill + readable text.
- * Covers raw className inputs in AddTaskForm, date/time, cycle-select, etc.
- */
 html[data-material='glass']
   :is(
     input:not([type='checkbox']):not([type='radio']):not([type='range']):not(
@@ -199,8 +247,7 @@ html[data-material='glass']
   color-scheme: inherit;
 }
 
-html[data-material='glass']
-  :is(input, textarea, select)::placeholder {
+html[data-material='glass'] :is(input, textarea, select)::placeholder {
   color: var(--color-text-muted);
   opacity: 1;
 }
@@ -211,53 +258,29 @@ html[data-material='glass'] optgroup {
   color: var(--color-text-primary) !important;
 }
 
-/* Native date/time calendar icon contrast (WebKit) */
-html[data-material='glass'] input[type='date'],
-html[data-material='glass'] input[type='time'],
-html[data-material='glass'] input[type='datetime-local'] {
-  color-scheme: inherit;
-}
-
-html[data-material='glass'].light
-  input[type='date']::-webkit-calendar-picker-indicator,
-html[data-material='glass'].light
-  input[type='time']::-webkit-calendar-picker-indicator {
-  opacity: 0.65;
-  filter: none;
-}
-
 html[data-material='glass'].dark
   input[type='date']::-webkit-calendar-picker-indicator,
 html[data-material='glass'].dark
   input[type='time']::-webkit-calendar-picker-indicator {
-  opacity: 0.85;
+  opacity: 0.9;
   filter: invert(1);
 }
 
-/* Soft translucent wrappers like bg-background/50 should not wash out text */
-html[data-material='glass'] .bg-background\/50,
-html[data-material='glass'] .bg-background\/40,
-html[data-material='glass'] .bg-background\/60 {
-  background-color: color-mix(in srgb, var(--color-field) 55%, transparent) !important;
-}
-
-/* Performance / a11y */
 @media (prefers-reduced-transparency: reduce) {
   html[data-material='glass'] .bg-surface,
-  html[data-material='glass'] aside.bg-surface,
-  html[data-material='glass'] header.bg-surface {
+  html[data-material='glass'] [data-chrome='glass'] {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background-color: var(--color-field) !important;
   }
 
   html[data-material='glass'] body::before {
-    opacity: 0.4;
+    opacity: 0.35;
   }
 }
 
 @media (max-width: 768px) {
   html[data-material='glass'] {
-    --glass-blur: 22px;
+    --glass-blur: 20px;
   }
 }

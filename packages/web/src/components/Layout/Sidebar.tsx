@@ -23,6 +23,7 @@ import { appVersion } from '@/lib/appVersion';
 import { useT } from '@/hooks/useT';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import type { TKey } from '@/lib/i18n';
+import { GlassPanel } from '@/components/ui/glass-panel';
 
 export interface NavItem {
   to: string;
@@ -130,15 +131,19 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
   }
 
   return (
-    <aside
+    <GlassPanel
+      as="aside"
+      chrome
       className={cn(
-        'flex h-full w-60 shrink-0 flex-col border-r border-border bg-surface',
+        'flex h-full w-60 shrink-0 flex-col border-r border-border',
         variant === 'drawer' && 'w-full max-w-xs'
       )}
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
         <CalendarDays className="h-5 w-5 text-accent-teal" />
-        <span className="text-sm font-bold tracking-tight text-text-primary">Daily Tracker</span>
+        <span className="text-sm font-bold tracking-tight text-text-primary">
+          Daily Tracker
+        </span>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">{navNodes}</nav>
@@ -161,7 +166,7 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
         </div>
         <button
           onClick={signOut}
-          className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs text-text-muted transition-colors hover:bg-surface hover:text-text-primary"
+          className="w-full rounded-md border border-border bg-field px-2 py-1.5 text-xs text-text-muted transition-colors hover:bg-background hover:text-text-primary"
         >
           {t('action_sign_out')}
         </button>
@@ -169,6 +174,6 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
           v{appVersion.version} · {appVersion.channel}
         </p>
       </div>
-    </aside>
+    </GlassPanel>
   );
 }

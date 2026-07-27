@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import { readFileSync } from 'fs';
@@ -11,6 +12,7 @@ const buildId = process.env.BUILD_ID || new Date().toISOString();
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       // Manual register vía virtual:pwa-register (banner + check periódico).
       registerType: 'prompt',

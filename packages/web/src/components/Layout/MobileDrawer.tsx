@@ -29,8 +29,9 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
         )}
       />
       <div
+        data-chrome="glass"
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transform bg-surface shadow-xl transition-transform md:hidden',
+          'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transform border-r border-border bg-surface shadow-xl transition-transform md:hidden',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
         role="dialog"

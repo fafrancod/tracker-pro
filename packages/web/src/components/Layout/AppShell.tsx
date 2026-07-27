@@ -20,6 +20,7 @@ import {
   PageChromeProvider,
   usePageChromeState,
 } from './PageChromeContext';
+import { GlassPanel } from '@/components/ui/glass-panel';
 
 /**
  * Shell persistente: sidebar + header no se desmontan al cambiar de ruta.
@@ -104,11 +105,15 @@ function AppShellInner() {
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-3 pt-[env(safe-area-inset-top,0px)] md:px-5">
+        <GlassPanel
+          as="header"
+          chrome
+          className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-3 pt-[env(safe-area-inset-top,0px)] md:px-5"
+        >
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted hover:bg-background hover:text-text-primary md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted hover:bg-field hover:text-text-primary md:hidden"
             aria-label="Abrir menú"
           >
             <Menu className="h-5 w-5" />
@@ -135,7 +140,7 @@ function AppShellInner() {
               {primaryAction.label}
             </Button>
           )}
-        </header>
+        </GlassPanel>
 
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <Outlet />
