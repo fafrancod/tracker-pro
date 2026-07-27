@@ -710,7 +710,7 @@ export function AddTaskForm({
                 onChange={setFinanceAmount}
                 min={0}
                 max={1_000_000_000}
-                className="h-9 rounded-lg border border-border bg-background px-2 text-sm text-text-primary"
+                className="h-9 rounded-lg border border-border bg-field px-2 text-sm text-text-primary"
               />
             </label>
             <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
@@ -718,7 +718,7 @@ export function AddTaskForm({
               <select
                 value={financeCurrency}
                 onChange={e => setFinanceCurrency(e.target.value)}
-                className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-text-primary"
+                className="h-9 rounded-lg border border-border bg-field px-2 text-xs text-text-primary"
               >
                 {SUPPORTED_CURRENCIES.map(c => (
                   <option key={c.code} value={c.code}>
@@ -735,7 +735,7 @@ export function AddTaskForm({
               onChange={e =>
                 setFinanceCertainty(e.target.value as FinanceCertainty)
               }
-              className="h-9 rounded-lg border border-border bg-background px-2 text-xs text-text-primary"
+              className="h-9 rounded-lg border border-border bg-field px-2 text-xs text-text-primary"
             >
               <option value="fixed">{t('task_finance_fixed')}</option>
               <option value="potential">{t('task_finance_potential')}</option>
@@ -774,7 +774,7 @@ export function AddTaskForm({
           list="circle-mention-suggestions"
           className={cn(
             isModal
-              ? 'h-12 rounded-xl border-border bg-background px-4 text-base focus-visible:ring-accent-teal/40'
+              ? 'h-12 rounded-xl border-border bg-field px-4 text-base focus-visible:ring-accent-teal/40'
               : 'h-8 border-none bg-transparent px-1 text-sm focus-visible:ring-0 focus-visible:ring-offset-0'
           )}
         />
@@ -860,7 +860,7 @@ export function AddTaskForm({
                     value={phase.amount}
                     min={0.01}
                     onChange={amount => updatePhase(pi, { amount })}
-                    className="w-20 rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                    className="w-20 rounded border border-border bg-field px-2 py-1.5 text-xs text-text-primary"
                   />
                 </label>
                 <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
@@ -868,7 +868,7 @@ export function AddTaskForm({
                   <select
                     value={phase.unit}
                     onChange={e => updatePhase(pi, { unit: e.target.value as DoseUnit })}
-                    className="rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                    className="rounded border border-border bg-field px-2 py-1.5 text-xs text-text-primary"
                   >
                     <option value="pills">{t('rx_unit_pills')}</option>
                     <option value="ml">{t('rx_unit_ml')}</option>
@@ -886,7 +886,7 @@ export function AddTaskForm({
                         days: Math.max(1, Math.min(365, Number(e.target.value) || 1)),
                       })
                     }
-                    className="w-16 rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                    className="w-16 rounded border border-border bg-field px-2 py-1.5 text-xs text-text-primary"
                   />
                 </label>
               </div>
@@ -895,7 +895,7 @@ export function AddTaskForm({
                 <span className="text-[10px] font-medium uppercase text-text-muted">
                   {t('rx_schedule_mode')}
                 </span>
-                <div className="inline-flex rounded-lg border border-border bg-background p-0.5">
+                <div className="inline-flex rounded-lg border border-border bg-field p-0.5">
                   {(['fixed', 'interval'] as RxScheduleMode[]).map(mode => {
                     const active = resolvePhaseScheduleMode(phase) === mode;
                     return (
@@ -939,7 +939,7 @@ export function AddTaskForm({
                               times: expandIntervalTimes(startTime, everyHours),
                             });
                           }}
-                          className="w-20 rounded border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                          className="w-20 rounded border border-border bg-field px-2 py-1.5 text-xs text-text-primary"
                         />
                       </label>
                       <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
@@ -1025,7 +1025,7 @@ export function AddTaskForm({
               value={projectId ?? ''}
               onChange={e => setProjectId(e.target.value || null)}
               className={cn(
-                'min-w-0 flex-1 rounded-lg border border-border bg-background text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+                'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
                 isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
               )}
             >
@@ -1256,13 +1256,13 @@ export function AddTaskForm({
                   setFormStartDayId(next);
                   setEndDayId(next);
                 }}
-                className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                className="rounded-lg border border-border bg-field px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
                 aria-label={t('rx_plan_start')}
               />
             </label>
             <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-[10px] text-text-muted">
               <span>{t('rx_plan_duration')}</span>
-              <div className="rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary">
+              <div className="rounded-lg border border-border bg-field px-2 py-1.5 text-xs text-text-primary">
                 {rxPlanDays <= 0 || rxPhaseRanges.length === 0 ? (
                   <p>—</p>
                 ) : rxPhaseRanges.length === 1 ? (
@@ -1380,7 +1380,7 @@ export function AddTaskForm({
                 setUseBusinessDays(false);
               }
             }}
-            className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-field px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
             aria-label={t('task_repeat')}
           >
             {recurrenceOptions.map(opt => (
@@ -1403,7 +1403,7 @@ export function AddTaskForm({
                     Math.max(1, Math.min(365, Number(e.target.value) || 1))
                   )
                 }
-                className="w-12 rounded-lg border border-border bg-background px-1 py-1 text-center text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-12 rounded-lg border border-border bg-field px-1 py-1 text-center text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <span>
                 {recurrenceFrequency === 'daily'
@@ -1481,7 +1481,7 @@ export function AddTaskForm({
                 onChange={e =>
                   setMonthlyAnchor(e.target.value as MonthlyAnchor)
                 }
-                className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs text-text-primary"
+                className="w-full rounded-lg border border-border bg-field px-2 py-1.5 text-xs text-text-primary"
               >
                 <option value="first_business">
                   {t('task_repeat_first_business')}

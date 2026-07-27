@@ -71,7 +71,7 @@ export function TimeInput({
     <div className={cn('inline-flex items-center gap-1', className)}>
       <div
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-1 rounded-lg border bg-background px-1.5',
+          'flex min-w-0 flex-1 items-center gap-1 rounded-lg border bg-field px-1.5',
           invalidRange ? 'border-accent-red' : 'border-border',
           disabled && 'opacity-50'
         )}

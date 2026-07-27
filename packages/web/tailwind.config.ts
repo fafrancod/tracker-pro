@@ -8,6 +8,8 @@ const config: Config = {
       colors: {
         background: 'var(--color-background)',
         surface: 'var(--color-surface)',
+        /** Form control fill (opaque on Aero; equals surface on solid skins) */
+        field: 'var(--color-field)',
         border: 'var(--color-border)',
         'text-primary': 'var(--color-text-primary)',
         'text-muted': 'var(--color-text-muted)',
