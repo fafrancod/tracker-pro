@@ -1570,15 +1570,15 @@ const es_dict: TranslationDict = {
   rx_phase_days_count: '{n} días',
   rx_subject_unnamed_person: 'Persona (sin nombre)',
   rx_subject_unnamed_pet: 'Mascota (sin nombre)',
-  rx_edit_owner_title: 'A quién pertenece',
+  rx_edit_owner_title: 'Editar receta',
   rx_edit_owner_desc:
-    'Cambia si «{title}» es para persona o mascota y el nombre. Se aplica a todo el tratamiento.',
+    'Medicamento, dueño, horarios de ingesta y fases de «{title}». Los cambios de plan regeneran las tomas pendientes desde hoy.',
   rx_edit_owner_kind: 'Tipo',
   rx_edit_owner_hint:
     'Ej. Ragnar. Si lo pasas a mascota, aparecerá en el filtro de mascotas.',
-  rx_edit_owner_action: 'Editar dueño',
-  rx_edit_owner_saved: 'Dueño del recetario actualizado.',
-  rx_edit_owner_error: 'No se pudo actualizar el dueño del recetario.',
+  rx_edit_owner_action: 'Editar',
+  rx_edit_owner_saved: 'Recetario actualizado.',
+  rx_edit_owner_error: 'No se pudo actualizar el recetario.',
   rx_phases_ending_title: 'Fases que terminan esta semana',
   rx_phases_ending_subtitle:
     'Fases de tratamiento cuyo último día cae en los próximos 7 días.',
@@ -2425,15 +2425,15 @@ const en_dict: TranslationDict = {
   rx_phase_days_count: '{n} days',
   rx_subject_unnamed_person: 'Person (unnamed)',
   rx_subject_unnamed_pet: 'Pet (unnamed)',
-  rx_edit_owner_title: 'Who it belongs to',
+  rx_edit_owner_title: 'Edit prescription',
   rx_edit_owner_desc:
-    'Change whether “{title}” is for a person or pet and the name. Applies to the whole treatment.',
+    'Medicine, owner, intake times and phases for “{title}”. Plan changes regenerate pending doses from today.',
   rx_edit_owner_kind: 'Type',
   rx_edit_owner_hint:
     'e.g. Ragnar. Switch to pet to show it under the pets filter.',
-  rx_edit_owner_action: 'Edit owner',
-  rx_edit_owner_saved: 'Prescription owner updated.',
-  rx_edit_owner_error: 'Could not update the prescription owner.',
+  rx_edit_owner_action: 'Edit',
+  rx_edit_owner_saved: 'Prescription updated.',
+  rx_edit_owner_error: 'Could not update the prescription.',
   rx_phases_ending_title: 'Phases ending this week',
   rx_phases_ending_subtitle:
     'Treatment phases whose last day falls in the next 7 days.',

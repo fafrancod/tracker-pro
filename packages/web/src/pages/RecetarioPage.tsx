@@ -48,7 +48,7 @@ export function RecetarioPage() {
   const todayId = getDayId(today);
   const weekId = getWeekId(today);
   const weekEndId = getDayId(addDays(today, 6));
-  const { addTask, editTask } = useTasks(weekId, todayId);
+  const { addTask, editTask, rematerializeRx } = useTasks(weekId, todayId);
 
   const [filter, setFilter] = useState<SubjectFilter>('all');
   /** Centro de la ventana de 3 días (ayer | centro | mañana). */
@@ -57,7 +57,7 @@ export function RecetarioPage() {
   const [loading, setLoading] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<RxTreatmentProgress | null>(null);
-  const [savingOwner, setSavingOwner] = useState(false);
+  const [savingTreatment, setSavingTreatment] = useState(false);
 
   const loadAllRx = useCallback(async () => {
     if (!uid || isDemoMode()) {
@@ -121,70 +121,99 @@ export function RecetarioPage() {
     return { activeTreatments, todayPending, todayTotal, subjects: groups.length };
   }, [groups]);
 
-  async function handleOwnerSave(result: RxOwnerEditResult) {
+  async function handleTreatmentSave(result: RxOwnerEditResult) {
     if (!editTarget) return;
     const sample = editTarget.tasks[0];
     if (!sample) return;
 
-    setSavingOwner(true);
+    setSavingTreatment(true);
     try {
       const loc = findTaskLocation(sample.id);
       // editTask usa week/day del hook; taskHistory reubica con findTaskLocation.
       void loc;
       const subject = result.subject.trim() || null;
+      const title = result.title.trim() || sample.title;
+      const color = result.kind === 'rx_pet' ? '#d29922' : '#a371f7';
+      const seriesId = editTarget.seriesId || sample.seriesId;
+      const applyTo = seriesId ? 'series' : 'instance';
+
       await editTask(sample.id, {
+        title,
         kind: result.kind,
         rxSubject: subject,
-        color: result.kind === 'rx_pet' ? '#d29922' : '#a371f7',
-        applyTo: editTarget.seriesId || sample.seriesId ? 'series' : 'instance',
+        color,
+        applyTo,
       });
 
-      // Si no hay seriesId, propaga a todas las tomas del tratamiento en cliente+API.
-      if (!editTarget.seriesId && !sample.seriesId && editTarget.tasks.length > 1) {
+      // Sin seriesId: propaga metadata a todas las tomas del tratamiento.
+      if (!seriesId && editTarget.tasks.length > 1) {
         for (const task of editTarget.tasks.slice(1)) {
           await editTask(task.id, {
+            title,
             kind: result.kind,
             rxSubject: subject,
-            color: result.kind === 'rx_pet' ? '#d29922' : '#a371f7',
+            color,
             applyTo: 'instance',
           });
         }
       }
 
-      // Actualiza remote cache localmente para feedback inmediato
+      if (result.planDirty) {
+        if (!seriesId) {
+          showToast(t('rx_edit_owner_error'), 'error');
+        } else {
+          const remat = await rematerializeRx(sample.id, {
+            title,
+            rxPhases: result.rxPhases,
+            rxSubject: subject,
+            fromDayId: todayId,
+            color,
+          });
+          showToast(
+            t('rx_plan_saved').replace('{n}', String(remat?.created ?? 0)),
+            'success'
+          );
+        }
+      } else {
+        showToast(t('rx_edit_owner_saved'), 'success');
+      }
+
+      // Cache remoto: feedback inmediato
       setRemoteRx(prev =>
         prev.map(t => {
-          const sameSeries =
-            (editTarget.seriesId || sample.seriesId) &&
-            t.seriesId === (editTarget.seriesId || sample.seriesId);
+          const sameSeries = seriesId && t.seriesId === seriesId;
           const sameSolo = editTarget.tasks.some(x => x.id === t.id);
           if (!sameSeries && !sameSolo) return t;
           return {
             ...t,
+            title,
             kind: result.kind,
-            color: result.kind === 'rx_pet' ? '#d29922' : '#a371f7',
+            color,
             rx: t.rx
-              ? { ...t.rx, subject }
+              ? {
+                  ...t.rx,
+                  subject,
+                  phases: result.planDirty ? result.rxPhases : t.rx.phases,
+                }
               : {
                   subject,
                   amount: 1,
                   unit: 'pills' as const,
                   phaseIndex: 0,
                   planStartDayId: todayId,
-                  phases: [],
+                  phases: result.rxPhases,
                 },
           };
         })
       );
 
-      showToast(t('rx_edit_owner_saved'), 'success');
       setEditTarget(null);
       await loadAllRx();
     } catch (err) {
-      console.error('[recetario] owner save failed', err);
+      console.error('[recetario] treatment save failed', err);
       showToast(t('rx_edit_owner_error'), 'error');
     } finally {
-      setSavingOwner(false);
+      setSavingTreatment(false);
     }
   }
 
@@ -265,11 +294,11 @@ export function RecetarioPage() {
       <RxOwnerEditDialog
         open={editTarget !== null}
         treatment={editTarget}
-        saving={savingOwner}
+        saving={savingTreatment}
         onOpenChange={open => {
-          if (!open && !savingOwner) setEditTarget(null);
+          if (!open && !savingTreatment) setEditTarget(null);
         }}
-        onSave={result => void handleOwnerSave(result)}
+        onSave={result => void handleTreatmentSave(result)}
       />
 
       <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
