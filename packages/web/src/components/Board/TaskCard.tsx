@@ -499,6 +499,21 @@ export function TaskCard({
                 {task.departureTime ? ` · 🚗 ${task.departureTime.slice(0, 5)}` : ''}
               </span>
             )}
+            {task.kind !== 'event' &&
+              task.location &&
+              (task.kind === 'task' ||
+                task.kind === 'reminder' ||
+                task.kind === 'possible_event') && (
+                <span
+                  className="inline-flex max-w-[9rem] items-center gap-0.5 truncate rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-text-muted"
+                  title={task.location}
+                >
+                  📍{' '}
+                  {task.location.length > 16
+                    ? `${task.location.slice(0, 16)}…`
+                    : task.location}
+                </span>
+              )}
             {task.recurrence.frequency !== 'none' && (
               <span
                 className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-teal"

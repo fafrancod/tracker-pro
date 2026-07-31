@@ -223,6 +223,12 @@ export function AddTaskForm({
   const isHabit = isHabitKind(kind);
   const isFinance = isFinanceKind(kind);
   const supportsSteps = kindSupportsSteps(kind);
+  /** Lugar: tarea, recordatorio, evento y evento posible. */
+  const supportsLocation =
+    kind === 'task' ||
+    kind === 'reminder' ||
+    kind === 'event' ||
+    kind === 'possible_event';
   const tasksByDay = useStore(s => s.tasksByDay);
   const contacts = useStore(s => s.contacts);
 
@@ -550,7 +556,7 @@ export function AddTaskForm({
       endTime: endN,
       tags,
       involvedContactIds: isEventLike ? involvedContactIds : [],
-      location: isEventLike ? location.trim() || null : null,
+      location: supportsLocation ? location.trim() || null : null,
       departureTime: isEvent ? depN : null,
       steps: supportsSteps
         ? steps
@@ -1124,14 +1130,16 @@ export function AddTaskForm({
         <TaskStepsEditor steps={steps} onChange={setSteps} />
       )}
 
-      {/* Evento / evento posible: lugar (+ salida solo en evento real) */}
-      {isEventLike && (
+      {/* Lugar (tarea / recordatorio / evento / posible) + salida solo en evento real */}
+      {supportsLocation && (
         <div
           className={cn(
             'space-y-3 rounded-xl border p-3',
             isEvent
               ? 'border-sky-500/30 bg-sky-500/5'
-              : 'border-fuchsia-500/30 bg-fuchsia-500/5'
+              : isPossible
+                ? 'border-fuchsia-500/30 bg-fuchsia-500/5'
+                : 'border-border bg-surface/40'
           )}
         >
           <label className="flex flex-col gap-1 text-[11px] text-text-muted">
@@ -1139,7 +1147,9 @@ export function AddTaskForm({
               <MapPin className="h-3 w-3" />
               {isEvent
                 ? t('task_event_location')
-                : t('task_possible_event_location')}
+                : isPossible
+                  ? t('task_possible_event_location')
+                  : t('task_location')}
             </span>
             <Input
               value={location}
@@ -1147,7 +1157,9 @@ export function AddTaskForm({
               placeholder={
                 isEvent
                   ? t('task_event_location_ph')
-                  : t('task_possible_event_location_ph')
+                  : isPossible
+                    ? t('task_possible_event_location_ph')
+                    : t('task_location_ph')
               }
               maxLength={200}
               className="h-9 text-sm"

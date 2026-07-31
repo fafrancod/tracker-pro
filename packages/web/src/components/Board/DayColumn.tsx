@@ -6,7 +6,10 @@ import { useTasks } from '@core/hooks/useTasks';
 import { useProjects } from '@core/hooks/useProjects';
 import { useWeek } from '@core/hooks/useWeek';
 import { useStore } from '@core/store';
-import { collectTasksCovering } from '@core/lib/taskPresence';
+import {
+  collectTasksCovering,
+  compareByStartTime,
+} from '@core/lib/taskPresence';
 import { taskMatchesFilters, type BoardTaskFilters } from '@core/types';
 import { chileHolidayName } from '@core/lib/chileHolidays';
 import { useT } from '@/hooks/useT';
@@ -29,26 +32,24 @@ interface DayColumnProps {
 export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: DayColumnProps) {
   const { tasks: allTasks, addTask, editTask, removeTask, moveTaskToDay } =
     useTasks(weekId, dayId);
-  // Lista: horario temprano → tarde (collectTasksCovering ya ordena; re-sort tras filtro).
-  const tasks = useMemo(() => {
-    const list = filter
-      ? allTasks.filter(t => taskMatchesFilters(t, filter))
+  // Progreso del día ignora hideCompleted (sigue contando terminadas).
+  // Lista visible: completadas al final (compareByStartTime); opcionalmente ocultas.
+  const { tasks, completedCount, progress } = useMemo(() => {
+    const baseFilter = filter ? { ...filter, hideCompleted: false } : undefined;
+    const matching = baseFilter
+      ? allTasks.filter(t => taskMatchesFilters(t, baseFilter))
       : [...allTasks];
-    return list.sort((a, b) => {
-      const ta =
-        a.startTime && /^\d{2}:\d{2}/.test(a.startTime)
-          ? a.startTime.slice(0, 5)
-          : '99:99';
-      const tb =
-        b.startTime && /^\d{2}:\d{2}/.test(b.startTime)
-          ? b.startTime.slice(0, 5)
-          : '99:99';
-      if (ta !== tb) return ta.localeCompare(tb);
-      return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
-    });
+    const done = matching.filter(t => t.completed).length;
+    const list = (
+      filter?.hideCompleted ? matching.filter(t => !t.completed) : matching
+    ).sort(compareByStartTime);
+    return {
+      tasks: list,
+      completedCount: done,
+      progress:
+        matching.length > 0 ? Math.round((done / matching.length) * 100) : 0,
+    };
   }, [allTasks, filter]);
-  const completedCount = tasks.filter(t => t.completed).length;
-  const progress = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
   const { projects } = useProjects();
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });

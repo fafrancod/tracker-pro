@@ -20,13 +20,17 @@ export function startTimeSortKey(startTime: string | null | undefined): string {
 }
 
 /**
- * Orden de lista en calendario: más temprano → más tarde;
- * sin hora al final; desempate por título e id.
+ * Orden de lista en calendario: incompletas primero, completadas al final;
+ * dentro de cada grupo: más temprano → más tarde; sin hora al final;
+ * desempate por título e id.
  */
 export function compareByStartTime(
-  a: Pick<Task, 'startTime' | 'title' | 'id'>,
-  b: Pick<Task, 'startTime' | 'title' | 'id'>
+  a: Pick<Task, 'startTime' | 'title' | 'id' | 'completed'>,
+  b: Pick<Task, 'startTime' | 'title' | 'id' | 'completed'>
 ): number {
+  if (Boolean(a.completed) !== Boolean(b.completed)) {
+    return a.completed ? 1 : -1;
+  }
   const byTime = startTimeSortKey(a.startTime).localeCompare(
     startTimeSortKey(b.startTime)
   );

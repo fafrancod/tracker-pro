@@ -37,6 +37,7 @@ const DEFAULT_SETTINGS = {
   notifyRx: true,
   timezone: 'UTC',
   preferredCurrency: 'EUR',
+  hideCompletedTasks: false,
 };
 
 authRouter.post('/bootstrap', async (req, res, next) => {

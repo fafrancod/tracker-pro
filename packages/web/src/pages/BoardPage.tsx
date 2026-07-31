@@ -14,6 +14,8 @@ import {
   Leaf,
   Wallet,
   Flag,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
@@ -66,7 +68,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 export function BoardPage() {
   const [fabOpen, setFabOpen] = useState(false);
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const [view, setView] = useState<BoardViewMode>(
     () => settings.defaultBoardView ?? 'continuous'
   );
@@ -85,6 +87,12 @@ export function BoardPage() {
   const { projects } = useProjects();
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { canUndo, canRedo, undo, redo } = useTaskHistory();
+
+  const hideCompleted = Boolean(settings.hideCompletedTasks);
+
+  function toggleHideCompleted() {
+    void updateSettings({ hideCompletedTasks: !hideCompleted });
+  }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -156,10 +164,11 @@ export function BoardPage() {
   }
 
   const category = filters.category === 'rx' ? 'all' : (filters.category ?? 'all');
-  /** Filtros efectivos del board (sin pestaña recetario). */
+  /** Filtros efectivos del board (sin pestaña recetario + hide completed). */
   const boardFilter: BoardTaskFilters = {
     ...filters,
     category,
+    hideCompleted,
   };
   const isProjectsCategory = category === 'projects';
   const isPossibleCategory = category === 'possible';
@@ -329,6 +338,34 @@ export function BoardPage() {
             <Redo2 className="h-3.5 w-3.5" />
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={toggleHideCompleted}
+          title={
+            hideCompleted
+              ? t('board_show_completed')
+              : t('board_hide_completed')
+          }
+          aria-pressed={hideCompleted}
+          className={cn(
+            'inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors',
+            hideCompleted
+              ? 'border-accent-teal/40 bg-accent-teal/15 text-accent-teal'
+              : 'border-border bg-surface text-text-muted hover:bg-background hover:text-text-primary'
+          )}
+        >
+          {hideCompleted ? (
+            <EyeOff className="h-3.5 w-3.5" />
+          ) : (
+            <Eye className="h-3.5 w-3.5" />
+          )}
+          <span className="hidden sm:inline">
+            {hideCompleted
+              ? t('board_show_completed')
+              : t('board_hide_completed')}
+          </span>
+        </button>
       </div>
 
       {/* Fila 2: categorías (Todo / Proyectos / Eventos / …) — recetario vive en /recetario */}

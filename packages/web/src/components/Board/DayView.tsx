@@ -185,26 +185,35 @@ export function DayView({
   const dateLabel = format(dayDate, shortDateFormat, { locale });
   const isToday = dayId === todayDayId;
 
-  const located = useMemo(() => {
+  // Matching sin hideCompleted → progreso del día; visible aplica hide.
+  const { located, completedCount, progress } = useMemo(() => {
     const rows = collectTasksCovering(tasksByDay, dayId);
-    return filter ? rows.filter(r => taskMatchesFilters(r, filter)) : rows;
+    const baseFilter = filter ? { ...filter, hideCompleted: false } : undefined;
+    const matching = baseFilter
+      ? rows.filter(r => taskMatchesFilters(r, baseFilter))
+      : rows;
+    const done = matching.filter(t => t.completed).length;
+    const visible = filter?.hideCompleted
+      ? matching.filter(t => !t.completed)
+      : matching;
+    return {
+      located: visible,
+      completedCount: done,
+      progress:
+        matching.length > 0 ? Math.round((done / matching.length) * 100) : 0,
+    };
   }, [tasksByDay, dayId, filter]);
 
   const sortedLocated = useMemo(() => {
     const keys = sortKeys.length > 0 ? sortKeys : (['time'] as DayListSortKey[]);
     return [...located].sort((a, b) => {
-      // Orden por horario (default): más temprano → más tarde, sin sesgo de completadas.
-      // Otros criterios: completadas al final.
-      if (keys[0] !== 'time' && a.completed !== b.completed) {
+      // Siempre: incompletas primero; luego criterio de sort (hora, nombre, etc.).
+      if (a.completed !== b.completed) {
         return a.completed ? 1 : -1;
       }
       return compareLocated(a, b, keys, sortDir);
     });
   }, [located, sortKeys, sortDir]);
-
-  const completedCount = located.filter(t => t.completed).length;
-  const progress =
-    located.length > 0 ? Math.round((completedCount / located.length) * 100) : 0;
 
   function toggleSortKey(key: DayListSortKey) {
     setSortKeys(prev => {

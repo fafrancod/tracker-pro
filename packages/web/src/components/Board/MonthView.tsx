@@ -741,13 +741,20 @@ export function MonthView({
                   const dayIdStr = getDayId(date);
                   const holidayName = holidaysByDay.get(dayIdStr) ?? null;
                   const chips = holidaysOnly ? [] : getSingleDayChips(date);
-                  const covering = holidaysOnly
+                  // Progreso del día ignora hideCompleted; chips/bars usan el filter completo.
+                  const coveringForProgress = holidaysOnly
                     ? []
-                    : collectTasksCovering(tasksByDay, dayIdStr).filter(
-                        t => !filter || taskMatchesFilters(t, filter)
-                      );
-                  const completed = covering.filter(task => task.completed).length;
-                  const total = covering.length;
+                    : collectTasksCovering(tasksByDay, dayIdStr).filter(t => {
+                        if (!filter) return true;
+                        return taskMatchesFilters(t, {
+                          ...filter,
+                          hideCompleted: false,
+                        });
+                      });
+                  const completed = coveringForProgress.filter(
+                    task => task.completed
+                  ).length;
+                  const total = coveringForProgress.length;
                   // Overflow only from multi-day bars that don't fit in lanes
                   const barOverflow = overflowByCol[col];
 

@@ -338,6 +338,11 @@ function TaskDetailInner({
   const draftIsHabit =
     draftKind === 'habit_good' || draftKind === 'habit_quit';  const draftIsFinance = isFinanceKind(draftKind);
   const draftSupportsSteps = kindSupportsSteps(draftKind);
+  const draftSupportsLocation =
+    draftKind === 'task' ||
+    draftKind === 'reminder' ||
+    draftKind === 'event' ||
+    draftKind === 'possible_event';
 
   /** Kinds intercambiables en el menú de edición (no incluye rx). */
   const CONVERTIBLE_KINDS = defaultKindOptions(k =>
@@ -615,7 +620,10 @@ function TaskDetailInner({
               ? snap.involvedContactIds
               : [],
             location:
-              saveIsEvent || saveKind === 'possible_event'
+              saveKind === 'task' ||
+              saveKind === 'reminder' ||
+              saveIsEvent ||
+              saveKind === 'possible_event'
                 ? snap.location.trim() || null
                 : null,
             departureTime: saveIsEvent ? depN : null,
@@ -847,41 +855,49 @@ function TaskDetailInner({
           />
         )}
 
-        {/* Campos de evento / posible (visibles según borrador; no se vacían al cambiar de tipo) */}
+        {/* Lugar (tarea / recordatorio / evento / posible) */}
+        {!isRx && draftSupportsLocation && (
+          <Field
+            label={
+              draftIsEvent
+                ? t('task_event_location')
+                : draftIsPossible
+                  ? t('task_possible_event_location')
+                  : t('task_location')
+            }
+          >
+            <Input
+              value={draft.location}
+              onChange={e => patchDraft({ location: e.target.value })}
+              placeholder={
+                draftIsEvent
+                  ? t('task_event_location_ph')
+                  : draftIsPossible
+                    ? t('task_possible_event_location_ph')
+                    : t('task_location_ph')
+              }
+              maxLength={200}
+              className="h-9 text-sm"
+            />
+          </Field>
+        )}
+
+        {/* Salida + contactos solo en evento / posible */}
         {!isRx && draftIsEventLike && (
           <>
-            <Field
-              label={
-                draftIsEvent
-                  ? t('task_event_location')
-                  : t('task_possible_event_location')
-              }
-            >
-              <Input
-                value={draft.location}
-                onChange={e => patchDraft({ location: e.target.value })}
-                placeholder={
-                  draftIsEvent
-                    ? t('task_event_location_ph')
-                    : t('task_possible_event_location_ph')
-                }
-                maxLength={200}
-                className="h-9 text-sm"
-              />
-            </Field>
-            <Field label={t('task_event_departure')}>
-              <TimeInput
-                value={draft.departureTime}
-                onChange={v => patchDraft({ departureTime: v })}
-                nowLabel={t('time_now')}
-                clearLabel={t('task_clear_time')}
-              />
-              <p className="mt-1 text-[10px] text-text-muted">
-                {draftIsEvent
-                  ? t('task_event_departure_hint')
-                  : t('task_event_departure_draft_hint')}
-              </p>
-            </Field>
+            {draftIsEvent && (
+              <Field label={t('task_event_departure')}>
+                <TimeInput
+                  value={draft.departureTime}
+                  onChange={v => patchDraft({ departureTime: v })}
+                  nowLabel={t('time_now')}
+                  clearLabel={t('task_clear_time')}
+                />
+                <p className="mt-1 text-[10px] text-text-muted">
+                  {t('task_event_departure_hint')}
+                </p>
+              </Field>
+            )}
             <Field label={t('task_involved_contacts')}>
               <p className="mb-1.5 text-[10px] text-text-muted">
                 {t('task_involved_contacts_hint')}

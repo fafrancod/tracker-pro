@@ -85,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           lifeGoals: [],
           dailyJournal: [],
           preferredCurrency: 'EUR',
+          hideCompletedTasks: false,
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;

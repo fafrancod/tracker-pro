@@ -288,6 +288,12 @@ export interface TranslationDict {
   board_month_view: string;
   board_continuous_view: string;
   board_day_view: string;
+  /** Ocultar / mostrar tareas terminadas en el tablero */
+  board_hide_completed: string;
+  board_show_completed: string;
+  /** Lugar genérico (tarea / recordatorio) */
+  task_location: string;
+  task_location_ph: string;
   /** Menú contextual de celda en mes/continuo */
   board_ctx_view_day: string;
   board_go_today: string;
@@ -1106,6 +1112,10 @@ const es_dict: TranslationDict = {
   board_month_view: 'Mes',
   board_continuous_view: 'Continuo',
   board_day_view: 'Día',
+  board_hide_completed: 'Ocultar terminados',
+  board_show_completed: 'Mostrar terminados',
+  task_location: 'Lugar',
+  task_location_ph: 'Ej. oficina, casa, Zoom…',
   board_ctx_view_day: 'Ver día',
   board_go_today: 'Ir al día de hoy',
   board_go_this_week: 'Ir a la semana de hoy',
@@ -1957,6 +1967,10 @@ const en_dict: TranslationDict = {
   board_month_view: 'Month',
   board_continuous_view: 'Continuous',
   board_day_view: 'Day',
+  board_hide_completed: 'Hide completed',
+  board_show_completed: 'Show completed',
+  task_location: 'Place',
+  task_location_ph: 'e.g. office, home, Zoom…',
   board_ctx_view_day: 'View day',
   board_go_today: 'Go to today',
   board_go_this_week: 'Go to this week',

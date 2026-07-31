@@ -210,6 +210,11 @@ export interface UserSettings {
    * Default del módulo Finances y de ingresos/gastos en calendario.
    */
   preferredCurrency: string;
+  /**
+   * Ocultar tareas completadas en el tablero (día/semana/mes/continuo).
+   * Default false (se muestran al final de cada lista del día).
+   */
+  hideCompletedTasks: boolean;
 }
 
 /** 1 = muy bajo … 5 = excelente (ánimo o energía). */
@@ -386,7 +391,10 @@ export interface Task {
    * Especialmente útil en possible_event / event; también se reflejan en tags.
    */
   involvedContactIds: string[];
-  /** Lugar del evento (kind event). Vacío en otros kinds. */
+  /**
+   * Lugar (tarea, recordatorio, evento o evento posible).
+   * null en hábitos, finanzas y recetario.
+   */
   location: string | null;
   /**
    * Hora de salida prevista HH:mm (kind event).
@@ -554,15 +562,21 @@ export interface BoardTaskFilters {
    * holidays = feriados (capa aparte; no filtra tasks del store).
    */
   category?: BoardCategoryFilter;
+  /** Si true, oculta tareas completadas en la lista del tablero. */
+  hideCompleted?: boolean;
 }
 
 export function taskMatchesFilters(
-  task: Pick<Task, 'projectId' | 'urgency' | 'importance' | 'kind'>,
+  task: Pick<Task, 'projectId' | 'urgency' | 'importance' | 'kind' | 'completed'>,
   filters: BoardTaskFilters
 ): boolean {
   const kind = task.kind ?? 'task';
   const isRx = kind === 'rx_human' || kind === 'rx_pet';
   const isFinance = kind === 'finance_income' || kind === 'finance_expense';
+
+  if (filters.hideCompleted && task.completed) {
+    return false;
+  }
 
   // El calendario no muestra tomas de recetario salvo filtro legacy `rx`.
   if (isRx && filters.category !== 'rx') {

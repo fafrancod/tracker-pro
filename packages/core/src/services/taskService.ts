@@ -582,7 +582,10 @@ function expandCreateInstances(
       rx: null,
       involvedContactIds: isEventLike ? (payload.involvedContactIds ?? []) : [],
       location:
-        kind === 'event' || kind === 'possible_event'
+        kind === 'task' ||
+        kind === 'reminder' ||
+        kind === 'event' ||
+        kind === 'possible_event'
           ? (payload.location?.trim() || null)
           : null,
       departureTime: kind === 'event' ? (payload.departureTime ?? null) : null,
@@ -783,7 +786,10 @@ function materializeDemoCreate(
       rx: null,
       involvedContactIds: isHabit || isFinance ? [] : involved,
       location:
-        kind === 'event' || kind === 'possible_event'
+        kind === 'task' ||
+        kind === 'reminder' ||
+        kind === 'event' ||
+        kind === 'possible_event'
           ? (payload.location?.trim() || null)
           : null,
       departureTime:
