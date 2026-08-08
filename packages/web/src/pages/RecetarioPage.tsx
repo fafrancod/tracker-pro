@@ -48,7 +48,10 @@ export function RecetarioPage() {
   const todayId = getDayId(today);
   const weekId = getWeekId(today);
   const weekEndId = getDayId(addDays(today, 6));
-  const { addTask, editTask, rematerializeRx } = useTasks(weekId, todayId);
+  const { addTask, editTask, rematerializeRx, removeRxTreatment } = useTasks(
+    weekId,
+    todayId
+  );
 
   const [filter, setFilter] = useState<SubjectFilter>('all');
   /** Centro de la ventana de 3 días (ayer | centro | mañana). */
@@ -58,6 +61,9 @@ export function RecetarioPage() {
   const [fabOpen, setFabOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<RxTreatmentProgress | null>(null);
   const [savingTreatment, setSavingTreatment] = useState(false);
+  const [deletingTreatmentKey, setDeletingTreatmentKey] = useState<string | null>(
+    null
+  );
 
   const loadAllRx = useCallback(async () => {
     if (!uid || isDemoMode()) {
@@ -120,6 +126,41 @@ export function RecetarioPage() {
     const todayTotal = groups.reduce((s, g) => s + g.todayDoses.length, 0);
     return { activeTreatments, todayPending, todayTotal, subjects: groups.length };
   }, [groups]);
+
+  async function handleTreatmentDelete(treatment: RxTreatmentProgress) {
+    const title = treatment.title.trim() || t('nav_recetario');
+    const n = treatment.tasks.length;
+    const ok = window.confirm(
+      t('rx_delete_confirm').replace('{title}', title).replace('{n}', String(n))
+    );
+    if (!ok) return;
+
+    setDeletingTreatmentKey(treatment.key);
+    try {
+      await removeRxTreatment({
+        seriesId: treatment.seriesId,
+        tasks: treatment.tasks.map(x => ({ id: x.id })),
+      });
+
+      const seriesId = treatment.seriesId;
+      const ids = new Set(treatment.tasks.map(x => x.id));
+      setRemoteRx(prev =>
+        prev.filter(t => {
+          if (seriesId && t.seriesId === seriesId) return false;
+          return !ids.has(t.id);
+        })
+      );
+
+      showToast(t('rx_delete_saved'), 'success');
+      await loadAllRx();
+    } catch (err) {
+      console.error('[recetario] treatment delete failed', err);
+      showToast(t('rx_delete_error'), 'error');
+      await loadAllRx();
+    } finally {
+      setDeletingTreatmentKey(null);
+    }
+  }
 
   async function handleTreatmentSave(result: RxOwnerEditResult) {
     if (!editTarget) return;
@@ -285,6 +326,8 @@ export function RecetarioPage() {
             groups={groups}
             onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
             onEditOwner={tr => setEditTarget(tr)}
+            onDeleteTreatment={tr => void handleTreatmentDelete(tr)}
+            deletingTreatmentKey={deletingTreatmentKey}
             emptyLabel={loading ? t('recetario_loading') : t('recetario_empty')}
             showToday={false}
           />

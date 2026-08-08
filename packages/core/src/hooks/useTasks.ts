@@ -5,6 +5,7 @@ import {
   getWeekId,
   getDayId,
   rematerializeRxSeries,
+  deleteRxTreatment,
 } from '../services/taskService';
 import { collectTasksCovering } from '../lib/taskPresence';
 import type {
@@ -111,6 +112,15 @@ export function useTasks(weekId: string, dayId: string) {
     [uid, weekId, dayId]
   );
 
+  /** Elimina un recetario completo (todas las tomas de la serie). */
+  const removeRxTreatment = useCallback(
+    async (opts: { seriesId: string | null; tasks: Array<{ id: string }> }) => {
+      if (!uid) return { deleted: 0 };
+      return deleteRxTreatment(opts);
+    },
+    [uid]
+  );
+
   const completedCount = tasks.filter(t => t.completed).length;
   const progress =
     tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -123,6 +133,7 @@ export function useTasks(weekId: string, dayId: string) {
     moveTaskToDay,
     reorder,
     rematerializeRx,
+    removeRxTreatment,
     progress,
     completedCount,
     updateTaskById,

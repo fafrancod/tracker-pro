@@ -1127,6 +1127,74 @@ export async function deleteTask(
   );
 }
 
+/**
+ * Elimina todas las instancias locales y remotas de una serie (recetario, etc.).
+ * Devuelve cuántas filas se quitaron del store.
+ */
+export async function deleteTaskSeries(seriesId: string): Promise<{ deleted: number }> {
+  const sid = seriesId.trim();
+  if (!sid) return { deleted: 0 };
+
+  const store = useStore.getState();
+  const toRemove: Array<{ weekId: string; dayId: string; id: string }> = [];
+  for (const [w, days] of Object.entries(store.tasksByDay)) {
+    for (const [d, list] of Object.entries(days)) {
+      for (const t of list) {
+        if (t.seriesId === sid) toRemove.push({ weekId: w, dayId: d, id: t.id });
+      }
+    }
+  }
+
+  if (toRemove.length > 0) {
+    noteOwnTaskMutation(...toRemove.map(r => r.id));
+    for (const r of toRemove) {
+      store.removeTaskOptimistic(r.weekId, r.dayId, r.id);
+    }
+  }
+
+  if (!isDemoMode()) {
+    await api.del<void>(`/api/tasks/series/${encodeURIComponent(sid)}`);
+  }
+
+  return { deleted: toRemove.length };
+}
+
+/**
+ * Elimina un recetario: prefer seriesId (bulk); si no hay serie, borra cada toma.
+ */
+export async function deleteRxTreatment(opts: {
+  seriesId: string | null;
+  tasks: Array<{ id: string }>;
+}): Promise<{ deleted: number }> {
+  const seriesId = opts.seriesId?.trim() || null;
+  if (seriesId) {
+    const result = await deleteTaskSeries(seriesId);
+    // Por si alguna toma del listado quedó sin seriesId en store (datos viejos).
+    for (const task of opts.tasks) {
+      const loc = findTaskLocation(task.id);
+      if (!loc) continue;
+      noteOwnTaskMutation(task.id);
+      useStore.getState().removeTaskOptimistic(loc.weekId, loc.dayId, task.id);
+    }
+    return { deleted: Math.max(result.deleted, opts.tasks.length) };
+  }
+
+  let deleted = 0;
+  for (const task of opts.tasks) {
+    const loc = findTaskLocation(task.id);
+    if (!loc) continue;
+    noteOwnTaskMutation(task.id);
+    useStore.getState().removeTaskOptimistic(loc.weekId, loc.dayId, task.id);
+    if (!isDemoMode()) {
+      await api.del<void>(
+        `/api/tasks/${encodeURIComponent(loc.weekId)}/${encodeURIComponent(loc.dayId)}/${encodeURIComponent(task.id)}`
+      );
+    }
+    deleted += 1;
+  }
+  return { deleted };
+}
+
 export async function moveTask(
   fromWeekId: string,
   fromDayId: string,

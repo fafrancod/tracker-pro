@@ -729,6 +729,10 @@ export interface TranslationDict {
   rx_edit_owner_action: string;
   rx_edit_owner_saved: string;
   rx_edit_owner_error: string;
+  rx_delete_confirm: string;
+  rx_delete_saved: string;
+  rx_delete_error: string;
+  rx_delete_deleting: string;
   rx_phases_ending_title: string;
   rx_phases_ending_subtitle: string;
   rx_phases_ending_empty: string;
@@ -1579,6 +1583,11 @@ const es_dict: TranslationDict = {
   rx_edit_owner_action: 'Editar',
   rx_edit_owner_saved: 'Recetario actualizado.',
   rx_edit_owner_error: 'No se pudo actualizar el recetario.',
+  rx_delete_confirm:
+    '¿Eliminar el recetario «{title}» y sus {n} tomas? Esta acción no se puede deshacer.',
+  rx_delete_saved: 'Recetario eliminado.',
+  rx_delete_error: 'No se pudo eliminar el recetario.',
+  rx_delete_deleting: 'Eliminando…',
   rx_phases_ending_title: 'Fases que terminan esta semana',
   rx_phases_ending_subtitle:
     'Fases de tratamiento cuyo último día cae en los próximos 7 días.',
@@ -2434,6 +2443,11 @@ const en_dict: TranslationDict = {
   rx_edit_owner_action: 'Edit',
   rx_edit_owner_saved: 'Prescription updated.',
   rx_edit_owner_error: 'Could not update the prescription.',
+  rx_delete_confirm:
+    'Delete prescription “{title}” and its {n} doses? This cannot be undone.',
+  rx_delete_saved: 'Prescription deleted.',
+  rx_delete_error: 'Could not delete the prescription.',
+  rx_delete_deleting: 'Deleting…',
   rx_phases_ending_title: 'Phases ending this week',
   rx_phases_ending_subtitle:
     'Treatment phases whose last day falls in the next 7 days.',

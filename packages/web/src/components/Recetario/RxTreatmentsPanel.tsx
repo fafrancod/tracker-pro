@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Pencil,
   PawPrint,
+  Trash2,
   User,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -150,10 +151,14 @@ function TreatmentCard({
   treatment,
   defaultOpen,
   onEditOwner,
+  onDeleteTreatment,
+  deleting,
 }: {
   treatment: RxTreatmentProgress;
   defaultOpen?: boolean;
   onEditOwner?: (treatment: RxTreatmentProgress) => void;
+  onDeleteTreatment?: (treatment: RxTreatmentProgress) => void;
+  deleting?: boolean;
 }) {
   const { t, locale, shortDateFormat } = useT();
   const [open, setOpen] = useState(defaultOpen ?? treatment.isActive);
@@ -227,21 +232,40 @@ function TreatmentCard({
 
       {open && (
         <div className="space-y-3 border-t border-border px-3 py-3">
-          {onEditOwner && (
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1 text-[11px]"
-                onClick={e => {
-                  e.stopPropagation();
-                  onEditOwner(treatment);
-                }}
-              >
-                <Pencil className="h-3 w-3" />
-                {t('rx_edit_owner_action')}
-              </Button>
+          {(onEditOwner || onDeleteTreatment) && (
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {onEditOwner && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 text-[11px]"
+                  disabled={deleting}
+                  onClick={e => {
+                    e.stopPropagation();
+                    onEditOwner(treatment);
+                  }}
+                >
+                  <Pencil className="h-3 w-3" />
+                  {t('rx_edit_owner_action')}
+                </Button>
+              )}
+              {onDeleteTreatment && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 text-[11px] text-accent-red hover:bg-accent-red/10 hover:text-accent-red"
+                  disabled={deleting}
+                  onClick={e => {
+                    e.stopPropagation();
+                    onDeleteTreatment(treatment);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  {deleting ? t('rx_delete_deleting') : t('action_delete')}
+                </Button>
+              )}
             </div>
           )}
           {treatment.phaseProgress.length > 0 ? (
@@ -266,12 +290,16 @@ export function RxSubjectCard({
   group,
   onToggleDose,
   onEditOwner,
+  onDeleteTreatment,
+  deletingTreatmentKey,
   showToday = true,
   compact = false,
 }: {
   group: RxSubjectGroup;
   onToggleDose: (task: Task) => void;
   onEditOwner?: (treatment: RxTreatmentProgress) => void;
+  onDeleteTreatment?: (treatment: RxTreatmentProgress) => void;
+  deletingTreatmentKey?: string | null;
   showToday?: boolean;
   compact?: boolean;
 }) {
@@ -367,6 +395,8 @@ export function RxSubjectCard({
             treatment={tr}
             defaultOpen={!compact && tr.isActive}
             onEditOwner={onEditOwner}
+            onDeleteTreatment={onDeleteTreatment}
+            deleting={deletingTreatmentKey === tr.key}
           />
         ))}
       </div>
@@ -378,6 +408,8 @@ export function RxTreatmentsPanel({
   groups,
   onToggleDose,
   onEditOwner,
+  onDeleteTreatment,
+  deletingTreatmentKey,
   emptyLabel,
   compact = false,
   showToday = true,
@@ -385,6 +417,8 @@ export function RxTreatmentsPanel({
   groups: RxSubjectGroup[];
   onToggleDose: (task: Task) => void;
   onEditOwner?: (treatment: RxTreatmentProgress) => void;
+  onDeleteTreatment?: (treatment: RxTreatmentProgress) => void;
+  deletingTreatmentKey?: string | null;
   emptyLabel: string;
   compact?: boolean;
   showToday?: boolean;
@@ -405,6 +439,8 @@ export function RxTreatmentsPanel({
           group={g}
           onToggleDose={onToggleDose}
           onEditOwner={onEditOwner}
+          onDeleteTreatment={onDeleteTreatment}
+          deletingTreatmentKey={deletingTreatmentKey}
           showToday={showToday}
           compact={compact}
         />

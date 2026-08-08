@@ -1521,6 +1521,31 @@ tasksRouter.post('/habit-ensure', async (req, res, next) => {
   }
 });
 
+/**
+ * Elimina todas las filas de una serie (p. ej. recetario completo).
+ * Debe ir antes de `/:weekId/:dayId/:taskId` para no capturar "series" como weekId.
+ */
+tasksRouter.delete('/series/:seriesId', async (req, res, next) => {
+  try {
+    const uid = req.user!.uid;
+    const seriesId = String(req.params.seriesId ?? '').trim();
+    if (!seriesId || seriesId.length > 80) {
+      throw ApiError.badRequest('seriesId inválido');
+    }
+
+    const { error } = await getSupabaseAdmin()
+      .from('tasks')
+      .delete()
+      .eq('user_id', uid)
+      .eq('series_id', seriesId);
+    if (error) throw error;
+
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
 tasksRouter.delete('/:weekId/:dayId/:taskId', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
