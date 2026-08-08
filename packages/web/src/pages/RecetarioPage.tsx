@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addDays } from 'date-fns';
-import { Pill, PawPrint, User, Users } from 'lucide-react';
+import { Pill, PawPrint, Trash2, User, Users } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
   MobileSheet,
@@ -9,6 +9,15 @@ import {
   MobileSheetHeader,
   MobileSheetTitle,
 } from '@/components/ui/mobile-sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { AddTaskForm } from '@/components/Board';
 import { RxTreatmentsPanel } from '@/components/Recetario/RxTreatmentsPanel';
 import { RxDayColumns } from '@/components/Recetario/RxDayColumns';
@@ -61,6 +70,7 @@ export function RecetarioPage() {
   const [fabOpen, setFabOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<RxTreatmentProgress | null>(null);
   const [savingTreatment, setSavingTreatment] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<RxTreatmentProgress | null>(null);
   const [deletingTreatmentKey, setDeletingTreatmentKey] = useState<string | null>(
     null
   );
@@ -127,13 +137,14 @@ export function RecetarioPage() {
     return { activeTreatments, todayPending, todayTotal, subjects: groups.length };
   }, [groups]);
 
-  async function handleTreatmentDelete(treatment: RxTreatmentProgress) {
-    const title = treatment.title.trim() || t('nav_recetario');
-    const n = treatment.tasks.length;
-    const ok = window.confirm(
-      t('rx_delete_confirm').replace('{title}', title).replace('{n}', String(n))
-    );
-    if (!ok) return;
+  function requestTreatmentDelete(treatment: RxTreatmentProgress) {
+    if (deletingTreatmentKey) return;
+    setDeleteTarget(treatment);
+  }
+
+  async function confirmTreatmentDelete() {
+    const treatment = deleteTarget;
+    if (!treatment || deletingTreatmentKey) return;
 
     setDeletingTreatmentKey(treatment.key);
     try {
@@ -151,6 +162,7 @@ export function RecetarioPage() {
         })
       );
 
+      setDeleteTarget(null);
       showToast(t('rx_delete_saved'), 'success');
       await loadAllRx();
     } catch (err) {
@@ -326,7 +338,7 @@ export function RecetarioPage() {
             groups={groups}
             onToggleDose={task => void editTask(task.id, { completed: !task.completed })}
             onEditOwner={tr => setEditTarget(tr)}
-            onDeleteTreatment={tr => void handleTreatmentDelete(tr)}
+            onDeleteTreatment={tr => requestTreatmentDelete(tr)}
             deletingTreatmentKey={deletingTreatmentKey}
             emptyLabel={loading ? t('recetario_loading') : t('recetario_empty')}
             showToday={false}
@@ -343,6 +355,52 @@ export function RecetarioPage() {
         }}
         onSave={result => void handleTreatmentSave(result)}
       />
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={open => {
+          if (!open && !deletingTreatmentKey) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-md border-border bg-surface text-text-primary sm:rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-text-primary">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-red/15 text-accent-red">
+                <Trash2 className="h-4 w-4" />
+              </span>
+              {t('rx_delete_title')}
+            </DialogTitle>
+            <DialogDescription className="text-text-muted">
+              {t('rx_delete_confirm')
+                .replace(
+                  '{title}',
+                  deleteTarget?.title.trim() || t('nav_recetario')
+                )
+                .replace('{n}', String(deleteTarget?.tasks.length ?? 0))}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={Boolean(deletingTreatmentKey)}
+              onClick={() => setDeleteTarget(null)}
+            >
+              {t('action_cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={Boolean(deletingTreatmentKey)}
+              className="bg-accent-red text-white hover:bg-accent-red/90 focus-visible:ring-accent-red"
+              onClick={() => void confirmTreatmentDelete()}
+            >
+              {deletingTreatmentKey
+                ? t('rx_delete_deleting')
+                : t('action_delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
         <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">

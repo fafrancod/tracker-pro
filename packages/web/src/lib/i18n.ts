@@ -729,6 +729,7 @@ export interface TranslationDict {
   rx_edit_owner_action: string;
   rx_edit_owner_saved: string;
   rx_edit_owner_error: string;
+  rx_delete_title: string;
   rx_delete_confirm: string;
   rx_delete_saved: string;
   rx_delete_error: string;
@@ -1583,6 +1584,7 @@ const es_dict: TranslationDict = {
   rx_edit_owner_action: 'Editar',
   rx_edit_owner_saved: 'Recetario actualizado.',
   rx_edit_owner_error: 'No se pudo actualizar el recetario.',
+  rx_delete_title: 'Eliminar recetario',
   rx_delete_confirm:
     '¿Eliminar el recetario «{title}» y sus {n} tomas? Esta acción no se puede deshacer.',
   rx_delete_saved: 'Recetario eliminado.',
@@ -2443,6 +2445,7 @@ const en_dict: TranslationDict = {
   rx_edit_owner_action: 'Edit',
   rx_edit_owner_saved: 'Prescription updated.',
   rx_edit_owner_error: 'Could not update the prescription.',
+  rx_delete_title: 'Delete prescription',
   rx_delete_confirm:
     'Delete prescription “{title}” and its {n} doses? This cannot be undone.',
   rx_delete_saved: 'Prescription deleted.',
