@@ -16,6 +16,7 @@ import { format, parseISO } from 'date-fns';
 import { Layout } from '@/components/Layout';
 import { LifeJournalPanel } from '@/components/Reflections/LifeJournalPanel';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -107,6 +108,7 @@ export function ReflectionsPage() {
   const [hourNote, setHourNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
 
   useEffect(() => {
     const entry = getJournalEntry(settings.dailyJournal, dayId);
@@ -137,29 +139,31 @@ export function ReflectionsPage() {
     setDirty(true);
   }, []);
 
-  function confirmLeaveIfDirty(): boolean {
-    if (!dirty) return true;
-    return window.confirm(t('reflections_discard_confirm'));
+  function requestLeaveIfDirty(action: () => void) {
+    if (!dirty) {
+      action();
+      return;
+    }
+    setPendingLeave(() => action);
   }
 
   function goDay(delta: number) {
     const next = addDaysToDayId(dayId, delta);
     if (next > todayId) return;
-    if (!confirmLeaveIfDirty()) return;
-    setDayId(next);
+    requestLeaveIfDirty(() => setDayId(next));
   }
 
   function goToday() {
     if (dayId === todayId) return;
-    if (!confirmLeaveIfDirty()) return;
-    setDayId(todayId);
+    requestLeaveIfDirty(() => setDayId(todayId));
   }
 
   function openDayFromLifeJournal(targetDayId: string) {
     const target = targetDayId <= todayId ? targetDayId : todayId;
-    if (!confirmLeaveIfDirty()) return;
-    setDayId(target);
-    setTab('day');
+    requestLeaveIfDirty(() => {
+      setDayId(target);
+      setTab('day');
+    });
   }
 
   function selectHour(hour: number) {
@@ -272,8 +276,7 @@ export function ReflectionsPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!confirmLeaveIfDirty()) return;
-                  setTab('life');
+                  requestLeaveIfDirty(() => setTab('life'));
                 }}
                 className={cn(
                   'flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors',
@@ -396,8 +399,7 @@ export function ReflectionsPage() {
                           onClick={() => {
                             const target = id <= todayId ? id : todayId;
                             if (target === dayId) return;
-                            if (!confirmLeaveIfDirty()) return;
-                            setDayId(target);
+                            requestLeaveIfDirty(() => setDayId(target));
                           }}
                           title={id}
                           className={cn(
@@ -764,6 +766,22 @@ export function ReflectionsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingLeave !== null}
+        onOpenChange={open => {
+          if (!open) setPendingLeave(null);
+        }}
+        title={t('reflections_discard_title')}
+        description={t('reflections_discard_confirm')}
+        confirmLabel={t('action_discard')}
+        variant="warning"
+        onConfirm={() => {
+          const action = pendingLeave;
+          setPendingLeave(null);
+          action?.();
+        }}
+      />
     </Layout>
   );
 }

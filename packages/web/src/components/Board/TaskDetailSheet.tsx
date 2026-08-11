@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -301,6 +302,8 @@ function TaskDetailInner({
 
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [tagInput, setTagInput] = useState('');
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const saving = false;
 
   useEffect(() => {
@@ -710,11 +713,17 @@ function TaskDetailInner({
     showToast(t('task_duplicated'), 'success');
   }
 
-  async function handleDelete() {
-    if (!confirm(`${t('task_delete_confirm')} «${task!.title}»?`)) return;
-    await removeTask(task!.id);
-    showToast(t('task_deleted'), 'info');
-    onClose();
+  async function confirmDelete() {
+    if (!task) return;
+    setDeleting(true);
+    try {
+      await removeTask(task.id);
+      showToast(t('task_deleted'), 'info');
+      setConfirmDeleteOpen(false);
+      onClose();
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -1551,7 +1560,7 @@ function TaskDetailInner({
         <Button
           variant="outline"
           size="sm"
-          onClick={handleDelete}
+          onClick={() => setConfirmDeleteOpen(true)}
           className="flex-1 gap-1.5 border-accent-red/40 text-accent-red hover:bg-accent-red/10"
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -1567,6 +1576,17 @@ function TaskDetailInner({
         {t('task_last_updated')}:{' '}
         {format(parseISO(task.updatedAt), `EEE ${shortDateFormat} HH:mm`, { locale })}
       </p>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={open => {
+          if (!open && !deleting) setConfirmDeleteOpen(false);
+        }}
+        title={t('task_delete_title')}
+        description={t('task_delete_confirm').replace('{title}', task.title)}
+        onConfirm={() => void confirmDelete()}
+        loading={deleting}
+      />
     </>
   );
 }

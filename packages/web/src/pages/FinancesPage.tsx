@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { DecimalInput } from '@/components/ui/decimal-input';
 import {
@@ -97,6 +98,8 @@ export function FinancesPage() {
   );
   const [filterFlow, setFilterFlow] = useState<'all' | FinanceFlow>('all');
   const [filterKind, setFilterKind] = useState<'all' | FinanceKind>('all');
+  const [deleteTarget, setDeleteTarget] = useState<FinanceEntry | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const monthId = monthIdFromDate(monthCursor);
 
@@ -233,14 +236,18 @@ export function FinancesPage() {
     }
   }
 
-  async function handleDelete(entry: FinanceEntry) {
-    if (!confirm(t('fin_delete_confirm').replace('{title}', entry.title))) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteFinanceEntry(entry.id);
+      await deleteFinanceEntry(deleteTarget.id);
       showToast(t('fin_deleted'), 'info');
+      setDeleteTarget(null);
       await reload();
     } catch {
       showToast(t('fin_save_error'), 'error');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -458,7 +465,7 @@ export function FinancesPage() {
                 <button
                   type="button"
                   className="rounded p-1.5 text-text-muted hover:bg-background hover:text-accent-red"
-                  onClick={() => void handleDelete(entry)}
+                  onClick={() => setDeleteTarget(entry)}
                   aria-label={t('action_delete')}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -669,6 +676,20 @@ export function FinancesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={open => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+        title={t('fin_delete_title')}
+        description={t('fin_delete_confirm').replace(
+          '{title}',
+          deleteTarget?.title ?? ''
+        )}
+        onConfirm={() => void confirmDelete()}
+        loading={deleting}
+      />
     </Layout>
   );
 }

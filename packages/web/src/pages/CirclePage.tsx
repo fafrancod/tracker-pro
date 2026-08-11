@@ -3,6 +3,7 @@ import { addDays, format, parseISO } from 'date-fns';
 import { CalendarDays, Loader2, PawPrint, Pencil, Trash2, Users } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -88,6 +89,8 @@ export function CirclePage() {
   const [commitmentsFor, setCommitmentsFor] = useState<Contact | null>(null);
   const [commitments, setCommitments] = useState<LocatedTaskRow[]>([]);
   const [loadingCommitments, setLoadingCommitments] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = useMemo(() => {
     if (filter === 'all') return contacts;
@@ -168,13 +171,17 @@ export function CirclePage() {
     }
   }
 
-  async function handleDelete(contact: Contact) {
-    if (!confirm(t('circle_delete_confirm').replace('{name}', contact.name))) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await removeContact(contact.id);
+      await removeContact(deleteTarget.id);
       showToast(t('circle_deleted'), 'info');
+      setDeleteTarget(null);
     } catch {
       showToast(t('circle_delete_error'), 'error');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -292,7 +299,7 @@ export function CirclePage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleDelete(c)}
+                        onClick={() => setDeleteTarget(c)}
                         className="rounded-md p-1.5 text-text-muted hover:bg-background hover:text-accent-red"
                         aria-label={t('action_delete')}
                       >
@@ -425,6 +432,20 @@ export function CirclePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={open => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+        title={t('circle_delete_title')}
+        description={t('circle_delete_confirm').replace(
+          '{name}',
+          deleteTarget?.name ?? ''
+        )}
+        onConfirm={() => void confirmDelete()}
+        loading={deleting}
+      />
 
       <TaskDetailSheet />
     </Layout>

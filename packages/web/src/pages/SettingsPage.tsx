@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -101,6 +102,8 @@ export function SettingsPage() {
   const [testingEmail, setTestingEmail] = useState(false);
   const [checkingPwa, setCheckingPwa] = useState(false);
   const [resettingPwa, setResettingPwa] = useState(false);
+  const [confirmDemoReset, setConfirmDemoReset] = useState(false);
+  const [confirmPwaReset, setConfirmPwaReset] = useState(false);
   const [tab, setTab] = useState<SettingsTab>('account');
   const tasksByDay = useStore(s => s.tasksByDay);
   const isInstalledApp = isStandaloneDisplay();
@@ -198,7 +201,6 @@ export function SettingsPage() {
   }
 
   function handleResetDemo() {
-    if (!confirm('¿Resetear todos los datos demo? Vuelven al estado inicial sembrado.')) return;
     clearDemoState();
     window.location.reload();
   }
@@ -880,11 +882,7 @@ export function SettingsPage() {
                 size="sm"
                 className="gap-1.5"
                 disabled={resettingPwa}
-                onClick={() => {
-                  if (!confirm(t('pwa_hard_reset_confirm'))) return;
-                  setResettingPwa(true);
-                  void hardResetPwaAndReload();
-                }}
+                onClick={() => setConfirmPwaReset(true)}
               >
                 <Download className="h-3.5 w-3.5" />
                 {resettingPwa ? t('pwa_hard_reset_running') : t('pwa_hard_reset')}
@@ -1012,7 +1010,12 @@ export function SettingsPage() {
               <p className="mb-3 text-xs text-text-muted">
                 Resetea tu progreso local y vuelve a los datos sembrados de fábrica.
               </p>
-              <Button onClick={handleResetDemo} variant="outline" size="sm" className="gap-2">
+              <Button
+                onClick={() => setConfirmDemoReset(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
                 <RefreshCw className="h-3.5 w-3.5" />
                 Resetear datos demo
               </Button>
@@ -1023,6 +1026,36 @@ export function SettingsPage() {
         </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDemoReset}
+        onOpenChange={setConfirmDemoReset}
+        title={t('settings_demo_reset_title')}
+        description={t('settings_demo_reset_confirm')}
+        confirmLabel={t('action_confirm')}
+        variant="warning"
+        onConfirm={() => {
+          setConfirmDemoReset(false);
+          handleResetDemo();
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmPwaReset}
+        onOpenChange={open => {
+          if (!open && !resettingPwa) setConfirmPwaReset(false);
+        }}
+        title={t('pwa_hard_reset_title')}
+        description={t('pwa_hard_reset_confirm')}
+        confirmLabel={t('action_confirm')}
+        variant="warning"
+        loading={resettingPwa}
+        loadingLabel={t('pwa_hard_reset_running')}
+        onConfirm={() => {
+          setResettingPwa(true);
+          void hardResetPwaAndReload();
+        }}
+      />
     </Layout>
   );
 }

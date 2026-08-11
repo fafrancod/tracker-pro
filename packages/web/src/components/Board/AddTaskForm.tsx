@@ -451,7 +451,7 @@ export function AddTaskForm({
     if (isRxKind(kind)) {
       const err = validateRxPhases(rxPhases);
       if (err) {
-        alert(err);
+        showToast(err, 'error');
         return;
       }
       const subject = rxSubject.trim() || null;

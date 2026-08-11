@@ -73,6 +73,7 @@ export interface TranslationDict {
   fin_created: string;
   fin_deleted: string;
   fin_delete_confirm: string;
+  fin_delete_title: string;
   fin_save_error: string;
   fin_load_error: string;
 
@@ -136,6 +137,7 @@ export interface TranslationDict {
   life_goal_date_out_of_map: string;
   life_goal_limit: string;
   life_goal_delete_confirm: string;
+  life_goal_delete_title: string;
   life_goal_image_error: string;
   life_goal_saving: string;
   life_goal_need_birthdate: string;
@@ -173,6 +175,7 @@ export interface TranslationDict {
   reflections_unsaved: string;
   reflections_synced: string;
   reflections_discard_confirm: string;
+  reflections_discard_title: string;
   metric_mood: string;
   metric_energy: string;
   energy_hourly_title: string;
@@ -254,12 +257,17 @@ export interface TranslationDict {
   action_cancel: string;
   action_close: string;
   action_delete: string;
+  action_confirm: string;
+  action_discard: string;
   action_edit: string;
   action_today: string;
   action_sign_out: string;
   action_sign_in: string;
   action_undo: string;
   action_redo: string;
+  confirm_delete_title: string;
+  confirm_discard_title: string;
+  confirm_reset_title: string;
   pwa_install_title: string;
   pwa_install_desc: string;
   pwa_install_action: string;
@@ -276,7 +284,12 @@ export interface TranslationDict {
   pwa_hard_reset: string;
   pwa_hard_reset_desc: string;
   pwa_hard_reset_confirm: string;
+  pwa_hard_reset_title: string;
   pwa_hard_reset_running: string;
+  settings_demo_reset_title: string;
+  settings_demo_reset_confirm: string;
+  project_delete_title: string;
+  project_delete_confirm: string;
   pwa_installed_badge: string;
   offline_banner: string;
   offline_pending: string;
@@ -522,6 +535,7 @@ export interface TranslationDict {
   task_duplicated: string;
   task_deleted: string;
   task_delete_confirm: string;
+  task_delete_title: string;
   task_moved: string;
   task_moved_next_week: string;
   task_moved_from: string;
@@ -793,6 +807,7 @@ export interface TranslationDict {
   circle_save_error: string;
   circle_delete_error: string;
   circle_delete_confirm: string;
+  circle_delete_title: string;
   circle_mention_hint: string;
   circle_pulse: string;
   circle_pulse_none: string;
@@ -875,6 +890,7 @@ const es_dict: TranslationDict = {
   fin_created: 'Movimiento creado.',
   fin_deleted: 'Movimiento eliminado.',
   fin_delete_confirm: '¿Eliminar «{title}»?',
+  fin_delete_title: 'Eliminar movimiento',
   fin_save_error: 'No pudimos guardar el movimiento.',
   fin_load_error: 'No pudimos cargar finances.',
 
@@ -943,6 +959,7 @@ const es_dict: TranslationDict = {
     'Esa fecha cae fuera del mapa (revisa nacimiento y esperanza de vida en Config).',
   life_goal_limit: 'Máximo 24 metas de vida.',
   life_goal_delete_confirm: '¿Eliminar esta meta de vida?',
+  life_goal_delete_title: 'Eliminar meta de vida',
   life_goal_image_error: 'No se pudo procesar la imagen.',
   life_goal_saving: 'Guardando…',
   life_goal_need_birthdate:
@@ -985,6 +1002,7 @@ const es_dict: TranslationDict = {
   reflections_synced: 'Todo guardado.',
   reflections_discard_confirm:
     'Tienes cambios sin guardar. ¿Descartarlos y cambiar de día?',
+  reflections_discard_title: 'Cambios sin guardar',
   metric_mood: 'Ánimo',
   metric_energy: 'Energía',
   energy_hourly_title: 'Nivel de energía por hora',
@@ -1081,12 +1099,17 @@ const es_dict: TranslationDict = {
   action_cancel: 'Cancelar',
   action_close: 'Cerrar',
   action_delete: 'Eliminar',
+  action_confirm: 'Confirmar',
+  action_discard: 'Descartar',
   action_edit: 'Editar',
   action_today: 'Hoy',
   action_sign_out: 'Cerrar sesión',
   action_sign_in: 'Iniciar sesión',
   action_undo: 'Deshacer',
   action_redo: 'Rehacer',
+  confirm_delete_title: '¿Eliminar?',
+  confirm_discard_title: '¿Descartar cambios?',
+  confirm_reset_title: '¿Confirmar reinicio?',
   pwa_install_title: 'Instalar Daily Tracker',
   pwa_install_desc: 'Ábrela como app desde tu pantalla de inicio.',
   pwa_install_action: 'Instalar',
@@ -1106,7 +1129,14 @@ const es_dict: TranslationDict = {
     'Borra la caché y el service worker de este dispositivo y recarga la app. Tus datos en la nube no se pierden.',
   pwa_hard_reset_confirm:
     '¿Borrar caché local y recargar la app? Se descargará de nuevo la última versión. Tus tareas en la cuenta se mantienen.',
+  pwa_hard_reset_title: 'Reinstalar app',
   pwa_hard_reset_running: 'Reinstalando…',
+  settings_demo_reset_title: 'Resetear demo',
+  settings_demo_reset_confirm:
+    '¿Resetear todos los datos demo? Vuelven al estado inicial sembrado.',
+  project_delete_title: 'Eliminar proyecto',
+  project_delete_confirm:
+    '¿Eliminar «{name}»? Las tareas asociadas quedan sin proyecto.',
   pwa_installed_badge: 'Modo app instalada · v{version} · {build}',
   offline_banner: 'Sin conexión. Los cambios se guardan y se envían al volver.',
   offline_pending: '{n} cambio(s) pendientes de sincronizar',
@@ -1360,7 +1390,8 @@ const es_dict: TranslationDict = {
   task_notes_placeholder: 'Notas, ideas, links…',
   task_duplicated: 'Tarea duplicada.',
   task_deleted: 'Tarea eliminada.',
-  task_delete_confirm: '¿Eliminar',
+  task_delete_confirm: '¿Eliminar «{title}»?',
+  task_delete_title: 'Eliminar tarea',
   task_moved: 'Tarea movida.',
   task_moved_next_week: 'Movida a la próxima semana.',
   task_moved_from: 'Movida desde',
@@ -1652,6 +1683,7 @@ const es_dict: TranslationDict = {
   circle_save_error: 'No pudimos guardar el contacto.',
   circle_delete_error: 'No pudimos eliminar el contacto.',
   circle_delete_confirm: '¿Eliminar a «{name}» del círculo?',
+  circle_delete_title: 'Eliminar contacto',
   circle_mention_hint: 'Usa @tag para etiquetar a alguien del Círculo.',
   circle_pulse: 'Cómo está la relación',
   circle_pulse_none: 'Sin indicar',
@@ -1736,6 +1768,7 @@ const en_dict: TranslationDict = {
   fin_created: 'Entry created.',
   fin_deleted: 'Entry deleted.',
   fin_delete_confirm: 'Delete “{title}”?',
+  fin_delete_title: 'Delete entry',
   fin_save_error: 'Could not save the entry.',
   fin_load_error: 'Could not load finances.',
 
@@ -1804,6 +1837,7 @@ const en_dict: TranslationDict = {
     'That date is outside the map (check birth date and life expectancy in Settings).',
   life_goal_limit: 'Maximum 24 life goals.',
   life_goal_delete_confirm: 'Delete this life goal?',
+  life_goal_delete_title: 'Delete life goal',
   life_goal_image_error: 'Could not process the image.',
   life_goal_saving: 'Saving…',
   life_goal_need_birthdate:
@@ -1846,6 +1880,7 @@ const en_dict: TranslationDict = {
   reflections_synced: 'All saved.',
   reflections_discard_confirm:
     'You have unsaved changes. Discard them and change day?',
+  reflections_discard_title: 'Unsaved changes',
   metric_mood: 'Mood',
   metric_energy: 'Energy',
   energy_hourly_title: 'Energy level by hour',
@@ -1942,12 +1977,17 @@ const en_dict: TranslationDict = {
   action_cancel: 'Cancel',
   action_close: 'Close',
   action_delete: 'Delete',
+  action_confirm: 'Confirm',
+  action_discard: 'Discard',
   action_edit: 'Edit',
   action_today: 'Today',
   action_sign_out: 'Sign out',
   action_sign_in: 'Sign in',
   action_undo: 'Undo',
   action_redo: 'Redo',
+  confirm_delete_title: 'Delete?',
+  confirm_discard_title: 'Discard changes?',
+  confirm_reset_title: 'Confirm reset?',
   pwa_install_title: 'Install Daily Tracker',
   pwa_install_desc: 'Open it like an app from your home screen.',
   pwa_install_action: 'Install',
@@ -1967,7 +2007,14 @@ const en_dict: TranslationDict = {
     'Clears this device’s cache and service worker, then reloads. Cloud data is kept.',
   pwa_hard_reset_confirm:
     'Clear local cache and reload? The latest version will download again. Account tasks are kept.',
+  pwa_hard_reset_title: 'Reinstall app',
   pwa_hard_reset_running: 'Reinstalling…',
+  settings_demo_reset_title: 'Reset demo',
+  settings_demo_reset_confirm:
+    'Reset all demo data? It will return to the initial seeded state.',
+  project_delete_title: 'Delete project',
+  project_delete_confirm:
+    'Delete “{name}”? Linked tasks will keep going without a project.',
   pwa_installed_badge: 'Installed app mode · v{version} · {build}',
   offline_banner: 'You are offline. Changes are saved and will sync when you reconnect.',
   offline_pending: '{n} change(s) waiting to sync',
@@ -2221,7 +2268,8 @@ const en_dict: TranslationDict = {
   task_notes_placeholder: 'Notes, ideas, links…',
   task_duplicated: 'Task duplicated.',
   task_deleted: 'Task deleted.',
-  task_delete_confirm: 'Delete',
+  task_delete_confirm: 'Delete “{title}”?',
+  task_delete_title: 'Delete task',
   task_moved: 'Task moved.',
   task_moved_next_week: 'Moved to next week.',
   task_moved_from: 'Moved from',
@@ -2512,6 +2560,7 @@ const en_dict: TranslationDict = {
   circle_save_error: 'Could not save the contact.',
   circle_delete_error: 'Could not delete the contact.',
   circle_delete_confirm: 'Remove “{name}” from the circle?',
+  circle_delete_title: 'Remove contact',
   circle_mention_hint: 'Use @tag to mention someone in your Circle.',
   circle_pulse: 'How the relationship feels',
   circle_pulse_none: 'Not set',

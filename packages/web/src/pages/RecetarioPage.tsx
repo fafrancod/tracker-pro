@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { addDays } from 'date-fns';
-import { Pill, PawPrint, Trash2, User, Users } from 'lucide-react';
+import { Pill, PawPrint, User, Users } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import {
   MobileSheet,
@@ -9,15 +9,7 @@ import {
   MobileSheetHeader,
   MobileSheetTitle,
 } from '@/components/ui/mobile-sheet';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { AddTaskForm } from '@/components/Board';
 import { RxTreatmentsPanel } from '@/components/Recetario/RxTreatmentsPanel';
 import { RxDayColumns } from '@/components/Recetario/RxDayColumns';
@@ -356,51 +348,19 @@ export function RecetarioPage() {
         onSave={result => void handleTreatmentSave(result)}
       />
 
-      <Dialog
+      <ConfirmDialog
         open={deleteTarget !== null}
         onOpenChange={open => {
           if (!open && !deletingTreatmentKey) setDeleteTarget(null);
         }}
-      >
-        <DialogContent className="max-w-md border-border bg-surface text-text-primary sm:rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-text-primary">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-red/15 text-accent-red">
-                <Trash2 className="h-4 w-4" />
-              </span>
-              {t('rx_delete_title')}
-            </DialogTitle>
-            <DialogDescription className="text-text-muted">
-              {t('rx_delete_confirm')
-                .replace(
-                  '{title}',
-                  deleteTarget?.title.trim() || t('nav_recetario')
-                )
-                .replace('{n}', String(deleteTarget?.tasks.length ?? 0))}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={Boolean(deletingTreatmentKey)}
-              onClick={() => setDeleteTarget(null)}
-            >
-              {t('action_cancel')}
-            </Button>
-            <Button
-              type="button"
-              disabled={Boolean(deletingTreatmentKey)}
-              className="bg-accent-red text-white hover:bg-accent-red/90 focus-visible:ring-accent-red"
-              onClick={() => void confirmTreatmentDelete()}
-            >
-              {deletingTreatmentKey
-                ? t('rx_delete_deleting')
-                : t('action_delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        title={t('rx_delete_title')}
+        description={t('rx_delete_confirm')
+          .replace('{title}', deleteTarget?.title.trim() || t('nav_recetario'))
+          .replace('{n}', String(deleteTarget?.tasks.length ?? 0))}
+        onConfirm={() => void confirmTreatmentDelete()}
+        loading={Boolean(deletingTreatmentKey)}
+        loadingLabel={t('rx_delete_deleting')}
+      />
 
       <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
         <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">

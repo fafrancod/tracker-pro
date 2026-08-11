@@ -13,6 +13,7 @@ import {
   Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -77,6 +78,7 @@ export function LifeGoalsPanel() {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [saving, setSaving] = useState(false);
   const [compressing, setCompressing] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const goals = useMemo(() => {
     const list = Array.isArray(settings.lifeGoals) ? settings.lifeGoals : [];
@@ -200,10 +202,11 @@ export function LifeGoalsPanel() {
     await persistGoals([...existing, created]);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm(t('life_goal_delete_confirm'))) return;
+  async function confirmDelete() {
+    if (!deleteTargetId) return;
     const existing = Array.isArray(settings.lifeGoals) ? settings.lifeGoals : [];
-    await persistGoals(existing.filter(g => g.id !== id));
+    await persistGoals(existing.filter(g => g.id !== deleteTargetId));
+    setDeleteTargetId(null);
   }
 
   return (
@@ -420,7 +423,7 @@ export function LifeGoalsPanel() {
               key={goal.id}
               goal={goal}
               onEdit={() => openEdit(goal)}
-              onDelete={() => void handleDelete(goal.id)}
+              onDelete={() => setDeleteTargetId(goal.id)}
               kindLabel={t(
                 KIND_OPTIONS.find(k => k.value === goal.kind)?.labelKey ?? 'life_goal_kind_goal'
               )}
@@ -440,6 +443,18 @@ export function LifeGoalsPanel() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        onOpenChange={open => {
+          if (!open) setDeleteTargetId(null);
+        }}
+        title={t('life_goal_delete_title')}
+        description={t('life_goal_delete_confirm')}
+        onConfirm={() => void confirmDelete()}
+        loading={saving}
+        loadingLabel={t('life_goal_saving')}
+      />
     </div>
   );
 }

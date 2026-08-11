@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { FolderKanban, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useProjects } from '@core/hooks/useProjects';
 import { useToast } from '@/contexts/ToastContext';
+import { useT } from '@/hooks/useT';
 import { ProjectFormDialog, type ProjectFormValue } from '@/components/Projects/ProjectFormDialog';
 import type { Project } from '@core/types';
 import { ApiClientError } from '@core/lib/api';
@@ -11,9 +13,12 @@ import { ApiClientError } from '@core/lib/api';
 export function ProjectsPage() {
   const { projects, addProject, editProject, removeProject } = useProjects();
   const { showToast } = useToast();
+  const { t } = useT();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   function openCreate() {
     setEditing(null);
@@ -44,13 +49,17 @@ export function ProjectsPage() {
     }
   }
 
-  async function handleDelete(project: Project) {
-    if (!confirm(`¿Eliminar "${project.name}"? Las tareas asociadas quedan sin proyecto.`)) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await removeProject(project.id);
+      await removeProject(deleteTarget.id);
       showToast('Proyecto eliminado.', 'info');
+      setDeleteTarget(null);
     } catch {
       showToast('No pudimos eliminar el proyecto.', 'error');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -103,7 +112,7 @@ export function ProjectsPage() {
                     <Pencil className="h-3.5 w-3.5" />
                   </button>
                   <button
-                    onClick={() => handleDelete(p)}
+                    onClick={() => setDeleteTarget(p)}
                     className="rounded-md p-1.5 text-text-muted hover:bg-background hover:text-accent-red"
                     aria-label="Eliminar"
                   >
@@ -134,6 +143,20 @@ export function ProjectsPage() {
         onOpenChange={setDialogOpen}
         initial={editing}
         onSubmit={handleSubmit}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={open => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+        title={t('project_delete_title')}
+        description={t('project_delete_confirm').replace(
+          '{name}',
+          deleteTarget?.name ?? ''
+        )}
+        onConfirm={() => void confirmDelete()}
+        loading={deleting}
       />
     </Layout>
   );
