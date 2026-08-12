@@ -1,430 +1,272 @@
-# Roadmap de optimización — tiempos de carga y mutaciones
+# Roadmap de optimización — ruido idle y coste de plataforma
 
-**Fecha (actualizado):** 2026-07-25  
-**Versión de producto de referencia:** **v2.7.12**  
-**Archivo:** `roadmap_optimization.md` (repo root)
+**Fecha:** 2026-08-12  
+**Producto de referencia:** **v2.17.1**  
+**Alcance de esta auditoría:** ~2 líneas `info` por minuto en el API gateway con la app casi en reposo.  
+**Auditor:** código en `main` (API Express + SPA + worker embebido + Railway). No se leyeron logs de producción en vivo.
 
-**Contexto original:** Al guardar o editar tareas, eventos, hábitos, recetarios, etc. la UI se siente lenta.  
-**Objetivo:** Reducir latencia percibida (objetivo p95 create/edit **&lt; 400 ms** en red típica) y eliminar bloqueos de UI innecesarios, **teniendo en cuenta las features nuevas** que aumentan volumen de datos y re-renders.
-
----
-
-## 0. Mapa de producto actual (impacta rendimiento)
-
-El monorepo ya no es un “task tracker mínimo”. Cada dominio nuevo multiplica filas, queries o trabajo en cliente.
-
-### 0.1 Calendario (nav **Calendario**, ruta `/board`)
-
-| Capacidad | Versión aprox. | Impacto en perf |
-|-----------|----------------|-----------------|
-| Vistas **día \| semana \| mes \| continuo** + lista/horario | base + iteraciones | 7× `useTasks` en semana; mes/continuo = `fetchTasksInRange` amplio |
-| Filtros categoría: **Todo / Proyectos / Recetario / Eventos / Posibles / Hábitos** | 2.6.x–2.7.0 | Más re-filtros en cliente; mensajes vacíos por categoría |
-| Checkbox de completar en **todas** las vistas (lista, grilla, chips, barras) | 2.7.4 | Más handlers por ítem; toggles optimistas OK si no se espera red en UI |
-| Orden lista **por hora** (temprano → tarde) | 2.7.5 | Barato (sort en memoria); `compareByStartTime` en `taskPresence` |
-| Doble clic hueco horario → crear con hora | 2.6.6+ | OK |
-| Multi-día + cruce medianoche (20:00→03:00) | 2.6.7 | Layout `layoutInGridForDay` un poco más trabajo |
-| **Pasos asociados** (`steps` jsonb) en tarea/recordatorio/evento/posible | 2.7.1 | Payload create/update más grande; UI checklist en form/detalle |
-| FAB estable entre pestañas | 2.6.6 | N/A perf de red |
-
-### 0.2 Kinds de entrada (filas en `tasks`)
-
-| Kind | Comportamiento al crear | Riesgo |
-|------|-------------------------|--------|
-| `task` / `reminder` | 1+ filas si hay recurrencia | Medio si daily/weekly |
-| `event` / `possible_event` | 1 span o serie; lugar, involucrados, pasos | Medio |
-| `rx_human` / `rx_pet` | Materializa **día × hora × fases** | **Alto** (muchas filas) |
-| `habit_good` / `habit_quit` | Fuerza **daily** si `none` → hasta **90 filas** | **Crítico** (N+1 order + insert + realtime) |
-
-### 0.3 Otras pantallas que compiten por red/store
-
-| Pantalla | Qué carga | Riesgo |
-|----------|-----------|--------|
-| **Resumen** (`DashboardPage`) | `fetchTasksInRange` de la **semana ISO de hoy** + `collectTasksCovering` | Medio al montar; arreglado 2.7.3 (antes vacío/sin fetch) |
-| **Reflexiones** | Diario local en settings (ánimo+energía por hora, sueño, texto) | Bajo en red API; más estado local |
-| **Círculo** | Contactos + a veces `fetchTasksInRange` de compromisos | Medio |
-| **Eisenhower / Notificaciones** | Rangos de tareas | Medio–alto |
-| **Proyectos** | Lista proyectos | Bajo |
-
-### 0.4 Implicación para este roadmap
-
-Las features nuevas **no cambian la causa raíz** (N+1 de COUNTs + await en form + refetch Realtime), pero **sí amplifican el daño**:
-
-- Guardar un **hábito** o **recetario** es el peor caso.  
-- Un toggle de checkbox en **7 columnas** + Realtime multiplica SELECTs.  
-- **Pasos** y **involved contacts** engordan el JSON de create/update.  
-- **Continuo** y **Resumen** piden rangos grandes al montar.
+**Respuesta corta:** no es la webapp preguntando cada 30 s. El cliente **no tiene un poll HTTP** al API de Railway. Esos infos son, con alta probabilidad, **healthchecks del gateway logueados por `pino-http`**, a veces sumados a un **cron de `/api/notifications/dispatch`**. En paralelo, el worker embebido **sí barre Supabase cada 60 s** (eso no es el gateway, pero es coste de datos constante).
 
 ---
 
-## 1. Diagnóstico (causas verificadas en código)
+## Quick path (confirmar en 2 minutos)
 
-### 1.1 API — create con N+1 de `COUNT` por día (crítico)
+1. En Railway → Logs, filtra un minuto de idle y mira `req.url` / `req.method` de cada `info`.
+2. Clasifica cada línea:
 
-**Dónde:** `packages/api/src/routes/tasks.ts` (bucle `orderByDay` antes del `insert`).
+| `req.url` típico | Qué es | ¿Lo genera el usuario? |
+|------------------|--------|------------------------|
+| `GET /api/version` | Healthcheck de Railway (`railway.toml` → `healthcheckPath`) | No |
+| `POST /api/notifications/dispatch` | Cron externo **o** alguien pegándole al endpoint | No (si hay cron) |
+| `GET /api/` o `GET /` | Otro probe / load balancer | No |
+| `GET /api/public-config` | Arranque de la SPA (una vez) | Solo al abrir |
+| `/api/tasks`, `/api/auth/bootstrap` | Uso real | Sí |
+
+3. Cuenta. **Dos `GET /api/version` por minuto** = intervalo de health ~30 s. **Uno de version + uno de dispatch** = health + cron. **Cero HTTP y aún hay infos** = no es el gateway; mira el worker (abajo).
+
+---
+
+## 1. Diagnóstico (evidencia en código)
+
+### 1.1 Reloj #1 — healthcheck + log de cada request (causa más probable del síntoma)
+
+| Pieza | Hecho |
+|-------|--------|
+| Probe | `railway.toml`: `healthcheckPath = "/api/version"` |
+| Handler | `packages/api/src/routes/version.ts` — JSON estático, sin DB |
+| Log | `packages/api/src/app.ts`: `pinoHttp({ logger })` en **todas** las rutas, nivel **info** en producción (`logger.ts`) |
+| Filtro | No hay. Un 200 de health cuenta igual que un POST de tarea |
+
+`pino-http` escribe un `info` por request (`request completed`). Railway pega a `/api/version` de forma periódica para no matar el contenedor. Un intervalo típico de gateway de ~30 s produce **exactamente ~2 infos/minuto**. Eso no escala con “cuánto usas la app”.
+
+**Cómo se ve** (campos reales de pino-http):
 
 ```text
-for each unique dayId in occurrenceRanges:
-  SELECT count(*) FROM tasks WHERE user_id = ? AND day_id = ?
+level=30  req.method=GET  req.url=/api/version  res.statusCode=200  msg=request completed
 ```
 
-- Las consultas van **en serie** (`await` dentro del `for`).
-- Con **hábitos diarios** o repetición `daily`, el horizonte es **90 ocurrencias** (`recurrenceHorizon` en `packages/api/src/lib/recurrence.ts` / core).
-- Peor caso realista: **~90 round-trips** a Postgres solo para calcular `order`, **antes** del insert.
-- **Recetarios** multi-fase: un COUNT por cada día distinto del plan (puede ser 14–30+).
+Si ves **user-agent** tipo `RailwayHealthCheck`, `Go-http-client` o vacío, cierra el caso.
 
-**Impacto estimado:** cientos de ms a varios segundos (p. ej. 30–80 ms × 90 ≈ 3–7 s).
+### 1.2 Reloj #2 — worker de email cada 60 s (Supabase, no Railway)
 
-**Síntoma:** “Guardar hábito / recetario / tarea diaria se cuelga mucho”.
+| Pieza | Hecho |
+|-------|--------|
+| Arranque | `server.ts` llama `startNotificationsWorker()` al listen |
+| Default | `RUN_EMBEDDED_WORKER` default **true**; `NOTIFICATIONS_INTERVAL_MS` default **60_000** |
+| Tick silencioso | Solo `logger.info` si `candidates|sent|failed > 0` |
+| Trabajo real | **Cada tick** (aunque no envíe nada): `SELECT` de **todos** los `profiles` con email +, por cada usuario con `notifyEmail`, `SELECT` de `tasks` incompletas de 3–5 días |
 
----
+Eso **no** genera un `info` HTTP en el gateway (el worker llama a Supabase Admin, no a Express). Sí genera:
 
-### 1.2 API — materialización masiva + payload enorme (alto)
+- tráfico PostgREST hacia el proyecto Supabase cada minuto
+- CPU del contenedor
+- si alguien configuró **además** un cron a `POST /api/notifications/dispatch`, **ese sí** es un `info` extra por minuto
 
-**Dónde:** mismo handler POST; respuesta:
-
-```json
-{ "...first", "instances": [ /* hasta 90 filas completas, con steps[] */ ] }
-```
-
-- Hábitos fuerzan `daily` si `none` → 90 filas por defecto.  
-- Cada fila puede llevar `steps`, `involved_contact_ids`, `location`, etc.  
-- Cliente: `taskHistory.create` reinserta **todas** las instancias en el store.
-
-**Impacto:** red + JSON + rehidratación + picos de Realtime.
-
----
-
-### 1.3 API — trabajo secuencial en el camino caliente (medio)
-
-| Paso | Función | Notas |
-|------|---------|--------|
-| 1 | `readProfilePlan(uid)` | 1 query profiles |
-| 2 | `readUsage(uid, month)` | 1 query usage_counters (plan free) |
-| 3 | N × `count` por día | **N+1** (1.1) |
-| 4 | `insert(rows)` | 1 batch |
-| 5 | `bumpUsage(...)` | 1–3 queries |
-
-**Update (PATCH):**
-
-1. `select *` de la fila  
-2. `update` instancia y/o **toda la serie** (`applyTo=series`) — crítico en hábitos (hasta 90 filas) y en **pasos** propagados a la serie  
-3. Sin caché de perfil
-
----
-
-### 1.4 Cliente — la UI espera al servidor aunque haya optimistic UI (alto percibido)
-
-**Dónde:**
-
-- `taskHistory.create` / `update` → `await createTask` / `await updateTask`  
-- `useTasks.addTask` / `editTask` → `await taskHistory.*`  
-- `AddTaskForm` / `TaskDetailSheet` → `await onAdd` / `await handleSave` con `submitting` / `saving`  
-- Checkbox en calendario: `editTask` / `taskHistory.update` — si se hace `await` en el handler, el check se siente “duro”
-
-Flujo:
-
-1. Optimistic en store (rápido).  
-2. Formulario / detalle **sigue bloqueado** hasta la API.  
-3. Se reescriben instancias reales.  
-4. Realtime dispara **refetch** (1.5).
-
----
-
-### 1.5 Realtime — tormenta de refetch al mutar (crítico en vista semana)
-
-**Dónde:**
-
-- `subscribeTasks` en `packages/core/src/services/taskService.ts`  
-- Semana **lista**: hasta **7** `useTasks` → 7 canales con filtro `user_id=eq.${uid}`  
-- `onChange` → **siempre** `fetchTasksCoveringDay`  
-- Toggle de checkbox o create de 1 hábito → INSERT(s) → N refetches
-
-Con **hábitos 90 inserts** el fan-out de eventos Realtime puede ser brutal.
-
----
-
-### 1.6 Auth token en cada request (bajo–medio)
-
-`packages/core/src/lib/api.ts` → `getSession()` en cada mutación.
-
----
-
-### 1.7 Cargas de rango al montar pantallas (medio, “carga” general)
-
-| Pantalla | Fetch |
-|----------|--------|
-| Resumen | Semana completa (`DashboardPage`, 2.7.3) |
-| Continuo | Varios meses (`ContinuousMonthsView`) |
-| Mes | Rango del grid del mes |
-| Círculo / Eisenhower / Notificaciones | Rangos propios |
-
-Compiten con mutaciones y saturan el store.
-
----
-
-### 1.8 Features nuevas — puntos calientes específicos
-
-| Feature | Riesgo | Nota |
-|---------|--------|------|
-| **Hábitos** `habit_good` / `habit_quit` | Crítico | Create = daily × 90; edit serie = 90 updates |
-| **Pasos** `steps` | Medio | JSON en cada fila; edit serie puede copiar checklist a toda la serie |
-| **Eventos + Círculo** | Medio | `involved_contact_ids`, tags de handles, lugar |
-| **Recetario** | Alto | Materialización densa día×hora |
-| **Checkbox global** | Medio percibido | Muchos toggles; debe ser optimistic sin bloquear paint |
-| **Orden por hora** | Bajo | Solo sort local |
-| **Reflexiones** (ánimo+energía juntos) | Bajo API | Persistencia en settings del usuario; no pasa por tasks |
-
----
-
-### 1.9 Qué NO es el problema principal
-
-- Sort por hora en lista.  
-- Copy/i18n de vacíos por categoría.  
-- Skins / layout chrome (FAB).  
-- Falta de optimistic en updates (existe; el await del form es el problema).
-
----
-
-## 2. Métricas a instrumentar
-
-| Métrica | Dónde |
-|---------|--------|
-| `api.tasks.create.ms` por fase | plan, usage, orderCounts, insert, bump, serialize |
-| `api.tasks.create.rows` | filas insertadas (hábitos ~90) |
-| `api.tasks.create.order_queries` | nº de COUNT |
-| `client.mutation.wait_ms` | click Guardar → `finally` del form |
-| `client.checkbox.toggle_ms` | click check → paint optimista |
-| `client.realtime.refetch_count` | refetches en 2 s tras mutación |
-| `client.api.auth_ms` | `getSession` |
-
-**Éxito:**
-
-- Create single-day: p95 API &lt; 200 ms; sheet cierra &lt; 150 ms.  
-- Create hábito daily 90d: p95 API &lt; 500 ms (sin N counts).  
-- Edit instance / toggle checkbox: p95 API &lt; 150 ms; UI &lt; 50 ms percibido.  
-- Tras mutación: ≤ 1 refetch de rango (ideal 0 con delta Realtime).
-
----
-
-## 3. Plan por fases (actualizado)
-
-### Fase 0 — Quick wins (1–2 días) · impacto alto / esfuerzo bajo
-
-| # | Acción | Archivos | Detalle |
-|---|--------|----------|---------|
-| 0.1 | **Eliminar N+1 de order** | `api/routes/tasks.ts` | Una query `GROUP BY day_id` / `max(order)` para los días del rango; o `Promise.all` de counts como parche. **Prioridad #1 por hábitos.** |
-| 0.2 | **Cerrar form sin esperar red** | `AddTaskForm`, `TaskDetailSheet`, `BoardPage` | Cerrar sheet + toast; error en background. |
-| 0.3 | **Checkbox no bloquea paint** | `ScheduleGrid`, `MonthView`, `TaskCard`, `DayView` | `void taskHistory.update(...)` ya en varios sitios; asegurar que ninguno haga spinner global. |
-| 0.4 | **Debounce / coalescing Realtime** | `taskService.subscribeTasks` | 150–300 ms; un solo canal por `uid`. |
-| 0.5 | **Cache access token** | `core/lib/api.ts` | Hasta `expires_at - 60s`. |
-
-**Salida Fase 0:** guardar hábito deja de ser “varios segundos”; Guardar cierra al instante; checks en calendario se sienten instantáneos.
-
----
-
-### Fase 1 — API create/update eficiente (3–5 días)
-
-| # | Acción | Detalle |
-|---|--------|---------|
-| 1.1 | Batch order SQL | `max(order) GROUP BY day_id` o RPC |
-| 1.2 | `Promise.all([plan, usage])` | |
-| 1.3 | `bumpUsage` async | Responder 201 tras insert |
-| 1.4 | Respuesta compacta | `{ id, createdCount, instances: [{id,weekId,dayId}] }` sin volcar `steps`×90 |
-| 1.5 | Hábitos: horizonte corto o lazy | Daily 14–30 días visibles, o no materializar 90 (Fase 2) |
-| 1.6 | Update serie: campos mínimos | Evitar `select *` si solo hace falta `series_id`/`kind` |
-| 1.7 | Pasos en serie | No propagar `steps` a 90 filas por defecto; solo instancia, o plantilla de serie |
-
-**Índices a verificar en Supabase:**
-
-```sql
-create index if not exists tasks_user_day_idx on public.tasks (user_id, day_id);
-create index if not exists tasks_user_series_idx on public.tasks (user_id, series_id) where series_id is not null;
-create index if not exists tasks_user_end_day_idx on public.tasks (user_id, end_day_id);
-create index if not exists tasks_user_kind_day_idx on public.tasks (user_id, kind, day_id);
-```
-
----
-
-### Fase 2 — Modelo lazy de series / hábitos ✅ (v2.7.9)
-
-**Estado:** aplicada para `habit_good` / `habit_quit`.
-
-| # | Acción | Detalle |
-|---|--------|---------|
-| 2.1 | Create = 1 seed | API inserta solo el día de inicio; siempre `series_id`. |
-| 2.2 | `POST /api/tasks/habit-ensure` | Clona seed al día pedido (opcional `completed`). |
-| 2.3 | Virtuales en board | `collectTasksCovering` expande `vh:{seriesId}:{dayId}` si no hay fila física. |
-| 2.4 | Toggle / edit | `updateTask` + `taskHistory` materializan virtual → real antes del patch. |
-| 2.5 | Fetch seeds | `fetchTasksCoveringDay` / `fetchTasksInRange` traen hábitos con `series_id` hasta el tope del rango (presencia tras recarga). |
-| 2.6 | Demo | `materializeDemoCreate` y `demoFetch` también seed-only. |
-
-**Migración:** hábitos **nuevos** lazy; series viejas ya materializadas se siguen leyendo (y no generan virtual en días con fila física).
-
-**Pendiente opcional:** lazy para daily/weekly de tareas no-hábito; offline queue de `habit-ensure`.
-
----
-
-### Fase 3 — Realtime y store ✅ (v2.7.10)
-
-| # | Acción | Detalle |
-|---|--------|---------|
-| 3.1 | Un canal por usuario | `subscribeTable` multi-listener + topic `tasks:${uid}` refcounted |
-| 3.2 | Delta Realtime | `applyTaskRealtimeDelta` INSERT/UPDATE/DELETE → store (sin refetch) |
-| 3.3 | Eco propio | `noteOwnTaskMutation` / ventana 2 s en create/update/delete/move/ensure |
-| 3.4 | Board por rango | `ensureTasksRangeLoaded` + semana ISO compartida entre columnas; BoardLayout prefetch |
-| 3.5 | Continuo/Resumen frescos | `isTasksRangeFresh` 45 s; skip re-fetch en Continuo, Mes, Dashboard |
-
----
-
-### Fase 4 — UX y cargas de pantalla ✅ (v2.7.11)
-
-| # | Acción | Detalle |
-|---|--------|---------|
-| 4.1 | Toast “Guardado” inmediato | `AddTaskForm` + `TaskDetailSheet` cierran/toast al click; red en background |
-| 4.2 | Prefetch semana idle | `AppShell` `requestIdleCallback` → `ensureTasksRangeLoaded` semana ISO |
-| 4.3 | Continuo más estrecho | Inicial ±1 mes; `LOAD_CHUNK=1`; `EDGE_PX=220` |
-| 4.4 | Pasos en draft local | `TaskStepsEditor` controlado; no escribe store hasta Guardar |
-| 4.5 | Skeleton solo 1.er fetch | `MonthView` solo si `!isTasksRangeFresh` |
-
----
-
-### Fase 5 — Observabilidad ✅ (v2.7.12)
-
-| # | Acción | Detalle |
-|---|--------|---------|
-| 5.1 | CI round-trips | `create-roundtrips.test.ts`: hábito/daily/single → order SELECT ≤1, tasks ops ≤3 |
-| 5.2 | Log p95 Railway | `recordTaskCreate` / `recordTaskUpdate` → `logger.info` con `p50/p95/p99_ms` (ventana 100) |
-| 5.3 | Contadores por kind | `kind_totals` en payload métricas; `rows` / `orderQueries` en create |
-
-**Cómo leer en Railway:** filtrar logs por `metric: api.tasks.create` o mensaje `api.tasks.create`.
-
----
-
-## 4. Priorización (orden de implementación)
+El dispatch es un **full scan N+1**:
 
 ```text
-0.1 Order sin N+1              ████████████  hábitos / daily
-0.2 Form no bloquea red        ██████████    percepción
-0.3 / 0.4 Checkbox + Realtime  █████████     calendario actual
-1.4 Response compacta          ████
-1.5 / 2.x Lazy hábitos         ████████████  medio plazo
-3.x Realtime unificado         ████████
-4.x Prefetch / continuo        ████
+1 × profiles (todos los que tienen email)
++ N × tasks  (un SELECT por usuario con notifyEmail)
+(+ inserts a notification_deliveries si hay ventanas)
 ```
+
+Con 1 usuario y `notifyEmail` apagado: 1 query/minuto. Con `notifyEmail` on: 2+. Con 50 usuarios con email on: 51 queries/minuto **en idle**.
+
+### 1.3 Reloj #3 — SPA / PWA / Realtime (descartados como origen de esos 2 infos)
+
+Auditoría de timers y red en cliente:
+
+| Origen | Intervalo | ¿Pega al API Railway? |
+|--------|-----------|------------------------|
+| `pwaUpdate.ts` | 30 min + focus/visibility | No (pide `sw.js` / estáticos) |
+| `useNotificationScheduler` | debounce 800 ms | No (Capacitor / Notification API local) |
+| `NotificationBootstrap` | una vez al montar | Solo `updateSettings` si timezone UTC |
+| `subscribeTable` / `subscribeTasks` | WebSocket Realtime | **Supabase**, no Express |
+| `useProjects` | un canal Realtime | Supabase |
+| `AppShell` prefetch semana | idle una vez | `ensureTasksRangeLoaded` → **Supabase** directo |
+| `SettingsPage` | al abrir Sistema | 1 × `GET /api/version` |
+| `supabase.ts` public-config | arranque si faltan VITE_* | 1 × `GET /api/public-config` |
+| `DocumentsPage` / `DashboardPage` `fetchAllTasks` | al montar | Supabase (y es pesado: `select *`) |
+
+**Conclusión:** con la pestaña abierta y sin navegar, la SPA no genera 2 HTTP/min al API. Si el usuario **cierra** la pestaña y los infos siguen, es 100 % servidor/gateway.
+
+### 1.4 Otros ruidos de plataforma (secundarios)
+
+| Riesgo | Por qué importa |
+|--------|-----------------|
+| Dos réplicas / restart loop | Duplica healthchecks |
+| Cron **y** worker embebido a la vez | 2 scans/min a Supabase + 1 HTTP/min |
+| `GET /api/version` como health | Mezcla “versión de producto” (SPA Settings) con probe; no se puede silenciar por path semántico |
+| Adjuntos data-URL en `tasks.images` | No es idle, pero `fetchAllTasks` / Documentos / board descargan megas de JSONB en cada visita |
+| Docs viejos (`SCALABILITY_OPERATIONS.md`) | Hablan de Firebase App Check y `jobQueue` que **este repo ya no usa** (Supabase). No seguirlos. |
 
 ---
 
-## 5. Pseudocódigo de fixes prioritarios
+## 2. Qué optimizar (orden de impacto)
 
-### 5.1 Order en una query (API)
+```text
+A  Silenciar health en logs          ████████████  quita el síntoma
+B  /healthz barato + intervalo       ██████████    semántica + menos hits
+C  Worker: no full-scan + intervalo  ████████████  coste Supabase real
+D  Un solo disparador (embed XOR cron) ████████
+E  Payloads gordos (images jsonb)    ██████        no es idle; sí es coste
+```
+
+Las fases 0–5 de **latencia al guardar** (N+1 de COUNT, hábitos lazy, Realtime 1 canal) **ya están aplicadas** en v2.7.x. Ver [archivo](#8-archivo--latencia-de-mutaciones-cerrado-v27x).
+
+---
+
+## 3. Plan
+
+### Fase A — Dejar de loguear el probe (1–2 h) · quita el “2 infos/min”
+
+**Objetivo:** healthcheck = 200, **cero** línea info.
+
+| # | Cambio | Dónde |
+|---|--------|--------|
+| A.1 | `pino-http` `autoLogging.ignore` para `GET /api/version`, futuro `/healthz`, `/favicon.ico` | `packages/api/src/app.ts` |
+| A.2 | Nivel `warn` para 2xx de probes; `info` solo mutaciones y 4xx/5xx | mismo |
+| A.3 | Verificar en Railway: 5 min idle → 0 infos de `request completed` en esos paths | |
 
 ```ts
-const dayIds = [...new Set(occurrenceRanges.map(r => r.dayId))];
-// Preferir RPC max_order_by_days(uid, dayIds[])
-// Parche intermedio: Promise.all counts, no await en serie
-const counts = await Promise.all(
-  dayIds.map(async dayId => {
-    const { count } = await admin.from('tasks')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', uid).eq('day_id', dayId);
-    return [dayId, count ?? 0] as const;
-  })
-);
-const orderByDay = new Map(counts);
+app.use(pinoHttp({
+  logger,
+  autoLogging: {
+    ignore: req => {
+      const url = req.url ?? '';
+      return (
+        req.method === 'GET' &&
+        (url === '/healthz' || url.startsWith('/api/version') || url === '/favicon.ico')
+      );
+    },
+  },
+}));
 ```
 
-### 5.2 Cierre optimista del formulario
+**Trade-off:** dejas de ver el probe en logs. Eso es correcto: un health 200 no es un evento de negocio.
+
+### Fase B — Healthcheck dedicado (medio día)
+
+| # | Cambio | Detalle |
+|---|--------|---------|
+| B.1 | `GET /healthz` → `{ ok: true }` sin leer `package.json` ni listar flags de email | 1 handler de 3 líneas |
+| B.2 | `railway.toml` → `healthcheckPath = "/healthz"` | Settings de Railway igual |
+| B.3 | `/api/version` queda para humanos / Settings | 1 hit al abrir Sistema, no 2/min |
+| B.4 | Documentar intervalo real en Railway (UI del servicio) | Si está en 10–30 s, subir a **60–120 s** una vez estable |
+
+**Éxito:** probe no aparece en infos; Settings sigue mostrando versión.
+
+### Fase C — Worker de notificaciones barato en idle (1–2 días) · el coste de verdad
+
+Hoy el worker es un **batch scan** cada 60 s aunque no haya nada que enviar.
+
+| # | Cambio | Detalle |
+|---|--------|---------|
+| C.1 | Query de perfiles: filtrar en SQL `settings->>'notifyEmail' = 'true'` (o columna booleana) | Evita traer a todos |
+| C.2 | Una query de tasks para **todos** los uids notifiables (`user_id IN (...)`) | Elimina N+1 |
+| C.3 | Intervalo idle **180–300 s**; 60 s solo si hay candidatos en la ventana | `NOTIFICATIONS_INTERVAL_MS` default 180000 |
+| C.4 | Log de tick: `debug` si `candidates === 0`; `info` solo si envió/falló | Hoy ya casi; no subir ruido |
+| C.5 | Índice | `tasks (user_id, completed, day_id)` si no existe |
+
+**Éxito:** 1 usuario con email off = **0** queries de tasks / 3 min. Con email on = 1 query de tasks / 3 min, no 2/min.
+
+### Fase D — Un disparador, no dos (1 h + consola)
+
+| Situación | Qué hacer |
+|-----------|-----------|
+| Solo Railway, 1 contenedor | `RUN_EMBEDDED_WORKER=true`, **sin** cron a `/dispatch` |
+| Cron de Railway / cron-job.org | `RUN_EMBEDDED_WORKER=false` + `CRON_SECRET` + `POST /dispatch` cada 2–5 min |
+| Duda | Logs: si ves `/dispatch` cada minuto **y** el worker está on, apaga uno |
+
+### Fase E — Coste de datos al usar la app (no idle; no confundir)
+
+No explica los 2 infos/min. Sí explica facturas de Postgres / payloads enormes cuando **sí** abres la app.
+
+| Superficie | Problema | Dirección |
+|------------|----------|-----------|
+| `fetchAllTasks` | `select *` de todas las filas (Documentos, Dashboard recetario, Eisenhower amplio) | Endpoint de adjuntos: `id, day_id, kind, project_id, images` **o** columna `has_attachments` + storage |
+| `tasks.images` jsonb data-URL | Hasta ~3.5 MB/fila; cada range load los arrastra | Supabase Storage + URL firmada (siguiente salto de adjuntos) |
+| Realtime `select *` en INSERT/UPDATE | Replica el JSONB gordo al canal | Replica columns mínimas si PostgREST lo permite |
+| Prefetch semana en `AppShell` | 1 fetch al entrar (OK) | No tocar |
+
+---
+
+## 4. Métricas (para no adivinar la próxima vez)
+
+| Señal | Dónde | Idle sano |
+|-------|--------|-----------|
+| `http.requests` por path | pino (cuando no ignore) o Railway metrics | Solo `/healthz` |
+| `notifications.scan.profiles` / `tasks_queries` | log debug del worker | 0–1 / intervalo |
+| `notifications.sent` | info | 0 la mayor parte del día |
+| `api.tasks.create` | ya existe (`requestMetrics`) | solo al guardar |
+
+Añadir al tick del worker (debug):
 
 ```ts
-onAdd={async payload => {
-  setFabOpen(false);
-  void addTask(payload)
-    .then(() => showToast(t('task_created_ok'), 'success'))
-    .catch(err => showToast(formatError(err), 'error'));
-}}
-```
-
-### 5.3 Debounce refetch Realtime
-
-```ts
-let t: ReturnType<typeof setTimeout> | null = null;
-const scheduleLoad = () => {
-  if (t) clearTimeout(t);
-  t = setTimeout(() => { t = null; load(); }, 200);
-};
-// onChange: scheduleLoad
+{ metric: 'notifications.scan', scannedUsers, taskQueries, candidates, ms }
 ```
 
 ---
 
-## 6. Riesgos y trade-offs
+## 5. Checklist de cierre (esta auditoría)
 
-| Cambio | Riesgo | Mitigación |
-|--------|--------|------------|
-| Form sin await | Error tras cerrar | Toast + cola offline ya existente |
-| Lazy hábitos | Días sin fila física | Generar presencia virtual en `collectTasksCovering` |
-| Menos Realtime refetch | Multi-dispositivo desfasado | Delta de evento + poll suave |
-| No propagar steps a serie | Serie con checklists distintas | UX: “aplicar pasos a serie” explícito |
-
----
-
-## 7. Checklist post-cambio
-
-- [ ] Create tarea single-day: form cierra &lt; 100 ms  
-- [ ] Create **hábito**: API &lt; 500 ms; logs sin 90 COUNT  
-- [ ] Create **recetario** 7d×2 tomas: aceptable y sin N+1  
-- [ ] Toggle checkbox en semana/mes/continuo: paint inmediato  
-- [ ] Edit pasos en detalle: no congela board  
-- [ ] Resumen “Esta semana” sigue mostrando conteos (2.7.3)  
-- [ ] Offline queue sigue funcionando  
-- [ ] Tests API + test de query budget  
+- [ ] Un minuto de logs idle: anotar `req.url` de cada info
+- [ ] Fase A desplegada: health no escribe info
+- [ ] Fase B: `/healthz` + `healthcheckPath` actualizado
+- [ ] Confirmar en Railway que **no** hay cron a `/dispatch` si el worker embebido está on
+- [ ] Fase C: scan filtrado + intervalo ≥ 180 s
+- [ ] 10 min idle: 0 infos de negocio; ≤ 1 scan Supabase / 3 min
+- [ ] Abrir Settings → Sistema: versión y flags de email siguen bien
 
 ---
 
-## 8. Resumen ejecutivo
+## 6. Fuera de alcance (a propósito)
 
-La lentitud al **guardar/editar** sigue anclada en:
-
-1. **N+1 de COUNTs por día** al materializar (peor con **hábitos daily** y **recetarios**).  
-2. **UI que espera la red** (form/detalle) pese al optimistic.  
-3. **Realtime que re-descarga** el día en cada columna al mutar (peor con **checkbox** en 7 columnas y inserts masivos).
-
-Las features de **v2.6–2.7** (hábitos, pasos, eventos, Círculo, resumen con fetch de semana, checks globales, orden por hora) **suben el volumen de trabajo**; el roadmap prioriza Fase 0/1 primero y **lazy de hábitos** como mejora estructural.
+- Reescribir hábitos lazy / Realtime 1 canal (ya hecho, v2.7.9–2.7.10).
+- Storage de adjuntos (Fase E, otro cambio de producto).
+- Firebase App Check / `jobQueue` de `docs/SCALABILITY_OPERATIONS.md` (doc obsoleto).
 
 ---
 
-## 9. Referencias de código (actualizado)
+## 7. Referencias de código (idle / gateway)
 
 | Área | Ruta |
 |------|------|
-| Create + counts + insert + habits | `packages/api/src/routes/tasks.ts` |
-| Horizontes recurrencia | `packages/api/src/lib/recurrence.ts`, `packages/core/src/lib/recurrence.ts` |
-| Hábitos helpers | `packages/core/src/lib/habits.ts` |
-| Pasos | `packages/core/src/lib/steps.ts`, `TaskStepsEditor.tsx` |
-| Orden lista por hora | `packages/core/src/lib/taskPresence.ts` (`compareByStartTime`) |
-| Usage | `packages/api/src/lib/usage.ts` |
-| Cliente HTTP | `packages/core/src/lib/api.ts` |
-| create/update + subscribe | `packages/core/src/services/taskService.ts` |
-| Historial + optimistic | `packages/core/src/history/taskHistory.ts` |
-| Hook board | `packages/core/src/hooks/useTasks.ts` |
-| Realtime | `packages/core/src/lib/realtime.ts` |
-| Form / detalle | `AddTaskForm.tsx`, `TaskDetailSheet.tsx` |
-| Checks calendario | `ScheduleGrid.tsx`, `MonthView.tsx`, `TaskCard.tsx`, `BoardLayout.tsx` |
-| Resumen semana | `packages/web/src/pages/DashboardPage.tsx` |
-| Reflexiones | `packages/web/src/pages/ReflectionsPage.tsx` |
-| SQL hábitos / pasos | `supabase/migrations/20260725_habits_kind.sql`, `20260725_task_steps.sql` |
+| Healthcheck Railway | `railway.toml` |
+| Access log | `packages/api/src/app.ts` (`pinoHttp`) |
+| Nivel de log | `packages/api/src/logger.ts` |
+| `/api/version` | `packages/api/src/routes/version.ts` |
+| Worker | `packages/api/src/worker/notificationsWorker.ts` |
+| Scan email | `packages/api/src/lib/notificationDispatch.ts` |
+| Intervalo / embed | `packages/api/src/config.ts` (`worker.*`) |
+| Cron HTTP | `packages/api/src/routes/notifications.ts` `POST /dispatch` |
+| PWA poll | `packages/web/src/lib/pwaUpdate.ts` (30 min, no API) |
+| Realtime | `packages/core/src/lib/realtime.ts` (Supabase WS) |
+| Prefetch board | `packages/web/src/components/Layout/AppShell.tsx` |
 
 ---
 
-## 10. Changelog del propio roadmap
+## 8. Archivo — latencia de mutaciones (cerrado, v2.7.x)
+
+El contenido anterior de este archivo (2026-07-25) cubría lentitud al **guardar**. Estado al día:
+
+| Fase | Tema | Estado |
+|------|------|--------|
+| 0 | Order sin N+1, form no bloquea, Realtime debounce, JWT cache | Hecho (v2.7.6) |
+| 1 | Respuesta create compacta, horizonte corto, steps solo instancia | Hecho (v2.7.7) |
+| 2 | Hábitos lazy (`habit-ensure` + virtuales `vh:`) | Hecho (v2.7.9) |
+| 3 | 1 canal Realtime / uid + delta + eco 2 s + range cache 45 s | Hecho (v2.7.10) |
+| 4 | Toast inmediato, prefetch idle, continuo ±1 mes | Hecho (v2.7.11) |
+| 5 | `requestMetrics` p95 create/update + tests de round-trips | Hecho (v2.7.12) |
+
+No reabrir esas fases salvo regresión medida. El trabajo nuevo es **A–E** (ruido idle y scan de notificaciones).
+
+---
+
+## 9. Changelog de este documento
 
 | Fecha | Cambio |
 |-------|--------|
-| 2026-07-25 | Versión inicial (mutaciones lentas) |
-| 2026-07-25 | **Actualización v2.7.5:** mapa de features (hábitos, pasos, checks, orden por hora, resumen, reflexiones, eventos/Círculo); riesgos amplificados; fases 0.3 checkbox, 1.5–1.7 hábitos/pasos; referencias de código al día |
-| 2026-07-25 | **Fase 0 aplicada (parcial, v2.7.6):** `loadOrderCounters` (1 query batch por chunks, sin N COUNT secuenciales); plan+usage en `Promise.all`; `bumpUsage` post-respuesta; create form cierra sin await; Realtime debounce 200 ms en `subscribeTasks`; cache JWT en `api.ts` + clear en signOut |
-| 2026-07-25 | **Fase 1 aplicada (v2.7.7):** respuesta create compacta (`instances` = id/weekId/dayId/endDayId/seriesId + `createdCount`); cliente `expandCreateInstances`; horizonte daily **28** / weekly **26** (api+core); steps solo en instancia (no seriesUpdate); tests verdes |
-| 2026-07-25 | **Fase 2 aplicada (v2.7.9):** hábitos lazy — create 1 seed + `habit-ensure` + virtuales `vh:` en `collectTasksCovering` + materialize en toggle/edit; fetch de seeds en covering/range; tests `habit-lazy.test.ts` |
-| 2026-07-25 | **Fase 3 aplicada (v2.7.10):** Realtime 1 canal/uid + delta al store + eco 2s; `ensureTasksRangeLoaded` + caché 45s; Board/Continuo/Mes/Resumen sin tormenta de refetch |
-| 2026-07-25 | **Fase 4 aplicada (v2.7.11):** toast Guardado inmediato; prefetch idle semana; continuo ±1 mes; pasos draft local; skeleton solo primer fetch |
-| 2026-07-25 | **Fase 5 aplicada (v2.7.12):** `requestMetrics` p95 create/update; CI round-trips; kind_totals en logs |
+| 2026-07-25 | Versión inicial: latencia de mutaciones (fases 0–5) |
+| 2026-07-25 | Fases 0–5 aplicadas en producto (v2.7.6–2.7.12) |
+| 2026-08-12 | **Reenfoque:** auditoría idle (~2 infos/min en API gateway). Diagnóstico healthcheck+pino / worker 60 s / no-poll del cliente. Plan A–E. Histórico de latencia archivado en §8. |
