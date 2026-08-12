@@ -178,6 +178,7 @@ export function AddTaskForm({
   const [open, setOpen] = useState(startOpen);
   const [title, setTitle] = useState('');
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectCategoryId, setProjectCategoryId] = useState<string | null>(null);
   const [priority, setPriority] = useState<Priority>('medium');
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('none');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -338,6 +339,7 @@ export function AddTaskForm({
   function resetForm() {
     setTitle('');
     setProjectId(null);
+    setProjectCategoryId(null);
     setPriority('medium');
     setRecurrenceFrequency('none');
     setRecurrenceInterval(1);
@@ -535,6 +537,8 @@ export function AddTaskForm({
     const payload = {
       title: trimmed,
       projectId: isEventLike || isHabit || isFinance ? null : projectId,
+      projectCategoryId:
+        isEventLike || isHabit || isFinance ? null : projectCategoryId,
       priority,
       startDayId: startForCreate,
       endDayId: safeEnd,
@@ -1033,7 +1037,11 @@ export function AddTaskForm({
           <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
             <SimpleSelect
               value={projectId ?? ''}
-              onChange={value => setProjectId(value || null)}
+              onChange={value => {
+                const next = value || null;
+                setProjectId(next);
+                setProjectCategoryId(null);
+              }}
               className={cn(
                 'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
                 isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
@@ -1046,6 +1054,29 @@ export function AddTaskForm({
                 })),
               ]}
             />
+
+            {(() => {
+              const selectedProject = projects.find(p => p.id === projectId);
+              const cats = selectedProject?.categories ?? [];
+              if (!projectId || cats.length === 0) return null;
+              return (
+                <SimpleSelect
+                  value={projectCategoryId ?? ''}
+                  onChange={value => setProjectCategoryId(value || null)}
+                  className={cn(
+                    'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+                    isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
+                  )}
+                  options={[
+                    { value: '', label: t('task_no_category') },
+                    ...cats.map(c => ({
+                      value: c.id,
+                      label: c.name,
+                    })),
+                  ]}
+                />
+              );
+            })()}
 
             <div className="flex gap-1">
               {PRIORITY_OPTIONS.map(opt => (

@@ -458,6 +458,7 @@ export function DayView({
                     void addTask({
                       title: loc.title,
                       projectId: loc.projectId,
+                      projectCategoryId: loc.projectCategoryId,
                       priority: loc.priority,
                       notes: loc.notes,
                       tags: loc.tags,

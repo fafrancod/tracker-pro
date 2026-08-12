@@ -89,6 +89,7 @@ export const taskHistory = {
       completed: false,
       completedAt: null,
       projectId: apiPayload.projectId ?? null,
+      projectCategoryId: apiPayload.projectCategoryId ?? null,
       priority: apiPayload.priority ?? 'medium',
       notes: apiPayload.notes ?? '',
       order,
@@ -167,6 +168,7 @@ export const taskHistory = {
           completed: instance.completed,
           completedAt: instance.completedAt,
           projectId: instance.projectId,
+          projectCategoryId: instance.projectCategoryId ?? null,
           priority: instance.priority,
           notes: instance.notes,
           order: instance.order,
@@ -480,6 +482,7 @@ export const taskHistory = {
       payload: {
         title: task.title,
         projectId: task.projectId,
+        projectCategoryId: task.projectCategoryId,
         priority: task.priority,
         notes: task.notes,
         tags: task.tags,

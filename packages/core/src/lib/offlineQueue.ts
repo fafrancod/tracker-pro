@@ -272,6 +272,7 @@ async function applyOne(mut: OfflineMutation, idMap: Map<string, string>): Promi
           completed: instance.completed,
           completedAt: instance.completedAt,
           projectId: instance.projectId,
+          projectCategoryId: instance.projectCategoryId ?? null,
           priority: instance.priority,
           notes: instance.notes,
           order: instance.order,

@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
 import { subscribeTable } from '../lib/realtime';
 import type { Project, CreateProjectPayload, UpdateProjectPayload } from '../types';
+import { normalizeProjectCategories } from '../lib/projectCategories';
 
 export type ProjectsUnsubscribe = () => void;
 
@@ -37,10 +38,14 @@ interface CreateProjectResponse {
   color: string;
   icon: string;
   order: number;
+  categories?: unknown;
 }
 
 export async function createProject(payload: CreateProjectPayload): Promise<Project> {
-  const res = await api.post<CreateProjectResponse>('/api/projects', payload);
+  const res = await api.post<CreateProjectResponse>('/api/projects', {
+    ...payload,
+    categories: payload.categories ?? [],
+  });
   return mapProject(res.id, res as unknown as Record<string, unknown>);
 }
 
@@ -61,6 +66,7 @@ function mapProject(id: string, raw: Record<string, unknown>): Project {
     name: (raw.name as string) ?? '',
     color: (raw.color as string) ?? '#7d8590',
     icon: (raw.icon as string) ?? '📁',
+    categories: normalizeProjectCategories(raw.categories),
     order: typeof raw.order === 'number' ? raw.order : 0,
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
   };

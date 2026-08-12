@@ -14,6 +14,7 @@ function taskToUpdatePayload(task: Task): UpdateTaskPayload {
     title: task.title,
     completed: task.completed,
     projectId: task.projectId,
+    projectCategoryId: task.projectCategoryId,
     priority: task.priority,
     notes: task.notes,
     tags: task.tags,
@@ -43,6 +44,7 @@ function seriesSharedPatch(task: Task): UpdateTaskPayload {
     notes: task.notes,
     tags: task.tags,
     projectId: task.projectId,
+    projectCategoryId: task.projectCategoryId,
     priority: task.priority,
     urgency: task.urgency,
     importance: task.importance,
@@ -60,6 +62,9 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
   const patch: Partial<Task> = {};
   if (payload.title !== undefined) patch.title = payload.title;
   if (payload.projectId !== undefined) patch.projectId = payload.projectId;
+  if (payload.projectCategoryId !== undefined) {
+    patch.projectCategoryId = payload.projectCategoryId;
+  }
   if (payload.priority !== undefined) patch.priority = payload.priority;
   if (payload.notes !== undefined) patch.notes = payload.notes;
   if (payload.tags !== undefined) patch.tags = payload.tags;
@@ -179,6 +184,7 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           completed: instance.completed,
           completedAt: instance.completedAt,
           projectId: instance.projectId,
+          projectCategoryId: instance.projectCategoryId ?? null,
           priority: instance.priority,
           notes: instance.notes,
           order: instance.order,

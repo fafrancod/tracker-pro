@@ -133,6 +133,7 @@ interface DraftState {
   importance: Importance | null;
   color: string | null;
   projectId: string | null;
+  projectCategoryId: string | null;
   /** Editable start day (bucket day_id). */
   startDayId: string;
   endDayId: string;
@@ -164,6 +165,7 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     importance: task.importance,
     color: task.color,
     projectId: task.projectId,
+    projectCategoryId: task.projectCategoryId ?? null,
     startDayId: fallbackDayId,
     endDayId: task.endDayId || fallbackDayId,
     startTime: task.startTime ?? '',
@@ -209,6 +211,7 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.importance !== base.importance ||
     draft.color !== base.color ||
     draft.projectId !== base.projectId ||
+    draft.projectCategoryId !== base.projectCategoryId ||
     draft.startDayId !== base.startDayId ||
     draft.endDayId !== base.endDayId ||
     draft.startTime !== base.startTime ||
@@ -624,6 +627,12 @@ function TaskDetailInner({
               saveEventLike || saveIsHabit || saveIsFinance
                 ? null
                 : snap.projectId,
+            projectCategoryId:
+              saveEventLike || saveIsHabit || saveIsFinance
+                ? null
+                : snap.projectId
+                  ? snap.projectCategoryId
+                  : null,
             endDayId: nextEnd,
             involvedContactIds: saveEventLike
               ? snap.involvedContactIds
@@ -1434,20 +1443,52 @@ function TaskDetailInner({
         </Field>
 
         {!isRx && draftIsProjectKind && (
-          <Field label={t('task_project_label')}>
-            <select
-              value={draft.projectId ?? ''}
-              onChange={e => patchDraft({ projectId: e.target.value || null })}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              <option value="">{t('task_no_project')}</option>
-              {projects.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.icon} {p.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <>
+            <Field label={t('task_project_label')}>
+              <select
+                value={draft.projectId ?? ''}
+                onChange={e =>
+                  patchDraft({
+                    projectId: e.target.value || null,
+                    projectCategoryId: null,
+                  })
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">{t('task_no_project')}</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.icon} {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {(() => {
+              const selected = projects.find(p => p.id === draft.projectId);
+              const cats = selected?.categories ?? [];
+              if (!draft.projectId || cats.length === 0) return null;
+              return (
+                <Field label={t('task_category_label')}>
+                  <select
+                    value={draft.projectCategoryId ?? ''}
+                    onChange={e =>
+                      patchDraft({
+                        projectCategoryId: e.target.value || null,
+                      })
+                    }
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="">{t('task_no_category')}</option>
+                    {cats.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              );
+            })()}
+          </>
         )}
 
         <Field

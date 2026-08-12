@@ -73,6 +73,7 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
     await addTask({
       title: task.title,
       projectId: task.projectId,
+      projectCategoryId: task.projectCategoryId,
       priority: task.priority,
       notes: task.notes,
       tags: task.tags,

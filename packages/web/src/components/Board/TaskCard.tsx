@@ -86,6 +86,8 @@ export function TaskCard({
   const longPressOrigin = useRef<{ x: number; y: number } | null>(null);
 
   const project = projects.find(p => p.id === task.projectId);
+  const projectCategory =
+    project?.categories?.find(c => c.id === task.projectCategoryId) ?? null;
   const isHabit = isHabitKind(task.kind);
   const habitGood = isHabitGood(task.kind);
   const habitQuit = isHabitQuit(task.kind);
@@ -548,10 +550,19 @@ export function TaskCard({
                     : 'gap-1 px-2 py-0.5 text-xs'
                 )}
                 style={{ backgroundColor: project.color + '33', color: project.color }}
-                title={project.name}
+                title={
+                  projectCategory
+                    ? `${project.name} · ${projectCategory.name}`
+                    : project.name
+                }
               >
                 <span aria-hidden>{project.icon}</span>
-                {!dense && <span className="truncate">{project.name}</span>}
+                {!dense && (
+                  <span className="truncate">
+                    {project.name}
+                    {projectCategory ? ` · ${projectCategory.name}` : ''}
+                  </span>
+                )}
               </span>
             )}
             {!dense && (

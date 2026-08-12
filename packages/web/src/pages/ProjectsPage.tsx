@@ -99,8 +99,15 @@ export function ProjectsPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-text-primary">{p.name}</p>
-                  <p className="text-[11px]" style={{ color: p.color }}>
-                    {p.color}
+                  <p className="truncate text-[11px] text-text-muted">
+                    {(p.categories?.length ?? 0) > 0
+                      ? t('project_categories_count').replace(
+                          '{n}',
+                          String(p.categories.length)
+                        ) +
+                        ': ' +
+                        p.categories.map(c => c.name).join(' · ')
+                      : p.color}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

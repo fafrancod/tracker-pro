@@ -267,6 +267,7 @@ function normalizeImages(raw: unknown): string[] {
 const createSchema = taskLocation.extend({
   title: z.string().min(1).max(280).trim(),
   projectId: z.string().nullable().optional(),
+  projectCategoryId: z.string().min(1).max(80).nullable().optional(),
   priority: prioritySchema.optional(),
   notes: z.string().max(4000).optional(),
   tags: z.array(z.string().min(1).max(40)).max(20).optional(),
@@ -308,6 +309,7 @@ const updateSchema = z
     title: z.string().min(1).max(280).trim().optional(),
     completed: z.boolean().optional(),
     projectId: z.string().nullable().optional(),
+    projectCategoryId: z.string().min(1).max(80).nullable().optional(),
     priority: prioritySchema.optional(),
     notes: z.string().max(4000).optional(),
     tags: z.array(z.string().min(1).max(40)).max(20).optional(),
@@ -385,6 +387,10 @@ function toClientTask(
     completed: Boolean(row.completed),
     completedAt: (row.completed_at as string | null) ?? null,
     projectId: (row.project_id as string | null) ?? null,
+    projectCategoryId:
+      (row.project_category_id as string | null | undefined) ??
+      (row.projectCategoryId as string | null | undefined) ??
+      null,
     priority: (row.priority as string) ?? 'medium',
     notes: (row.notes as string) ?? '',
     order: typeof row.order === 'number' ? row.order : 0,
@@ -539,6 +545,7 @@ tasksRouter.post('/', async (req, res, next) => {
       dayId,
       title,
       projectId,
+      projectCategoryId: rawProjectCategoryId,
       priority,
       notes,
       tags,
@@ -568,6 +575,28 @@ tasksRouter.post('/', async (req, res, next) => {
 
     const taskKind = kind ?? 'task';
     const isFinance = isFinanceKind(taskKind);
+    const supportsProject =
+      taskKind === 'task' || taskKind === 'reminder';
+
+    // Subcategoría solo con proyecto de tarea/recordatorio.
+    let resolvedProjectCategoryId: string | null = null;
+    if (supportsProject && projectId && rawProjectCategoryId) {
+      const { data: projRow, error: projErr } = await getSupabaseAdmin()
+        .from('projects')
+        .select('id, categories')
+        .eq('id', projectId)
+        .eq('user_id', uid)
+        .maybeSingle();
+      if (projErr) throw projErr;
+      const cats = Array.isArray(projRow?.categories) ? projRow.categories : [];
+      const ok = cats.some(
+        (c: unknown) =>
+          c &&
+          typeof c === 'object' &&
+          (c as { id?: string }).id === rawProjectCategoryId
+      );
+      if (ok) resolvedProjectCategoryId = rawProjectCategoryId;
+    }
     const resolvedEndDayId =
       typeof rawEndDayId === 'string' && rawEndDayId >= dayId ? rawEndDayId : dayId;
     // Finanzas no usan horario.
@@ -674,6 +703,7 @@ tasksRouter.post('/', async (req, res, next) => {
           completed: false,
           completed_at: null,
           project_id: null,
+          project_category_id: null,
           priority: 'high',
           notes: notes ?? '',
           order,
@@ -780,6 +810,10 @@ tasksRouter.post('/', async (req, res, next) => {
           completed_at: null,
           project_id:
             isEventLike || isHabit || isFinance ? null : (projectId ?? null),
+          project_category_id:
+            isEventLike || isHabit || isFinance
+              ? null
+              : resolvedProjectCategoryId,
           priority: priority ?? (isHabit ? 'medium' : 'medium'),
           notes: notes ?? '',
           order,
@@ -969,6 +1003,13 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     const seriesUpdate: Record<string, unknown> = { updated_at: now };
     if (patch.title !== undefined) seriesUpdate.title = patch.title;
     if (patch.projectId !== undefined) seriesUpdate.project_id = patch.projectId;
+    if (patch.projectCategoryId !== undefined) {
+      seriesUpdate.project_category_id = patch.projectCategoryId;
+    }
+    // Si se limpia el proyecto, también la subcategoría.
+    if (patch.projectId === null) {
+      seriesUpdate.project_category_id = null;
+    }
     if (patch.priority !== undefined) seriesUpdate.priority = patch.priority;
     if (patch.notes !== undefined) seriesUpdate.notes = patch.notes;
     if (patch.tags !== undefined) seriesUpdate.tags = patch.tags;
@@ -1174,6 +1215,12 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
         update.completed_at = patch.completed ? now : null;
       }
       if (patch.projectId !== undefined) update.project_id = patch.projectId;
+      if (patch.projectCategoryId !== undefined) {
+        update.project_category_id = patch.projectCategoryId;
+      }
+      if (patch.projectId === null) {
+        update.project_category_id = null;
+      }
       if (patch.priority !== undefined) update.priority = patch.priority;
       if (patch.notes !== undefined) update.notes = patch.notes;
       if (patch.tags !== undefined) update.tags = patch.tags;
@@ -1526,6 +1573,7 @@ tasksRouter.post('/habit-ensure', async (req, res, next) => {
       completed: body.completed ?? false,
       completed_at: body.completed ? now : null,
       project_id: null,
+      project_category_id: null,
       priority: template.priority ?? 'medium',
       notes: (template.notes as string) ?? '',
       order: count ?? 0,

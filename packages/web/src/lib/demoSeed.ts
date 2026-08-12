@@ -26,6 +26,7 @@ function pushTask(
     completed: partial.completed ?? false,
     completedAt: partial.completed ? new Date().toISOString() : null,
     projectId: partial.projectId ?? null,
+    projectCategoryId: partial.projectCategoryId ?? null,
     priority: partial.priority ?? 'medium',
     notes: partial.notes ?? '',
     order: tasksByDay[weekId][dayId].length,
@@ -68,6 +69,10 @@ export function getDemoSeed(): DemoSeed {
       name: 'Lanzamiento beta',
       color: '#58a6ff',
       icon: '🚀',
+      categories: [
+        { id: 'demo-cat-product', name: 'Producto', order: 0 },
+        { id: 'demo-cat-growth', name: 'Growth', order: 1 },
+      ],
       order: 0,
       createdAt: new Date(0).toISOString(),
     },
@@ -76,6 +81,10 @@ export function getDemoSeed(): DemoSeed {
       name: 'Aprender Rust',
       color: '#3fb950',
       icon: '🦀',
+      categories: [
+        { id: 'demo-cat-theory', name: 'Teoría', order: 0 },
+        { id: 'demo-cat-practice', name: 'Práctica', order: 1 },
+      ],
       order: 1,
       createdAt: new Date(0).toISOString(),
     },
@@ -84,6 +93,7 @@ export function getDemoSeed(): DemoSeed {
       name: 'Vida',
       color: '#f778ba',
       icon: '🌱',
+      categories: [],
       order: 2,
       createdAt: new Date(0).toISOString(),
     },
@@ -93,9 +103,9 @@ export function getDemoSeed(): DemoSeed {
   for (let i = 0; i < 7; i++) tasksByDay[currentWeekId][getDayId(day(i))] = [];
 
   const sampleTasks: Array<[number, Partial<Task> & { title: string }]> = [
-    [0, { title: 'Plan semanal', projectId: 'demo-proj-lanzamiento', priority: 'high', completed: true, startTime: '09:00', endTime: '09:45' }],
-    [0, { title: 'Revisar pricing', projectId: 'demo-proj-lanzamiento', priority: 'medium', completed: true, startTime: '11:00', endTime: '12:00' }],
-    [1, { title: 'Capítulo 4 — ownership', projectId: 'demo-proj-rust', priority: 'medium', startTime: '08:30', endTime: '10:00' }],
+    [0, { title: 'Plan semanal', projectId: 'demo-proj-lanzamiento', projectCategoryId: 'demo-cat-product', priority: 'high', completed: true, startTime: '09:00', endTime: '09:45' }],
+    [0, { title: 'Revisar pricing', projectId: 'demo-proj-lanzamiento', projectCategoryId: 'demo-cat-growth', priority: 'medium', completed: true, startTime: '11:00', endTime: '12:00' }],
+    [1, { title: 'Capítulo 4 — ownership', projectId: 'demo-proj-rust', projectCategoryId: 'demo-cat-theory', priority: 'medium', startTime: '08:30', endTime: '10:00' }],
     [1, { title: 'Llamar al dentista', projectId: 'demo-proj-vida', priority: 'low', completed: true }],
     [2, { title: 'Sprint review', projectId: 'demo-proj-lanzamiento', priority: 'medium', startTime: '15:00', endTime: '16:00' }],
     [2, { title: 'Exercise rust #12', projectId: 'demo-proj-rust', priority: 'low', startTime: '18:00', endTime: '19:00' }],

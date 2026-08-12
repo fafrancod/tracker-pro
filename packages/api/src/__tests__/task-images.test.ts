@@ -74,7 +74,6 @@ beforeEach(() => {
         };
       }
       if (table === 'tasks') {
-        const selectChain: Record<string, unknown> = {};
         const makeSelect = () => {
           const c: Record<string, unknown> = {
             eq: vi.fn(() => c),

@@ -550,6 +550,10 @@ function expandCreateInstances(
       completedAt: null,
       projectId:
         isHabit || isEventLike || isFinance ? null : (payload.projectId ?? null),
+      projectCategoryId:
+        isHabit || isEventLike || isFinance
+          ? null
+          : (payload.projectCategoryId ?? null),
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: index,
@@ -617,6 +621,7 @@ export async function createTask(
     endDayId,
     title: payload.title,
     projectId: payload.projectId ?? null,
+    projectCategoryId: payload.projectCategoryId ?? null,
     priority: payload.priority ?? 'medium',
     notes: payload.notes ?? '',
     tags: payload.tags ?? [],
@@ -689,6 +694,7 @@ function materializeDemoCreate(
         completed: false,
         completedAt: null,
         projectId: null,
+        projectCategoryId: null,
         priority: 'high',
         notes: payload.notes ?? '',
         order: 0,
@@ -767,6 +773,8 @@ function materializeDemoCreate(
       completed: false,
       completedAt: null,
       projectId: isHabit || isFinance ? null : (payload.projectId ?? null),
+      projectCategoryId:
+        isHabit || isFinance ? null : (payload.projectCategoryId ?? null),
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: 0,
@@ -982,6 +990,7 @@ export async function rematerializeRxSeries(
       completed: instance.completed,
       completedAt: instance.completedAt,
       projectId: instance.projectId,
+      projectCategoryId: instance.projectCategoryId ?? null,
       priority: instance.priority,
       notes: instance.notes,
       order: instance.order,
@@ -1090,6 +1099,7 @@ function rematerializeDemoRx(
       completed: false,
       completedAt: null,
       projectId: existing.projectId,
+      projectCategoryId: existing.projectCategoryId ?? null,
       priority: existing.priority,
       notes: existing.notes,
       order: store.tasksByDay[w]?.[occ.dayId]?.length ?? 0,
@@ -1248,6 +1258,10 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     completed: (raw.completed as boolean) ?? false,
     completedAt: (raw.completed_at as string | null) ?? (raw.completedAt as string | null) ?? null,
     projectId: (raw.project_id as string | null) ?? (raw.projectId as string | null) ?? null,
+    projectCategoryId:
+      (raw.project_category_id as string | null | undefined) ??
+      (raw.projectCategoryId as string | null | undefined) ??
+      null,
     priority: (raw.priority as Task['priority']) ?? 'medium',
     notes: (raw.notes as string) ?? '',
     order: typeof raw.order === 'number' ? raw.order : 0,

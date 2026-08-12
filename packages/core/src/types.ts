@@ -289,11 +289,20 @@ export interface LifeGoal {
   updatedAt: string;
 }
 
+/** Subcategoría dentro de un proyecto (p. ej. Trabajo → Backend). */
+export interface ProjectCategory {
+  id: string;
+  name: string;
+  order: number;
+}
+
 export interface Project {
   id: string;
   name: string;
   color: string;
   icon: string;
+  /** Subcategorías del proyecto (ordenadas). Vacío = sin subdivisión. */
+  categories: ProjectCategory[];
   createdAt: string;
   order: number;
 }
@@ -354,6 +363,11 @@ export interface Task {
   completed: boolean;
   completedAt: string | null;
   projectId: string | null;
+  /**
+   * Subcategoría del proyecto (id dentro de `project.categories`).
+   * null = solo el proyecto (o sin proyecto).
+   */
+  projectCategoryId: string | null;
   priority: Priority;
   notes: string;
   order: number;
@@ -439,6 +453,8 @@ export interface AnalyticsData {
 export interface CreateTaskPayload {
   title: string;
   projectId?: string | null;
+  /** Subcategoría del proyecto seleccionado. */
+  projectCategoryId?: string | null;
   priority?: Priority;
   notes?: string;
   tags?: string[];
@@ -490,6 +506,7 @@ export interface UpdateTaskPayload {
   title?: string;
   completed?: boolean;
   projectId?: string | null;
+  projectCategoryId?: string | null;
   priority?: Priority;
   notes?: string;
   tags?: string[];
@@ -635,6 +652,7 @@ export interface CreateProjectPayload {
   name: string;
   color: string;
   icon: string;
+  categories?: ProjectCategory[];
 }
 
 export interface UpdateProjectPayload {
@@ -642,6 +660,7 @@ export interface UpdateProjectPayload {
   color?: string;
   icon?: string;
   order?: number;
+  categories?: ProjectCategory[];
 }
 
 export interface CreateContactPayload {

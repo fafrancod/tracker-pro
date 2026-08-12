@@ -23,6 +23,8 @@ create table if not exists public.projects (
   name text not null,
   color text not null,
   icon text not null,
+  -- Subcategorías [{id, name, order}] del proyecto grande.
+  categories jsonb not null default '[]'::jsonb,
   "order" int not null default 0,
   created_at timestamptz not null default now()
 );
@@ -40,6 +42,8 @@ create table if not exists public.tasks (
   completed boolean not null default false,
   completed_at timestamptz,
   project_id text references public.projects (id) on delete set null,
+  -- Subcategoría (id dentro de projects.categories); null = solo proyecto.
+  project_category_id text,
   priority text not null default 'medium' check (priority in ('low', 'medium', 'high')),
   notes text not null default '',
   "order" int not null default 0,
@@ -238,6 +242,10 @@ alter table public.tasks add column if not exists steps jsonb not null default '
 
 -- Imágenes adjuntas (data URLs JPEG comprimidos en cliente; máx. 4 en app)
 alter table public.tasks add column if not exists images jsonb not null default '[]'::jsonb;
+
+-- Subcategorías de proyecto
+alter table public.projects add column if not exists categories jsonb not null default '[]'::jsonb;
+alter table public.tasks add column if not exists project_category_id text;
 do $$
 begin
   if not exists (

@@ -453,6 +453,24 @@ export interface TranslationDict {
   task_priority_high: string;
   task_notes: string;
   task_no_project: string;
+  task_category_label: string;
+  task_no_category: string;
+  project_edit_title: string;
+  project_new_title: string;
+  project_form_desc: string;
+  project_name_label: string;
+  project_name_ph: string;
+  project_color_label: string;
+  project_icon_label: string;
+  project_categories_label: string;
+  project_categories_hint: string;
+  project_category_ph: string;
+  project_category_add: string;
+  project_category_remove: string;
+  project_categories_max: string;
+  project_unnamed: string;
+  project_categories_count: string;
+  action_create: string;
   task_move_to: string;
   task_move_next_week: string;
   task_duplicate: string;
@@ -1316,6 +1334,26 @@ const es_dict: TranslationDict = {
   task_priority_high: 'Alta',
   task_notes: 'Notas',
   task_no_project: 'Sin proyecto',
+  task_category_label: 'Subcategoría',
+  task_no_category: 'Sin subcategoría',
+  project_edit_title: 'Editar proyecto',
+  project_new_title: 'Nuevo proyecto',
+  project_form_desc:
+    'Los proyectos agrupan tareas por contexto. Puedes añadir subcategorías (p. ej. Trabajo → Backend).',
+  project_name_label: 'Nombre',
+  project_name_ph: 'Ej. Personal, Trabajo, Aprendizaje…',
+  project_color_label: 'Color',
+  project_icon_label: 'Ícono',
+  project_categories_label: 'Subcategorías',
+  project_categories_hint:
+    'Opcional. Al crear una tarea podrás elegir una de estas dentro del proyecto.',
+  project_category_ph: 'Ej. Backend, Marketing…',
+  project_category_add: 'Añadir',
+  project_category_remove: 'Quitar subcategoría',
+  project_categories_max: 'Hasta {n} subcategorías por proyecto',
+  project_unnamed: 'Sin nombre',
+  project_categories_count: '{n} subcategorías',
+  action_create: 'Crear',
   task_move_to: 'Mover a',
   task_move_next_week: 'Semana siguiente →',
   task_duplicate: 'Duplicar',
@@ -2204,6 +2242,26 @@ const en_dict: TranslationDict = {
   task_priority_high: 'High',
   task_notes: 'Notes',
   task_no_project: 'No project',
+  task_category_label: 'Subcategory',
+  task_no_category: 'No subcategory',
+  project_edit_title: 'Edit project',
+  project_new_title: 'New project',
+  project_form_desc:
+    'Projects group tasks by context. You can add subcategories (e.g. Work → Backend).',
+  project_name_label: 'Name',
+  project_name_ph: 'e.g. Personal, Work, Learning…',
+  project_color_label: 'Color',
+  project_icon_label: 'Icon',
+  project_categories_label: 'Subcategories',
+  project_categories_hint:
+    'Optional. When creating a task you can pick one under this project.',
+  project_category_ph: 'e.g. Backend, Marketing…',
+  project_category_add: 'Add',
+  project_category_remove: 'Remove subcategory',
+  project_categories_max: 'Up to {n} subcategories per project',
+  project_unnamed: 'Untitled',
+  project_categories_count: '{n} subcategories',
+  action_create: 'Create',
   task_move_to: 'Move to',
   task_move_next_week: 'Next week →',
   task_duplicate: 'Duplicate',
