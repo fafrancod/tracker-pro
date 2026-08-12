@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { MAX_TASK_IMAGES, normalizeTaskImages } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -242,26 +243,9 @@ function normalizeSteps(raw: unknown): Array<{
   return out;
 }
 
-const MAX_TASK_IMAGES = 4;
-const MAX_TASK_IMAGE_DATA_URL_LENGTH = 200_000;
-const TASK_IMAGE_DATA_URL_RE = /^data:image\/(jpeg|jpg|png|webp|gif);base64,/i;
-
-/** Data URLs de imagen comprimidos en cliente (sin storage externo). */
+/** Data URLs de imagen o PDF (misma normalización que core). */
 function normalizeImages(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const item of raw) {
-    if (typeof item !== 'string') continue;
-    const s = item.trim();
-    if (!s || !TASK_IMAGE_DATA_URL_RE.test(s)) continue;
-    if (s.length > MAX_TASK_IMAGE_DATA_URL_LENGTH) continue;
-    if (seen.has(s)) continue;
-    seen.add(s);
-    out.push(s);
-    if (out.length >= MAX_TASK_IMAGES) break;
-  }
-  return out;
+  return normalizeTaskImages(raw);
 }
 
 const createSchema = taskLocation.extend({

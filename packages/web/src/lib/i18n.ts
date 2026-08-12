@@ -11,6 +11,7 @@ export interface TranslationDict {
   nav_summary: string;
   nav_tasks: string;
   nav_projects: string;
+  nav_documents: string;
   nav_circle: string;
   nav_analytics: string;
   nav_activity: string;
@@ -796,6 +797,31 @@ export interface TranslationDict {
   task_images_compressing: string;
   task_images_remove: string;
   task_images_preview: string;
+  task_images_preview_pdf: string;
+  task_images_pdf_too_large: string;
+
+  docs_title: string;
+  docs_subtitle: string;
+  docs_search: string;
+  docs_filter_from: string;
+  docs_filter_to: string;
+  docs_filter_project: string;
+  docs_filter_kind: string;
+  docs_filter_type: string;
+  docs_filter_all_projects: string;
+  docs_filter_all_kinds: string;
+  docs_no_project: string;
+  docs_type_all: string;
+  docs_type_image: string;
+  docs_type_pdf: string;
+  docs_clear_filters: string;
+  docs_empty: string;
+  docs_empty_filtered: string;
+  docs_count: string;
+  docs_load_error: string;
+  docs_download: string;
+  docs_open_tab: string;
+  docs_open_task: string;
 
   // Círculo (personas y mascotas)
   circle_title: string;
@@ -857,6 +883,7 @@ const es_dict: TranslationDict = {
   nav_summary: 'Resumen',
   nav_tasks: 'Calendario',
   nav_projects: 'Proyectos',
+  nav_documents: 'Documentos',
   nav_circle: 'Círculo',
   nav_analytics: 'Analytics',
   nav_activity: 'Bitácora',
@@ -1689,16 +1716,42 @@ const es_dict: TranslationDict = {
   task_steps_placeholder: 'Ej. Comprar cuerdas, calentar 10 min…',
   task_steps_add: 'Añadir paso',
   task_steps_progress: '{done}/{total} pasos',
-  task_images_label: 'Imágenes adjuntas',
-  task_images_hint: 'Arrastra imágenes aquí o haz clic para elegirlas',
+  task_images_label: 'Adjuntos',
+  task_images_hint: 'Arrastra imágenes o PDF aquí, o haz clic para elegirlos',
   task_images_drop: 'Suelta para adjuntar',
-  task_images_max: 'Hasta {n} imágenes · se comprimen en el dispositivo',
-  task_images_limit: 'Máximo {n} imágenes por tarea',
-  task_images_not_image: 'Solo se admiten archivos de imagen',
-  task_images_error: 'No se pudo procesar la imagen',
-  task_images_compressing: 'Comprimiendo…',
-  task_images_remove: 'Quitar imagen',
+  task_images_max: 'Hasta {n} archivos · imágenes se comprimen; PDF máx. 1,2 MB',
+  task_images_limit: 'Máximo {n} adjuntos por tarea',
+  task_images_not_image: 'Solo se admiten imágenes o PDF',
+  task_images_error: 'No se pudo procesar el archivo',
+  task_images_compressing: 'Procesando…',
+  task_images_remove: 'Quitar adjunto',
   task_images_preview: 'Ver imagen',
+  task_images_preview_pdf: 'Ver PDF',
+  task_images_pdf_too_large: 'El PDF supera 1,2 MB. Reduce el archivo o divídelo.',
+
+  docs_title: 'Documentos',
+  docs_subtitle:
+    'Imágenes y PDF adjuntos a tus entradas. Filtra por fecha, tipo de archivo, tipo de tarea o proyecto.',
+  docs_search: 'Buscar por nombre o tarea…',
+  docs_filter_from: 'Desde',
+  docs_filter_to: 'Hasta',
+  docs_filter_project: 'Proyecto',
+  docs_filter_kind: 'Tipo de tarea',
+  docs_filter_type: 'Archivo',
+  docs_filter_all_projects: 'Todos los proyectos',
+  docs_filter_all_kinds: 'Todos los tipos',
+  docs_no_project: 'Sin proyecto',
+  docs_type_all: 'Todos',
+  docs_type_image: 'Imágenes',
+  docs_type_pdf: 'PDF',
+  docs_clear_filters: 'Limpiar filtros',
+  docs_empty: 'Aún no hay documentos adjuntos.',
+  docs_empty_filtered: 'Ningún adjunto coincide con esos filtros.',
+  docs_count: '{n} adjuntos',
+  docs_load_error: 'No se pudieron cargar los documentos.',
+  docs_download: 'Descargar',
+  docs_open_tab: 'Abrir en pestaña',
+  docs_open_task: 'Ver tarea',
 
   circle_title: 'Círculo',
   circle_subtitle:
@@ -1765,6 +1818,7 @@ const en_dict: TranslationDict = {
   nav_summary: 'Summary',
   nav_tasks: 'Calendar',
   nav_projects: 'Projects',
+  nav_documents: 'Documents',
   nav_circle: 'Circle',
   nav_analytics: 'Analytics',
   nav_activity: 'Activity',
@@ -2597,16 +2651,42 @@ const en_dict: TranslationDict = {
   task_steps_placeholder: 'e.g. Buy strings, warm up 10 min…',
   task_steps_add: 'Add step',
   task_steps_progress: '{done}/{total} steps',
-  task_images_label: 'Attached images',
-  task_images_hint: 'Drag images here or click to choose files',
+  task_images_label: 'Attachments',
+  task_images_hint: 'Drag images or PDFs here, or click to choose files',
   task_images_drop: 'Drop to attach',
-  task_images_max: 'Up to {n} images · compressed on device',
-  task_images_limit: 'Maximum {n} images per task',
-  task_images_not_image: 'Only image files are allowed',
-  task_images_error: 'Could not process the image',
-  task_images_compressing: 'Compressing…',
-  task_images_remove: 'Remove image',
+  task_images_max: 'Up to {n} files · images are compressed; PDF max 1.2 MB',
+  task_images_limit: 'Maximum {n} attachments per task',
+  task_images_not_image: 'Only images or PDFs are allowed',
+  task_images_error: 'Could not process the file',
+  task_images_compressing: 'Processing…',
+  task_images_remove: 'Remove attachment',
   task_images_preview: 'View image',
+  task_images_preview_pdf: 'View PDF',
+  task_images_pdf_too_large: 'The PDF is larger than 1.2 MB. Shrink it or split it.',
+
+  docs_title: 'Documents',
+  docs_subtitle:
+    'Images and PDFs attached to your entries. Filter by date, file type, task type or project.',
+  docs_search: 'Search by name or task…',
+  docs_filter_from: 'From',
+  docs_filter_to: 'To',
+  docs_filter_project: 'Project',
+  docs_filter_kind: 'Task type',
+  docs_filter_type: 'File',
+  docs_filter_all_projects: 'All projects',
+  docs_filter_all_kinds: 'All types',
+  docs_no_project: 'No project',
+  docs_type_all: 'All',
+  docs_type_image: 'Images',
+  docs_type_pdf: 'PDF',
+  docs_clear_filters: 'Clear filters',
+  docs_empty: 'No attachments yet.',
+  docs_empty_filtered: 'No attachments match those filters.',
+  docs_count: '{n} attachments',
+  docs_load_error: 'Could not load documents.',
+  docs_download: 'Download',
+  docs_open_tab: 'Open in tab',
+  docs_open_task: 'View task',
 
   circle_title: 'Circle',
   circle_subtitle:

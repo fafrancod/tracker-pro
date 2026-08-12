@@ -70,8 +70,8 @@ export function buildApp(): Express {
       credentials: true,
     })
   );
-  // 1.5mb: adjuntos de tarea (hasta 4 data URLs JPEG comprimidos) + metadata.
-  app.use(express.json({ limit: '1.5mb' }));
+  // 4mb: adjuntos de tarea (hasta 4 data URLs imagen/PDF) + metadata.
+  app.use(express.json({ limit: '4mb' }));
   if (config.nodeEnv !== 'test') {
     app.use(pinoHttp({ logger }));
   }

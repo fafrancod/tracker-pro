@@ -9,7 +9,6 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 const app = buildApp();
 
 let lastProjectInsert: Record<string, unknown> | null = null;
-let lastProjectUpdate: Record<string, unknown> | null = null;
 let lastTaskInsert: Record<string, unknown>[] | null = null;
 
 function chainEqMaybeSingle(result: { data: unknown; error: null }) {
@@ -30,7 +29,6 @@ function chainEqMaybeSingle(result: { data: unknown; error: null }) {
 
 beforeEach(() => {
   lastProjectInsert = null;
-  lastProjectUpdate = null;
   lastTaskInsert = null;
   vi.mocked(getSupabaseAdmin).mockReturnValue({
     auth: {
@@ -98,8 +96,7 @@ beforeEach(() => {
             lastProjectInsert = row;
             return { data: null, error: null };
           }),
-          update: vi.fn((payload: Record<string, unknown>) => {
-            lastProjectUpdate = payload;
+          update: vi.fn((_payload: Record<string, unknown>) => {
             const c: Record<string, unknown> = {
               eq: vi.fn(() => c),
             };

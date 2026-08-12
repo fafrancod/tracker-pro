@@ -19,6 +19,7 @@ import type { Task, Project, Priority } from '@core/types';
 import { formatDose, isRxKind } from '@core/lib/rx';
 import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
 import { isFinanceKind } from '@core/lib/financeKinds';
+import { isPdfAttachment, parseTaskAttachment } from '@core/lib/taskImages';
 import { useT } from '@/hooks/useT';
 import { tintEvent, tintHabit, tintPossible } from '@/lib/tintClasses';
 import { rescheduleTaskSpan } from './rescheduleSpan';
@@ -433,7 +434,8 @@ export function TaskCard({
             )}
             {(task.images?.length ?? 0) > 0 && (
               <span className="inline-flex items-center rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
-                🖼 {task.images.length}
+                {task.images.some(src => isPdfAttachment(src)) ? '📎' : '🖼'}{' '}
+                {task.images.length}
               </span>
             )}
             {isFinanceKind(task.kind) && task.finance && (
@@ -625,20 +627,30 @@ export function TaskCard({
 
           {!dense && (task.images?.length ?? 0) > 0 && (
             <div className="mt-1.5 flex flex-wrap gap-1">
-              {task.images.slice(0, 4).map((src, i) => (
-                <button
-                  key={`${task.id}-img-${i}`}
-                  type="button"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onOpenDetail?.();
-                  }}
-                  className="h-10 w-10 overflow-hidden rounded border border-border bg-background"
-                  title={t('task_images_preview')}
-                >
-                  <img src={src} alt="" className="h-full w-full object-cover" />
-                </button>
-              ))}
+              {task.images.slice(0, 4).map((src, i) => {
+                const meta = parseTaskAttachment(src);
+                const isPdf = isPdfAttachment(src);
+                return (
+                  <button
+                    key={`${task.id}-img-${i}`}
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      onOpenDetail?.();
+                    }}
+                    className="h-10 w-10 overflow-hidden rounded border border-border bg-background"
+                    title={meta?.name ?? t('task_images_preview')}
+                  >
+                    {isPdf ? (
+                      <span className="flex h-full w-full items-center justify-center bg-accent-red/10 text-[9px] font-semibold text-accent-red">
+                        PDF
+                      </span>
+                    ) : (
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

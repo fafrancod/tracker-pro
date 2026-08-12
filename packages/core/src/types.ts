@@ -420,8 +420,9 @@ export interface Task {
    */
   steps: TaskStep[];
   /**
-   * Imágenes adjuntas (data URLs JPEG comprimidos en cliente).
+   * Adjuntos (imágenes JPEG comprimidas o PDF) como data URLs.
    * Sin depender de storage externo; tope en normalización (máx. 4).
+   * El nombre del archivo va en el parámetro `name` del data URL.
    */
   images: string[];
   /**
@@ -491,7 +492,7 @@ export interface CreateTaskPayload {
   departureTime?: string | null;
   /** Pasos asociados (tarea / recordatorio / evento / posible). */
   steps?: TaskStep[];
-  /** Imágenes adjuntas (data URLs comprimidos). */
+  /** Adjuntos (imágenes o PDF como data URLs). */
   images?: string[];
   /** Meta finanzas (kind finance_income | finance_expense). */
   finance?: FinanceMeta | null;
@@ -531,7 +532,7 @@ export interface UpdateTaskPayload {
   location?: string | null;
   departureTime?: string | null;
   steps?: TaskStep[];
-  /** Imágenes adjuntas (data URLs comprimidos). Solo instancia (como steps). */
+  /** Adjuntos (imágenes o PDF). Solo instancia (como steps). */
   images?: string[];
   finance?: FinanceMeta | null;
   financeAmount?: number;

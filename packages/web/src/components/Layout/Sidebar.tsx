@@ -16,6 +16,7 @@ import {
   BookHeart,
   Pill,
   Wallet,
+  Files,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,6 +47,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/recetario', labelKey: 'nav_recetario', icon: Pill },
   { to: '/finances', labelKey: 'nav_finances', icon: Wallet },
   { to: '/projects', labelKey: 'nav_projects', icon: FolderKanban },
+  { to: '/documents', labelKey: 'nav_documents', icon: Files },
   { to: '/circle', labelKey: 'nav_circle', icon: Users },
   { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart3 },
   { to: '/activity', labelKey: 'nav_activity', icon: ScrollText },

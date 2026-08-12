@@ -1,5 +1,5 @@
 /**
- * Adjuntos de imagen en create/update de tareas (data URLs).
+ * Adjuntos de imagen y PDF en create/update de tareas (data URLs).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
@@ -10,6 +10,8 @@ const app = buildApp();
 
 const TINY_JPEG =
   'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z';
+
+const TINY_PDF = 'data:application/pdf;name=nota.pdf;base64,JVBERi0xLjQK';
 
 let lastInsertRows: Record<string, unknown>[] | null = null;
 let lastUpdatePayload: Record<string, unknown> | null = null;
@@ -236,5 +238,63 @@ describe('task images', () => {
     // Duplicados se colapsan a 1
     expect(res.status).toBe(200);
     expect(lastUpdatePayload?.images).toEqual([TINY_JPEG]);
+  });
+
+  it('create guarda un PDF con nombre en el data URL', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        weekId: '2026-W11',
+        dayId: '2026-03-10',
+        title: 'Tarea con PDF',
+        kind: 'task',
+        images: [TINY_PDF],
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastInsertRows![0].images).toEqual([TINY_PDF]);
+    expect(res.body.images).toEqual([TINY_PDF]);
+  });
+
+  it('create acepta objeto { name, dataUrl } y lo normaliza', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        weekId: '2026-W11',
+        dayId: '2026-03-10',
+        title: 'PDF objeto',
+        kind: 'task',
+        images: [
+          {
+            name: 'factura.pdf',
+            dataUrl: 'data:application/pdf;base64,JVBERi0xLjQK',
+          },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    const stored = lastInsertRows![0].images as string[];
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toContain('application/pdf');
+    expect(stored[0]).toContain('name=factura.pdf');
+    expect(stored[0]).toContain('JVBERi0xLjQK');
+  });
+
+  it('create mezcla imagen y PDF y descarta basura', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        weekId: '2026-W11',
+        dayId: '2026-03-10',
+        title: 'Mixto',
+        kind: 'task',
+        images: [TINY_JPEG, 'http://evil.example/x.pdf', TINY_PDF],
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastInsertRows![0].images).toEqual([TINY_JPEG, TINY_PDF]);
   });
 });
