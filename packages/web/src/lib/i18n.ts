@@ -799,6 +799,10 @@ export interface TranslationDict {
   task_images_preview: string;
   task_images_preview_pdf: string;
   task_images_pdf_too_large: string;
+  task_images_expand: string;
+  task_images_collapse: string;
+  task_images_pane_empty: string;
+  task_images_pane_tab: string;
 
   docs_title: string;
   docs_subtitle: string;
@@ -1728,6 +1732,10 @@ const es_dict: TranslationDict = {
   task_images_preview: 'Ver imagen',
   task_images_preview_pdf: 'Ver PDF',
   task_images_pdf_too_large: 'El PDF supera 1,2 MB. Reduce el archivo o divídelo.',
+  task_images_expand: 'Abrir panel',
+  task_images_collapse: 'Cerrar panel',
+  task_images_pane_empty: 'Suelta una imagen o PDF aquí',
+  task_images_pane_tab: 'Adjuntos',
 
   docs_title: 'Documentos',
   docs_subtitle:
@@ -2663,6 +2671,10 @@ const en_dict: TranslationDict = {
   task_images_preview: 'View image',
   task_images_preview_pdf: 'View PDF',
   task_images_pdf_too_large: 'The PDF is larger than 1.2 MB. Shrink it or split it.',
+  task_images_expand: 'Open panel',
+  task_images_collapse: 'Close panel',
+  task_images_pane_empty: 'Drop an image or PDF here',
+  task_images_pane_tab: 'Attachments',
 
   docs_title: 'Documents',
   docs_subtitle:

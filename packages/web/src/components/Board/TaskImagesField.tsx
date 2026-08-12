@@ -1,15 +1,12 @@
-import { useCallback, useRef, useState, type DragEvent } from 'react';
-import { FilePlus, FileText, X, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { ChevronsRight, FilePlus, FileText, Loader2, PanelRightClose, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
-import { useToast } from '@/contexts/ToastContext';
-import { compressImageToDataUrl } from '@/lib/imageCompress';
-import { isImageFile, isPdfFile, pdfFileToDataUrl } from '@/lib/attachmentFiles';
+import { useTaskAttachmentFiles } from '@/hooks/useTaskAttachmentFiles';
 import {
   MAX_TASK_IMAGES,
   isPdfAttachment,
   parseTaskAttachment,
-  withAttachmentName,
 } from '@core/lib/taskImages';
 
 interface TaskImagesFieldProps {
@@ -17,104 +14,279 @@ interface TaskImagesFieldProps {
   onChange: (images: string[]) => void;
   /** compact = form de creación; full = detalle */
   compact?: boolean;
+  /** field = bloque en el formulario; pane = columna derecha del modal */
+  variant?: 'field' | 'pane';
+  onExpand?: () => void;
+  onCollapse?: () => void;
+  onAdded?: (lastSrc: string) => void;
+  /** Fuerza la vista previa (panel derecho). */
+  selectedSrc?: string | null;
+  onSelect?: (src: string) => void;
   className?: string;
 }
 
-/**
- * Zona de adjuntos: click abre el selector del SO;
- * drag & drop añade imágenes (comprimidas) o PDFs.
- */
 export function TaskImagesField({
   images,
   onChange,
   compact = false,
+  variant = 'field',
+  onExpand,
+  onCollapse,
+  onAdded,
+  selectedSrc,
+  onSelect,
   className,
 }: TaskImagesFieldProps) {
   const { t } = useT();
-  const { showToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
-
-  const remaining = Math.max(0, MAX_TASK_IMAGES - images.length);
-
-  const addFiles = useCallback(
-    async (files: FileList | File[]) => {
-      const list = Array.from(files).filter(f => isImageFile(f) || isPdfFile(f));
-      if (list.length === 0) {
-        showToast(t('task_images_not_image'), 'error');
-        return;
-      }
-      if (remaining <= 0) {
-        showToast(
-          t('task_images_limit').replace('{n}', String(MAX_TASK_IMAGES)),
-          'error'
-        );
-        return;
-      }
-
-      setBusy(true);
-      try {
-        const next = [...images];
-        for (const file of list) {
-          if (next.length >= MAX_TASK_IMAGES) break;
-          try {
-            let dataUrl: string;
-            if (isPdfFile(file)) {
-              dataUrl = await pdfFileToDataUrl(file);
-            } else {
-              const compressed = await compressImageToDataUrl(file, {
-                maxEdge: 640,
-                quality: 0.7,
-                maxDataUrlLength: 180_000,
-              });
-              dataUrl = withAttachmentName(compressed, file.name);
-            }
-            if (!next.includes(dataUrl)) next.push(dataUrl);
-          } catch (err) {
-            const msg =
-              err instanceof Error && err.message === 'pdf_too_large'
-                ? t('task_images_pdf_too_large')
-                : err instanceof Error
-                  ? err.message
-                  : t('task_images_error');
-            showToast(msg, 'error');
-          }
-        }
-        onChange(next.slice(0, MAX_TASK_IMAGES));
-      } finally {
-        setBusy(false);
-        if (fileRef.current) fileRef.current.value = '';
-      }
-    },
-    [images, onChange, remaining, showToast, t]
+  const [preview, setPreview] = useState<string | null>(
+    variant === 'pane' ? (images[0] ?? null) : null
   );
+
+  const { addFiles, busy, remaining } = useTaskAttachmentFiles(images, onChange, {
+    onAdded: lastSrc => {
+      if (variant === 'pane') setPreview(lastSrc);
+      onAdded?.(lastSrc);
+    },
+  });
+
+  useEffect(() => {
+    if (selectedSrc && images.includes(selectedSrc)) {
+      setPreview(selectedSrc);
+      return;
+    }
+    if (variant === 'pane') {
+      if (preview && !images.includes(preview)) {
+        setPreview(images[images.length - 1] ?? null);
+      } else if (!preview && images.length > 0) {
+        setPreview(images[0]);
+      }
+    } else if (preview && !images.includes(preview)) {
+      setPreview(null);
+    }
+  }, [images, preview, variant, selectedSrc]);
 
   function onDrop(e: DragEvent) {
     e.preventDefault();
     e.stopPropagation();
     setDragging(false);
     if (busy) return;
-    void addFiles(e.dataTransfer.files);
+    void addFiles(e.dataTransfer.files).finally(() => {
+      if (fileRef.current) fileRef.current.value = '';
+    });
+  }
+
+  function bindDropTarget() {
+    return {
+      onDragEnter: (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(true);
+      },
+      onDragOver: (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(true);
+      },
+      onDragLeave: (e: DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(false);
+      },
+      onDrop,
+    };
   }
 
   function removeAt(index: number) {
-    onChange(images.filter((_, i) => i !== index));
+    const next = images.filter((_, i) => i !== index);
+    onChange(next);
+    if (images[index] === preview) setPreview(next[Math.max(0, index - 1)] ?? null);
   }
 
   const previewMeta = preview ? parseTaskAttachment(preview) : null;
 
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept="image/*,application/pdf,.pdf"
+      multiple
+      className="hidden"
+      onChange={e => {
+        const files = e.target.files;
+        if (files?.length) {
+          void addFiles(files).finally(() => {
+            if (fileRef.current) fileRef.current.value = '';
+          });
+        }
+      }}
+    />
+  );
+
+  if (variant === 'pane') {
+    return (
+      <div className={cn('flex h-full min-h-0 flex-col', className)}>
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5 pr-12">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted">
+            {t('task_images_label')}
+            <span className="ml-1.5 font-normal normal-case">
+              ({images.length}/{MAX_TASK_IMAGES})
+            </span>
+          </p>
+          {onCollapse && (
+            <button
+              type="button"
+              onClick={onCollapse}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-text-muted hover:bg-background hover:text-text-primary"
+              aria-label={t('task_images_collapse')}
+              title={t('task_images_collapse')}
+            >
+              <PanelRightClose className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div
+          {...bindDropTarget()}
+          className={cn(
+            'relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden bg-background/40',
+            dragging && 'bg-accent-teal/10'
+          )}
+        >
+          {busy && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/60">
+              <Loader2 className="h-6 w-6 animate-spin text-accent-teal" />
+            </div>
+          )}
+
+          {preview && previewMeta ? (
+            <div className="flex h-full w-full min-h-0 flex-col">
+              <p className="shrink-0 truncate px-3 py-1.5 text-[11px] text-text-muted">
+                {previewMeta.name}
+              </p>
+              <div className="min-h-0 flex-1 px-3 pb-3">
+                {previewMeta.kind === 'pdf' ? (
+                  <iframe
+                    src={preview}
+                    title={previewMeta.name}
+                    className="h-full w-full rounded-lg border border-border bg-white"
+                  />
+                ) : (
+                  <img
+                    src={preview}
+                    alt={previewMeta.name}
+                    className="h-full w-full rounded-lg object-contain"
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={cn(
+                'm-3 flex min-h-[12rem] w-[calc(100%-1.5rem)] flex-1 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors',
+                dragging
+                  ? 'border-accent-teal text-accent-teal'
+                  : 'border-border text-text-muted hover:border-accent-teal/40'
+              )}
+              onClick={() => !busy && fileRef.current?.click()}
+            >
+              <FilePlus className="h-8 w-8 opacity-70" />
+              <span className="text-sm font-medium text-text-primary">
+                {dragging ? t('task_images_drop') : t('task_images_pane_empty')}
+              </span>
+              <span className="text-[11px] opacity-70">
+                {t('task_images_max').replace('{n}', String(MAX_TASK_IMAGES))}
+              </span>
+            </button>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-border p-2.5">
+          {images.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {images.map((src, i) => {
+                const meta = parseTaskAttachment(src);
+                const isPdf = isPdfAttachment(src);
+                const active = src === preview;
+                return (
+                  <div
+                    key={`${i}-${src.slice(0, 40)}`}
+                    className={cn(
+                      'group relative h-12 w-12 overflow-hidden rounded-md border bg-background',
+                      active ? 'border-accent-teal ring-1 ring-accent-teal/40' : 'border-border'
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="absolute inset-0"
+                      onClick={() => setPreview(src)}
+                      title={meta?.name}
+                      aria-label={
+                        isPdf ? t('task_images_preview_pdf') : t('task_images_preview')
+                      }
+                    >
+                      {isPdf ? (
+                        <span className="flex h-full w-full items-center justify-center bg-accent-red/10 text-[8px] font-semibold text-accent-red">
+                          PDF
+                        </span>
+                      ) : (
+                        <img src={src} alt="" className="h-full w-full object-cover" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeAt(i)}
+                      className="absolute right-0 top-0 rounded-bl bg-black/60 p-0.5 text-white opacity-0 group-hover:opacity-100 focus:opacity-100"
+                      aria-label={t('task_images_remove')}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {remaining > 0 && (
+            <button
+              type="button"
+              onClick={() => !busy && fileRef.current?.click()}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5 text-[11px] text-text-muted hover:border-accent-teal/40 hover:text-text-primary"
+            >
+              <FilePlus className="h-3.5 w-3.5" />
+              {t('task_images_hint')}
+            </button>
+          )}
+        </div>
+        {fileInput}
+      </div>
+    );
+  }
+
   return (
     <div className={cn('space-y-2', className)}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted">
-        {t('task_images_label')}
-        {images.length > 0 && (
-          <span className="ml-1.5 font-normal normal-case text-text-muted">
-            ({images.length}/{MAX_TASK_IMAGES})
-          </span>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted">
+          {t('task_images_label')}
+          {images.length > 0 && (
+            <span className="ml-1.5 font-normal normal-case text-text-muted">
+              ({images.length}/{MAX_TASK_IMAGES})
+            </span>
+          )}
+        </p>
+        {onExpand && (
+          <button
+            type="button"
+            onClick={onExpand}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-accent-teal hover:bg-accent-teal/10"
+          >
+            {t('task_images_expand')}
+            <ChevronsRight className="h-3.5 w-3.5" />
+          </button>
         )}
-      </p>
+      </div>
 
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -129,7 +301,10 @@ export function TaskImagesField({
                 <button
                   type="button"
                   className="absolute inset-0"
-                  onClick={() => setPreview(src)}
+                  onClick={() => {
+                    if (onSelect) onSelect(src);
+                    else setPreview(src);
+                  }}
                   aria-label={
                     isPdf ? t('task_images_preview_pdf') : t('task_images_preview')
                   }
@@ -175,22 +350,7 @@ export function TaskImagesField({
               if (!busy) fileRef.current?.click();
             }
           }}
-          onDragEnter={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            setDragging(true);
-          }}
-          onDragOver={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            setDragging(true);
-          }}
-          onDragLeave={e => {
-            e.preventDefault();
-            e.stopPropagation();
-            setDragging(false);
-          }}
-          onDrop={onDrop}
+          {...bindDropTarget()}
           className={cn(
             'flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-3 transition-colors',
             compact ? 'py-3' : 'py-4',
@@ -218,17 +378,7 @@ export function TaskImagesField({
         </div>
       )}
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*,application/pdf,.pdf"
-        multiple
-        className="hidden"
-        onChange={e => {
-          const files = e.target.files;
-          if (files?.length) void addFiles(files);
-        }}
-      />
+      {fileInput}
 
       {preview && previewMeta && (
         <div
@@ -263,5 +413,67 @@ export function TaskImagesField({
         </div>
       )}
     </div>
+  );
+}
+
+interface AttachmentsExpandRailProps {
+  images: string[];
+  onOpen: () => void;
+  onDropFiles: (files: FileList) => void;
+  busy?: boolean;
+}
+
+/** Pestaña derecha del modal: clic o drop abre el panel de adjuntos. */
+export function AttachmentsExpandRail({
+  images,
+  onOpen,
+  onDropFiles,
+  busy,
+}: AttachmentsExpandRailProps) {
+  const { t } = useT();
+  const [dragging, setDragging] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      onDragEnter={e => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(true);
+      }}
+      onDragOver={e => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(true);
+      }}
+      onDragLeave={e => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(false);
+      }}
+      onDrop={e => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragging(false);
+        if (e.dataTransfer.files.length) onDropFiles(e.dataTransfer.files);
+        else onOpen();
+      }}
+      disabled={busy}
+      className={cn(
+        'hidden w-9 shrink-0 flex-col items-center justify-center gap-2 border-l border-border transition-colors md:flex',
+        dragging
+          ? 'bg-accent-teal/15 text-accent-teal'
+          : 'bg-background/40 text-text-muted hover:bg-accent-teal/10 hover:text-accent-teal'
+      )}
+      aria-label={t('task_images_expand')}
+      title={t('task_images_expand')}
+    >
+      <ChevronsRight className="h-4 w-4" />
+      <span className="max-h-40 overflow-hidden text-[10px] font-medium uppercase tracking-wider [writing-mode:vertical-rl]">
+        {t('task_images_pane_tab')}
+        {images.length > 0 ? ` · ${images.length}` : ''}
+      </span>
+    </button>
   );
 }

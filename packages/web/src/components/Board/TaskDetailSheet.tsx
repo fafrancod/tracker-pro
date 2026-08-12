@@ -47,7 +47,8 @@ import { TimeInput } from '@/components/ui/time-input';
 // DecimalInput reused for finance amounts
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
-import { TaskImagesField } from './TaskImagesField';
+import { AttachmentsExpandRail, TaskImagesField } from './TaskImagesField';
+import { useTaskAttachmentFiles } from '@/hooks/useTaskAttachmentFiles';
 import { DateRangeField } from './DateRangeField';
 import { TaskKindPicker, defaultKindOptions } from './TaskKindPicker';
 import { kindSupportsSteps, stepsEqual } from '@core/lib/steps';
@@ -242,32 +243,41 @@ export function TaskDetailSheet() {
   const { projects } = useProjects();
   const detail = useStore(s => s.detailTask);
   const setDetailTask = useStore(s => s.setDetailTask);
+  const [paneOpen, setPaneOpen] = useState(false);
 
   const open = detail !== null;
+
+  useEffect(() => {
+    if (!open) setPaneOpen(false);
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={o => !o && setDetailTask(null)}>
       <DialogContent
         className={cn(
-          'flex max-h-[92vh] w-[min(96vw,52rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:rounded-xl',
-          'left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]'
+          'flex max-h-[92vh] flex-row gap-0 overflow-hidden p-0 sm:rounded-xl',
+          'left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]',
+          'transition-[width,max-width] duration-200 ease-out',
+          paneOpen
+            ? 'h-[min(92vh,52rem)] w-[min(96vw,88rem)] max-w-[88rem]'
+            : 'w-[min(96vw,52rem)] max-w-4xl'
         )}
       >
         {detail && (
-          <div className="flex max-h-[92vh] flex-col overflow-hidden px-5 py-4 sm:px-6 sm:py-5">
-            <TaskDetailInner
-              weekId={detail.weekId}
-              dayId={detail.dayId}
-              taskId={detail.taskId}
-              locale={locale}
-              shortDateFormat={shortDateFormat}
-              weekdayFormat={weekdayFormat}
-              projects={projects}
-              onClose={() => setDetailTask(null)}
-              t={t}
-              showToast={showToast}
-            />
-          </div>
+          <TaskDetailInner
+            weekId={detail.weekId}
+            dayId={detail.dayId}
+            taskId={detail.taskId}
+            locale={locale}
+            shortDateFormat={shortDateFormat}
+            weekdayFormat={weekdayFormat}
+            projects={projects}
+            onClose={() => setDetailTask(null)}
+            t={t}
+            showToast={showToast}
+            paneOpen={paneOpen}
+            onPaneOpenChange={setPaneOpen}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -285,6 +295,8 @@ interface InnerProps {
   onClose: () => void;
   t: (key: Parameters<ReturnType<typeof useT>['t']>[0]) => string;
   showToast: ReturnType<typeof useToast>['showToast'];
+  paneOpen: boolean;
+  onPaneOpenChange: (open: boolean) => void;
 }
 
 function TaskDetailInner({
@@ -298,6 +310,8 @@ function TaskDetailInner({
   onClose,
   t,
   showToast,
+  paneOpen,
+  onPaneOpenChange,
 }: InnerProps) {
   const { tasks, editTask, removeTask, moveTaskToDay, addTask, rematerializeRx } = useTasks(
     weekId,
@@ -312,6 +326,7 @@ function TaskDetailInner({
   const [tagInput, setTagInput] = useState('');
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [paneSrc, setPaneSrc] = useState<string | null>(null);
   const saving = false;
 
   useEffect(() => {
@@ -320,8 +335,22 @@ function TaskDetailInner({
         taskToDraftWithPreferred(task, dayId, settings.preferredCurrency)
       );
       setTagInput('');
+      if ((task.images?.length ?? 0) > 0) onPaneOpenChange(true);
     }
   }, [task?.id, dayId, settings.preferredCurrency]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { addFiles, busy: attachmentsBusy } = useTaskAttachmentFiles(
+    draft?.images ?? [],
+    next => {
+      setDraft(prev => (prev ? { ...prev, images: next } : prev));
+    },
+    {
+      onAdded: last => {
+        setPaneSrc(last);
+        onPaneOpenChange(true);
+      },
+    }
+  );
 
   if (!task || !draft) {
     return (
@@ -744,6 +773,7 @@ function TaskDetailInner({
 
   return (
     <>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-5 py-4 sm:px-6 sm:py-5">
       <DialogHeader className="shrink-0 pr-8 text-left">
         <DialogTitle>{t('task_detail_title')}</DialogTitle>
         <DialogDescription asChild>
@@ -880,11 +910,25 @@ function TaskDetailInner({
           />
         )}
 
-        {/* Imágenes adjuntas (drag & drop o selector del SO) */}
-        <TaskImagesField
-          images={draft.images}
-          onChange={next => patchDraft({ images: next })}
-        />
+        {/* Adjuntos: en desktop el panel derecho los muestra al expandir */}
+        <div className={cn(paneOpen && 'md:hidden')}>
+          <TaskImagesField
+            images={draft.images}
+            onChange={next => {
+              patchDraft({ images: next });
+              if (next.length > 0) onPaneOpenChange(true);
+            }}
+            onExpand={() => onPaneOpenChange(true)}
+            onAdded={src => {
+              setPaneSrc(src);
+              onPaneOpenChange(true);
+            }}
+            onSelect={src => {
+              setPaneSrc(src);
+              onPaneOpenChange(true);
+            }}
+          />
+        </div>
 
         {/* Lugar (tarea / recordatorio / evento / posible) */}
         {!isRx && draftSupportsLocation && (
@@ -1630,6 +1674,31 @@ function TaskDetailInner({
         {t('task_last_updated')}:{' '}
         {format(parseISO(task.updatedAt), `EEE ${shortDateFormat} HH:mm`, { locale })}
       </p>
+      </div>
+
+      {!paneOpen && (
+        <AttachmentsExpandRail
+          images={draft.images}
+          busy={attachmentsBusy}
+          onOpen={() => onPaneOpenChange(true)}
+          onDropFiles={files => {
+            onPaneOpenChange(true);
+            void addFiles(files);
+          }}
+        />
+      )}
+
+      {paneOpen && (
+        <aside className="hidden min-h-0 w-[min(42vw,30rem)] shrink-0 flex-col border-l border-border md:flex">
+          <TaskImagesField
+            variant="pane"
+            images={draft.images}
+            selectedSrc={paneSrc}
+            onChange={next => patchDraft({ images: next })}
+            onCollapse={() => onPaneOpenChange(false)}
+          />
+        </aside>
+      )}
 
       <ConfirmDialog
         open={confirmDeleteOpen}
