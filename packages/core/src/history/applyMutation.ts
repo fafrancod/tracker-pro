@@ -33,6 +33,7 @@ function taskToUpdatePayload(task: Task): UpdateTaskPayload {
     departureTime: task.departureTime,
     // Instance-only checklist — must round-trip on undo/redo.
     steps: task.steps ?? [],
+    images: task.images ?? [],
   };
 }
 
@@ -77,6 +78,7 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
   if (payload.location !== undefined) patch.location = payload.location;
   if (payload.departureTime !== undefined) patch.departureTime = payload.departureTime;
   if (payload.steps !== undefined) patch.steps = payload.steps;
+  if (payload.images !== undefined) patch.images = payload.images;
   if (payload.finance !== undefined) {
     patch.finance = payload.finance;
   } else if (
@@ -195,6 +197,7 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           location: instance.location ?? null,
           departureTime: instance.departureTime ?? null,
           steps: instance.steps ?? [],
+          images: instance.images ?? [],
           finance: instance.finance ?? null,
           rx: instance.rx,
           createdAt: instance.createdAt,

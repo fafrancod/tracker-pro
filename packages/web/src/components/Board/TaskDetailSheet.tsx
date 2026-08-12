@@ -47,9 +47,11 @@ import { TimeInput } from '@/components/ui/time-input';
 // DecimalInput reused for finance amounts
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
+import { TaskImagesField } from './TaskImagesField';
 import { DateRangeField } from './DateRangeField';
 import { TaskKindPicker, defaultKindOptions } from './TaskKindPicker';
 import { kindSupportsSteps, stepsEqual } from '@core/lib/steps';
+import { imagesEqual } from '@core/lib/taskImages';
 import {
   defaultFinanceColor,
   isFinanceKind,
@@ -145,6 +147,7 @@ interface DraftState {
   location: string;
   departureTime: string;
   steps: TaskStep[];
+  images: string[];
   financeAmount: number;
   financeCurrency: string;
   financeCertainty: FinanceCertainty;
@@ -173,6 +176,7 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     location: task.location ?? '',
     departureTime: task.departureTime ?? '',
     steps: [...(task.steps ?? [])].map(s => ({ ...s })),
+    images: [...(task.images ?? [])],
     financeAmount: task.finance?.amount ?? 0,
     financeCurrency: task.finance?.currency ?? 'EUR',
     financeCertainty: task.finance?.certainty ?? 'fixed',
@@ -218,6 +222,7 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     draft.location !== base.location ||
     draft.departureTime !== base.departureTime ||
     !stepsEqual(draft.steps, base.steps) ||
+    !imagesEqual(draft.images, base.images) ||
     draft.financeAmount !== base.financeAmount ||
     draft.financeCurrency !== base.financeCurrency ||
     draft.financeCertainty !== base.financeCertainty
@@ -532,6 +537,7 @@ function TaskDetailInner({
             rxAmount: snap.rxAmount,
             rxUnit: snap.rxUnit,
             rxSubject: subject,
+            images: snap.images,
             applyTo: taskSnap.seriesId ? applyTo : 'instance',
           });
 
@@ -641,6 +647,7 @@ function TaskDetailInner({
                   }))
                   .filter(s => s.title.length > 0)
               : [],
+            images: snap.images,
             // Solo tocar finance_meta si el kind es finanzas (evita PATCH
             // a columna inexistente o null accidental en tareas normales).
             ...(saveIsFinance
@@ -863,6 +870,12 @@ function TaskDetailInner({
             defaultOpen={draft.steps.length > 0}
           />
         )}
+
+        {/* Imágenes adjuntas (drag & drop o selector del SO) */}
+        <TaskImagesField
+          images={draft.images}
+          onChange={next => patchDraft({ images: next })}
+        />
 
         {/* Lugar (tarea / recordatorio / evento / posible) */}
         {!isRx && draftSupportsLocation && (

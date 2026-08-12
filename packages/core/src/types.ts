@@ -406,6 +406,11 @@ export interface Task {
    */
   steps: TaskStep[];
   /**
+   * Imágenes adjuntas (data URLs JPEG comprimidos en cliente).
+   * Sin depender de storage externo; tope en normalización (máx. 4).
+   */
+  images: string[];
+  /**
    * Movimiento de finanzas en calendario (kind finance_income | finance_expense).
    * null en el resto de kinds.
    */
@@ -470,6 +475,8 @@ export interface CreateTaskPayload {
   departureTime?: string | null;
   /** Pasos asociados (tarea / recordatorio / evento / posible). */
   steps?: TaskStep[];
+  /** Imágenes adjuntas (data URLs comprimidos). */
+  images?: string[];
   /** Meta finanzas (kind finance_income | finance_expense). */
   finance?: FinanceMeta | null;
   financeAmount?: number;
@@ -507,6 +514,8 @@ export interface UpdateTaskPayload {
   location?: string | null;
   departureTime?: string | null;
   steps?: TaskStep[];
+  /** Imágenes adjuntas (data URLs comprimidos). Solo instancia (como steps). */
+  images?: string[];
   finance?: FinanceMeta | null;
   financeAmount?: number;
   financeCurrency?: string;

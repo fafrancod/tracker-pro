@@ -1,13 +1,14 @@
 /**
- * Comprime una imagen File a JPEG data URL (cuadrado/ancho max).
- * Evita inflar el JSON de settings del perfil.
+ * Comprime una imagen File a JPEG data URL (lado máximo).
+ * Usado en metas de vida y adjuntos de tareas (sin storage externo).
  */
 export async function compressImageToDataUrl(
   file: File,
-  opts?: { maxEdge?: number; quality?: number }
+  opts?: { maxEdge?: number; quality?: number; maxDataUrlLength?: number }
 ): Promise<string> {
   const maxEdge = opts?.maxEdge ?? 360;
   const quality = opts?.quality ?? 0.68;
+  const maxLen = opts?.maxDataUrlLength ?? 160_000;
 
   if (!file.type.startsWith('image/')) {
     throw new Error('El archivo debe ser una imagen.');
@@ -28,12 +29,14 @@ export async function compressImageToDataUrl(
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No se pudo procesar la imagen.');
     ctx.drawImage(bitmap, 0, 0, w, h);
-    // ~120KB data URL: settings del perfil viven en jsonb
     let dataUrl = canvas.toDataURL('image/jpeg', quality);
-    if (dataUrl.length > 160_000) {
+    if (dataUrl.length > maxLen) {
       dataUrl = canvas.toDataURL('image/jpeg', 0.5);
     }
-    if (dataUrl.length > 160_000) {
+    if (dataUrl.length > maxLen) {
+      dataUrl = canvas.toDataURL('image/jpeg', 0.35);
+    }
+    if (dataUrl.length > maxLen) {
       throw new Error('La imagen sigue siendo muy grande tras comprimir. Prueba otra más pequeña.');
     }
     return dataUrl;

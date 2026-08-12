@@ -24,6 +24,7 @@ import {
   parseVirtualHabitId,
 } from '../lib/habits';
 import { kindSupportsSteps, normalizeTaskSteps } from '../lib/steps';
+import { normalizeTaskImages } from '../lib/taskImages';
 import {
   buildFinanceMeta,
   isFinanceKind,
@@ -459,6 +460,7 @@ interface CreateTaskResponse {
   location?: string | null;
   departureTime?: string | null;
   steps?: Task['steps'];
+  images?: Task['images'];
 }
 
 /** ¿La fila de instancia trae título (full) o solo ids (compacta)? */
@@ -506,6 +508,7 @@ function expandCreateInstances(
     kindSupportsSteps(kind) && payload.steps?.length
       ? normalizeTaskSteps(payload.steps)
       : [];
+  const images = normalizeTaskImages(payload.images);
   const isFinance = isFinanceKind(kind);
   const finance = isFinance
     ? buildFinanceMeta({
@@ -590,6 +593,8 @@ function expandCreateInstances(
           : null,
       departureTime: kind === 'event' ? (payload.departureTime ?? null) : null,
       steps,
+      // Solo la primera instancia de una serie lleva adjuntos (como el API).
+      images: index === 0 ? images : [],
       finance,
       createdAt: res.createdAt ?? now,
       updatedAt: res.updatedAt ?? now,
@@ -630,6 +635,7 @@ export async function createTask(
     location: payload.location ?? null,
     departureTime: payload.departureTime ?? null,
     steps: payload.steps,
+    images: payload.images,
     finance: payload.finance,
     financeAmount: payload.financeAmount,
     financeCurrency: payload.financeCurrency,
@@ -703,6 +709,7 @@ function materializeDemoCreate(
         location: null,
         departureTime: null,
         steps: [],
+        images: index === 0 ? normalizeTaskImages(payload.images) : [],
         finance: null,
         createdAt: now,
         updatedAt: now,
@@ -720,6 +727,7 @@ function materializeDemoCreate(
     kindSupportsSteps(kind) && payload.steps?.length
       ? normalizeTaskSteps(payload.steps)
       : [];
+  const images = normalizeTaskImages(payload.images);
   const finance = isFinance
     ? buildFinanceMeta({
         amount: payload.financeAmount ?? payload.finance?.amount,
@@ -795,6 +803,7 @@ function materializeDemoCreate(
       departureTime:
         kind === 'event' ? (payload.departureTime ?? null) : null,
       steps,
+      images: index === 0 ? images : [],
       finance,
       createdAt: now,
       updatedAt: now,
@@ -992,6 +1001,7 @@ export async function rematerializeRxSeries(
       location: instance.location ?? null,
       departureTime: instance.departureTime ?? null,
       steps: instance.steps ?? [],
+      images: instance.images ?? [],
       finance: instance.finance ?? null,
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
@@ -1095,6 +1105,7 @@ function rematerializeDemoRx(
       location: null,
       departureTime: null,
       steps: [],
+      images: [],
       finance: null,
       color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
       startTime: occ.startTime,
@@ -1269,6 +1280,7 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     location: normalizeLocationField(raw.location),
     departureTime: normalizeTimeField(raw.departure_time ?? raw.departureTime),
     steps: normalizeTaskSteps(raw.steps),
+    images: normalizeTaskImages(raw.images),
     finance: normalizeFinanceMeta(raw.finance_meta ?? raw.finance),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),

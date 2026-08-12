@@ -768,6 +768,16 @@ export interface TranslationDict {
   task_steps_placeholder: string;
   task_steps_add: string;
   task_steps_progress: string;
+  task_images_label: string;
+  task_images_hint: string;
+  task_images_drop: string;
+  task_images_max: string;
+  task_images_limit: string;
+  task_images_not_image: string;
+  task_images_error: string;
+  task_images_compressing: string;
+  task_images_remove: string;
+  task_images_preview: string;
 
   // Círculo (personas y mascotas)
   circle_title: string;
@@ -1641,6 +1651,16 @@ const es_dict: TranslationDict = {
   task_steps_placeholder: 'Ej. Comprar cuerdas, calentar 10 min…',
   task_steps_add: 'Añadir paso',
   task_steps_progress: '{done}/{total} pasos',
+  task_images_label: 'Imágenes adjuntas',
+  task_images_hint: 'Arrastra imágenes aquí o haz clic para elegirlas',
+  task_images_drop: 'Suelta para adjuntar',
+  task_images_max: 'Hasta {n} imágenes · se comprimen en el dispositivo',
+  task_images_limit: 'Máximo {n} imágenes por tarea',
+  task_images_not_image: 'Solo se admiten archivos de imagen',
+  task_images_error: 'No se pudo procesar la imagen',
+  task_images_compressing: 'Comprimiendo…',
+  task_images_remove: 'Quitar imagen',
+  task_images_preview: 'Ver imagen',
 
   circle_title: 'Círculo',
   circle_subtitle:
@@ -2519,6 +2539,16 @@ const en_dict: TranslationDict = {
   task_steps_placeholder: 'e.g. Buy strings, warm up 10 min…',
   task_steps_add: 'Add step',
   task_steps_progress: '{done}/{total} steps',
+  task_images_label: 'Attached images',
+  task_images_hint: 'Drag images here or click to choose files',
+  task_images_drop: 'Drop to attach',
+  task_images_max: 'Up to {n} images · compressed on device',
+  task_images_limit: 'Maximum {n} images per task',
+  task_images_not_image: 'Only image files are allowed',
+  task_images_error: 'Could not process the image',
+  task_images_compressing: 'Compressing…',
+  task_images_remove: 'Remove image',
+  task_images_preview: 'View image',
 
   circle_title: 'Circle',
   circle_subtitle:

@@ -45,6 +45,7 @@ function pushTask(
     location: partial.location ?? null,
     departureTime: partial.departureTime ?? null,
     steps: partial.steps ?? [],
+    images: partial.images ?? [],
     finance: partial.finance ?? null,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -429,6 +429,11 @@ export function TaskCard({
                   .replace('{total}', String(task.steps.length))}
               </span>
             )}
+            {(task.images?.length ?? 0) > 0 && (
+              <span className="inline-flex items-center rounded-full bg-background px-1.5 py-0.5 text-[10px] font-medium text-text-muted ring-1 ring-border">
+                🖼 {task.images.length}
+              </span>
+            )}
             {isFinanceKind(task.kind) && task.finance && (
               <span
                 className={cn(
@@ -605,6 +610,25 @@ export function TaskCard({
             >
               + notes
             </button>
+          )}
+
+          {!dense && (task.images?.length ?? 0) > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {task.images.slice(0, 4).map((src, i) => (
+                <button
+                  key={`${task.id}-img-${i}`}
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onOpenDetail?.();
+                  }}
+                  className="h-10 w-10 overflow-hidden rounded border border-border bg-background"
+                  title={t('task_images_preview')}
+                >
+                  <img src={src} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
           )}
         </div>
 

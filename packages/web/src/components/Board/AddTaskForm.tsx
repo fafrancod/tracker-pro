@@ -76,6 +76,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { ApiClientError } from '@core/lib/api';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
+import { TaskImagesField } from './TaskImagesField';
 import { DateRangeField } from './DateRangeField';
 import { TaskKindPicker } from './TaskKindPicker';
 
@@ -203,6 +204,7 @@ export function AddTaskForm({
   const [location, setLocation] = useState('');
   const [departureTime, setDepartureTime] = useState('');
   const [steps, setSteps] = useState<TaskStep[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [financeAmount, setFinanceAmount] = useState(0);
   const [financeCurrency, setFinanceCurrency] = useState(() =>
     normalizeCurrencyCode(
@@ -360,6 +362,7 @@ export function AddTaskForm({
     setLocation('');
     setDepartureTime('');
     setSteps([]);
+    setImages([]);
     setFinanceAmount(0);
     setFinanceCertainty('fixed');
     setFinanceCurrency(
@@ -475,6 +478,7 @@ export function AddTaskForm({
         rxSubject: subject,
         tags,
         startDayId: formStartDayId || startDayId,
+        images: images.length > 0 ? images : undefined,
       };
       // Fase 4.1: toast + reset al instante; red en background.
       resetForm();
@@ -566,6 +570,7 @@ export function AddTaskForm({
             }))
             .filter(s => s.title.length > 0)
         : undefined,
+      images: images.length > 0 ? images : undefined,
       finance: isFinance
         ? {
             amount: financeAmount,
@@ -1129,6 +1134,13 @@ export function AddTaskForm({
       {supportsSteps && (
         <TaskStepsEditor steps={steps} onChange={setSteps} />
       )}
+
+      {/* Imágenes adjuntas (drag & drop o selector del SO) */}
+      <TaskImagesField
+        images={images}
+        onChange={setImages}
+        compact={!isModal}
+      />
 
       {/* Lugar (tarea / recordatorio / evento / posible) + salida solo en evento real */}
       {supportsLocation && (

@@ -32,6 +32,7 @@ export * from './lib/schedule';
 export * from './lib/rx';
 export * from './lib/habits';
 export * from './lib/steps';
+export * from './lib/taskImages';
 export * from './lib/notifications';
 export * from './lib/tags';
 export * from './lib/time';

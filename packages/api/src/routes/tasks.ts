@@ -242,6 +242,28 @@ function normalizeSteps(raw: unknown): Array<{
   return out;
 }
 
+const MAX_TASK_IMAGES = 4;
+const MAX_TASK_IMAGE_DATA_URL_LENGTH = 200_000;
+const TASK_IMAGE_DATA_URL_RE = /^data:image\/(jpeg|jpg|png|webp|gif);base64,/i;
+
+/** Data URLs de imagen comprimidos en cliente (sin storage externo). */
+function normalizeImages(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const s = item.trim();
+    if (!s || !TASK_IMAGE_DATA_URL_RE.test(s)) continue;
+    if (s.length > MAX_TASK_IMAGE_DATA_URL_LENGTH) continue;
+    if (seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+    if (out.length >= MAX_TASK_IMAGES) break;
+  }
+  return out;
+}
+
 const createSchema = taskLocation.extend({
   title: z.string().min(1).max(280).trim(),
   projectId: z.string().nullable().optional(),
@@ -270,6 +292,11 @@ const createSchema = taskLocation.extend({
     .max(40)
     .optional()
     .transform(arr => (arr === undefined ? undefined : normalizeSteps(arr))),
+  images: z
+    .array(z.unknown())
+    .max(MAX_TASK_IMAGES)
+    .optional()
+    .transform(arr => (arr === undefined ? undefined : normalizeImages(arr))),
   finance: financeMetaSchema,
   financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
   financeCurrency: z.string().min(1).max(8).optional(),
@@ -309,6 +336,11 @@ const updateSchema = z
       .max(40)
       .optional()
       .transform(arr => (arr === undefined ? undefined : normalizeSteps(arr))),
+    images: z
+      .array(z.unknown())
+      .max(MAX_TASK_IMAGES)
+      .optional()
+      .transform(arr => (arr === undefined ? undefined : normalizeImages(arr))),
     finance: financeMetaSchema,
     financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
     financeCurrency: z.string().min(1).max(8).optional(),
@@ -386,6 +418,7 @@ function toClientTask(
       (row.departureTime as string | null | undefined) ??
       null,
     steps: normalizeSteps(row.steps),
+    images: normalizeImages(row.images),
     finance: parseFinanceMeta(row.finance_meta ?? row.finance),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -526,6 +559,7 @@ tasksRouter.post('/', async (req, res, next) => {
       location,
       departureTime,
       steps: rawSteps,
+      images: rawImages,
       finance: rawFinance,
       financeAmount,
       financeCurrency,
@@ -564,6 +598,7 @@ tasksRouter.post('/', async (req, res, next) => {
     const stepsValue = kindSupportsSteps(taskKind)
       ? normalizeSteps(rawSteps)
       : [];
+    const imagesValue = normalizeImages(rawImages);
     const financeValue = resolveFinanceMeta(taskKind, {
       finance: rawFinance,
       financeAmount,
@@ -658,6 +693,8 @@ tasksRouter.post('/', async (req, res, next) => {
           location: null,
           departure_time: null,
           steps: [],
+          // Primera toma del plan lleva las fotos; el resto vacío.
+          images: rows.length === 0 ? imagesValue : [],
           created_at: now,
           updated_at: now,
         });
@@ -786,6 +823,8 @@ tasksRouter.post('/', async (req, res, next) => {
           location: isHabit || isFinance ? null : locationValue,
           departure_time: isHabit || isFinance ? null : departureValue,
           steps: isHabit || isFinance ? [] : stepsValue,
+          // Imágenes solo en la primera instancia (evita inflar toda la serie).
+          images: rows.length === 0 ? imagesValue : [],
           created_at: now,
           updated_at: now,
         });
@@ -955,7 +994,7 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.departureTime !== undefined) {
       seriesUpdate.departure_time = patch.departureTime;
     }
-    // steps: solo en la instancia por defecto (roadmap §1.7). No volcar checklist a toda la serie.
+    // steps/images: solo en la instancia (roadmap §1.7). No volcar a toda la serie.
 
     // Campos solo de instancia (nunca se propagan a la serie).
     const instanceUpdate: Record<string, unknown> = { updated_at: now };
@@ -965,6 +1004,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     }
     if (patch.steps !== undefined) {
       instanceUpdate.steps = normalizeSteps(patch.steps);
+    }
+    if (patch.images !== undefined) {
+      instanceUpdate.images = normalizeImages(patch.images);
     }
     if (patch.order !== undefined) instanceUpdate.order = patch.order;
     if (patch.movedFrom !== undefined) instanceUpdate.moved_from = patch.movedFrom;
@@ -1174,6 +1216,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       }
       if (patch.steps !== undefined) {
         update.steps = normalizeSteps(patch.steps);
+      }
+      if (patch.images !== undefined) {
+        update.images = normalizeImages(patch.images);
       }
       if (
         patch.rxAmount !== undefined ||
@@ -1503,6 +1548,7 @@ tasksRouter.post('/habit-ensure', async (req, res, next) => {
       location: null,
       departure_time: null,
       steps: Array.isArray(template.steps) ? template.steps : [],
+      images: [],
       finance_meta: template.finance_meta ?? null,
       created_at: now,
       updated_at: now,

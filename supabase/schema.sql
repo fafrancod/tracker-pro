@@ -235,6 +235,9 @@ alter table public.tasks add column if not exists rx_meta jsonb;
 
 -- Checklist de pasos (tarea / recordatorio / evento / posible)
 alter table public.tasks add column if not exists steps jsonb not null default '[]'::jsonb;
+
+-- ImÃ¡genes adjuntas (data URLs JPEG comprimidos en cliente; mÃ¡x. 4 en app)
+alter table public.tasks add column if not exists images jsonb not null default '[]'::jsonb;
 do $$
 begin
   if not exists (
@@ -408,7 +411,7 @@ begin
       for select using (auth.uid() = user_id);
   end if;
 end $$;
--- Finances: gastos/ingresos recurrentes, esperados y específicos
+-- Finances: gastos/ingresos recurrentes, esperados y especï¿½ficos
 create table if not exists public.finance_entries (
   id text primary key,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -450,7 +453,7 @@ begin
 exception when duplicate_object then null;
 end $$;
 
--- Ancla de recurrencia mensual (último día / día hábil Chile)
+-- Ancla de recurrencia mensual (ï¿½ltimo dï¿½a / dï¿½a hï¿½bil Chile)
 alter table public.tasks add column if not exists recurrence_anchor text;
 do $$
 begin
