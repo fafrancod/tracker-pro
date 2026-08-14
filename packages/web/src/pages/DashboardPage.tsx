@@ -343,7 +343,7 @@ export function DashboardPage() {
                   onClick={() => setSummaryStatus(`day:${d.dayId}`)}
                   className={cn(
                     'flex flex-col items-center gap-1 rounded-md border border-border bg-background p-2 text-xs transition-colors hover:border-accent-teal/40',
-                    d.isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30'
+                    d.isToday && 'calendar-today-cell'
                   )}
                 >
                   <span className="font-semibold text-text-primary">{d.label.slice(0, 3)}</span>

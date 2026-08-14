@@ -95,26 +95,32 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
 
   return (
     <div
+      data-calendar-today={isToday ? 'true' : undefined}
       className={cn(
         'flex min-h-0 min-w-0 flex-col rounded-md border bg-background',
-        isToday ? 'border-accent-teal/50' : 'border-border'
+        isToday ? 'calendar-today-cell' : 'border-border'
       )}
     >
       {/* Column header */}
       <div
         className={cn(
           'flex shrink-0 items-center justify-between gap-1 rounded-t-md px-1.5 py-1.5',
-          isToday ? 'bg-accent-teal/10' : 'bg-surface'
+          isToday ? 'bg-accent-teal/20' : 'bg-surface'
         )}
       >
         <div className="min-w-0">
           <div
             className={cn(
-              'truncate text-xs font-semibold sm:text-sm',
+              'flex items-center gap-1.5 truncate text-xs font-semibold sm:text-sm',
               isToday ? 'text-accent-teal' : 'text-text-primary'
             )}
           >
             {label}
+            {isToday && (
+              <span className="rounded-full bg-accent-teal px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-white">
+                {t('action_today')}
+              </span>
+            )}
           </div>
           <div className="truncate text-[10px] text-text-muted sm:text-xs">{dateLabel}</div>
         </div>

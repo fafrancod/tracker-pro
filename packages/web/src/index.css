@@ -541,3 +541,18 @@ html[data-material='glass'].dark .analytics-surface {
 html[data-material='glass'] {
   --mac-system-blue: #0a84ff;
 }
+
+/* Today: Apple-style filled day number + solid cell edge (not a faint ring). */
+.calendar-today-cell {
+  border-color: var(--color-accent-teal) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--color-accent-teal) 18%,
+    var(--color-surface)
+  ) !important;
+  box-shadow: inset 0 0 0 1.5px var(--color-accent-teal);
+}
+.calendar-today-num {
+  background-color: var(--color-accent-teal);
+  color: #fff;
+}

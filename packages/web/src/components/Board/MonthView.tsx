@@ -47,6 +47,7 @@ import {
 import { rescheduleTaskSpan } from './rescheduleSpan';
 import { getChileHolidaysInRange } from '@core/lib/chileHolidays';
 import { tintHoliday } from '@/lib/tintClasses';
+import { scheduleScrollToCalendarToday } from '@/lib/calendarToday';
 
 export interface MonthViewProps {
   onPickDay: (date: Date) => void;
@@ -197,6 +198,7 @@ export function MonthView({
   useEffect(() => {
     if (mode !== 'single' || !focusTodayNonce) return;
     setCursor(startOfMonth(new Date()));
+    scheduleScrollToCalendarToday();
   }, [focusTodayNonce, mode]);
 
   const monthStart = startOfMonth(cursor);
@@ -657,9 +659,10 @@ export function MonthView({
       )}
 
       <div
+        data-calendar-scroll={mode === 'single' ? 'true' : undefined}
         className={cn(
           'flex flex-col p-2 md:p-4',
-          mode === 'single' ? 'flex-1 overflow-hidden' : '',
+          mode === 'single' ? 'flex-1 overflow-y-auto' : '',
           // En continuo, un poco más de aire bajo el título del mes.
           mode === 'continuous' && 'pt-1 md:pt-2'
         )}
@@ -775,21 +778,29 @@ export function MonthView({
                         openDayContextMenu(e, date, setDayCtxMenu);
                       }}
                       data-tour={isToday ? 'calendar-day' : undefined}
+                      data-calendar-today={isToday ? 'true' : undefined}
                       className={cn(
                         'group relative flex h-[132px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
                         inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
-                        isToday && 'border-accent-teal/60 ring-1 ring-accent-teal/30',
-                        'hover:border-accent-teal/40'
+                        isToday && 'calendar-today-cell',
+                        !isToday && 'hover:border-accent-teal/40'
                       )}
                     >
                       <div className="flex shrink-0 items-center justify-between gap-1">
-                        <span
-                          className={cn(
-                            'text-xs font-semibold',
-                            isToday ? 'text-accent-teal' : 'text-text-primary'
+                        <span className="flex min-w-0 items-center gap-1">
+                          <span
+                            className={cn(
+                              'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums',
+                              isToday ? 'calendar-today-num' : 'text-text-primary'
+                            )}
+                          >
+                            {format(date, 'd')}
+                          </span>
+                          {isToday && (
+                            <span className="truncate text-[9px] font-bold uppercase tracking-wide text-accent-teal">
+                              {t('action_today')}
+                            </span>
                           )}
-                        >
-                          {format(date, 'd')}
                         </span>
                         <div className="flex items-center gap-0.5">
                           {total > 0 && (

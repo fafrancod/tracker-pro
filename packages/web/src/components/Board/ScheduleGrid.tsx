@@ -135,7 +135,7 @@ export function ScheduleGrid({
                 key={`all-${day.dayId}`}
                 className={cn(
                   'min-h-[40px] border-r border-border p-0.5 last:border-r-0',
-                  day.isToday && 'bg-accent-teal/5'
+                  day.isToday && 'bg-accent-teal/15'
                 )}
               >
                 <div className="flex flex-col gap-0.5">
@@ -217,7 +217,7 @@ export function ScheduleGrid({
                 key={`h-${day.dayId}`}
                 className={cn(
                   'border-r border-border px-1 py-1.5 text-center last:border-r-0',
-                  day.isToday && 'bg-accent-teal/10'
+                  day.isToday && 'bg-accent-teal/20'
                 )}
               >
                 <div
@@ -227,6 +227,7 @@ export function ScheduleGrid({
                   )}
                 >
                   {day.label}
+                  {day.isToday ? ` · ${t('action_today')}` : ''}
                 </div>
                 <div className="truncate text-[10px] text-text-muted">{day.dateLabel}</div>
               </div>
@@ -258,7 +259,7 @@ export function ScheduleGrid({
                 key={`g-${day.dayId}`}
                 className={cn(
                   'relative border-r border-border last:border-r-0',
-                  day.isToday && 'bg-accent-teal/[0.03]',
+                  day.isToday && 'bg-accent-teal/10',
                   onEmptyDoubleClick && 'cursor-cell'
                 )}
                 style={{ height: gridHeight }}

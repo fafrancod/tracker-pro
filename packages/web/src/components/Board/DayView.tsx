@@ -285,6 +285,11 @@ export function DayView({
             )}
           >
             {label}
+            {isToday && (
+              <span className="ml-2 rounded-full bg-accent-teal px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                {t('action_today')}
+              </span>
+            )}
             <span className="ml-2 font-normal text-text-muted">{dateLabel}</span>
           </div>
         </div>

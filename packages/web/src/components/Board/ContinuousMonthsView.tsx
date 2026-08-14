@@ -21,6 +21,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
 import { capitalize } from '@/lib/i18n';
 import { MonthView } from './MonthView';
+import { scheduleScrollToCalendarToday } from '@/lib/calendarToday';
 
 interface ContinuousMonthsViewProps {
   onPickDay: (date: Date) => void;
@@ -68,37 +69,22 @@ export function ContinuousMonthsView({
     );
   }, [weekStartsOn, locale]);
 
-  const scrollToCurrentMonth = useCallback(() => {
-    const key = monthKey(startOfMonth(new Date()));
-    requestAnimationFrame(() => {
-      const scroller = scrollRef.current;
-      if (!scroller) return;
-      const el = scroller.querySelector(
-        `[data-month-key="${key}"]`
-      ) as HTMLElement | null;
-      if (!el) return;
-      // Scroll solo dentro del contenedor (no usa scrollIntoView del viewport,
-      // que a veces metía el mes bajo la barra de filtros del board).
-      const elTop = el.getBoundingClientRect().top;
-      const scrollerTop = scroller.getBoundingClientRect().top;
-      const next = scroller.scrollTop + (elTop - scrollerTop);
-      scroller.scrollTo({ top: Math.max(0, next), behavior: 'smooth' });
-    });
+  const scrollToToday = useCallback(() => {
+    scheduleScrollToCalendarToday(scrollRef.current);
   }, []);
 
-  // On first paint, land on the current month (not the oldest preloaded).
+  // On first paint, land on today (not the oldest preloaded month).
   useEffect(() => {
-    scrollToCurrentMonth();
-  }, [scrollToCurrentMonth]);
+    scrollToToday();
+  }, [scrollToToday]);
 
-  // Parent «Ir al mes de hoy» / change view.
+  // Parent «Ir al mes de hoy» / change view / reopen calendar.
   useEffect(() => {
     if (!focusTodayNonce) return;
     setFromOffset(-INITIAL_PAST);
     setToOffset(INITIAL_FUTURE);
-    // Wait for DOM after offset reset
-    requestAnimationFrame(() => scrollToCurrentMonth());
-  }, [focusTodayNonce, scrollToCurrentMonth]);
+    scrollToToday();
+  }, [focusTodayNonce, scrollToToday]);
 
   const months = useMemo(() => {
     const list: Date[] = [];
@@ -186,6 +172,7 @@ export function ContinuousMonthsView({
 
       <div
         ref={scrollRef}
+        data-calendar-scroll
         onScroll={handleScroll}
         className="min-h-0 flex-1 overflow-y-auto"
       >

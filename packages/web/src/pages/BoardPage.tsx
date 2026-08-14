@@ -59,6 +59,7 @@ import {
 import { cn } from '@/lib/utils';
 import { CycleSelect } from '@/components/ui/cycle-select';
 import { useOnboardingTour } from '@/contexts/OnboardingTourContext';
+import { FOCUS_TODAY_EVENT } from '@/lib/calendarToday';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -139,9 +140,17 @@ export function BoardPage() {
     setFabOpen(Boolean(tourStep.openCreate));
   }, [tourActive, tourStep, view, snapToPresent]);
 
-  // Al abrir la pestaña de tareas: día/semana actuales.
+  // Al abrir Calendario (y cada vez que se vuelve a pulsar en el menú): hoy.
   useEffect(() => {
     snapToPresent();
+  }, [snapToPresent]);
+
+  useEffect(() => {
+    function onFocusToday() {
+      snapToPresent();
+    }
+    window.addEventListener(FOCUS_TODAY_EVENT, onFocusToday);
+    return () => window.removeEventListener(FOCUS_TODAY_EVENT, onFocusToday);
   }, [snapToPresent]);
 
   function selectView(next: BoardViewMode) {

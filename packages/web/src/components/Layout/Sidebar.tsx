@@ -26,6 +26,7 @@ import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import type { TKey } from '@/lib/i18n';
 import { GlassPanel } from '@/components/ui/glass-panel';
 import { isAdminUser } from '@core/lib/adminPortal';
+import { requestFocusToday } from '@/lib/calendarToday';
 
 export interface NavItem {
   to: string;
@@ -93,7 +94,10 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
       <NavLink
         key={item.to}
         to={item.to}
-        onClick={onNavigate}
+        onClick={() => {
+          if (item.to === '/board') requestFocusToday();
+          onNavigate?.();
+        }}
         className={({ isActive }) => navClass(isActive)}
       >
         <Icon className="h-4 w-4" />
