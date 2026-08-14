@@ -8,8 +8,6 @@ import { SettingsProvider } from '@/contexts/SettingsContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SupabaseConfigGate } from '@/components/SupabaseConfigGate';
 import { AppShell } from '@/components/Layout/AppShell';
-import { Layout } from '@/components/Layout';
-import { Placeholder } from '@/pages/Placeholder';
 import { BoardPage } from '@/pages/BoardPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
@@ -29,6 +27,8 @@ import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { NotificationBootstrap } from '@/components/NotificationBootstrap';
+import { AdminHeartbeat } from '@/components/AdminHeartbeat';
+import { AdminPage } from '@/pages/AdminPage';
 
 function AuthLoadingScreen() {
   return (
@@ -89,6 +89,7 @@ function App() {
             <SettingsProvider>
               <TooltipProvider>
                 <NotificationBootstrap />
+                <AdminHeartbeat />
                 <OfflineBanner />
                 <PwaUpdateBanner />
                 <PwaInstallBanner />
@@ -215,12 +216,7 @@ function App() {
                         path="admin"
                         element={
                           <RouteErrorBoundary>
-                            <Layout title="Admin" showFab={false}>
-                              <Placeholder
-                                title="Admin"
-                                description="Analytics, Estado web, Fallos. Próxima sesión."
-                              />
-                            </Layout>
+                            <AdminPage />
                           </RouteErrorBoundary>
                         }
                       />

@@ -20,6 +20,8 @@ export * from './lib/financeKinds';
 export * from './lib/currencies';
 export * from './lib/chileHolidays';
 export * from './lib/planLimits';
+export * from './lib/adminPortal';
+export * from './services/adminService';
 export * from './lib/api';
 export * from './lib/demoMode';
 export * from './lib/recurrence';

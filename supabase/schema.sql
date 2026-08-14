@@ -480,3 +480,91 @@ begin
     );
 exception when duplicate_object then null;
 end $$;
+
+-- ——— Admin: presencia + tamaño por usuario ———
+alter table public.profiles add column if not exists last_seen_at timestamptz;
+alter table public.profiles add column if not exists last_path text;
+alter table public.profiles add column if not exists last_app_version text;
+alter table public.profiles add column if not exists last_platform text;
+
+create index if not exists profiles_last_seen_idx
+  on public.profiles (last_seen_at desc);
+
+create or replace function public.admin_user_stats()
+returns table (
+  user_id uuid,
+  tasks_count bigint,
+  projects_count bigint,
+  contacts_count bigint,
+  finance_count bigint,
+  tasks_bytes bigint,
+  projects_bytes bigint,
+  contacts_bytes bigint,
+  finance_bytes bigint,
+  deliveries_bytes bigint,
+  profile_bytes bigint,
+  total_bytes bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    p.id,
+    coalesce(t.cnt, 0),
+    coalesce(pr.cnt, 0),
+    coalesce(c.cnt, 0),
+    coalesce(f.cnt, 0),
+    coalesce(t.bytes, 0),
+    coalesce(pr.bytes, 0),
+    coalesce(c.bytes, 0),
+    coalesce(f.bytes, 0),
+    coalesce(d.bytes, 0),
+    coalesce(pg_column_size(p.*), 0)::bigint,
+    coalesce(t.bytes, 0)
+      + coalesce(pr.bytes, 0)
+      + coalesce(c.bytes, 0)
+      + coalesce(f.bytes, 0)
+      + coalesce(d.bytes, 0)
+      + coalesce(pg_column_size(p.*), 0)::bigint
+  from public.profiles p
+  left join (
+    select user_id,
+           count(*)::bigint as cnt,
+           coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
+    from public.tasks x
+    group by user_id
+  ) t on t.user_id = p.id
+  left join (
+    select user_id,
+           count(*)::bigint as cnt,
+           coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
+    from public.projects x
+    group by user_id
+  ) pr on pr.user_id = p.id
+  left join (
+    select user_id,
+           count(*)::bigint as cnt,
+           coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
+    from public.contacts x
+    group by user_id
+  ) c on c.user_id = p.id
+  left join (
+    select user_id,
+           count(*)::bigint as cnt,
+           coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
+    from public.finance_entries x
+    group by user_id
+  ) f on f.user_id = p.id
+  left join (
+    select user_id,
+           coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
+    from public.notification_deliveries x
+    group by user_id
+  ) d on d.user_id = p.id;
+$$;
+
+revoke all on function public.admin_user_stats() from public;
+revoke all on function public.admin_user_stats() from anon, authenticated;
+grant execute on function public.admin_user_stats() to service_role;

@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
+import { isAdminUser } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { ApiError } from '../errors.js';
 
@@ -38,7 +39,10 @@ export async function requireAuth(
     req.user = {
       uid: user.id,
       email: user.email ?? null,
-      isAdmin: user.app_metadata?.admin === true,
+      isAdmin: isAdminUser({
+        email: user.email,
+        appMetadata: user.app_metadata as { admin?: unknown } | null,
+      }),
     };
     next();
   } catch (err) {

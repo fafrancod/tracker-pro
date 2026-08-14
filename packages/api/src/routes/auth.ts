@@ -9,7 +9,35 @@ import { ApiError } from '../errors.js';
 export const authRouter = Router();
 
 authRouter.use(requireAuth);
-authRouter.use(rateLimit({ windowMs: 60_000, max: 20 }));
+authRouter.use(rateLimit({ windowMs: 60_000, max: 40 }));
+
+const presenceSchema = z.object({
+  path: z.string().max(200).optional(),
+  appVersion: z.string().max(40).optional(),
+  platform: z.enum(['web', 'native']).optional(),
+});
+
+authRouter.post('/presence', async (req, res, next) => {
+  try {
+    const { uid } = req.user!;
+    const body = presenceSchema.parse(req.body ?? {});
+    const patch: Record<string, string> = {
+      last_seen_at: new Date().toISOString(),
+    };
+    if (body.path) patch.last_path = body.path;
+    if (body.appVersion) patch.last_app_version = body.appVersion;
+    if (body.platform) patch.last_platform = body.platform;
+
+    const { error } = await getSupabaseAdmin().from('profiles').update(patch).eq('id', uid);
+    if (error) {
+      res.status(200).json({ persisted: false });
+      return;
+    }
+    res.status(200).json({ persisted: true });
+  } catch (err) {
+    next(err);
+  }
+});
 
 const bootstrapSchema = z.object({
   name: z.string().min(1).max(80).optional(),

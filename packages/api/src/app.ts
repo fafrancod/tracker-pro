@@ -15,6 +15,7 @@ import { contactsRouter } from './routes/contacts.js';
 import { authRouter } from './routes/auth.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { financesRouter } from './routes/finances.js';
+import { adminRouter } from './routes/admin.js';
 
 /**
  * Busca packages/web/dist (cwd y ubicación del bundle varían en Docker/Railway).
@@ -84,6 +85,7 @@ export function buildApp(): Express {
   app.use('/api/contacts', contactsRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/finances', financesRouter);
+  app.use('/api/admin', adminRouter);
 
   app.get('/api', (_req, res) => {
     res.json({
@@ -106,6 +108,8 @@ export function buildApp(): Express {
         '/api/notifications/status',
         '/api/notifications/test-email',
         '/api/notifications/dispatch',
+        '/api/admin/users',
+        '/api/admin/overview',
       ],
     });
   });

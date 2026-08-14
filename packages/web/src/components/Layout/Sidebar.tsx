@@ -25,6 +25,7 @@ import { useT } from '@/hooks/useT';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import type { TKey } from '@/lib/i18n';
 import { GlassPanel } from '@/components/ui/glass-panel';
+import { isAdminUser } from '@core/lib/adminPortal';
 
 export interface NavItem {
   to: string;
@@ -73,8 +74,10 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
   const { user, signOut } = useAuth();
   const { t } = useT();
   const location = useLocation();
-  // Admin se decide por backend en el futuro; por ahora se oculta.
-  const isAdmin = false;
+  const isAdmin = isAdminUser({
+    email: user?.email,
+    appMetadata: user?.app_metadata as { admin?: unknown } | undefined,
+  });
   const items = NAV_ITEMS.filter(item => (!item.adminOnly || isAdmin) && !item.skipMainList);
 
   const onMemento = location.pathname === '/memento-mori';
