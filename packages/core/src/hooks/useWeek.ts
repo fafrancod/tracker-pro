@@ -3,6 +3,7 @@ import { addWeeks, subWeeks, startOfISOWeek, addDays, format } from 'date-fns';
 import type { Locale } from 'date-fns/locale';
 import { useStore } from '../store';
 import { getWeekId, getDayId } from '../services/taskService';
+import { todayCivilDate, todayDayId } from '../lib/civilDate';
 
 function parsWeekId(weekId: string): Date {
   const [yearStr, weekStr] = weekId.split('-W');
@@ -18,6 +19,8 @@ export interface UseWeekOptions {
   locale?: Locale;
   weekdayFormat?: string;
   shortDateFormat?: string;
+  /** IANA zone for «today» (calendar + goToday). */
+  timezone?: string | null;
 }
 
 function capitalize(s: string): string {
@@ -30,7 +33,8 @@ export function useWeek(opts: UseWeekOptions = {}) {
   const setSelectedDay = useStore(s => s.setSelectedDay);
 
   const weekStart = parsWeekId(currentWeekId);
-  const { locale, weekdayFormat = 'EEE', shortDateFormat = 'MMM d' } = opts;
+  const { locale, weekdayFormat = 'EEE', shortDateFormat = 'MMM d', timezone } =
+    opts;
 
   // Mon–Sun array
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -54,21 +58,21 @@ export function useWeek(opts: UseWeekOptions = {}) {
   }, [weekStart, setCurrentWeek]);
 
   const goToday = useCallback(() => {
-    const now = new Date();
-    setCurrentWeek(getWeekId(now));
-    setSelectedDay(getDayId(now));
-  }, [setCurrentWeek, setSelectedDay]);
+    const civil = todayCivilDate(timezone);
+    setCurrentWeek(getWeekId(civil));
+    setSelectedDay(getDayId(civil));
+  }, [setCurrentWeek, setSelectedDay, timezone]);
 
   const nextWeekId = getWeekId(addWeeks(weekStart, 1));
-  const todayDayId = getDayId(new Date());
-  const isCurrentWeek = currentWeekId === getWeekId(new Date());
+  const todayId = todayDayId(timezone);
+  const isCurrentWeek = currentWeekId === getWeekId(todayCivilDate(timezone));
 
   return {
     currentWeekId,
     weekStart,
     days,
     nextWeekId,
-    todayDayId,
+    todayDayId: todayId,
     isCurrentWeek,
     goNextWeek,
     goPrevWeek,

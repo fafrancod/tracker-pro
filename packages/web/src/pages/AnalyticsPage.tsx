@@ -21,6 +21,7 @@ import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
 import { collectTasksCovering } from '@core/lib/taskPresence';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
 import type { Task } from '@core/types';
 import { TaskSummaryDialog } from '@/components/Board/TaskSummaryDialog';
 import {
@@ -43,7 +44,13 @@ export function AnalyticsPage() {
 
 function AnalyticsContent() {
   const { locale, weekdayFormat, shortDateFormat } = useT();
-  const { currentWeekId, days } = useWeek({ locale, weekdayFormat, shortDateFormat });
+  const { settings } = useSettings();
+  const { currentWeekId, days } = useWeek({
+    locale,
+    weekdayFormat,
+    shortDateFormat,
+    timezone: settings.timezone,
+  });
   const { data: backendAnalytics } = useAnalytics(currentWeekId);
   const { projects } = useProjects();
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);

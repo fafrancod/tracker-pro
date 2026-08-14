@@ -6,7 +6,6 @@ import {
   startOfWeek,
   endOfWeek,
   isSameMonth,
-  isSameDay,
   format,
   addDays,
   differenceInCalendarDays,
@@ -48,6 +47,7 @@ import { rescheduleTaskSpan } from './rescheduleSpan';
 import { getChileHolidaysInRange } from '@core/lib/chileHolidays';
 import { tintHoliday } from '@/lib/tintClasses';
 import { scheduleScrollToCalendarToday } from '@/lib/calendarToday';
+import { todayCivilDate, todayDayId } from '@core/lib/civilDate';
 
 export interface MonthViewProps {
   onPickDay: (date: Date) => void;
@@ -181,7 +181,7 @@ export function MonthView({
 
   const setDetailTask = useStore(s => s.setDetailTask);
 
-  const today = new Date();
+  const today = todayCivilDate(settings.timezone);
   const [cursor, setCursor] = useState<Date>(() =>
     startOfMonth(monthDate ?? today)
   );
@@ -197,7 +197,7 @@ export function MonthView({
   // Jump to current month when parent requests (go-today / open tasks)
   useEffect(() => {
     if (mode !== 'single' || !focusTodayNonce) return;
-    setCursor(startOfMonth(new Date()));
+    setCursor(startOfMonth(todayCivilDate(settings.timezone)));
     scheduleScrollToCalendarToday();
   }, [focusTodayNonce, mode]);
 
@@ -740,7 +740,7 @@ export function MonthView({
               >
                 {weekDates.map((date, col) => {
                   const inMonth = isSameMonth(date, cursor);
-                  const isToday = isSameDay(date, today);
+                  const isToday = getDayId(date) === todayDayId(settings.timezone);
                   const dayIdStr = getDayId(date);
                   const holidayName = holidaysByDay.get(dayIdStr) ?? null;
                   const chips = holidaysOnly ? [] : getSingleDayChips(date);

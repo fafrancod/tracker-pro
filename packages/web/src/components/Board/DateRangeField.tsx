@@ -5,7 +5,6 @@ import {
   differenceInCalendarDays,
   endOfMonth,
   format,
-  isSameDay,
   isSameMonth,
   parseISO,
   startOfMonth,
@@ -17,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
 import { useSettings } from '@/contexts/SettingsContext';
 import { capitalize } from '@/lib/i18n';
+import { todayCivilDate, todayDayId } from '@core/lib/civilDate';
 
 export interface DateRangeFieldProps {
   startDayId: string;
@@ -319,7 +319,7 @@ export function DateRangeField({
                 const isEnd = dayId === safeEnd;
                 const inRange =
                   !isSingleDay && dayId > safeStart && dayId < safeEnd;
-                const isToday = isSameDay(d, new Date());
+                const isToday = dayId === todayDayId(settings.timezone);
                 const isEdge = isStart || isEnd;
 
                 return (
@@ -364,10 +364,10 @@ export function DateRangeField({
                 type="button"
                 className="rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-text-muted hover:bg-background hover:text-text-primary"
                 onClick={() => {
-                  const today = toDayId(new Date());
-                  applySingle(today);
+                  const civil = todayCivilDate(settings.timezone);
+                  applySingle(toDayId(civil));
                   setSelectingStart(true);
-                  setMonthCursor(startOfMonth(new Date()));
+                  setMonthCursor(startOfMonth(civil));
                 }}
               >
                 {t('task_date_today')}

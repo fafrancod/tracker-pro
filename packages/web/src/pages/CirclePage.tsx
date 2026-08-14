@@ -18,6 +18,8 @@ import { isDemoMode } from '@core/lib/demoMode';
 import { useStore } from '@core/store';
 import { useToast } from '@/contexts/ToastContext';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
+import { todayCivilDate, todayDayId } from '@core/lib/civilDate';
 import {
   ContactFormDialog,
   RELATION_PULSES,
@@ -75,6 +77,7 @@ function collectStoreTasks(
 
 export function CirclePage() {
   const { t, locale, shortDateFormat } = useT();
+  const { settings } = useSettings();
   const { contacts, addContact, editContact, removeContact } = useContacts();
   const { showToast } = useToast();
   const uid = useStore(s => s.uid);
@@ -101,8 +104,8 @@ export function CirclePage() {
     async (contact: Contact) => {
       setLoadingCommitments(true);
       setCommitments([]);
-      const today = getDayId(new Date());
-      const to = getDayId(addDays(new Date(), COMMITMENT_HORIZON_DAYS));
+      const today = todayDayId(settings.timezone);
+      const to = getDayId(addDays(todayCivilDate(settings.timezone), COMMITMENT_HORIZON_DAYS));
       try {
         let rows: LocatedTaskRow[] = [];
         if (uid && !isDemoMode()) {
@@ -130,7 +133,7 @@ export function CirclePage() {
         setLoadingCommitments(false);
       }
     },
-    [uid, tasksByDay, showToast, t]
+    [uid, tasksByDay, showToast, t, settings.timezone]
   );
 
   useEffect(() => {

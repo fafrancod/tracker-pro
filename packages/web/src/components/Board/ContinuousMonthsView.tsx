@@ -22,6 +22,7 @@ import { useT } from '@/hooks/useT';
 import { capitalize } from '@/lib/i18n';
 import { MonthView } from './MonthView';
 import { scheduleScrollToCalendarToday } from '@/lib/calendarToday';
+import { todayCivilDate } from '@core/lib/civilDate';
 
 interface ContinuousMonthsViewProps {
   onPickDay: (date: Date) => void;
@@ -57,7 +58,10 @@ export function ContinuousMonthsView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadingMore = useRef(false);
   // Anchor once per mount so offsets stay stable while scrolling.
-  const todayMonth = useMemo(() => startOfMonth(new Date()), []);
+  const todayMonth = useMemo(
+    () => startOfMonth(todayCivilDate(settings.timezone)),
+    [settings.timezone]
+  );
 
   const [fromOffset, setFromOffset] = useState(-INITIAL_PAST);
   const [toOffset, setToOffset] = useState(INITIAL_FUTURE);

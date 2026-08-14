@@ -39,6 +39,7 @@ import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
 import { useWeek } from '@core/hooks/useWeek';
 import { getDayId, getWeekId } from '@core/services/taskService';
+import { todayCivilDate } from '@core/lib/civilDate';
 import type {
   BoardCategoryFilter,
   BoardTaskFilters,
@@ -122,14 +123,15 @@ export function BoardPage() {
     locale,
     weekdayFormat,
     shortDateFormat,
+    timezone: settings.timezone,
   });
 
   const snapToPresent = useCallback(() => {
-    const now = new Date();
-    setCurrentWeek(getWeekId(now));
-    setSelectedDay(getDayId(now));
+    const civil = todayCivilDate(settings.timezone);
+    setCurrentWeek(getWeekId(civil));
+    setSelectedDay(getDayId(civil));
     setFocusTodayNonce(n => n + 1);
-  }, [setCurrentWeek, setSelectedDay]);
+  }, [setCurrentWeek, setSelectedDay, settings.timezone]);
 
   useEffect(() => {
     if (!tourActive || !tourStep) return;

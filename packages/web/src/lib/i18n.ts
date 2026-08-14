@@ -669,6 +669,8 @@ export interface TranslationDict {
   settings_notify_tasks_desc: string;
   settings_notify_rx: string;
   settings_notify_rx_desc: string;
+  settings_timezone: string;
+  settings_timezone_desc: string;
   settings_notify_timezone: string;
   settings_notify_timezone_desc: string;
   settings_notify_timezone_device: string;
@@ -1637,9 +1639,12 @@ const es_dict: TranslationDict = {
   settings_notify_tasks_desc: 'Incluir entradas de proyecto (no solo recetario).',
   settings_notify_rx: 'Tomas del recetario',
   settings_notify_rx_desc: 'Incluir dosis de medicamentos (humano y mascota).',
+  settings_timezone: 'Zona horaria',
+  settings_timezone_desc:
+    'Define qué día es «hoy» en el calendario y a qué hora civil se disparan los avisos. Elige la zona donde vives o trabajas.',
   settings_notify_timezone: 'Zona horaria',
   settings_notify_timezone_desc:
-    'Define tu horario civil para correos y recordatorios («mañana», minutos antes, seguimiento). Debe coincidir con donde vives o trabajas.',
+    'La misma zona que en Preferencias: calendario («hoy») y recordatorios.',
   settings_notify_timezone_device: 'Usar zona del dispositivo',
   settings_notify_enable_device: 'Permitir notificaciones',
   rx_pet_tag_hint:
@@ -2617,9 +2622,12 @@ const en_dict: TranslationDict = {
   settings_notify_tasks_desc: 'Include project entries (not only prescriptions).',
   settings_notify_rx: 'Prescription doses',
   settings_notify_rx_desc: 'Include medication doses (human and pet).',
-  settings_notify_timezone: 'Timezone',
+  settings_timezone: 'Time zone',
+  settings_timezone_desc:
+    'Defines which civil day is “today” on the calendar and when reminders fire. Pick where you live or work.',
+  settings_notify_timezone: 'Time zone',
   settings_notify_timezone_desc:
-    'Your civil timezone for email and reminders (tomorrow, minutes before, follow-ups). Should match where you live or work.',
+    'Same zone as in Preferences: calendar (“today”) and reminders.',
   settings_notify_timezone_device: 'Use device timezone',
   settings_notify_enable_device: 'Allow notifications',
   rx_pet_tag_hint:

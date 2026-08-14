@@ -55,12 +55,9 @@ import {
   rescheduleLocalNotifications,
   type LocalPermissionState,
 } from '@/lib/localNotifications';
-import {
-  formatTimezoneLabel,
-  getDeviceTimezone,
-  listTimezoneOptions,
-} from '@/lib/timezones';
+import { getDeviceTimezone } from '@/lib/timezones';
 import { TimeInput } from '@/components/ui/time-input';
+import { TimezoneField } from '@/components/Settings/TimezoneField';
 import {
   checkForPwaUpdate,
   hardResetPwaAndReload,
@@ -375,29 +372,10 @@ export function SettingsPage() {
             </div>
 
             <div className="mb-4 rounded-md border border-border bg-background p-3">
-              <label className="mb-1 block text-xs font-medium text-text-primary">
-                {t('settings_notify_timezone')}
-              </label>
-              <p className="mb-2 text-[11px] text-text-muted">
-                {t('settings_notify_timezone_desc')}
-              </p>
-              <SimpleSelect
-                aria-label={t('settings_notify_timezone')}
+              <TimezoneField
                 value={settings.timezone || getDeviceTimezone()}
-                onChange={v => void updateSettings({ timezone: v })}
-                className="w-full text-sm"
-                options={listTimezoneOptions().map(tz => ({
-                  value: tz,
-                  label: formatTimezoneLabel(tz),
-                }))}
+                onChange={tz => void updateSettings({ timezone: tz })}
               />
-              <button
-                type="button"
-                className="mt-2 text-[11px] text-accent-teal hover:underline"
-                onClick={() => void updateSettings({ timezone: getDeviceTimezone() })}
-              >
-                {t('settings_notify_timezone_device')}
-              </button>
             </div>
 
             <SettingRow
@@ -589,6 +567,13 @@ export function SettingsPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div className="mb-4 border-b border-border pb-4">
+              <TimezoneField
+                value={settings.timezone || getDeviceTimezone()}
+                onChange={tz => void updateSettings({ timezone: tz })}
+              />
             </div>
 
             {/* Memento mori: fecha de nacimiento + esperanza de vida */}

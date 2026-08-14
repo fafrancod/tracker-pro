@@ -20,6 +20,8 @@ import { isDemoMode } from '@core/lib/demoMode';
 import { isRxKind } from '@core/lib/rx';
 import type { Importance, RecurrenceFrequency, Task, Urgency } from '@core/types';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
+import { todayDayId } from '@core/lib/civilDate';
 import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
 import { TaskDetailSheet } from '@/components/Board';
@@ -230,6 +232,7 @@ function buildMatrixRows(
 
 export function EisenhowerPage() {
   const { t, locale, shortDateFormat } = useT();
+  const { settings } = useSettings();
   const { projects } = useProjects();
   const { showToast } = useToast();
   const uid = useStore(s => s.uid);
@@ -247,7 +250,10 @@ export function EisenhowerPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const ranges = useMemo(() => horizonRanges(horizon), [horizon]);
-  const todayId = useMemo(() => formatDayLocal(new Date()), []);
+  const todayId = useMemo(
+    () => todayDayId(settings.timezone),
+    [settings.timezone]
+  );
 
   const allProjectKeys = useMemo(
     () => [NO_PROJECT, ...projects.map(p => p.id)],

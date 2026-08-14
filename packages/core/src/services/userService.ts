@@ -41,9 +41,13 @@ interface BootstrapResponse {
 }
 
 export async function bootstrapUserProfile(
-  name?: string
+  name?: string,
+  timezone?: string
 ): Promise<{ profile: UserProfile; created: boolean }> {
-  const res = await api.post<BootstrapResponse>('/api/auth/bootstrap', name ? { name } : {});
+  const body: { name?: string; timezone?: string } = {};
+  if (name) body.name = name;
+  if (timezone) body.timezone = timezone;
+  const res = await api.post<BootstrapResponse>('/api/auth/bootstrap', body);
   return { profile: res.profile, created: Boolean(res.created) };
 }
 

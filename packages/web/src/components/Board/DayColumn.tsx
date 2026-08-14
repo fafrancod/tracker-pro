@@ -13,6 +13,7 @@ import {
 import { taskMatchesFilters, type BoardTaskFilters } from '@core/types';
 import { chileHolidayName } from '@core/lib/chileHolidays';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
 import { tintHoliday } from '@/lib/tintClasses';
 import { ProgressRing } from './ProgressRing';
@@ -52,7 +53,13 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
   }, [allTasks, filter]);
   const { projects } = useProjects();
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
-  const { days, nextWeekId } = useWeek({ locale, weekdayFormat, shortDateFormat });
+  const { settings } = useSettings();
+  const { days, nextWeekId } = useWeek({
+    locale,
+    weekdayFormat,
+    shortDateFormat,
+    timezone: settings.timezone,
+  });
   const setDetailTask = useStore(s => s.setDetailTask);
   const tasksByDay = useStore(s => s.tasksByDay);
   const holidayName = chileHolidayName(dayId);

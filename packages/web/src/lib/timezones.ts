@@ -31,11 +31,19 @@ export function getDeviceTimezone(): string {
   }
 }
 
-/** Lista para el select: dispositivo primero, luego comunes sin duplicar. */
+/** Lista para el select: dispositivo primero, luego IANA (o comunes). */
 export function listTimezoneOptions(): string[] {
   const device = getDeviceTimezone();
-  const set = new Set<string>([device, ...COMMON_TIMEZONES]);
-  return Array.from(set);
+  let rest: string[] = [...COMMON_TIMEZONES];
+  try {
+    const intl = Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] };
+    if (typeof intl.supportedValuesOf === 'function') {
+      rest = intl.supportedValuesOf('timeZone');
+    }
+  } catch {
+    /* keep COMMON */
+  }
+  return [device, ...rest.filter(z => z !== device)];
 }
 
 /** Etiqueta legible con offset actual. */

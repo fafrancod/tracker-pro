@@ -35,6 +35,8 @@ import {
   listPhasesEndingInRange,
 } from '@core/lib/rx';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
+import { todayCivilDate } from '@core/lib/civilDate';
 import { cn } from '@/lib/utils';
 import { WellbeingAnalyticsPanel } from '@/components/Dashboard/WellbeingAnalyticsPanel';
 import { TaskSummaryDialog, type TaskSummaryStatus } from '@/components/Board/TaskSummaryDialog';
@@ -46,6 +48,7 @@ function capitalize(s: string): string {
 
 export function DashboardPage() {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
+  const { settings } = useSettings();
   const navigate = useNavigate();
   const { projects } = useProjects();
   const uid = useStore(s => s.uid);
@@ -53,8 +56,11 @@ export function DashboardPage() {
   const [remoteRx, setRemoteRx] = useState<Task[]>([]);
   const [summaryStatus, setSummaryStatus] = useState<TaskSummaryStatus | `day:${string}` | null>(null);
 
-  // Siempre la semana ISO de HOY (no la del tablero, que puede estar en otro mes).
-  const today = useMemo(() => new Date(), []);
+  // Siempre la semana ISO de HOY en la zona del usuario.
+  const today = useMemo(
+    () => todayCivilDate(settings.timezone),
+    [settings.timezone]
+  );
   const thisWeekId = getWeekId(today);
   const todayId = getDayId(today);
   const weekStart = startOfISOWeek(today);

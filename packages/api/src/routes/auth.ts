@@ -41,6 +41,7 @@ authRouter.post('/presence', async (req, res, next) => {
 
 const bootstrapSchema = z.object({
   name: z.string().min(1).max(80).optional(),
+  timezone: z.string().min(1).max(80).optional(),
 });
 
 const DEFAULT_SETTINGS = {
@@ -75,7 +76,7 @@ authRouter.post('/bootstrap', async (req, res, next) => {
     if (!email) {
       throw ApiError.badRequest('El token no tiene email asociado.');
     }
-    const { name } = bootstrapSchema.parse(req.body ?? {});
+    const { name, timezone } = bootstrapSchema.parse(req.body ?? {});
 
     const { data: existing } = await getSupabaseAdmin()
       .from('profiles')
@@ -97,7 +98,10 @@ authRouter.post('/bootstrap', async (req, res, next) => {
       name: name ?? email.split('@')[0],
       email,
       plan: 'free' as const,
-      settings: DEFAULT_SETTINGS,
+      settings: {
+        ...DEFAULT_SETTINGS,
+        timezone: timezone?.trim() || DEFAULT_SETTINGS.timezone,
+      },
     };
 
     const { data: inserted, error: profileError } = await getSupabaseAdmin()

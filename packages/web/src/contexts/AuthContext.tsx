@@ -147,7 +147,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { profile, created } = await bootstrapUserProfile(
             (sessionUser.user_metadata?.name as string | undefined) ??
               sessionUser.user_metadata?.full_name ??
-              undefined
+              undefined,
+            Intl.DateTimeFormat().resolvedOptions().timeZone || undefined
           );
           if (created) markOnboardingPending();
           setProfile(profile);

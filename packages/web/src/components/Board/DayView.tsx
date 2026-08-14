@@ -39,6 +39,8 @@ import {
 } from '@/components/ui/mobile-sheet';
 
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
+import { todayCivilDate } from '@core/lib/civilDate';
 import { cn } from '@/lib/utils';
 import { tintEventBorder, tintPossibleBorder } from '@/lib/tintClasses';
 import { ScheduleGrid } from './ScheduleGrid';
@@ -153,6 +155,7 @@ export function DayView({
   onLayoutChange,
 }: DayViewProps) {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
+  const { settings } = useSettings();
   const { projects } = useProjects();
   const selectedDayId = useStore(s => s.selectedDayId);
   const setSelectedDay = useStore(s => s.setSelectedDay);
@@ -174,9 +177,10 @@ export function DayView({
     locale,
     weekdayFormat,
     shortDateFormat,
+    timezone: settings.timezone,
   });
 
-  const dayId = selectedDayId ?? todayDayId ?? getDayId(new Date());
+  const dayId = selectedDayId ?? todayDayId ?? getDayId(todayCivilDate(settings.timezone));
   const weekId = getWeekId(parseISO(`${dayId}T12:00:00`));
   const { addTask, editTask, removeTask, moveTaskToDay } = useTasks(weekId, dayId);
 
@@ -248,9 +252,10 @@ export function DayView({
   }
 
   function goToday() {
-    const id = getDayId(new Date());
+    const civil = todayCivilDate(settings.timezone);
+    const id = getDayId(civil);
     setSelectedDay(id);
-    setCurrentWeek(getWeekId(new Date()));
+    setCurrentWeek(getWeekId(civil));
   }
 
   return (

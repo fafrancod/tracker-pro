@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Activity, Battery, Moon, Sparkles, ArrowRight, Wind } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
+import { todayDayId } from '@core/lib/civilDate';
 import { useT } from '@/hooks/useT';
 import {
   ENERGY_COLORS,
@@ -9,7 +10,6 @@ import {
   ENERGY_FEEL_COLORS,
   MOOD_COLORS,
   computeWeekWellbeing,
-  formatDayId,
   pickEncouragementMessages,
   type EncouragementTone,
 } from '@/lib/dailyJournal';
@@ -85,7 +85,7 @@ export function WellbeingAnalyticsPanel() {
   const { settings } = useSettings();
   const { t } = useT();
   const navigate = useNavigate();
-  const todayId = formatDayId(new Date());
+  const todayId = todayDayId(settings.timezone);
 
   const summary = useMemo(
     () => computeWeekWellbeing(settings.dailyJournal, todayId, 7),

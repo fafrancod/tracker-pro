@@ -182,7 +182,7 @@ export interface UserSettings {
   notifyRx: boolean;
   /**
    * IANA timezone del usuario (ej. America/Santiago).
-   * Usado por el worker de email; el dispositivo nativo usa su reloj local.
+   * Define el día civil «hoy» en el calendario y la hora de avisos.
    */
   timezone: string;
   /**

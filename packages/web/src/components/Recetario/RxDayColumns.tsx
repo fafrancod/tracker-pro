@@ -11,6 +11,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
+import { todayCivilDate } from '@core/lib/civilDate';
 import { cn } from '@/lib/utils';
 import { capitalize } from '@/lib/i18n';
 import { formatDose, isRxKind } from '@core/lib/rx';
@@ -66,8 +68,12 @@ export function RxDayColumns({
   onToggleDose,
 }: RxDayColumnsProps) {
   const { t, locale, shortDateFormat } = useT();
+  const { settings } = useSettings();
   const stripRef = useRef<HTMLDivElement>(null);
-  const today = useMemo(() => startOfDay(new Date()), []);
+  const today = useMemo(
+    () => startOfDay(todayCivilDate(settings.timezone)),
+    [settings.timezone]
+  );
   const todayId = getDayId(today);
 
   const centerDate = useMemo(() => {

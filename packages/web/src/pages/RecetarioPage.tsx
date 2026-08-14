@@ -33,6 +33,8 @@ import {
 } from '@core/services/taskService';
 import { isDemoMode } from '@core/lib/demoMode';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
+import { todayCivilDate } from '@core/lib/civilDate';
 import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
 import type { Task } from '@core/types';
@@ -41,11 +43,15 @@ type SubjectFilter = 'all' | 'human' | 'pet';
 
 export function RecetarioPage() {
   const { t } = useT();
+  const { settings } = useSettings();
   const { showToast } = useToast();
   const { projects } = useProjects();
   const uid = useStore(s => s.uid);
   const tasksByDay = useStore(s => s.tasksByDay);
-  const today = useMemo(() => new Date(), []);
+  const today = useMemo(
+    () => todayCivilDate(settings.timezone),
+    [settings.timezone]
+  );
   const todayId = getDayId(today);
   const weekId = getWeekId(today);
   const weekEndId = getDayId(addDays(today, 6));

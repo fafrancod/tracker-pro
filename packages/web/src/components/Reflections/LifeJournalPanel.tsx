@@ -11,13 +11,13 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
+import { todayDayId } from '@core/lib/civilDate';
 import { useT } from '@/hooks/useT';
 import {
   ENERGY_COLORS,
   ENERGY_FEEL_COLORS,
   MOOD_COLORS,
   computePeriodWellbeing,
-  formatDayId,
   listLifeJournalEntries,
   type LifeJournalPeriod,
 } from '@/lib/dailyJournal';
@@ -108,7 +108,7 @@ interface LifeJournalPanelProps {
 export function LifeJournalPanel({ onOpenDay }: LifeJournalPanelProps) {
   const { settings } = useSettings();
   const { t, locale, shortDateFormat } = useT();
-  const todayId = formatDayId(new Date());
+  const todayId = todayDayId(settings.timezone);
   const [period, setPeriod] = useState<LifeJournalPeriod>('week');
 
   const summary = useMemo(

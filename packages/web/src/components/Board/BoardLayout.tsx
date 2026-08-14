@@ -26,6 +26,7 @@ import { DayColumn } from './DayColumn';
 import { TaskCard } from './TaskCard';
 import { ScheduleGrid } from './ScheduleGrid';
 import { useT } from '@/hooks/useT';
+import { useSettings } from '@/contexts/SettingsContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useProjects } from '@core/hooks/useProjects';
 import type { BoardTaskFilters, ScheduleLayout, Task } from '@core/types';
@@ -53,8 +54,9 @@ export function BoardLayout({
   onLayoutChange,
 }: BoardLayoutProps) {
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
+  const { settings } = useSettings();
   const { currentWeekId, weekStart, days, isCurrentWeek, goNextWeek, goPrevWeek, goToday, todayDayId } =
-    useWeek({ locale, weekdayFormat, shortDateFormat });
+    useWeek({ locale, weekdayFormat, shortDateFormat, timezone: settings.timezone });
   const { projects } = useProjects();
   const { showToast } = useToast();
   const setDetailTask = useStore(s => s.setDetailTask);

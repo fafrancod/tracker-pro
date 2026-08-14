@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useSettings } from '@/contexts/SettingsContext';
+import { todayDayId } from '@core/lib/civilDate';
 import { useToast } from '@/contexts/ToastContext';
 import { useT } from '@/hooks/useT';
 import {
@@ -31,7 +32,6 @@ import {
   averageEnergy,
   averageMood,
   energyAtHour,
-  formatDayId,
   getJournalEntry,
   moodAtHour,
   recentDayIds,
@@ -98,7 +98,7 @@ export function ReflectionsPage() {
   const { settings, updateSettings } = useSettings();
   const { showToast } = useToast();
   const { t, locale, shortDateFormat } = useT();
-  const todayId = formatDayId(new Date());
+  const todayId = todayDayId(settings.timezone);
   const [tab, setTab] = useState<ReflectionsTab>('day');
   const [dayId, setDayId] = useState(todayId);
   const [draft, setDraft] = useState<DailyJournalEntry>(() =>
