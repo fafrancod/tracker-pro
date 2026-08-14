@@ -356,7 +356,7 @@ export function TaskImagesField({
             compact ? 'py-3' : 'py-4',
             dragging
               ? 'border-accent-teal bg-accent-teal/10 text-accent-teal'
-              : 'border-border bg-background/60 text-text-muted hover:border-accent-teal/40 hover:bg-accent-teal/5',
+              : 'border-border bg-field text-text-muted hover:border-accent-teal/40 hover:bg-accent-teal/5',
             busy && 'pointer-events-none opacity-60'
           )}
         >

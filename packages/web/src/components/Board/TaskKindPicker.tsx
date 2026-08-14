@@ -166,7 +166,7 @@ export function TaskKindPicker({
         >
           <span
             className={cn(
-              'flex shrink-0 items-center justify-center rounded-lg bg-background/40',
+              'flex shrink-0 items-center justify-center rounded-lg bg-field',
               compact ? 'h-7 w-7' : 'h-8 w-8'
             )}
           >
@@ -182,7 +182,7 @@ export function TaskKindPicker({
           role="listbox"
           aria-label={t('task_kind_convert')}
           className={cn(
-            'grid gap-2 rounded-xl border border-border bg-background/60 p-2',
+            'grid gap-2 rounded-xl border border-border bg-field p-2',
             compact
               ? 'grid-cols-2 sm:grid-cols-3'
               : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
@@ -205,7 +205,7 @@ export function TaskKindPicker({
                   'flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-xl border px-2 py-2 text-center transition-all',
                   active
                     ? cn('shadow-sm ring-1 font-semibold', opt.activeClass)
-                    : 'border-border bg-surface/40 font-medium text-text-muted hover:border-border hover:bg-surface hover:text-text-primary',
+                    : 'border-border bg-surface font-medium text-text-muted hover:border-border hover:bg-background hover:text-text-primary',
                   compact && 'min-h-[2.75rem] py-1.5'
                 )}
               >

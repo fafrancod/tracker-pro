@@ -713,7 +713,7 @@ export function AddTaskForm({
       {isFinance && (
         <div
           className={cn(
-            'space-y-2 rounded-xl border border-border/60 bg-background/50',
+            'space-y-2 rounded-xl border border-border bg-field',
             isModal ? 'p-3' : 'p-2'
           )}
         >
@@ -805,7 +805,7 @@ export function AddTaskForm({
 
       {/* Recetario: sujeto + fases */}
       {isRx && (
-        <div className="space-y-3 rounded-xl border border-border/70 bg-background/40 p-3">
+        <div className="space-y-3 rounded-xl border border-border bg-field p-3">
           <label className="flex flex-col gap-1 text-[11px] text-text-muted">
             <span className="inline-flex items-center gap-1 font-medium uppercase tracking-wide">
               {kind === 'rx_pet' ? <PawPrint className="h-3 w-3" /> : <User className="h-3 w-3" />}
@@ -1182,7 +1182,7 @@ export function AddTaskForm({
               ? 'border-sky-500/30 bg-sky-500/5'
               : isPossible
                 ? 'border-fuchsia-500/30 bg-fuchsia-500/5'
-                : 'border-border bg-surface/40'
+                : 'border-border bg-field'
           )}
         >
           <label className="flex flex-col gap-1 text-[11px] text-text-muted">
@@ -1295,7 +1295,7 @@ export function AddTaskForm({
         (isRx ? (
           <div
             className={cn(
-              'flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/50',
+              'flex flex-wrap items-center gap-2 rounded-xl border border-border bg-field',
               isModal ? 'px-3 py-3' : 'px-2 py-1.5 rounded border'
             )}
           >
@@ -1417,7 +1417,7 @@ export function AddTaskForm({
       {/* Recurrence — recetario materializa su propio plan */}
       <div
         className={cn(
-          'space-y-2 rounded-xl border border-border/60 bg-background/50',
+          'space-y-2 rounded-xl border border-border bg-field',
           isModal ? 'px-3 py-3' : 'px-2 py-1.5 rounded border',
           isRx && 'hidden'
         )}
@@ -1620,7 +1620,7 @@ function ToggleChip({
         compact ? 'px-1.5 py-1 text-[10px] rounded-md' : 'px-2 py-2 text-xs',
         active
           ? activeClass + ' shadow-sm'
-          : 'border-border bg-background/50 text-text-muted hover:text-text-primary'
+          : 'border-border bg-field text-text-muted hover:text-text-primary'
       )}
     >
       {icon}

@@ -224,7 +224,7 @@ export function DateRangeField({
               setSelectingStart(false);
             }}
             className={cn(
-              'flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface/40 px-3 text-xs font-medium text-text-muted transition-colors hover:border-accent-teal/50 hover:text-accent-teal',
+              'flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-field px-3 text-xs font-medium text-text-muted transition-colors hover:border-accent-teal/50 hover:text-accent-teal',
               compact ? 'min-h-[3.25rem]' : 'min-h-[4.25rem]'
             )}
           >

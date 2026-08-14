@@ -133,7 +133,7 @@ export function InvolvedContactsPicker({
                   ? accent === 'event'
                     ? 'border-sky-600/40 bg-sky-500/15 text-sky-800 dark:border-sky-500/40 dark:text-sky-100'
                     : 'border-fuchsia-600/40 bg-fuchsia-500/15 text-fuchsia-800 dark:border-fuchsia-500/40 dark:text-fuchsia-100'
-                  : 'border-border bg-background/60 text-text-muted hover:text-text-primary'
+                  : 'border-border bg-field text-text-muted hover:text-text-primary'
               )}
             >
               {t(f.labelKey)}
@@ -145,7 +145,7 @@ export function InvolvedContactsPicker({
         })}
       </div>
 
-      <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1">
+      <div className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-md border border-border bg-field p-1">
         {filtered.length === 0 ? (
           <p className="px-2 py-2 text-[11px] text-text-muted">
             {t('involved_filter_empty')}
