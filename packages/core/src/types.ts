@@ -215,6 +215,11 @@ export interface UserSettings {
    * Default false (se muestran al final de cada lista del día).
    */
   hideCompletedTasks: boolean;
+  /**
+   * Tour de bienvenida visto o saltado.
+   * Ausente en cuentas antiguas (no mostrar). false = pendiente (alta nueva).
+   */
+  onboardingTourCompleted?: boolean;
 }
 
 /** 1 = muy bajo … 5 = excelente (ánimo o energía). */

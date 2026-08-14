@@ -40,9 +40,11 @@ interface BootstrapResponse {
   profile: UserProfile;
 }
 
-export async function bootstrapUserProfile(name?: string): Promise<UserProfile> {
+export async function bootstrapUserProfile(
+  name?: string
+): Promise<{ profile: UserProfile; created: boolean }> {
   const res = await api.post<BootstrapResponse>('/api/auth/bootstrap', name ? { name } : {});
-  return res.profile;
+  return { profile: res.profile, created: Boolean(res.created) };
 }
 
 export async function updateUserSettings(

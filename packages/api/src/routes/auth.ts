@@ -66,6 +66,7 @@ const DEFAULT_SETTINGS = {
   timezone: 'UTC',
   preferredCurrency: 'EUR',
   hideCompletedTasks: false,
+  onboardingTourCompleted: false,
 };
 
 authRouter.post('/bootstrap', async (req, res, next) => {

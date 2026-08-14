@@ -21,6 +21,7 @@ import {
   usePageChromeState,
 } from './PageChromeContext';
 import { GlassPanel } from '@/components/ui/glass-panel';
+import { OnboardingTourProvider } from '@/contexts/OnboardingTourContext';
 
 /**
  * Shell persistente: sidebar + header no se desmontan al cambiar de ruta.
@@ -28,7 +29,9 @@ import { GlassPanel } from '@/components/ui/glass-panel';
 export function AppShell() {
   return (
     <PageChromeProvider>
-      <AppShellInner />
+      <OnboardingTourProvider>
+        <AppShellInner />
+      </OnboardingTourProvider>
     </PageChromeProvider>
   );
 }

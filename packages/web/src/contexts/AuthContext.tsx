@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, type React
 import type { User } from '@supabase/supabase-js';
 import { getSupabase, isSupabaseReady } from '@core/supabase';
 import { bootstrapUserProfile, subscribeUserProfile } from '@core/services/userService';
+import { markOnboardingPending } from '@/lib/onboardingTour';
 import { useStore } from '@core/store';
 import { isDemoMode } from '@core/lib/demoMode';
 import { getDemoSeed } from '@/lib/demoSeed';
@@ -143,11 +144,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (sessionUser) {
         try {
-          const profile = await bootstrapUserProfile(
+          const { profile, created } = await bootstrapUserProfile(
             (sessionUser.user_metadata?.name as string | undefined) ??
               sessionUser.user_metadata?.full_name ??
               undefined
           );
+          if (created) markOnboardingPending();
           setProfile(profile);
           profileUnsub = subscribeUserProfile(sessionUser.id, p => {
             if (p) setProfile(p);
@@ -216,6 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         options: { data: { name: displayName } },
       });
       if (error) throw error;
+      markOnboardingPending();
     },
     []
   );

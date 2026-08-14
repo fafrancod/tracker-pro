@@ -700,7 +700,10 @@ export function AddTaskForm({
         whenTitle={t('task_board_when')}
         moreTitle={t('task_board_more')}
         kind={
-          <div className={cn(isModal && 'space-y-1.5')}>
+          <div
+            data-tour={isModal ? 'create-kind' : undefined}
+            className={cn(isModal && 'space-y-1.5')}
+          >
         {isModal && (
           <label className="text-xs font-medium uppercase tracking-wide text-text-muted">
             {t('task_kind_convert')}
@@ -763,7 +766,10 @@ export function AddTaskForm({
           ) : null
         }
         title={
-      <div className={cn(isModal && 'space-y-1.5')}>
+      <div
+        data-tour={isModal ? 'create-title' : undefined}
+        className={cn(isModal && 'space-y-1.5')}
+      >
         {isModal && (
           <label className="text-xs font-medium uppercase tracking-wide text-text-muted">
             {isRx ? t('rx_medicine_name') : t('task_title_label')}
@@ -1590,6 +1596,7 @@ export function AddTaskForm({
         <Button
           type="submit"
           size={isModal ? 'default' : 'sm'}
+          data-tour={isModal ? 'create-save' : undefined}
           className={cn(
             isModal && 'min-w-[140px] rounded-xl bg-accent-teal text-background hover:bg-accent-teal/90',
             !isModal && 'h-7 px-2 text-xs'

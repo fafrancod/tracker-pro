@@ -87,6 +87,7 @@ vi.mock('../supabaseAdmin', () => {
         dayStartHour: 7,
         dayEndHour: 22,
         defaultScheduleLayout: 'list',
+        onboardingTourCompleted: false,
       },
       created_at: new Date().toISOString(),
     },

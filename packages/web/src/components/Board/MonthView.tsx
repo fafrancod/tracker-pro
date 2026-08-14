@@ -774,6 +774,7 @@ export function MonthView({
                         if (!onViewDay) return;
                         openDayContextMenu(e, date, setDayCtxMenu);
                       }}
+                      data-tour={isToday ? 'calendar-day' : undefined}
                       className={cn(
                         'group relative flex h-[132px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
                         inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',

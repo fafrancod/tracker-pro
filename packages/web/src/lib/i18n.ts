@@ -579,6 +579,33 @@ export interface TranslationDict {
   settings_account: string;
   settings_plan: string;
   settings_preferences: string;
+  settings_replay_tour: string;
+  settings_replay_tour_desc: string;
+  tour_skip: string;
+  tour_next: string;
+  tour_back: string;
+  tour_done: string;
+  tour_progress: string;
+  tour_welcome_title: string;
+  tour_welcome_body: string;
+  tour_views_title: string;
+  tour_views_body: string;
+  tour_canvas_title: string;
+  tour_canvas_body: string;
+  tour_day_title: string;
+  tour_day_body: string;
+  tour_fab_title: string;
+  tour_fab_body: string;
+  tour_kind_title: string;
+  tour_kind_body: string;
+  tour_title_title: string;
+  tour_title_body: string;
+  tour_when_title: string;
+  tour_when_body: string;
+  tour_save_title: string;
+  tour_save_body: string;
+  tour_finish_title: string;
+  tour_finish_body: string;
   settings_status: string;
   settings_tab_account: string;
   settings_tab_preferences: string;
@@ -1496,6 +1523,44 @@ const es_dict: TranslationDict = {
   settings_account: 'Cuenta',
   settings_plan: 'Plan',
   settings_preferences: 'Preferencias',
+  settings_replay_tour: 'Ver guía de nuevo',
+  settings_replay_tour_desc:
+    'Repite el tour del calendario y de cómo registrar una actividad.',
+  tour_skip: 'Saltar',
+  tour_next: 'Siguiente',
+  tour_back: 'Atrás',
+  tour_done: 'Empezar',
+  tour_progress: '{current} de {total}',
+  tour_welcome_title: 'Tu tablero, en dos minutos',
+  tour_welcome_body:
+    'Aquí vive el calendario y aquí registras lo que tienes que hacer. El tour se centra en esas dos cosas: cómo leer el tiempo y cómo crear una actividad.',
+  tour_views_title: 'Elige cómo ver el tiempo',
+  tour_views_body:
+    'Día, semana, mes o continuo. Mes y continuo son el calendario de verdad: ves el mes entero y las actividades como barras o chips. Empieza por Mes.',
+  tour_canvas_title: 'El calendario es el centro',
+  tour_canvas_body:
+    'Cada casilla es un día. Lo que ya existe aparece dentro. No es una lista suelta: el tablero es un calendario en el que colocas la vida.',
+  tour_day_title: 'Toca un día para crear',
+  tour_day_body:
+    'El día de hoy está marcado. Al tocar una casilla se abre Nueva entrada ya anclada a esa fecha. Es la forma más directa de registrar algo.',
+  tour_fab_title: 'O pulsa el botón +',
+  tour_fab_body:
+    'El círculo + (y «Nueva entrada» arriba en escritorio) abre el mismo formulario para el día seleccionado. Úsalo cuando ya estás en el día correcto.',
+  tour_kind_title: 'Primero el tipo',
+  tour_kind_body:
+    'Tarea, recordatorio, evento, hábito, receta o movimiento. El tipo cambia los campos: un evento pide lugar, una receta pide fases. Empieza por Tarea.',
+  tour_title_title: 'Ponle un nombre claro',
+  tour_title_body:
+    'Escribe qué vas a hacer. Con eso basta para que aparezca en el calendario. Si quieres, menciona a alguien del Círculo con @.',
+  tour_when_title: 'Cuándo ocurre',
+  tour_when_body:
+    'Fecha de inicio y fin, hora si la tiene, y si se repite. Un rango de varios días pinta una barra en el mes. Sin hora queda en «Sin hora».',
+  tour_save_title: 'Guarda y ya está en el día',
+  tour_save_body:
+    'Al añadir, la actividad aparece en esa casilla del calendario. Luego puedes abrirla con un doble clic o el menú para cambiar detalles.',
+  tour_finish_title: 'Ya puedes registrar tu primera actividad',
+  tour_finish_body:
+    'Toca un día o el + y crea algo sencillo. Si quieres repetir esta guía, está en Ajustes → Preferencias.',
   settings_status: 'Estado',
   settings_tab_account: 'Cuenta',
   settings_tab_preferences: 'Preferencias',
@@ -2438,6 +2503,44 @@ const en_dict: TranslationDict = {
   settings_account: 'Account',
   settings_plan: 'Plan',
   settings_preferences: 'Preferences',
+  settings_replay_tour: 'Replay the guide',
+  settings_replay_tour_desc:
+    'Replay the tour of the calendar and how to log an activity.',
+  tour_skip: 'Skip',
+  tour_next: 'Next',
+  tour_back: 'Back',
+  tour_done: 'Get started',
+  tour_progress: '{current} of {total}',
+  tour_welcome_title: 'Your board, in two minutes',
+  tour_welcome_body:
+    'This is where the calendar lives and where you log what you need to do. The tour focuses on those two things: how to read time and how to create an activity.',
+  tour_views_title: 'Choose how you see time',
+  tour_views_body:
+    'Day, week, month, or continuous. Month and continuous are the real calendar: you see the whole month and activities as bars or chips. Start with Month.',
+  tour_canvas_title: 'The calendar is the center',
+  tour_canvas_body:
+    'Each cell is a day. Existing items appear inside. This is not a loose list: the board is a calendar where you place your life.',
+  tour_day_title: 'Tap a day to create',
+  tour_day_body:
+    'Today is highlighted. Tapping a cell opens New entry already pinned to that date. That is the most direct way to log something.',
+  tour_fab_title: 'Or tap the + button',
+  tour_fab_body:
+    'The + circle (and New entry in the desktop header) opens the same form for the selected day. Use it when you are already on the right day.',
+  tour_kind_title: 'Pick the type first',
+  tour_kind_body:
+    'Task, reminder, event, habit, prescription, or money movement. The type changes the fields: an event asks for a place, a prescription asks for phases. Start with Task.',
+  tour_title_title: 'Give it a clear name',
+  tour_title_body:
+    'Write what you are going to do. That is enough for it to show on the calendar. You can mention someone from Circle with @ if you want.',
+  tour_when_title: 'When it happens',
+  tour_when_body:
+    'Start and end dates, a time if it has one, and whether it repeats. A multi-day range paints a bar on the month. With no time it sits in “No time”.',
+  tour_save_title: 'Save — it lands on that day',
+  tour_save_body:
+    'When you add it, the activity appears in that calendar cell. Later you can open it with a double-click or the menu to change details.',
+  tour_finish_title: 'You can log your first activity',
+  tour_finish_body:
+    'Tap a day or the + and create something simple. To replay this guide, go to Settings → Preferences.',
   settings_status: 'Status',
   settings_tab_account: 'Account',
   settings_tab_preferences: 'Preferences',

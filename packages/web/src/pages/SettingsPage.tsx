@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useOnboardingTour } from '@/contexts/OnboardingTourContext';
+import { markOnboardingPending } from '@/lib/onboardingTour';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProjects } from '@core/hooks/useProjects';
 import { usePlan } from '@core/hooks/usePlan';
@@ -94,6 +96,7 @@ export function SettingsPage() {
   const { plan, isPro, limits } = usePlan();
   const { showToast } = useToast();
   const { t } = useT();
+  const { start: startOnboardingTour } = useOnboardingTour();
   const demo = isDemoMode();
 
   const [backendInfo, setBackendInfo] = useState<BackendVersionInfo | null>(null);
@@ -546,6 +549,25 @@ export function SettingsPage() {
           {tab === 'preferences' && (
           <section className="rounded-lg border border-border bg-surface p-4">
             <h2 className="mb-3 text-sm font-semibold text-text-primary">{t('settings_preferences')}</h2>
+
+            <div className="mb-4 flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">{t('settings_replay_tour')}</p>
+                <p className="mt-0.5 text-[11px] text-text-muted">{t('settings_replay_tour_desc')}</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full shrink-0 sm:w-auto"
+                onClick={() => {
+                  markOnboardingPending();
+                  void updateSettings({ onboardingTourCompleted: false });
+                  startOnboardingTour();
+                }}
+              >
+                {t('settings_replay_tour')}
+              </Button>
+            </div>
 
             {/* Idioma */}
             <div className="mb-4 border-b border-border pb-4">

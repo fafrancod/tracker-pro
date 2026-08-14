@@ -52,6 +52,7 @@ describe('POST /api/auth/bootstrap', () => {
         plan: 'free',
       },
     });
+    expect(res.body.profile.settings.onboardingTourCompleted).toBe(false);
   });
 });
 

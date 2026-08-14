@@ -58,6 +58,7 @@ import {
 } from '@/lib/tintClasses';
 import { cn } from '@/lib/utils';
 import { CycleSelect } from '@/components/ui/cycle-select';
+import { useOnboardingTour } from '@/contexts/OnboardingTourContext';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -89,6 +90,7 @@ export function BoardPage() {
   const { canUndo, canRedo, undo, redo } = useTaskHistory();
 
   const hideCompleted = Boolean(settings.hideCompletedTasks);
+  const { active: tourActive, step: tourStep } = useOnboardingTour();
 
   function toggleHideCompleted() {
     void updateSettings({ hideCompletedTasks: !hideCompleted });
@@ -127,6 +129,15 @@ export function BoardPage() {
     setSelectedDay(getDayId(now));
     setFocusTodayNonce(n => n + 1);
   }, [setCurrentWeek, setSelectedDay]);
+
+  useEffect(() => {
+    if (!tourActive || !tourStep) return;
+    if (tourStep.view && view !== tourStep.view) {
+      setView(tourStep.view);
+      snapToPresent();
+    }
+    setFabOpen(Boolean(tourStep.openCreate));
+  }, [tourActive, tourStep, view, snapToPresent]);
 
   // Al abrir la pestaña de tareas: día/semana actuales.
   useEffect(() => {
@@ -242,7 +253,10 @@ export function BoardPage() {
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       {/* Fila 1: vista + undo */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-2 py-1.5 md:px-3">
-        <div className="inline-flex rounded-md border border-border bg-surface p-0.5">
+        <div
+          data-tour="calendar-views"
+          className="inline-flex rounded-md border border-border bg-surface p-0.5"
+        >
           <button
             type="button"
             onClick={() => selectView('day')}
@@ -300,6 +314,7 @@ export function BoardPage() {
         <button
           type="button"
           onClick={snapToPresent}
+          data-tour="calendar-today"
           className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-text-muted transition-colors hover:bg-background hover:text-text-primary"
           title={goPresentLabel}
         >
@@ -497,7 +512,10 @@ export function BoardPage() {
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        data-tour="calendar-canvas"
+        className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      >
         {view === 'day' && (
           <DayView
             filter={boardFilter}

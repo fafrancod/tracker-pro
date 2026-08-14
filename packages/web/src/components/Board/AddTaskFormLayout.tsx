@@ -20,14 +20,17 @@ function BoardCard({
   title,
   children,
   className,
+  dataTour,
 }: {
   title: string;
   children: ReactNode;
   className?: string;
+  dataTour?: string;
 }) {
   if (!children) return null;
   return (
     <section
+      data-tour={dataTour}
       className={cn(
         'flex flex-col gap-4 rounded-[20px] border border-border bg-surface p-4',
         'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)]',
@@ -84,7 +87,9 @@ export function AddTaskFormLayout({
       {rx}
       <div className="grid grid-cols-1 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
         <BoardCard title={classifyTitle}>{classify}</BoardCard>
-        <BoardCard title={whenTitle}>{when}</BoardCard>
+        <BoardCard title={whenTitle} dataTour="create-when">
+          {when}
+        </BoardCard>
         <BoardCard title={moreTitle}>{more}</BoardCard>
       </div>
       {actions}
