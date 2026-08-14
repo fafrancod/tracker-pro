@@ -537,9 +537,9 @@ export function BoardPage() {
       <TaskDetailSheet />
 
       <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
-        <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">
-          <MobileSheetHeader className="pr-8">
-            <MobileSheetTitle className="text-lg">{t('task_create_title')}</MobileSheetTitle>
+        <MobileSheetContent className="sm:max-w-3xl xl:max-w-6xl sm:p-6 xl:p-7 max-h-[92vh]">
+          <MobileSheetHeader className="pr-8 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+            <MobileSheetTitle className="text-xl tracking-tight">{t('task_create_title')}</MobileSheetTitle>
             <MobileSheetDescription>
               {targetDay
                 ? `${targetDay.label}, ${targetDay.dateLabel}.`

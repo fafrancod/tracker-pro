@@ -541,9 +541,9 @@ export function DayView({
           if (!open) setSlotCreate(null);
         }}
       >
-        <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">
-          <MobileSheetHeader className="pr-8">
-            <MobileSheetTitle className="text-lg">
+        <MobileSheetContent className="sm:max-w-3xl xl:max-w-6xl sm:p-6 xl:p-7 max-h-[92vh]">
+          <MobileSheetHeader className="pr-8 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+            <MobileSheetTitle className="text-xl tracking-tight">
               {slotCreate
                 ? t('schedule_create_at').replace('{time}', slotCreate.startTime)
                 : t('task_create_title')}

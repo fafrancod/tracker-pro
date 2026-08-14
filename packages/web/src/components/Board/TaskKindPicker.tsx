@@ -185,7 +185,7 @@ export function TaskKindPicker({
             'grid gap-2 rounded-xl border border-border bg-field p-2',
             compact
               ? 'grid-cols-2 sm:grid-cols-3'
-              : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+              : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5'
           )}
         >
           {options.map(opt => {

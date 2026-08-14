@@ -79,6 +79,7 @@ import { TaskStepsEditor } from './TaskStepsEditor';
 import { TaskImagesField } from './TaskImagesField';
 import { DateRangeField } from './DateRangeField';
 import { TaskKindPicker } from './TaskKindPicker';
+import { AddTaskFormLayout } from './AddTaskFormLayout';
 
 const DEFAULT_RX_PHASE: RxPhase = {
   amount: 1,
@@ -681,21 +682,25 @@ export function AddTaskForm({
       className={cn(
         'flex flex-col',
         isModal
-          ? 'gap-5'
+          ? 'gap-0'
           : 'gap-2 rounded-md border border-border bg-surface p-2'
       )}
     >
-      {/* Accent strip when color selected */}
       {isModal && (
         <div
-          className="h-1.5 w-full rounded-full bg-border transition-colors"
+          className="mb-4 h-1 w-full rounded-full bg-border transition-colors"
           style={color ? { backgroundColor: color } : undefined}
           aria-hidden
         />
       )}
 
-      {/* Tipo: chip con icono → despliega botones con iconos al clic */}
-      <div className={cn(isModal && 'space-y-1.5')}>
+      <AddTaskFormLayout
+        isModal={isModal}
+        classifyTitle={t('task_board_classify')}
+        whenTitle={t('task_board_when')}
+        moreTitle={t('task_board_more')}
+        kind={
+          <div className={cn(isModal && 'space-y-1.5')}>
         {isModal && (
           <label className="text-xs font-medium uppercase tracking-wide text-text-muted">
             {t('task_kind_convert')}
@@ -707,10 +712,10 @@ export function AddTaskForm({
           compact={!isModal}
           defaultOpen={isModal && !startOpen}
         />
-      </div>
-
-      {/* Finanzas: importe, moneda, fijo/potencial (sin horarios) */}
-      {isFinance && (
+          </div>
+        }
+        finance={
+          isFinance ? (
         <div
           className={cn(
             'space-y-2 rounded-xl border border-border bg-field',
@@ -755,9 +760,9 @@ export function AddTaskForm({
             />
           </label>
         </div>
-      )}
-
-      {/* Title */}
+          ) : null
+        }
+        title={
       <div className={cn(isModal && 'space-y-1.5')}>
         {isModal && (
           <label className="text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -787,7 +792,7 @@ export function AddTaskForm({
           list="circle-mention-suggestions"
           className={cn(
             isModal
-              ? 'h-12 rounded-xl border-border bg-field px-4 text-base focus-visible:ring-accent-teal/40'
+              ? 'h-14 rounded-2xl border-border bg-field px-4 text-lg font-semibold tracking-tight focus-visible:ring-accent-teal/40'
               : 'h-8 border-none bg-transparent px-1 text-sm focus-visible:ring-0 focus-visible:ring-offset-0'
           )}
         />
@@ -802,9 +807,9 @@ export function AddTaskForm({
           <p className="text-[10px] text-text-muted">{t('circle_mention_hint')}</p>
         )}
       </div>
-
-      {/* Recetario: sujeto + fases */}
-      {isRx && (
+        }
+        rx={
+      isRx ? (
         <div className="space-y-3 rounded-xl border border-border bg-field p-3">
           <label className="flex flex-col gap-1 text-[11px] text-text-muted">
             <span className="inline-flex items-center gap-1 font-medium uppercase tracking-wide">
@@ -1029,10 +1034,10 @@ export function AddTaskForm({
             + {t('rx_add_phase')}
           </button>
         </div>
-      )}
-
-      {/* Project + priority + Eisenhower — no aplica a recetario, eventos, hábitos ni finanzas */}
-      {!isRx && !isEventLike && !isHabit && !isFinance && (
+      ) : null
+        }
+        classify={
+      !isRx && !isEventLike && !isHabit && !isFinance ? (
         <>
           <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
             <SimpleSelect
@@ -1159,12 +1164,13 @@ export function AddTaskForm({
             </div>
           </div>
         </>
-      )}
-
-      {/* Pasos asociados (tarea / recordatorio / evento / posible) */}
-      {supportsSteps && (
+      ) : null
+        }
+        more={
+          <>
+      {supportsSteps ? (
         <TaskStepsEditor steps={steps} onChange={setSteps} />
-      )}
+      ) : null}
 
       {/* Imágenes adjuntas (drag & drop o selector del SO) */}
       <TaskImagesField
@@ -1177,12 +1183,14 @@ export function AddTaskForm({
       {supportsLocation && (
         <div
           className={cn(
-            'space-y-3 rounded-xl border p-3',
-            isEvent
+            isModal ? 'space-y-3' : 'space-y-3 rounded-xl border p-3',
+            !isModal && isEvent
               ? 'border-sky-500/30 bg-sky-500/5'
-              : isPossible
+              : !isModal && isPossible
                 ? 'border-fuchsia-500/30 bg-fuchsia-500/5'
-                : 'border-border bg-field'
+                : !isModal
+                  ? 'border-border bg-field'
+                  : undefined
           )}
         >
           <label className="flex flex-col gap-1 text-[11px] text-text-muted">
@@ -1229,10 +1237,12 @@ export function AddTaskForm({
       {isEventLike && (
         <div
           className={cn(
-            'space-y-1.5 rounded-xl border p-3',
-            isEvent
+            isModal ? 'space-y-1.5' : 'space-y-1.5 rounded-xl border p-3',
+            !isModal && isEvent
               ? 'border-sky-500/30 bg-sky-500/5'
-              : 'border-fuchsia-500/30 bg-fuchsia-500/5'
+              : !isModal
+                ? 'border-fuchsia-500/30 bg-fuchsia-500/5'
+                : undefined
           )}
         >
           <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -1289,8 +1299,10 @@ export function AddTaskForm({
           ))}
         </div>
       </div>
-
-      {/* Fechas: editables + arrastre de extremos (no-rx/no-hábito) */}
+          </>
+        }
+        when={
+          <>
       {(formStartDayId || startDayId) &&
         (isRx ? (
           <div
@@ -1551,12 +1563,13 @@ export function AddTaskForm({
       {isMultiDay && (
         <p className="px-0.5 text-[10px] text-text-muted">{t('task_span_recurrence_hint')}</p>
       )}
-
-      {/* Actions */}
+          </>
+        }
+        actions={
       <div
         className={cn(
           'flex items-center justify-end gap-2',
-          isModal && 'border-t border-border pt-4'
+          isModal && 'sticky bottom-0 z-10 border-t border-border bg-field pt-4'
         )}
       >
         {(onCancel || !startOpen) && (
@@ -1592,6 +1605,8 @@ export function AddTaskForm({
                 : t('action_add_task')}
         </Button>
       </div>
+        }
+      />
     </form>
   );
 }

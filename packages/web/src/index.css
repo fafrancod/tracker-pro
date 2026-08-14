@@ -123,6 +123,16 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Solid skins: keep the token fill and paint a soft color wash on top. */
+  html:not([data-material='glass']) body,
+  html:not([data-material='glass']) .bg-background {
+    background-color: var(--color-background);
+    background-image: var(--app-backdrop);
+    background-attachment: fixed;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
   button:not(:disabled),
   [role='button']:not(:disabled) {
     cursor: pointer;

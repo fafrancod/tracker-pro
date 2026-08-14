@@ -363,9 +363,9 @@ export function RecetarioPage() {
       />
 
       <MobileSheet open={fabOpen} onOpenChange={setFabOpen}>
-        <MobileSheetContent className="sm:max-w-xl sm:p-8 max-h-[92vh]">
-          <MobileSheetHeader className="pr-8">
-            <MobileSheetTitle className="text-lg">{t('recetario_new')}</MobileSheetTitle>
+        <MobileSheetContent className="sm:max-w-3xl xl:max-w-6xl sm:p-6 xl:p-7 max-h-[92vh]">
+          <MobileSheetHeader className="pr-8 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+            <MobileSheetTitle className="text-xl tracking-tight">{t('recetario_new')}</MobileSheetTitle>
             <MobileSheetDescription>{t('recetario_new_hint')}</MobileSheetDescription>
           </MobileSheetHeader>
           <AddTaskForm

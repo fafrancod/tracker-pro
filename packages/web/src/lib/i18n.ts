@@ -537,6 +537,9 @@ export interface TranslationDict {
   task_continues: string;
   task_span_recurrence_hint: string;
   task_create_title: string;
+  task_board_when: string;
+  task_board_classify: string;
+  task_board_more: string;
   task_detail_title: string;
   task_part_of_series: string;
   task_save_this: string;
@@ -1452,6 +1455,9 @@ const es_dict: TranslationDict = {
   task_span_recurrence_hint:
     'En rangos de varios días solo puedes repetir cada mes, cada año o no repetir.',
   task_create_title: 'Nueva entrada',
+  task_board_when: 'Cuándo',
+  task_board_classify: 'Clasificación',
+  task_board_more: 'Detalles',
   task_detail_title: 'Detalle de tarea',
   task_part_of_series: 'serie recurrente',
   task_save_this: 'Guardar solo este',
@@ -2391,6 +2397,9 @@ const en_dict: TranslationDict = {
   task_span_recurrence_hint:
     'Multi-day ranges only support monthly, yearly, or no recurrence.',
   task_create_title: 'New entry',
+  task_board_when: 'When',
+  task_board_classify: 'Classify',
+  task_board_more: 'Details',
   task_detail_title: 'Task detail',
   task_part_of_series: 'recurring series',
   task_save_this: 'Save this only',

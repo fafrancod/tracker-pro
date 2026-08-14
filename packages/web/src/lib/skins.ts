@@ -643,6 +643,20 @@ export function getSkinById(id: string | null | undefined): SkinDefinition {
   return SKINS.find(s => s.id === resolved) ?? SKINS[0];
 }
 
+/** Subtle atmospheric wash so solid light/dark skins are not flat slabs. */
+function solidSkinWash(t: SkinTokens, tone: SkinTone): string {
+  const teal = tone === 'light' ? 16 : 26;
+  const pink = tone === 'light' ? 11 : 18;
+  const green = tone === 'light' ? 8 : 14;
+  const veil = tone === 'light' ? 5 : 8;
+  return [
+    `radial-gradient(1200px 640px at 0% -8%, color-mix(in srgb, ${t.accentTeal} ${teal}%, transparent), transparent 62%)`,
+    `radial-gradient(920px 520px at 100% 0%, color-mix(in srgb, ${t.accentPink} ${pink}%, transparent), transparent 58%)`,
+    `radial-gradient(780px 460px at 78% 112%, color-mix(in srgb, ${t.accentGreen} ${green}%, transparent), transparent 55%)`,
+    `linear-gradient(180deg, color-mix(in srgb, ${t.accentTeal} ${veil}%, ${t.background}), ${t.background} 46%)`,
+  ].join(', ');
+}
+
 export function applySkin(skinId: string | null | undefined): void {
   if (typeof document === 'undefined') return;
   const skin = getSkinById(skinId);
@@ -674,7 +688,7 @@ export function applySkin(skinId: string | null | undefined): void {
     root.style.setProperty('--glass-blur', t.glassBlur ?? '48px');
     root.style.setProperty('--glass-saturate', t.glassSaturate ?? '180%');
   } else {
-    root.style.removeProperty('--app-backdrop');
+    root.style.setProperty('--app-backdrop', solidSkinWash(t, tone));
     root.style.setProperty('--glass-blur', '0px');
     root.style.setProperty('--glass-saturate', '100%');
   }
