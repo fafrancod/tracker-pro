@@ -4,7 +4,7 @@
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
 **Versión del repo al escribir:** v2.24.0.
 
-**Estado:** Fases 1–8 en `main` (v2.30). Siguiente: Fase 9 salud financiera.
+**Estado:** Fases 1–9 en `main` (v2.31). Siguiente: Fase 10 pulido.
 
 **Respuesta corta:** dos calendarios, un libro, cifrado **con la cuenta**. El tablero no es el mayor. Login = ves el dinero. Restablecer la contraseña **no** pierde importes. La bóveda privada (frase + 12 palabras) queda como legado opt-in, no como default.
 
@@ -416,6 +416,12 @@ Mismo ledger. Tab que aparece ahora. Quotes vía API propia, fixtures en CI. Cli
 ### Fase 9 — Salud
 
 `packages/core/src/lib/finance/engine/*`. Corre en el cliente. Compra de ETF **no** es gasto hormiga. Enum de categoría v1 (`housing`, `food`, `transport`, `health`, `leisure`, `debt`, `invest`, `other`).
+
+- [x] Motor en core (snapshot, score, recs, hormiga). El API no puntúa.
+- [x] Categoría en `payload_enc` (sin SQL nuevo).
+- [x] Tab Salud: score, DTI, recs.
+- [x] ETF / `flow=investment` / `category=invest` fuera de hormiga.
+- [x] Tests: déficit + DTI > 30 % → `rec_deficit` + `rec_high_dti`.
 
 **Hecho:** déficit + DTI > 30 % → dos recs fuertes. Tests del score sin red.
 

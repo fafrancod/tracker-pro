@@ -81,6 +81,19 @@ const createSchema = z
     investedAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
     investmentStatus: z.enum(['open', 'sold']).nullable().optional(),
     closesLotId: z.string().min(1).max(80).nullable().optional(),
+    category: z
+      .enum([
+        'housing',
+        'food',
+        'transport',
+        'health',
+        'leisure',
+        'debt',
+        'invest',
+        'other',
+      ])
+      .nullable()
+      .optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -129,6 +142,19 @@ const updateSchema = z
     investedAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
     investmentStatus: z.enum(['open', 'sold']).nullable().optional(),
     closesLotId: z.string().min(1).max(80).nullable().optional(),
+    category: z
+      .enum([
+        'housing',
+        'food',
+        'transport',
+        'health',
+        'leisure',
+        'debt',
+        'invest',
+        'other',
+      ])
+      .nullable()
+      .optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
     message: 'patch vacio',
@@ -269,6 +295,7 @@ function mapMovement(
     investedAmount: payload.investedAmount ?? null,
     investmentStatus: payload.investmentStatus ?? null,
     closesLotId: payload.closesLotId ?? null,
+    category: payload.category ?? null,
     ruleId: (row.rule_id as string | null) ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
@@ -680,6 +707,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           investedAmount: body.investedAmount,
           investmentStatus: body.investmentStatus,
           closesLotId: body.closesLotId,
+          category: body.category,
         });
     let accountDek: Buffer | null = null;
     if (!clientSealed) {
@@ -821,7 +849,8 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
         patch.quantity !== undefined ||
         patch.investedAmount !== undefined ||
         patch.closesLotId !== undefined ||
-        patch.assetName !== undefined)
+        patch.assetName !== undefined ||
+        patch.category !== undefined)
         ? buildFinancePayload({
             title: patch.title,
             amount: patch.amount,
@@ -840,6 +869,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             investedAmount: patch.investedAmount,
             investmentStatus: patch.investmentStatus,
             closesLotId: patch.closesLotId,
+            category: patch.category,
             existing: prevPayload,
           })
         : null;

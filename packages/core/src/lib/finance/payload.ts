@@ -3,6 +3,7 @@ import { normalizeCurrencyCode } from '../currencies';
 import type {
   FinanceAccountPayload,
   FinanceAccountType,
+  FinanceCategory,
   FinanceInvestmentSide,
   FinanceInvestmentStatus,
   FinanceMovementFlow,
@@ -10,6 +11,7 @@ import type {
   FinanceMovementStatus,
   FinanceMovementTag,
 } from './types';
+import { FINANCE_CATEGORIES } from './types';
 
 export const FINANCE_RANGE_MAX_DAYS = 93;
 
@@ -62,6 +64,24 @@ export function normalizeInvestmentStatus(
   return null;
 }
 
+export function normalizeFinanceCategory(raw: unknown): FinanceCategory | null {
+  if (typeof raw !== 'string') return null;
+  return (FINANCE_CATEGORIES as readonly string[]).includes(raw)
+    ? (raw as FinanceCategory)
+    : null;
+}
+
+export function inferFinanceCategory(input: {
+  flow?: FinanceMovementFlow;
+  tag?: FinanceMovementTag | null;
+  category?: FinanceCategory | null;
+}): FinanceCategory {
+  if (input.category) return input.category;
+  if (input.flow === 'investment') return 'invest';
+  if (input.tag === 'credit_payment') return 'debt';
+  return 'other';
+}
+
 export function normalizeTicker(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   const ticker = raw.trim().toUpperCase().replace(/[^A-Z0-9.\-]/g, '').slice(0, 16);
@@ -107,6 +127,7 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
       typeof o.closesLotId === 'string' && o.closesLotId.trim()
         ? o.closesLotId.trim().slice(0, 80)
         : null,
+    category: normalizeFinanceCategory(o.category),
   };
 }
 
@@ -128,6 +149,7 @@ export function buildFinancePayload(input: {
   investedAmount?: number | null;
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
+  category?: FinanceCategory | null;
   existing?: FinanceMovementPayload;
 }): FinanceMovementPayload {
   const existing = input.existing;
@@ -171,6 +193,7 @@ export function buildFinancePayload(input: {
         : existing?.investmentStatus,
     closesLotId:
       input.closesLotId !== undefined ? input.closesLotId : existing?.closesLotId,
+    category: input.category !== undefined ? input.category : existing?.category,
   });
 }
 

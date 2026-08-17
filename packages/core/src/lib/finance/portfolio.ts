@@ -104,6 +104,7 @@ export function buildLotSale(opts: {
       investedAmount: proceeds,
       investmentStatus: 'sold',
       closesLotId: opts.lot.id,
+      category: 'invest',
     },
   };
 }

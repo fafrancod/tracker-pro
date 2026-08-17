@@ -160,6 +160,7 @@ export function InvestmentsPanel({
         quantity: form.quantity,
         investedAmount: form.investedAmount,
         investmentStatus: 'open',
+        category: 'invest',
       });
       showToast(t('fin_created'), 'success');
       setBuyOpen(false);

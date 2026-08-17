@@ -34,6 +34,7 @@ import { AccountsPanel } from '@/components/Finances/AccountsPanel';
 import { GoalsPanel } from '@/components/Finances/GoalsPanel';
 import { CreditsPanel } from '@/components/Finances/CreditsPanel';
 import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
+import { HealthPanel } from '@/components/Finances/HealthPanel';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -56,6 +57,7 @@ import {
 import type {
   CreateFinanceMovementPayload,
   FinanceAccount,
+  FinanceCategory,
   FinanceCredit,
   FinanceGoal,
   FinanceMovement,
@@ -63,6 +65,7 @@ import type {
   FinanceMovementStatus,
   FinanceRuleFrequency,
 } from '@core/lib/finance/types';
+import { FINANCE_CATEGORIES } from '@core/lib/finance/types';
 import {
   defaultCurrencyFromLocale,
   normalizeCurrencyCode,
@@ -104,6 +107,7 @@ interface MovementForm {
   ticker: string;
   assetName: string;
   quantity: number;
+  category: FinanceCategory;
 }
 
 function emptyForm(dayId: string, currency: string): MovementForm {
@@ -128,6 +132,7 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     ticker: '',
     assetName: '',
     quantity: 1,
+    category: 'other',
   };
 }
 
@@ -168,7 +173,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     'all' | 'income' | 'expense' | 'investment'
   >('all');
   const [hub, setHub] = useState<
-    'calendar' | 'accounts' | 'goals' | 'credits' | 'investments'
+    | 'calendar'
+    | 'accounts'
+    | 'goals'
+    | 'credits'
+    | 'investments'
+    | 'health'
   >('calendar');
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [goals, setGoals] = useState<FinanceGoal[]>([]);
@@ -348,6 +358,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       ticker: mov.ticker ?? '',
       assetName: mov.assetName ?? '',
       quantity: mov.quantity ?? 1,
+      category:
+        mov.category ??
+        (mov.flow === 'investment'
+          ? 'invest'
+          : mov.tag === 'credit_payment'
+            ? 'debt'
+            : 'other'),
       notes: mov.notes,
       repeat: 'none',
       recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
@@ -405,6 +422,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       investedAmount: isInvest ? form.amount : null,
       investmentStatus: isInvest ? editing?.investmentStatus ?? 'open' : null,
       closesLotId: isInvest ? editing?.closesLotId ?? null : null,
+      category: isInvest
+        ? 'invest'
+        : form.creditPayment
+          ? 'debt'
+          : form.category,
       installmentTotal:
         form.installmentTotal > 1 ? form.installmentTotal : undefined,
       ...fx,
@@ -448,6 +470,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             investedAmount: payload.investedAmount,
             investmentStatus: payload.investmentStatus,
             closesLotId: payload.closesLotId,
+            category: payload.category,
             updatedAt: editing.updatedAt,
           },
           vault ?? undefined
@@ -505,7 +528,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
         <div className="flex gap-1">
           {(
-            ['calendar', 'accounts', 'goals', 'credits', 'investments'] as const
+            [
+              'calendar',
+              'accounts',
+              'goals',
+              'credits',
+              'investments',
+              'health',
+            ] as const
           ).map(id => (
             <button
               key={id}
@@ -526,7 +556,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                     ? t('fin_tab_goals')
                     : id === 'credits'
                       ? t('fin_tab_credits')
-                      : t('fin_tab_investments')}
+                      : id === 'investments'
+                        ? t('fin_tab_investments')
+                        : t('fin_tab_health')}
             </button>
           ))}
         </div>
@@ -567,6 +599,15 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             todayDayId={todayId}
             defaultCurrency={preferred}
             onChanged={reload}
+          />
+        ) : null}
+
+        {hub === 'health' ? (
+          <HealthPanel
+            movements={ledgerMovements.length ? ledgerMovements : movements}
+            credits={credits}
+            monthId={monthId}
+            reportingCurrency={preferred}
           />
         ) : null}
 
@@ -883,6 +924,27 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </select>
               </label>
             </div>
+            {form.flow === 'expense' && !form.creditPayment && (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_field_category')}</span>
+                <select
+                  value={form.category}
+                  onChange={e =>
+                    setForm(f => ({
+                      ...f,
+                      category: e.target.value as FinanceCategory,
+                    }))
+                  }
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                >
+                  {FINANCE_CATEGORIES.filter(c => c !== 'invest').map(cat => (
+                    <option key={cat} value={cat}>
+                      {t(`fin_cat_${cat}` as 'fin_cat_other')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {form.flow === 'investment' && (
               <>
                 <div className="grid grid-cols-2 gap-2">

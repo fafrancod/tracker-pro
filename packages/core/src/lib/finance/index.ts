@@ -7,6 +7,7 @@ export * from './fx';
 export * from './goalProgress';
 export * from './installments';
 export * from './portfolio';
+export * from './engine';
 export * from './vault';
 export * from './recoveryWords';
 export * from './unseal';

@@ -25,6 +25,19 @@ export type FinanceInvestmentStatus = 'open' | 'sold';
 
 export type FinanceCreditKind = 'consumer' | 'mortgage' | 'auto' | 'other';
 
+export const FINANCE_CATEGORIES = [
+  'housing',
+  'food',
+  'transport',
+  'health',
+  'leisure',
+  'debt',
+  'invest',
+  'other',
+] as const;
+
+export type FinanceCategory = (typeof FINANCE_CATEGORIES)[number];
+
 export interface FinanceMovementPayload {
   title: string;
   amount: number;
@@ -43,6 +56,7 @@ export interface FinanceMovementPayload {
   investedAmount?: number | null;
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
+  category?: FinanceCategory | null;
 }
 
 export interface FinanceAccountPayload {
@@ -138,6 +152,7 @@ export interface FinanceMovement {
   investedAmount?: number | null;
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
+  category?: FinanceCategory | null;
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
@@ -203,6 +218,7 @@ export interface CreateFinanceMovementPayload {
   investedAmount?: number | null;
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
+  category?: FinanceCategory | null;
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -241,6 +257,7 @@ export interface UpdateFinanceMovementPayload {
   investedAmount?: number | null;
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
+  category?: FinanceCategory | null;
 }
 
 export interface FinanceMovementMonthSummary {

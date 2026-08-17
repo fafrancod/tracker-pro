@@ -56,6 +56,35 @@ export interface TranslationDict {
   fin_tab_goals: string;
   fin_tab_credits: string;
   fin_tab_investments: string;
+  fin_tab_health: string;
+  fin_field_category: string;
+  fin_cat_housing: string;
+  fin_cat_food: string;
+  fin_cat_transport: string;
+  fin_cat_health: string;
+  fin_cat_leisure: string;
+  fin_cat_debt: string;
+  fin_cat_invest: string;
+  fin_cat_other: string;
+  fin_health_score: string;
+  fin_health_savings: string;
+  fin_health_dti: string;
+  fin_health_empty: string;
+  fin_health_empty_hint: string;
+  fin_health_by_category: string;
+  fin_health_critical: string;
+  fin_health_at_risk: string;
+  fin_health_stable: string;
+  fin_health_healthy: string;
+  fin_health_excellent: string;
+  fin_health_rec_deficit: string;
+  fin_health_rec_deficit_hint: string;
+  fin_health_rec_dti: string;
+  fin_health_rec_dti_hint: string;
+  fin_health_rec_ants: string;
+  fin_health_rec_ants_hint: string;
+  fin_health_rec_savings: string;
+  fin_health_rec_savings_hint: string;
   fin_invest_add: string;
   fin_invest_empty: string;
   fin_invest_empty_hint: string;
@@ -1154,6 +1183,40 @@ const es_dict: TranslationDict = {
   fin_tab_goals: 'Objetivos',
   fin_tab_credits: 'Créditos',
   fin_tab_investments: 'Inversiones',
+  fin_tab_health: 'Salud',
+  fin_field_category: 'Categoría',
+  fin_cat_housing: 'Vivienda',
+  fin_cat_food: 'Alimentación',
+  fin_cat_transport: 'Transporte',
+  fin_cat_health: 'Salud',
+  fin_cat_leisure: 'Ocio',
+  fin_cat_debt: 'Deuda',
+  fin_cat_invest: 'Inversión',
+  fin_cat_other: 'Otros',
+  fin_health_score: 'Puntuación',
+  fin_health_savings: 'Tasa de ahorro',
+  fin_health_dti: 'DTI (deuda / ingreso)',
+  fin_health_empty: 'Sin alertas este mes',
+  fin_health_empty_hint:
+    'Cuando el mes cierre en déficit o el DTI supere el 30 %, aquí verás recomendaciones claras.',
+  fin_health_by_category: 'Gasto por categoría',
+  fin_health_critical: 'Crítico',
+  fin_health_at_risk: 'En riesgo',
+  fin_health_stable: 'Estable',
+  fin_health_healthy: 'Saludable',
+  fin_health_excellent: 'Excelente',
+  fin_health_rec_deficit: 'Este mes gastas más de lo que entra',
+  fin_health_rec_deficit_hint:
+    'Congela el ocio y revisa suscripciones. El flujo tiene que volver a positivo antes de nueva deuda.',
+  fin_health_rec_dti: 'Las cuotas superan el 30 % de tus ingresos',
+  fin_health_rec_dti_hint:
+    'Prioriza amortizar el crédito más pequeño o simular un abono extra en Créditos. No tomes más plazo.',
+  fin_health_rec_ants: 'Hay microgastos repetidos',
+  fin_health_rec_ants_hint:
+    'Agrupa cafés y entregas en un tope semanal. Una compra de ETF no cuenta como gasto hormiga.',
+  fin_health_rec_savings: 'El colchón de ahorro es estrecho',
+  fin_health_rec_savings_hint:
+    'Intenta dejar al menos un 20 % del ingreso. Recorta un 10 % del ocio y muévelo a un objetivo.',
   fin_invest_add: 'Añadir compra',
   fin_invest_empty: 'Sin inversiones todavía',
   fin_invest_empty_hint:
@@ -2347,6 +2410,40 @@ const en_dict: TranslationDict = {
   fin_tab_goals: 'Goals',
   fin_tab_credits: 'Credits',
   fin_tab_investments: 'Investments',
+  fin_tab_health: 'Health',
+  fin_field_category: 'Category',
+  fin_cat_housing: 'Housing',
+  fin_cat_food: 'Food',
+  fin_cat_transport: 'Transport',
+  fin_cat_health: 'Health',
+  fin_cat_leisure: 'Leisure',
+  fin_cat_debt: 'Debt',
+  fin_cat_invest: 'Investing',
+  fin_cat_other: 'Other',
+  fin_health_score: 'Score',
+  fin_health_savings: 'Savings rate',
+  fin_health_dti: 'DTI (debt / income)',
+  fin_health_empty: 'No alerts this month',
+  fin_health_empty_hint:
+    'If the month closes in deficit or DTI exceeds 30%, you will see clear recommendations here.',
+  fin_health_by_category: 'Spend by category',
+  fin_health_critical: 'Critical',
+  fin_health_at_risk: 'At risk',
+  fin_health_stable: 'Stable',
+  fin_health_healthy: 'Healthy',
+  fin_health_excellent: 'Excellent',
+  fin_health_rec_deficit: 'This month you spend more than you earn',
+  fin_health_rec_deficit_hint:
+    'Freeze leisure and review subscriptions. Cash flow must turn positive before new debt.',
+  fin_health_rec_dti: 'Installments take more than 30% of income',
+  fin_health_rec_dti_hint:
+    'Pay down the smallest loan first or simulate an extra payment in Credits. Do not add term.',
+  fin_health_rec_ants: 'Repeated small expenses',
+  fin_health_rec_ants_hint:
+    'Cap coffee and delivery on a weekly budget. An ETF buy is not an ant expense.',
+  fin_health_rec_savings: 'The savings cushion is thin',
+  fin_health_rec_savings_hint:
+    'Aim to keep at least 20% of income. Cut 10% of leisure and move it to a goal.',
   fin_invest_add: 'Add buy',
   fin_invest_empty: 'No investments yet',
   fin_invest_empty_hint:
