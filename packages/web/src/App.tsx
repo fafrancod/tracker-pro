@@ -21,6 +21,7 @@ import { MementoMoriPage } from '@/pages/MementoMoriPage';
 import { ReflectionsPage } from '@/pages/ReflectionsPage';
 import { RecetarioPage } from '@/pages/RecetarioPage';
 import { FinancesPage } from '@/pages/FinancesPage';
+import { HabitsPage } from '@/pages/HabitsPage';
 import { DocumentsPage } from '@/pages/DocumentsPage';
 import { LoginPage } from '@/pages/Login';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
@@ -105,6 +106,14 @@ function App() {
                         element={
                           <RouteErrorBoundary>
                             <BoardPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="habits"
+                        element={
+                          <RouteErrorBoundary>
+                            <HabitsPage />
                           </RouteErrorBoundary>
                         }
                       />

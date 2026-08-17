@@ -38,17 +38,41 @@ export function normalizeMonthlyAnchor(raw: unknown): MonthlyAnchor {
   return 'day_of_month';
 }
 
+export function normalizeWeekdays(raw: unknown): number[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw)) return undefined;
+  const out: number[] = [];
+  const seen = new Set<number>();
+  for (const value of raw) {
+    const n = typeof value === 'number' ? value : Number(value);
+    if (!Number.isInteger(n) || n < 1 || n > 7) continue;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  out.sort((a, b) => a - b);
+  return out;
+}
+
 export function normalizeRecurrence(
   frequency?: RecurrenceFrequency | null,
   interval?: number | null,
-  monthlyAnchor?: MonthlyAnchor | null
-): { frequency: RecurrenceFrequency; interval: number; monthlyAnchor?: MonthlyAnchor } {
+  monthlyAnchor?: MonthlyAnchor | null,
+  weekdays?: unknown
+): {
+  frequency: RecurrenceFrequency;
+  interval: number;
+  monthlyAnchor?: MonthlyAnchor;
+  weekdays?: number[];
+} {
   const freq = frequency ?? 'none';
   const n = typeof interval === 'number' && Number.isFinite(interval) ? Math.floor(interval) : 1;
+  const days = normalizeWeekdays(weekdays);
   return {
     frequency: freq,
     interval: Math.max(1, Math.min(365, n)),
     monthlyAnchor: freq === 'monthly' ? normalizeMonthlyAnchor(monthlyAnchor) : undefined,
+    weekdays: days,
   };
 }
 

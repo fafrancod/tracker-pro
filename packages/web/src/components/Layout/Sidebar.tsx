@@ -17,6 +17,7 @@ import {
   Pill,
   Wallet,
   Files,
+  Sprout,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +43,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', labelKey: 'nav_summary', icon: LayoutDashboard },
   { to: '/board', labelKey: 'nav_tasks', icon: CalendarDays },
+  { to: '/habits', labelKey: 'nav_habits', icon: Sprout },
   { to: '/notifications', labelKey: 'nav_notifications', icon: Bell },
   { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
   { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass, skipMainList: true },

@@ -33,6 +33,7 @@ export * from './lib/realtime';
 export * from './lib/schedule';
 export * from './lib/rx';
 export * from './lib/habits';
+export * from './lib/habitPlan';
 export * from './lib/steps';
 export * from './lib/taskImages';
 export * from './lib/projectCategories';

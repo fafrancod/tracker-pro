@@ -124,6 +124,12 @@ export interface Recurrence {
    * Default implícito: day_of_month.
    */
   monthlyAnchor?: MonthlyAnchor;
+  /**
+   * Días ISO 1 = lunes … 7 = domingo.
+   * `undefined` / omitido = solo frequency + interval (comportamiento clásico).
+   * `[]` = plan de días concretos: no expandir virtual, solo filas físicas.
+   */
+  weekdays?: number[] | null;
 }
 
 export interface UserProfile {
@@ -526,6 +532,13 @@ export interface CreateTaskPayload {
   financeCertainty?: FinanceCertainty;
   /** Pomodoros a dedicar cada día (hábitos). Se guarda en la serie. */
   pomodoroTarget?: number;
+  /**
+   * Días ISO 1–7 (lun–dom) para el plan semanal del hábito.
+   * `[]` = solo fechas concretas (ver specificDayIds).
+   */
+  recurrenceWeekdays?: number[] | null;
+  /** Fechas concretas del plan (hábitos). Materializa una fila por día. */
+  specificDayIds?: string[];
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -569,6 +582,10 @@ export interface UpdateTaskPayload {
   pomodoroTarget?: number;
   /** Conteo de pomodoros de este día (instancia). */
   pomodoroDone?: number;
+  /** Días ISO 1–7 del plan. `[]` = solo fechas concretas. `null` = limpiar. */
+  recurrenceWeekdays?: number[] | null;
+  /** Fechas concretas extra (o el plan completo si el modo es specific). */
+  specificDayIds?: string[];
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (título, color, …) a toda la serie.

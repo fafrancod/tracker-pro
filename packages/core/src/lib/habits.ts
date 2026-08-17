@@ -63,9 +63,20 @@ function dayDiff(startDayId: string, dayId: string): number {
   return Math.round((b - a) / 86400000);
 }
 
+/** ISO 1 = lunes … 7 = domingo (civil local del dayId). */
+export function isoWeekdayFromDayId(dayId: string): number {
+  const js = parseDay(dayId).getDay();
+  return js === 0 ? 7 : js;
+}
+
 /**
  * ¿El hábito (seed) debe mostrarse en dayId según su recurrencia?
  * Solo días >= inicio del seed.
+ *
+ * `weekdays`:
+ * - omitido: frequency + interval clásico
+ * - `[]`: solo el día seed (plan de fechas concretas; el resto son filas físicas)
+ * - `[1,3,5]`: esos días ISO, cada `interval` semanas desde el seed
  */
 export function habitShouldAppearOnDay(
   seedStartDayId: string,
@@ -73,10 +84,20 @@ export function habitShouldAppearOnDay(
   recurrence: Recurrence | null | undefined
 ): boolean {
   if (dayId < seedStartDayId) return false;
-  const freq = recurrence?.frequency ?? 'daily';
-  const interval = Math.max(1, recurrence?.interval ?? 1);
   const diff = dayDiff(seedStartDayId, dayId);
   if (diff < 0) return false;
+
+  const weekdays = recurrence?.weekdays;
+  if (Array.isArray(weekdays)) {
+    if (weekdays.length === 0) return dayId === seedStartDayId;
+    if (!weekdays.includes(isoWeekdayFromDayId(dayId))) return false;
+    const interval = Math.max(1, recurrence?.interval ?? 1);
+    if (interval <= 1) return true;
+    return Math.floor(diff / 7) % interval === 0;
+  }
+
+  const freq = recurrence?.frequency ?? 'daily';
+  const interval = Math.max(1, recurrence?.interval ?? 1);
   if (freq === 'daily' || freq === 'none') {
     return diff % interval === 0;
   }

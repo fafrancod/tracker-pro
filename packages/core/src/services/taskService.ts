@@ -484,10 +484,15 @@ function expandCreateInstances(
   const isEventLike = kind === 'event' || kind === 'possible_event';
   const rawFreq =
     payload.recurrenceFrequency ?? res.recurrence?.frequency;
+  const hasSpecific =
+    Array.isArray(payload.specificDayIds) && payload.specificDayIds.length > 0;
   const recurrence = normalizeRecurrence(
-    isHabit && (!rawFreq || rawFreq === 'none') ? 'daily' : rawFreq,
+    isHabit && !hasSpecific && (!rawFreq || rawFreq === 'none') ? 'daily' : rawFreq,
     payload.recurrenceInterval ?? res.recurrence?.interval,
-    payload.recurrenceMonthlyAnchor ?? res.recurrence?.monthlyAnchor
+    payload.recurrenceMonthlyAnchor ?? res.recurrence?.monthlyAnchor,
+    payload.recurrenceWeekdays ??
+      res.recurrence?.weekdays ??
+      (hasSpecific ? [] : undefined)
   );
   const seriesId =
     (res.seriesId as string | null | undefined) ??
@@ -649,6 +654,8 @@ export async function createTask(
     financeCurrency: payload.financeCurrency,
     financeCertainty: payload.financeCertainty,
     pomodoroTarget: payload.pomodoroTarget,
+    recurrenceWeekdays: payload.recurrenceWeekdays,
+    specificDayIds: payload.specificDayIds,
     eventId,
   });
 
@@ -1284,7 +1291,10 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
           (raw.recurrenceMonthlyAnchor as string | undefined) ??
           (raw.recurrence as { monthlyAnchor?: string } | undefined)
             ?.monthlyAnchor
-      )
+      ),
+      raw.recurrence_weekdays ??
+        raw.recurrenceWeekdays ??
+        (raw.recurrence as { weekdays?: unknown } | undefined)?.weekdays
     ),
     endDayId: endDayId || startDayId,
     urgency: urgencyRaw === 'urgent' || urgencyRaw === 'not_urgent' ? urgencyRaw : null,

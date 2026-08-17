@@ -4,6 +4,7 @@ import {
   MAX_TASK_IMAGES,
   normalizePomodoroCount,
   normalizeTaskImages,
+  uniqueSortedDayIds,
 } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -21,6 +22,7 @@ import {
   materializeOccurrenceRanges,
   normalizeMonthlyAnchor,
   normalizeRecurrence,
+  normalizeWeekdays,
   type MonthlyAnchor,
   type RecurrenceFrequency,
 } from '../lib/recurrence.js';
@@ -293,6 +295,11 @@ const createSchema = taskLocation.extend({
   financeCurrency: z.string().min(1).max(8).optional(),
   financeCertainty: financeCertaintySchema.optional(),
   pomodoroTarget: pomodoroCountSchema.optional(),
+  recurrenceWeekdays: z.array(z.number().int().min(1).max(7)).max(7).nullable().optional(),
+  specificDayIds: z
+    .array(z.string().refine(isValidDayId, 'specificDayIds formato YYYY-MM-DD'))
+    .max(90)
+    .optional(),
 });
 
 const updateSchema = z
@@ -340,6 +347,11 @@ const updateSchema = z
     financeCertainty: financeCertaintySchema.optional(),
     pomodoroTarget: pomodoroCountSchema.optional(),
     pomodoroDone: pomodoroCountSchema.optional(),
+    recurrenceWeekdays: z.array(z.number().int().min(1).max(7)).max(7).nullable().optional(),
+    specificDayIds: z
+      .array(z.string().refine(isValidDayId, 'specificDayIds formato YYYY-MM-DD'))
+      .max(90)
+      .optional(),
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -394,7 +406,8 @@ function toClientTask(
       frequency,
       interval,
       (row.recurrence_anchor as MonthlyAnchor | undefined) ??
-        (row.recurrenceMonthlyAnchor as MonthlyAnchor | undefined)
+        (row.recurrenceMonthlyAnchor as MonthlyAnchor | undefined),
+      row.recurrence_weekdays ?? row.recurrenceWeekdays
     ),
     urgency: (row.urgency as string | null | undefined) ?? null,
     importance: (row.importance as string | null | undefined) ?? null,
@@ -567,6 +580,8 @@ tasksRouter.post('/', async (req, res, next) => {
       financeCurrency,
       financeCertainty,
       pomodoroTarget: rawPomodoroTarget,
+      recurrenceWeekdays: rawWeekdays,
+      specificDayIds: rawSpecificDayIds,
     } = createSchema.parse(req.body);
 
     const taskKind = kind ?? 'task';
@@ -733,37 +748,61 @@ tasksRouter.post('/', async (req, res, next) => {
     } else {
       // ——— Tarea / recordatorio / eventos / hábitos (recurrence materialization) ———
       const isHabit = isHabitKind(taskKind);
+      const specificDays = uniqueSortedDayIds(rawSpecificDayIds);
+      if (specificDays.length > 0 && !isHabit) {
+        throw ApiError.badRequest(
+          'specificDayIds solo aplica a hábitos (habit_good / habit_quit)'
+        );
+      }
+      const requestedWeekdays = normalizeWeekdays(rawWeekdays);
+      const isSpecificPlan = isHabit && specificDays.length > 0;
+      const hasWeekdayPlan =
+        isHabit && !isSpecificPlan && Boolean(requestedWeekdays?.length);
+
       // Hábitos: un día por instancia (no multi-día) y, por defecto, diarios.
-      const endDayId = isHabit ? dayId : (rawEndDayId ?? dayId);
-      if (endDayId < dayId) {
+      const planStartDayId = isSpecificPlan ? specificDays[0]! : dayId;
+      const endDayId = isHabit ? planStartDayId : (rawEndDayId ?? dayId);
+      if (endDayId < dayId && !isSpecificPlan) {
         throw ApiError.badRequest('endDayId debe ser >= dayId');
       }
 
+      const habitFrequency: RecurrenceFrequency = isSpecificPlan
+        ? 'none'
+        : hasWeekdayPlan
+          ? recurrenceFrequency &&
+            recurrenceFrequency !== 'none' &&
+            recurrenceFrequency !== 'daily'
+            ? recurrenceFrequency
+            : 'weekly'
+          : isHabit && (!recurrenceFrequency || recurrenceFrequency === 'none')
+            ? 'daily'
+            : (recurrenceFrequency ?? 'none');
+
       const recurrence = normalizeRecurrence(
-        isHabit && (!recurrenceFrequency || recurrenceFrequency === 'none')
-          ? 'daily'
-          : recurrenceFrequency,
+        habitFrequency,
         recurrenceInterval,
-        recurrenceMonthlyAnchor
+        recurrenceMonthlyAnchor,
+        isSpecificPlan ? [] : requestedWeekdays
       );
-      const isMultiDay = endDayId > dayId;
+      const isMultiDay = !isHabit && endDayId > dayId;
       if (isMultiDay && !isMultiDayRecurrenceAllowed(recurrence.frequency)) {
         throw ApiError.badRequest(
           'Las tareas de varios días solo admiten repetición none, monthly o yearly'
         );
       }
 
-      // Hábitos lazy (roadmap Fase 2): solo seed del día de inicio.
-      // El resto de días se materializa al completar o se muestra virtual en cliente.
-      const occurrenceRanges = isHabit
-        ? [{ dayId, endDayId: dayId }]
-        : materializeOccurrenceRanges(
-            dayId,
-            endDayId,
-            recurrence.frequency,
-            recurrence.interval,
-            recurrence.monthlyAnchor
-          );
+      // Hábitos lazy: seed (y, si hay plan concreto, una fila por fecha).
+      const occurrenceRanges = isSpecificPlan
+        ? specificDays.map(id => ({ dayId: id, endDayId: id }))
+        : isHabit
+          ? [{ dayId: planStartDayId, endDayId: planStartDayId }]
+          : materializeOccurrenceRanges(
+              dayId,
+              endDayId,
+              recurrence.frequency,
+              recurrence.interval,
+              recurrence.monthlyAnchor
+            );
 
       const [plan, usage] = await Promise.all([
         readProfilePlan(uid),
@@ -795,12 +834,18 @@ tasksRouter.post('/', async (req, res, next) => {
       // #hashtags en el título se convierten en tags reutilizables
       const mergedTags = mergeTags(tags, extractHashtags(title));
 
+      const weekdaysForRow = isSpecificPlan
+        ? []
+        : hasWeekdayPlan
+          ? (recurrence.weekdays ?? requestedWeekdays)
+          : undefined;
+
       for (const range of occurrenceRanges) {
         const occWeekId =
           range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId);
         const order = orderByDay.get(range.dayId) ?? 0;
         orderByDay.set(range.dayId, order + 1);
-        rows.push({
+        const row: Record<string, unknown> = {
           id: generateId(),
           user_id: uid,
           week_id: occWeekId,
@@ -864,7 +909,11 @@ tasksRouter.post('/', async (req, res, next) => {
           pomodoro_done: 0,
           created_at: now,
           updated_at: now,
-        });
+        };
+        if (weekdaysForRow !== undefined) {
+          row.recurrence_weekdays = weekdaysForRow;
+        }
+        rows.push(row);
       }
     }
 
@@ -1040,6 +1089,24 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     }
     if (patch.pomodoroTarget !== undefined) {
       seriesUpdate.pomodoro_target = normalizePomodoroCount(patch.pomodoroTarget);
+    }
+    if (patch.recurrenceFrequency !== undefined) {
+      seriesUpdate.recurrence_frequency = patch.recurrenceFrequency;
+    }
+    if (patch.recurrenceInterval !== undefined) {
+      seriesUpdate.recurrence_interval = patch.recurrenceInterval;
+    }
+    if (patch.recurrenceMonthlyAnchor !== undefined) {
+      seriesUpdate.recurrence_anchor =
+        patch.recurrenceMonthlyAnchor === null
+          ? null
+          : normalizeMonthlyAnchor(patch.recurrenceMonthlyAnchor);
+    }
+    if (patch.recurrenceWeekdays !== undefined) {
+      seriesUpdate.recurrence_weekdays =
+        patch.recurrenceWeekdays === null
+          ? null
+          : (normalizeWeekdays(patch.recurrenceWeekdays) ?? []);
     }
     // steps/images: solo en la instancia (roadmap §1.7). No volcar a toda la serie.
 
@@ -1281,6 +1348,12 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       }
       if (patch.pomodoroDone !== undefined) {
         update.pomodoro_done = normalizePomodoroCount(patch.pomodoroDone);
+      }
+      if (patch.recurrenceWeekdays !== undefined) {
+        update.recurrence_weekdays =
+          patch.recurrenceWeekdays === null
+            ? null
+            : (normalizeWeekdays(patch.recurrenceWeekdays) ?? []);
       }
       if (
         patch.rxAmount !== undefined ||
@@ -1620,6 +1693,9 @@ tasksRouter.post('/habit-ensure', async (req, res, next) => {
       created_at: now,
       updated_at: now,
     };
+    if (template.recurrence_weekdays !== undefined) {
+      row.recurrence_weekdays = template.recurrence_weekdays;
+    }
 
     const { error: insErr } = await getSupabaseAdmin().from('tasks').insert(row);
     if (insErr) throw insErr;

@@ -24,6 +24,7 @@ export interface TranslationDict {
   nav_reflections: string;
   nav_recetario: string;
   nav_finances: string;
+  nav_habits: string;
 
   // Finances
   fin_add: string;
@@ -933,6 +934,57 @@ export interface TranslationDict {
   circle_commitments_desc: string;
   circle_commitments_empty: string;
   circle_commitments_error: string;
+
+  habits_subtitle: string;
+  habits_new: string;
+  habits_edit: string;
+  habits_create: string;
+  habits_form_desc: string;
+  habits_kind: string;
+  habits_name: string;
+  habits_name_ph_good: string;
+  habits_name_ph_quit: string;
+  habits_notes: string;
+  habits_notes_ph: string;
+  habits_color: string;
+  habits_start: string;
+  habits_plan: string;
+  habits_plan_every_day: string;
+  habits_plan_weekdays: string;
+  habits_plan_every_n: string;
+  habits_plan_monthly: string;
+  habits_plan_specific: string;
+  habits_plan_interval: string;
+  habits_plan_add_day: string;
+  habits_plan_days_empty: string;
+  habits_plan_summary_daily: string;
+  habits_plan_summary_every_n: string;
+  habits_plan_summary_weekly: string;
+  habits_plan_summary_weekdays: string;
+  habits_plan_summary_monthly: string;
+  habits_plan_summary_yearly: string;
+  habits_plan_summary_specific: string;
+  habits_empty: string;
+  habits_empty_hint: string;
+  habits_created: string;
+  habits_updated: string;
+  habits_deleted: string;
+  habits_save_error: string;
+  habits_delete_error: string;
+  habits_delete_title: string;
+  habits_delete_confirm: string;
+  habits_filter_all: string;
+  habits_load_error: string;
+  habits_loading: string;
+  habits_adherence: string;
+  habits_streak: string;
+  habits_best_streak: string;
+  habits_expected: string;
+  habits_done: string;
+  habits_pomo_week: string;
+  habits_last_30: string;
+  habits_heatmap: string;
+  habits_sql_needed: string;
 }
 
 const es_dict: TranslationDict = {
@@ -952,6 +1004,7 @@ const es_dict: TranslationDict = {
   nav_reflections: 'Reflexiones',
   nav_recetario: 'Recetario',
   nav_finances: 'Finances',
+  nav_habits: 'Hábitos',
   fin_add: 'Añadir movimiento',
   fin_edit: 'Editar movimiento',
   fin_this_month: 'Este mes',
@@ -1939,6 +1992,60 @@ const es_dict: TranslationDict = {
     'Tareas y citas pendientes en los próximos {days} días etiquetadas con @ de esta persona o mascota.',
   circle_commitments_empty: 'No hay compromisos futuros con este contacto.',
   circle_commitments_error: 'No pudimos cargar los compromisos.',
+  habits_subtitle:
+    'Declara tus hábitos, genera un plan (días de la semana o fechas concretas) y mira cómo vas.',
+  habits_new: 'Nuevo hábito',
+  habits_edit: 'Editar hábito',
+  habits_create: 'Crear hábito',
+  habits_form_desc: 'El plan se refleja en el calendario. Completar un día cuenta para la racha.',
+  habits_kind: 'Tipo',
+  habits_name: 'Nombre',
+  habits_name_ph_good: 'Ej. Meditar, leer, ir al gym…',
+  habits_name_ph_quit: 'Ej. Redes, azúcares, tabaco…',
+  habits_notes: 'Notas',
+  habits_notes_ph: 'Por qué importa, disparador, recompensa…',
+  habits_color: 'Color',
+  habits_start: 'Empieza el',
+  habits_plan: 'Plan',
+  habits_plan_every_day: 'Cada día',
+  habits_plan_weekdays: 'Días de la semana',
+  habits_plan_every_n: 'Cada N días',
+  habits_plan_monthly: 'Cada mes',
+  habits_plan_specific: 'Días concretos',
+  habits_plan_interval: 'Cada cuántos días',
+  habits_plan_add_day: 'Añadir fecha',
+  habits_plan_days_empty: 'Añade al menos una fecha para este plan.',
+  habits_plan_summary_daily: 'Cada día',
+  habits_plan_summary_every_n: 'Cada {n} días',
+  habits_plan_summary_weekly: 'Cada semana',
+  habits_plan_summary_weekdays: 'Días fijos',
+  habits_plan_summary_monthly: 'Cada mes',
+  habits_plan_summary_yearly: 'Cada año',
+  habits_plan_summary_specific: '{n} días concretos',
+  habits_empty: 'Aún no has declarado hábitos',
+  habits_empty_hint:
+    'Crea uno y elige si se repite o si solo quieres fechas concretas. El calendario y estas analíticas se alimentan del mismo plan.',
+  habits_created: 'Hábito creado',
+  habits_updated: 'Hábito actualizado',
+  habits_deleted: 'Hábito eliminado',
+  habits_save_error: 'No se pudo guardar el hábito.',
+  habits_delete_error: 'No se pudo eliminar el hábito.',
+  habits_delete_title: 'Eliminar hábito',
+  habits_delete_confirm:
+    'Se borrará «{name}» y todas sus instancias del calendario. Esta acción no se puede deshacer.',
+  habits_filter_all: 'Todos',
+  habits_load_error: 'No se pudieron cargar los hábitos.',
+  habits_loading: 'Cargando hábitos…',
+  habits_adherence: 'Adherencia',
+  habits_streak: 'Racha',
+  habits_best_streak: 'Mejor racha (30 días)',
+  habits_expected: 'Días previstos',
+  habits_done: 'Hechos',
+  habits_pomo_week: 'Pomodoros',
+  habits_last_30: 'Últimos 30 días',
+  habits_heatmap: 'Últimos 30 días',
+  habits_sql_needed:
+    'Falta una columna en Supabase (recurrence_weekdays). Ejecuta el SQL de hábitos y vuelve a intentar.',
 };
 
 const en_dict: TranslationDict = {
@@ -1957,6 +2064,7 @@ const en_dict: TranslationDict = {
   nav_life_goals: 'Life goals',
   nav_reflections: 'Reflections',
   nav_recetario: 'Prescriptions',
+  nav_habits: 'Habits',
   nav_finances: 'Finances',
   fin_add: 'Add entry',
   fin_edit: 'Edit entry',
@@ -2944,6 +3052,60 @@ const en_dict: TranslationDict = {
     'Pending tasks and dates in the next {days} days tagged with @ for this person or pet.',
   circle_commitments_empty: 'No future commitments with this contact.',
   circle_commitments_error: 'Could not load commitments.',
+  habits_subtitle:
+    'Declare your habits, set a plan (weekdays or specific dates) and track how you are doing.',
+  habits_new: 'New habit',
+  habits_edit: 'Edit habit',
+  habits_create: 'Create habit',
+  habits_form_desc: 'The plan shows on the calendar. Completing a day counts toward your streak.',
+  habits_kind: 'Type',
+  habits_name: 'Name',
+  habits_name_ph_good: 'e.g. Meditate, read, go to the gym…',
+  habits_name_ph_quit: 'e.g. Social media, sugar, smoking…',
+  habits_notes: 'Notes',
+  habits_notes_ph: 'Why it matters, trigger, reward…',
+  habits_color: 'Color',
+  habits_start: 'Starts on',
+  habits_plan: 'Plan',
+  habits_plan_every_day: 'Every day',
+  habits_plan_weekdays: 'Weekdays',
+  habits_plan_every_n: 'Every N days',
+  habits_plan_monthly: 'Every month',
+  habits_plan_specific: 'Specific days',
+  habits_plan_interval: 'Every how many days',
+  habits_plan_add_day: 'Add date',
+  habits_plan_days_empty: 'Add at least one date for this plan.',
+  habits_plan_summary_daily: 'Every day',
+  habits_plan_summary_every_n: 'Every {n} days',
+  habits_plan_summary_weekly: 'Every week',
+  habits_plan_summary_weekdays: 'Fixed weekdays',
+  habits_plan_summary_monthly: 'Every month',
+  habits_plan_summary_yearly: 'Every year',
+  habits_plan_summary_specific: '{n} specific days',
+  habits_empty: 'No habits declared yet',
+  habits_empty_hint:
+    'Create one and choose a repeating plan or specific dates. The calendar and these analytics share that plan.',
+  habits_created: 'Habit created',
+  habits_updated: 'Habit updated',
+  habits_deleted: 'Habit deleted',
+  habits_save_error: 'Could not save the habit.',
+  habits_delete_error: 'Could not delete the habit.',
+  habits_delete_title: 'Delete habit',
+  habits_delete_confirm:
+    'This will delete “{name}” and all its calendar instances. This cannot be undone.',
+  habits_filter_all: 'All',
+  habits_load_error: 'Could not load habits.',
+  habits_loading: 'Loading habits…',
+  habits_adherence: 'Adherence',
+  habits_streak: 'Streak',
+  habits_best_streak: 'Best streak (30 days)',
+  habits_expected: 'Expected days',
+  habits_done: 'Done',
+  habits_pomo_week: 'Pomodoros',
+  habits_last_30: 'Last 30 days',
+  habits_heatmap: 'Last 30 days',
+  habits_sql_needed:
+    'A Supabase column is missing (recurrence_weekdays). Run the habits SQL and try again.',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

@@ -150,8 +150,18 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
       movedFrom: null,
       seriesId,
       recurrence: {
-        frequency: isHabit && frequency === 'none' ? 'daily' : frequency,
+        frequency:
+          Array.isArray(json?.specificDayIds) && json.specificDayIds.length > 0
+            ? 'none'
+            : isHabit && frequency === 'none'
+              ? 'daily'
+              : frequency,
         interval,
+        weekdays: Array.isArray(json?.recurrenceWeekdays)
+          ? json.recurrenceWeekdays
+          : Array.isArray(json?.specificDayIds) && json.specificDayIds.length > 0
+            ? []
+            : undefined,
       },
       startTime: json?.startTime ?? null,
       endTime: json?.endTime ?? null,

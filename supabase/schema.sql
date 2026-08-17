@@ -569,6 +569,31 @@ revoke all on function public.admin_user_stats() from public;
 revoke all on function public.admin_user_stats() from anon, authenticated;
 grant execute on function public.admin_user_stats() to service_role;
 
+-- Hábitos: plan (días ISO 1=lun … 7=dom). NULL = clásico; [] = fechas concretas.
+alter table public.tasks add column if not exists recurrence_weekdays int[];
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'tasks_recurrence_weekdays_check'
+      and conrelid = 'public.tasks'::regclass
+  ) then
+    alter table public.tasks
+      add constraint tasks_recurrence_weekdays_check
+      check (
+        recurrence_weekdays is null
+        or (
+          cardinality(recurrence_weekdays) <= 7
+          and not exists (
+            select 1
+            from unnest(recurrence_weekdays) as d
+            where d < 1 or d > 7
+          )
+        )
+      );
+  end if;
+end $$;
+
 -- Hábitos: plan diario de pomodoros (serie) + conteo del día (instancia)
 alter table public.tasks add column if not exists pomodoro_target int not null default 0;
 alter table public.tasks add column if not exists pomodoro_done int not null default 0;
