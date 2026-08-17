@@ -4,7 +4,7 @@
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
 **Versión del repo al escribir:** v2.24.0.
 
-**Estado:** Fases 1–6 en `main` (v2.28). Siguiente: Fase 7 créditos y cuotas.
+**Estado:** Fases 1–8 en `main` (v2.30). Siguiente: Fase 9 salud financiera.
 
 **Respuesta corta:** dos calendarios, un libro, cifrado **con la cuenta**. El tablero no es el mayor. Login = ves el dinero. Restablecer la contraseña **no** pierde importes. La bóveda privada (frase + 12 palabras) queda como legado opt-in, no como default.
 
@@ -403,6 +403,13 @@ Crédito ≠ compra en 12 cuotas (grupo en movimientos).
 ### Fase 8 — Inversiones
 
 Mismo ledger. Tab que aparece ahora. Quotes vía API propia, fixtures en CI. Cliente descifra ticker y pide cotización.
+
+- [x] `flow=investment` en el mismo `finance_movements` (sin tabla nueva).
+- [x] Ticker / qty / invertido solo en `payload_enc`.
+- [x] Tab Inversiones: lots agrupados por ticker.
+- [x] Venta cierra lot (`investmentStatus=sold`) + movimiento inflow.
+- [x] `GET /api/finances/investments/quote|search` (fixtures en CI; sin red → «sin cotización»).
+- [x] Compra visible en el calendario el `day_id`.
 
 **Hecho:** 2 lots se agrupan; una venta cierra lot + inflow; sin red, “sin cotización”; SQL sin `AAPL` ni notional; el martes se ve en el calendario.
 

@@ -33,6 +33,7 @@ import { FinanceVaultGate } from '@/components/Finances/FinanceVaultGate';
 import { AccountsPanel } from '@/components/Finances/AccountsPanel';
 import { GoalsPanel } from '@/components/Finances/GoalsPanel';
 import { CreditsPanel } from '@/components/Finances/CreditsPanel';
+import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -100,6 +101,9 @@ interface MovementForm {
   installmentTotal: number;
   creditPayment: boolean;
   creditId: string;
+  ticker: string;
+  assetName: string;
+  quantity: number;
 }
 
 function emptyForm(dayId: string, currency: string): MovementForm {
@@ -121,6 +125,9 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     installmentTotal: 1,
     creditPayment: false,
     creditId: '',
+    ticker: '',
+    assetName: '',
+    quantity: 1,
   };
 }
 
@@ -157,12 +164,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   );
   const [deleteTarget, setDeleteTarget] = useState<FinanceMovement | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [filterFlow, setFilterFlow] = useState<'all' | 'income' | 'expense'>(
-    'all'
-  );
-  const [hub, setHub] = useState<'calendar' | 'accounts' | 'goals' | 'credits'>(
-    'calendar'
-  );
+  const [filterFlow, setFilterFlow] = useState<
+    'all' | 'income' | 'expense' | 'investment'
+  >('all');
+  const [hub, setHub] = useState<
+    'calendar' | 'accounts' | 'goals' | 'credits' | 'investments'
+  >('calendar');
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [goals, setGoals] = useState<FinanceGoal[]>([]);
   const [credits, setCredits] = useState<FinanceCredit[]>([]);
@@ -325,7 +332,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     setEditing(mov);
     setForm({
       dayId: mov.dayId,
-      flow: mov.flow === 'investment' ? 'expense' : mov.flow,
+      flow: mov.flow,
       status: mov.status,
       currency: mov.currency,
       title: mov.title,
@@ -338,6 +345,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       installmentTotal: mov.installmentTotal ?? 1,
       creditPayment: mov.tag === 'credit_payment',
       creditId: mov.creditId ?? '',
+      ticker: mov.ticker ?? '',
+      assetName: mov.assetName ?? '',
+      quantity: mov.quantity ?? 1,
       notes: mov.notes,
       repeat: 'none',
       recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
@@ -346,9 +356,17 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }
 
   async function handleSave() {
-    const title = form.title.trim();
+    const isInvest = form.flow === 'investment';
+    const ticker = form.ticker.trim().toUpperCase();
+    const title =
+      form.title.trim() ||
+      (isInvest ? form.assetName.trim() || ticker : '');
     if (!title) {
       showToast(t('fin_title_required'), 'error');
+      return;
+    }
+    if (isInvest && !ticker) {
+      showToast(t('fin_invest_ticker_required'), 'error');
       return;
     }
     const fx = await resolveFinanceFx({
@@ -366,16 +384,27 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       amount: form.amount,
       notes: form.notes,
       accountId: form.accountId || null,
-      cardAccountId: form.cardPayment ? form.cardAccountId || null : null,
-      goalId: form.goalContribution ? form.goalId || null : null,
-      creditId: form.creditPayment ? form.creditId || null : null,
-      tag: form.creditPayment
-        ? 'credit_payment'
-        : form.goalContribution
-          ? 'goal_contribution'
-          : form.cardPayment
-            ? 'card_payment'
-            : null,
+      cardAccountId:
+        !isInvest && form.cardPayment ? form.cardAccountId || null : null,
+      goalId:
+        !isInvest && form.goalContribution ? form.goalId || null : null,
+      creditId: !isInvest && form.creditPayment ? form.creditId || null : null,
+      tag: isInvest
+        ? null
+        : form.creditPayment
+          ? 'credit_payment'
+          : form.goalContribution
+            ? 'goal_contribution'
+            : form.cardPayment
+              ? 'card_payment'
+              : null,
+      investmentSide: isInvest ? editing?.investmentSide ?? 'buy' : null,
+      ticker: isInvest ? ticker : null,
+      assetName: isInvest ? form.assetName.trim() || ticker : null,
+      quantity: isInvest ? form.quantity : null,
+      investedAmount: isInvest ? form.amount : null,
+      investmentStatus: isInvest ? editing?.investmentStatus ?? 'open' : null,
+      closesLotId: isInvest ? editing?.closesLotId ?? null : null,
       installmentTotal:
         form.installmentTotal > 1 ? form.installmentTotal : undefined,
       ...fx,
@@ -412,6 +441,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             exchangeRate: payload.exchangeRate,
             fxPending: payload.fxPending,
             reportingCurrency: payload.reportingCurrency,
+            investmentSide: payload.investmentSide,
+            ticker: payload.ticker,
+            assetName: payload.assetName,
+            quantity: payload.quantity,
+            investedAmount: payload.investedAmount,
+            investmentStatus: payload.investmentStatus,
+            closesLotId: payload.closesLotId,
             updatedAt: editing.updatedAt,
           },
           vault ?? undefined
@@ -468,7 +504,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     >
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
         <div className="flex gap-1">
-          {(['calendar', 'accounts', 'goals', 'credits'] as const).map(id => (
+          {(
+            ['calendar', 'accounts', 'goals', 'credits', 'investments'] as const
+          ).map(id => (
             <button
               key={id}
               type="button"
@@ -486,7 +524,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                   ? t('fin_tab_accounts')
                   : id === 'goals'
                     ? t('fin_tab_goals')
-                    : t('fin_tab_credits')}
+                    : id === 'credits'
+                      ? t('fin_tab_credits')
+                      : t('fin_tab_investments')}
             </button>
           ))}
         </div>
@@ -514,6 +554,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             goals={goals}
             accounts={accounts}
             movements={ledgerMovements.length ? ledgerMovements : movements}
+            todayDayId={todayId}
+            defaultCurrency={preferred}
+            onChanged={reload}
+          />
+        ) : null}
+
+        {hub === 'investments' ? (
+          <InvestmentsPanel
+            movements={ledgerMovements.length ? ledgerMovements : movements}
+            accounts={accounts}
             todayDayId={todayId}
             defaultCurrency={preferred}
             onChanged={reload}
@@ -620,7 +670,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         )}
 
         <div className="flex flex-wrap gap-1.5">
-          {(['all', 'expense', 'income'] as const).map(id => (
+          {(['all', 'expense', 'income', 'investment'] as const).map(id => (
             <button
               key={id}
               type="button"
@@ -636,7 +686,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 ? t('fin_filter_all_flows')
                 : id === 'income'
                   ? t('fin_flow_income')
-                  : t('fin_flow_expense')}
+                  : id === 'investment'
+                    ? t('fin_flow_investment')
+                    : t('fin_flow_expense')}
             </button>
           ))}
           {accounts.length > 0 && (
@@ -711,12 +763,18 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             'block truncate rounded px-1 py-0.5 text-[10px] leading-tight',
                             mov.flow === 'income'
                               ? 'bg-accent-green/15 text-accent-green'
-                              : 'bg-accent-red/15 text-accent-red',
+                              : mov.flow === 'investment'
+                                ? 'bg-accent-teal/15 text-accent-teal'
+                                : 'bg-accent-red/15 text-accent-red',
                             mov.status === 'planned' && 'opacity-70',
                             mov.virtual && 'border border-dashed border-current'
                           )}
                         >
-                          {mov.flow === 'income' ? '+' : '−'}
+                          {mov.flow === 'income'
+                            ? '+'
+                            : mov.flow === 'investment'
+                              ? '◆'
+                              : '−'}
                           {mov.title}
                           {mov.fxPending ? ' · FX' : ''}
                         </span>
@@ -770,13 +828,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                   onChange={e =>
                     setForm(f => ({
                       ...f,
-                      flow: e.target.value as 'income' | 'expense',
+                      flow: e.target.value as FinanceMovementFlow,
                     }))
                   }
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
                   <option value="expense">{t('fin_flow_expense')}</option>
                   <option value="income">{t('fin_flow_income')}</option>
+                  <option value="investment">{t('fin_flow_investment')}</option>
                 </select>
               </label>
               <label className="block space-y-1 text-xs text-text-muted">
@@ -824,6 +883,46 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </select>
               </label>
             </div>
+            {form.flow === 'investment' && (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block space-y-1 text-xs text-text-muted">
+                    <span>{t('fin_invest_ticker')}</span>
+                    <Input
+                      value={form.ticker}
+                      onChange={e =>
+                        setForm(f => ({
+                          ...f,
+                          ticker: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      className="h-9 text-sm uppercase"
+                      placeholder="AAPL"
+                    />
+                  </label>
+                  <label className="block space-y-1 text-xs text-text-muted">
+                    <span>{t('fin_invest_qty')}</span>
+                    <DecimalInput
+                      value={form.quantity}
+                      onChange={v => setForm(f => ({ ...f, quantity: v }))}
+                      min={0}
+                      max={1_000_000_000}
+                      className="h-9 text-sm"
+                    />
+                  </label>
+                </div>
+                <label className="block space-y-1 text-xs text-text-muted">
+                  <span>{t('fin_invest_name')}</span>
+                  <Input
+                    value={form.assetName}
+                    onChange={e =>
+                      setForm(f => ({ ...f, assetName: e.target.value }))
+                    }
+                    className="h-9 text-sm"
+                  />
+                </label>
+              </>
+            )}
             {accounts.length > 0 && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_account')}</span>
@@ -991,7 +1090,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 className="h-9 text-sm"
               />
             </label>
-            {!editing && (
+            {!editing && form.flow !== 'investment' && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_repeat')}</span>
                 <select

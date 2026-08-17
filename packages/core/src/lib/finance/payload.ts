@@ -3,6 +3,8 @@ import { normalizeCurrencyCode } from '../currencies';
 import type {
   FinanceAccountPayload,
   FinanceAccountType,
+  FinanceInvestmentSide,
+  FinanceInvestmentStatus,
   FinanceMovementFlow,
   FinanceMovementPayload,
   FinanceMovementStatus,
@@ -48,9 +50,29 @@ export function normalizeAccountType(raw: unknown): FinanceAccountType {
   return 'other';
 }
 
+export function normalizeInvestmentSide(raw: unknown): FinanceInvestmentSide | null {
+  if (raw === 'buy' || raw === 'sell') return raw;
+  return null;
+}
+
+export function normalizeInvestmentStatus(
+  raw: unknown
+): FinanceInvestmentStatus | null {
+  if (raw === 'open' || raw === 'sold') return raw;
+  return null;
+}
+
+export function normalizeTicker(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const ticker = raw.trim().toUpperCase().replace(/[^A-Z0-9.\-]/g, '').slice(0, 16);
+  return ticker || null;
+}
+
 export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const amount = Number(o.amount);
+  const qty = Number(o.quantity);
+  const invested = Number(o.investedAmount);
   return {
     title: typeof o.title === 'string' ? o.title.trim().slice(0, 160) : '',
     amount: Number.isFinite(amount) && amount >= 0 ? amount : 0,
@@ -73,6 +95,18 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
       typeof o.reportingCurrency === 'string'
         ? o.reportingCurrency.trim().toUpperCase().slice(0, 8)
         : null,
+    investmentSide: normalizeInvestmentSide(o.investmentSide),
+    ticker: normalizeTicker(o.ticker),
+    assetName:
+      typeof o.assetName === 'string' ? o.assetName.trim().slice(0, 80) : null,
+    quantity: Number.isFinite(qty) && qty > 0 ? qty : null,
+    investedAmount:
+      Number.isFinite(invested) && invested >= 0 ? invested : null,
+    investmentStatus: normalizeInvestmentStatus(o.investmentStatus),
+    closesLotId:
+      typeof o.closesLotId === 'string' && o.closesLotId.trim()
+        ? o.closesLotId.trim().slice(0, 80)
+        : null,
   };
 }
 
@@ -87,6 +121,13 @@ export function buildFinancePayload(input: {
   exchangeRate?: number | null;
   fxPending?: boolean;
   reportingCurrency?: string | null;
+  investmentSide?: FinanceInvestmentSide | null;
+  ticker?: string | null;
+  assetName?: string | null;
+  quantity?: number | null;
+  investedAmount?: number | null;
+  investmentStatus?: FinanceInvestmentStatus | null;
+  closesLotId?: string | null;
   existing?: FinanceMovementPayload;
 }): FinanceMovementPayload {
   const existing = input.existing;
@@ -112,6 +153,24 @@ export function buildFinancePayload(input: {
       input.reportingCurrency !== undefined
         ? input.reportingCurrency
         : existing?.reportingCurrency,
+    investmentSide:
+      input.investmentSide !== undefined
+        ? input.investmentSide
+        : existing?.investmentSide,
+    ticker: input.ticker !== undefined ? input.ticker : existing?.ticker,
+    assetName:
+      input.assetName !== undefined ? input.assetName : existing?.assetName,
+    quantity: input.quantity !== undefined ? input.quantity : existing?.quantity,
+    investedAmount:
+      input.investedAmount !== undefined
+        ? input.investedAmount
+        : existing?.investedAmount,
+    investmentStatus:
+      input.investmentStatus !== undefined
+        ? input.investmentStatus
+        : existing?.investmentStatus,
+    closesLotId:
+      input.closesLotId !== undefined ? input.closesLotId : existing?.closesLotId,
   });
 }
 

@@ -41,6 +41,7 @@ export interface TranslationDict {
   fin_expense_specific: string;
   fin_flow_income: string;
   fin_flow_expense: string;
+  fin_flow_investment: string;
   fin_kind_recurring: string;
   fin_kind_expected: string;
   fin_kind_specific: string;
@@ -54,6 +55,22 @@ export interface TranslationDict {
   fin_tab_accounts: string;
   fin_tab_goals: string;
   fin_tab_credits: string;
+  fin_tab_investments: string;
+  fin_invest_add: string;
+  fin_invest_empty: string;
+  fin_invest_empty_hint: string;
+  fin_invest_ticker: string;
+  fin_invest_name: string;
+  fin_invest_qty: string;
+  fin_invest_cost: string;
+  fin_invest_sell: string;
+  fin_invest_sell_title: string;
+  fin_invest_proceeds: string;
+  fin_invest_sold: string;
+  fin_invest_no_quote: string;
+  fin_invest_lots: string;
+  fin_invest_value: string;
+  fin_invest_ticker_required: string;
   fin_credit_add: string;
   fin_credit_edit: string;
   fin_credit_name: string;
@@ -1123,6 +1140,7 @@ const es_dict: TranslationDict = {
   fin_expense_specific: 'Gastos puntuales',
   fin_flow_income: 'Ingreso',
   fin_flow_expense: 'Gasto',
+  fin_flow_investment: 'Inversión',
   fin_kind_recurring: 'Recurrente',
   fin_kind_expected: 'Esperado',
   fin_kind_specific: 'Específico',
@@ -1135,6 +1153,23 @@ const es_dict: TranslationDict = {
   fin_tab_accounts: 'Cuentas',
   fin_tab_goals: 'Objetivos',
   fin_tab_credits: 'Créditos',
+  fin_tab_investments: 'Inversiones',
+  fin_invest_add: 'Añadir compra',
+  fin_invest_empty: 'Sin inversiones todavía',
+  fin_invest_empty_hint:
+    'Cada compra es un lot. El ticker viaja cifrado; si no hay red, ves «sin cotización».',
+  fin_invest_ticker: 'Ticker',
+  fin_invest_name: 'Nombre del activo',
+  fin_invest_qty: 'Cantidad',
+  fin_invest_cost: 'Importe invertido',
+  fin_invest_sell: 'Vender',
+  fin_invest_sell_title: 'Cerrar lot',
+  fin_invest_proceeds: 'Importe de la venta',
+  fin_invest_sold: 'Lot cerrado y venta anotada.',
+  fin_invest_no_quote: 'Sin cotización',
+  fin_invest_lots: '{n} lots',
+  fin_invest_value: 'Valor',
+  fin_invest_ticker_required: 'Indica el ticker.',
   fin_credit_add: 'Añadir crédito',
   fin_credit_edit: 'Editar crédito',
   fin_credit_name: 'Nombre',
@@ -2298,6 +2333,7 @@ const en_dict: TranslationDict = {
   fin_expense_specific: 'One-off expenses',
   fin_flow_income: 'Income',
   fin_flow_expense: 'Expense',
+  fin_flow_investment: 'Investment',
   fin_kind_recurring: 'Recurring',
   fin_kind_expected: 'Expected',
   fin_kind_specific: 'Specific',
@@ -2310,6 +2346,23 @@ const en_dict: TranslationDict = {
   fin_tab_accounts: 'Accounts',
   fin_tab_goals: 'Goals',
   fin_tab_credits: 'Credits',
+  fin_tab_investments: 'Investments',
+  fin_invest_add: 'Add buy',
+  fin_invest_empty: 'No investments yet',
+  fin_invest_empty_hint:
+    'Each buy is one lot. The ticker stays encrypted; offline shows “no quote”.',
+  fin_invest_ticker: 'Ticker',
+  fin_invest_name: 'Asset name',
+  fin_invest_qty: 'Quantity',
+  fin_invest_cost: 'Invested amount',
+  fin_invest_sell: 'Sell',
+  fin_invest_sell_title: 'Close lot',
+  fin_invest_proceeds: 'Sale proceeds',
+  fin_invest_sold: 'Lot closed and sale recorded.',
+  fin_invest_no_quote: 'No quote',
+  fin_invest_lots: '{n} lots',
+  fin_invest_value: 'Value',
+  fin_invest_ticker_required: 'Enter a ticker.',
   fin_credit_add: 'Add credit',
   fin_credit_edit: 'Edit credit',
   fin_credit_name: 'Name',

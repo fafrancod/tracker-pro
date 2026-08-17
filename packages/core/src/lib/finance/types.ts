@@ -20,6 +20,9 @@ export type FinanceMovementTag =
   | 'goal_contribution'
   | 'credit_payment';
 
+export type FinanceInvestmentSide = 'buy' | 'sell';
+export type FinanceInvestmentStatus = 'open' | 'sold';
+
 export type FinanceCreditKind = 'consumer' | 'mortgage' | 'auto' | 'other';
 
 export interface FinanceMovementPayload {
@@ -33,6 +36,13 @@ export interface FinanceMovementPayload {
   exchangeRate?: number | null;
   fxPending?: boolean;
   reportingCurrency?: string | null;
+  investmentSide?: FinanceInvestmentSide | null;
+  ticker?: string | null;
+  assetName?: string | null;
+  quantity?: number | null;
+  investedAmount?: number | null;
+  investmentStatus?: FinanceInvestmentStatus | null;
+  closesLotId?: string | null;
 }
 
 export interface FinanceAccountPayload {
@@ -121,6 +131,13 @@ export interface FinanceMovement {
   exchangeRate: number | null;
   fxPending: boolean;
   reportingCurrency: string | null;
+  investmentSide?: FinanceInvestmentSide | null;
+  ticker?: string | null;
+  assetName?: string | null;
+  quantity?: number | null;
+  investedAmount?: number | null;
+  investmentStatus?: FinanceInvestmentStatus | null;
+  closesLotId?: string | null;
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
@@ -179,6 +196,13 @@ export interface CreateFinanceMovementPayload {
   exchangeRate?: number | null;
   fxPending?: boolean;
   reportingCurrency?: string | null;
+  investmentSide?: FinanceInvestmentSide | null;
+  ticker?: string | null;
+  assetName?: string | null;
+  quantity?: number | null;
+  investedAmount?: number | null;
+  investmentStatus?: FinanceInvestmentStatus | null;
+  closesLotId?: string | null;
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -210,6 +234,13 @@ export interface UpdateFinanceMovementPayload {
   exchangeRate?: number | null;
   fxPending?: boolean;
   reportingCurrency?: string | null;
+  investmentSide?: FinanceInvestmentSide | null;
+  ticker?: string | null;
+  assetName?: string | null;
+  quantity?: number | null;
+  investedAmount?: number | null;
+  investmentStatus?: FinanceInvestmentStatus | null;
+  closesLotId?: string | null;
 }
 
 export interface FinanceMovementMonthSummary {

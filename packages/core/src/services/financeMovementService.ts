@@ -1,6 +1,7 @@
 import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
-import { parseFinancePayload } from '../lib/finance/payload';
+import { buildFinancePayload, parseFinancePayload } from '../lib/finance/payload';
+import type { TickerQuote, TickerSearchHit } from '../lib/finance/portfolio';
 import { expandFinanceRules } from '../lib/finance/expandRules';
 import {
   encryptFinancePayload,
@@ -103,6 +104,13 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
     exchangeRate: payload.exchangeRate ?? null,
     fxPending: Boolean(payload.fxPending),
     reportingCurrency: payload.reportingCurrency ?? null,
+    investmentSide: payload.investmentSide ?? null,
+    ticker: payload.ticker ?? null,
+    assetName: payload.assetName ?? null,
+    quantity: payload.quantity ?? null,
+    investedAmount: payload.investedAmount ?? null,
+    investmentStatus: payload.investmentStatus ?? null,
+    closesLotId: payload.closesLotId ?? null,
     ruleId: (raw.ruleId as string | null) ?? (raw.rule_id as string | null) ?? null,
     sourceTaskId:
       (raw.sourceTaskId as string | null) ??
@@ -242,6 +250,13 @@ export async function createFinanceMovement(
       exchangeRate: payload.exchangeRate ?? null,
       fxPending: Boolean(payload.fxPending),
       reportingCurrency: payload.reportingCurrency ?? null,
+      investmentSide: payload.investmentSide ?? null,
+      ticker: payload.ticker ?? null,
+      assetName: payload.assetName ?? null,
+      quantity: payload.quantity ?? null,
+      investedAmount: payload.investedAmount ?? payload.amount ?? 0,
+      investmentStatus: payload.investmentStatus ?? (payload.flow === 'investment' ? 'open' : null),
+      closesLotId: payload.closesLotId ?? null,
       ruleId,
       sourceTaskId: payload.sourceTaskId ?? null,
       createdAt: now,
@@ -256,7 +271,7 @@ export async function createFinanceMovement(
   if (vault) {
     const id = payload.id ?? newFinanceId('fm');
     const aad = financePayloadAad(vault.uid, 'finance_movements', id);
-    const inner = {
+    const inner = buildFinancePayload({
       title: payload.title ?? '',
       amount: payload.amount ?? 0,
       notes: payload.notes ?? '',
@@ -267,7 +282,14 @@ export async function createFinanceMovement(
       exchangeRate: payload.exchangeRate ?? null,
       fxPending: Boolean(payload.fxPending),
       reportingCurrency: payload.reportingCurrency ?? null,
-    };
+      investmentSide: payload.investmentSide,
+      ticker: payload.ticker,
+      assetName: payload.assetName,
+      quantity: payload.quantity,
+      investedAmount: payload.investedAmount,
+      investmentStatus: payload.investmentStatus,
+      closesLotId: payload.closesLotId,
+    });
     const payloadEnc = await encryptFinancePayload(vault.dek, inner, aad);
     let ruleId: string | undefined;
     let rulePayloadEnc: string | undefined;
@@ -300,6 +322,13 @@ export async function createFinanceMovement(
       exchangeRate: payload.exchangeRate,
       fxPending: payload.fxPending,
       reportingCurrency: payload.reportingCurrency,
+      investmentSide: payload.investmentSide,
+      ticker: payload.ticker,
+      assetName: payload.assetName,
+      quantity: payload.quantity,
+      investedAmount: payload.investedAmount,
+      investmentStatus: payload.investmentStatus,
+      closesLotId: payload.closesLotId,
     };
   }
   const res = await api.post<Record<string, unknown>>(
@@ -356,13 +385,25 @@ export async function updateFinanceMovement(
   if (vault && (payload.title !== undefined || payload.amount !== undefined)) {
     const payloadEnc = await encryptFinancePayload(
       vault.dek,
-      {
+      buildFinancePayload({
         title: payload.title ?? '',
         amount: payload.amount ?? 0,
         notes: payload.notes ?? '',
         certainty: payload.certainty ?? 'fixed',
         tag: payload.tag ?? null,
-      },
+        originalAmount: payload.originalAmount,
+        originalCurrency: payload.originalCurrency,
+        exchangeRate: payload.exchangeRate,
+        fxPending: payload.fxPending,
+        reportingCurrency: payload.reportingCurrency,
+        investmentSide: payload.investmentSide,
+        ticker: payload.ticker,
+        assetName: payload.assetName,
+        quantity: payload.quantity,
+        investedAmount: payload.investedAmount,
+        investmentStatus: payload.investmentStatus,
+        closesLotId: payload.closesLotId,
+      }),
       financePayloadAad(vault.uid, 'finance_movements', id)
     );
     body = {
@@ -525,6 +566,57 @@ export async function putFinanceVault(meta: {
 }): Promise<void> {
   if (isDemoMode()) return;
   await api.put('/api/finances/vault', meta);
+}
+
+export async function searchInvestmentTickers(
+  query: string
+): Promise<TickerSearchHit[]> {
+  const q = query.trim();
+  if (!q) return [];
+  if (isDemoMode()) {
+    const demo: TickerSearchHit[] = [
+      { symbol: 'AAPL', name: 'Apple Inc', exchange: 'NASDAQ', type: 'Common Stock' },
+      { symbol: 'SPY', name: 'SPDR S&P 500 ETF', exchange: 'ARCA', type: 'ETF' },
+    ];
+    const needle = q.toLowerCase();
+    return demo.filter(
+      row =>
+        row.symbol.toLowerCase().includes(needle) ||
+        row.name.toLowerCase().includes(needle)
+    );
+  }
+  try {
+    const res = await api.get<{ results?: TickerSearchHit[] }>(
+      `/api/finances/investments/search?q=${encodeURIComponent(q)}`
+    );
+    return res.results ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchInvestmentQuotes(
+  symbols: string[]
+): Promise<TickerQuote[]> {
+  const list = [...new Set(symbols.map(s => s.trim().toUpperCase()).filter(Boolean))];
+  if (list.length === 0) return [];
+  if (isDemoMode()) {
+    return list.map(symbol => ({
+      symbol,
+      name: symbol,
+      price: null,
+      currency: null,
+      changePercent: null,
+    }));
+  }
+  try {
+    const res = await api.get<{ quotes?: TickerQuote[] }>(
+      `/api/finances/investments/quote?symbols=${encodeURIComponent(list.join(','))}`
+    );
+    return res.quotes ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchFinanceLedger(): Promise<{

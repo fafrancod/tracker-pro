@@ -74,6 +74,13 @@ const createSchema = z
     exchangeRate: z.number().positive().max(1_000_000).nullable().optional(),
     fxPending: z.boolean().optional(),
     reportingCurrency: z.string().min(1).max(8).nullable().optional(),
+    investmentSide: z.enum(['buy', 'sell']).nullable().optional(),
+    ticker: z.string().max(16).nullable().optional(),
+    assetName: z.string().max(80).nullable().optional(),
+    quantity: z.number().positive().max(1_000_000_000_000).nullable().optional(),
+    investedAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
+    investmentStatus: z.enum(['open', 'sold']).nullable().optional(),
+    closesLotId: z.string().min(1).max(80).nullable().optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -115,6 +122,13 @@ const updateSchema = z
     exchangeRate: z.number().positive().max(1_000_000).nullable().optional(),
     fxPending: z.boolean().optional(),
     reportingCurrency: z.string().min(1).max(8).nullable().optional(),
+    investmentSide: z.enum(['buy', 'sell']).nullable().optional(),
+    ticker: z.string().max(16).nullable().optional(),
+    assetName: z.string().max(80).nullable().optional(),
+    quantity: z.number().positive().max(1_000_000_000_000).nullable().optional(),
+    investedAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
+    investmentStatus: z.enum(['open', 'sold']).nullable().optional(),
+    closesLotId: z.string().min(1).max(80).nullable().optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
     message: 'patch vacio',
@@ -183,13 +197,15 @@ function accountOpenPayload(
   dek: Buffer | null,
   kind: 'finance_movements' | 'finance_rules',
   row: Record<string, unknown>
-): { title: string; amount: number; notes: string; certainty: 'fixed' | 'potential' } | null {
+) {
   if (!dek) return null;
   const blob =
     typeof row.payload_enc === 'string' && row.payload_enc ? row.payload_enc : null;
   if (!blob) return null;
   try {
-    return decryptAccountPayload(uid, dek, kind, String(row.id ?? ''), blob);
+    return parseFinancePayload(
+      decryptAccountPayload(uid, dek, kind, String(row.id ?? ''), blob)
+    );
   } catch {
     return null;
   }
@@ -210,18 +226,7 @@ async function accountDekIfAny(uid: string): Promise<Buffer | null> {
 
 function mapMovement(
   row: Record<string, unknown>,
-  opened?: {
-    title: string;
-    amount: number;
-    notes: string;
-    certainty: 'fixed' | 'potential';
-    tag?: 'card_payment' | 'goal_contribution' | 'credit_payment' | null;
-    originalAmount?: number | null;
-    originalCurrency?: string | null;
-    exchangeRate?: number | null;
-    fxPending?: boolean;
-    reportingCurrency?: string | null;
-  } | null
+  opened?: ReturnType<typeof parseFinancePayload> | null
 ) {
   const clientSealed =
     !opened &&
@@ -230,7 +235,7 @@ function mapMovement(
   const payload = opened
     ? opened
     : clientSealed
-      ? { title: '', amount: 0, notes: '', certainty: 'fixed' as const }
+      ? parseFinancePayload({})
       : parseFinancePayload(row.payload);
   return {
     id: row.id as string,
@@ -257,6 +262,13 @@ function mapMovement(
     exchangeRate: payload.exchangeRate ?? null,
     fxPending: Boolean(payload.fxPending),
     reportingCurrency: payload.reportingCurrency ?? null,
+    investmentSide: payload.investmentSide ?? null,
+    ticker: payload.ticker ?? null,
+    assetName: payload.assetName ?? null,
+    quantity: payload.quantity ?? null,
+    investedAmount: payload.investedAmount ?? null,
+    investmentStatus: payload.investmentStatus ?? null,
+    closesLotId: payload.closesLotId ?? null,
     ruleId: (row.rule_id as string | null) ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
@@ -661,6 +673,13 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           exchangeRate: body.exchangeRate,
           fxPending: body.fxPending,
           reportingCurrency: body.reportingCurrency,
+          investmentSide: body.investmentSide,
+          ticker: body.ticker,
+          assetName: body.assetName,
+          quantity: body.quantity,
+          investedAmount: body.investedAmount,
+          investmentStatus: body.investmentStatus,
+          closesLotId: body.closesLotId,
         });
     let accountDek: Buffer | null = null;
     if (!clientSealed) {
@@ -795,7 +814,14 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
       (patch.title !== undefined ||
         patch.amount !== undefined ||
         patch.notes !== undefined ||
-        patch.certainty !== undefined)
+        patch.certainty !== undefined ||
+        patch.investmentStatus !== undefined ||
+        patch.ticker !== undefined ||
+        patch.investmentSide !== undefined ||
+        patch.quantity !== undefined ||
+        patch.investedAmount !== undefined ||
+        patch.closesLotId !== undefined ||
+        patch.assetName !== undefined)
         ? buildFinancePayload({
             title: patch.title,
             amount: patch.amount,
@@ -807,6 +833,13 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             exchangeRate: patch.exchangeRate,
             fxPending: patch.fxPending,
             reportingCurrency: patch.reportingCurrency,
+            investmentSide: patch.investmentSide,
+            ticker: patch.ticker,
+            assetName: patch.assetName,
+            quantity: patch.quantity,
+            investedAmount: patch.investedAmount,
+            investmentStatus: patch.investmentStatus,
+            closesLotId: patch.closesLotId,
             existing: prevPayload,
           })
         : null;
