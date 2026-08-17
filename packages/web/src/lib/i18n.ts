@@ -57,6 +57,19 @@ export interface TranslationDict {
   fin_tab_credits: string;
   fin_tab_investments: string;
   fin_tab_health: string;
+  fin_tab_categories: string;
+  fin_cat_add: string;
+  fin_cat_edit: string;
+  fin_cat_name: string;
+  fin_cat_group: string;
+  fin_cat_budget: string;
+  fin_cat_color: string;
+  fin_cat_necessary: string;
+  fin_cat_empty: string;
+  fin_cat_empty_hint: string;
+  fin_cat_name_required: string;
+  fin_cat_saved: string;
+  fin_cat_no_budget: string;
   fin_field_category: string;
   fin_cat_housing: string;
   fin_cat_food: string;
@@ -1184,6 +1197,20 @@ const es_dict: TranslationDict = {
   fin_tab_credits: 'Créditos',
   fin_tab_investments: 'Inversiones',
   fin_tab_health: 'Salud',
+  fin_tab_categories: 'Categorías',
+  fin_cat_add: 'Añadir categoría',
+  fin_cat_edit: 'Editar categoría',
+  fin_cat_name: 'Nombre',
+  fin_cat_group: 'Grupo',
+  fin_cat_budget: 'Presupuesto mensual',
+  fin_cat_color: 'Color',
+  fin_cat_necessary: 'Es un gasto necesario',
+  fin_cat_empty: 'Sin categorías todavía',
+  fin_cat_empty_hint:
+    'Crea categorías y ponles un presupuesto mensual. El avance se calcula con los gastos del mes.',
+  fin_cat_name_required: 'Ponle un nombre a la categoría.',
+  fin_cat_saved: 'Categoría guardada.',
+  fin_cat_no_budget: 'Sin presupuesto',
   fin_field_category: 'Categoría',
   fin_cat_housing: 'Vivienda',
   fin_cat_food: 'Alimentación',
@@ -1302,7 +1329,7 @@ const es_dict: TranslationDict = {
   fin_fx_pending:
     'Guardado. El tipo de cambio se aplicará cuando haya red.',
   fin_status_planned: 'Previsto',
-  fin_status_confirmed: 'Hecho',
+  fin_status_confirmed: 'Concretado',
   fin_kpi_planned: 'Previsto',
   fin_view_month: 'Mes',
   fin_view_week: 'Semana',
@@ -2411,6 +2438,20 @@ const en_dict: TranslationDict = {
   fin_tab_credits: 'Credits',
   fin_tab_investments: 'Investments',
   fin_tab_health: 'Health',
+  fin_tab_categories: 'Categories',
+  fin_cat_add: 'Add category',
+  fin_cat_edit: 'Edit category',
+  fin_cat_name: 'Name',
+  fin_cat_group: 'Group',
+  fin_cat_budget: 'Monthly budget',
+  fin_cat_color: 'Color',
+  fin_cat_necessary: 'This is a necessary expense',
+  fin_cat_empty: 'No categories yet',
+  fin_cat_empty_hint:
+    'Create categories and set a monthly budget. Progress uses this month’s expenses.',
+  fin_cat_name_required: 'Give the category a name.',
+  fin_cat_saved: 'Category saved.',
+  fin_cat_no_budget: 'No budget',
   fin_field_category: 'Category',
   fin_cat_housing: 'Housing',
   fin_cat_food: 'Food',
@@ -2528,7 +2569,7 @@ const en_dict: TranslationDict = {
   fin_card_payment_of: 'Card you are paying',
   fin_fx_pending: 'Saved. The exchange rate will apply when you are back online.',
   fin_status_planned: 'Planned',
-  fin_status_confirmed: 'Done',
+  fin_status_confirmed: 'Confirmed',
   fin_kpi_planned: 'Planned',
   fin_view_month: 'Month',
   fin_view_week: 'Week',

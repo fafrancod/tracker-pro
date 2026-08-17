@@ -8,6 +8,7 @@ interface DecimalInputProps {
   max?: number;
   className?: string;
   id?: string;
+  prefix?: string;
   'aria-label'?: string;
 }
 
@@ -22,6 +23,7 @@ export function DecimalInput({
   max = 10000,
   className,
   id,
+  prefix,
   'aria-label': ariaLabel,
 }: DecimalInputProps) {
   const [text, setText] = useState(() => formatAmount(value));
@@ -47,31 +49,42 @@ export function DecimalInput({
   }
 
   return (
-    <input
-      ref={inputRef}
-      id={id}
-      type="text"
-      inputMode="decimal"
-      aria-label={ariaLabel}
-      value={text}
-      onFocus={() => {
-        focused.current = true;
-      }}
-      onChange={e => {
-        const raw = e.target.value.replace(',', '.');
-        if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
-        setText(raw);
-        const n = parseAmount(raw);
-        if (n !== null && n >= min && n <= max) {
-          onChange(n);
-        }
-      }}
-      onBlur={() => {
-        focused.current = false;
-        commit(text);
-      }}
-      className={cn(className)}
-    />
+    <div className="relative">
+      {prefix ? (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted">
+          {prefix}
+        </span>
+      ) : null}
+      <input
+        ref={inputRef}
+        id={id}
+        type="text"
+        inputMode="decimal"
+        aria-label={ariaLabel}
+        value={text}
+        onFocus={() => {
+          focused.current = true;
+        }}
+        onChange={e => {
+          const raw = e.target.value.replace(',', '.');
+          if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
+          setText(raw);
+          const n = parseAmount(raw);
+          if (n !== null && n >= min && n <= max) {
+            onChange(n);
+          }
+        }}
+        onBlur={() => {
+          focused.current = false;
+          commit(text);
+        }}
+        className={cn(
+          'flex h-10 w-full rounded-md border border-border bg-field py-2 text-sm text-text-primary ring-offset-background placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+          prefix ? 'pl-7 pr-3' : 'px-3',
+          className
+        )}
+      />
+    </div>
   );
 }
 

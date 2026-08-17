@@ -20,6 +20,7 @@ export * from './services/financeMovementService';
 export * from './services/financeAccountService';
 export * from './services/financeGoalService';
 export * from './services/financeCreditService';
+export * from './services/financeCategoryService';
 export * from './lib/financeSummary';
 export * from './lib/financeKinds';
 export * from './lib/finance';

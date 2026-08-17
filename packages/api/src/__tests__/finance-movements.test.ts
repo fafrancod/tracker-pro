@@ -211,7 +211,7 @@ describe('finance rule expansion', () => {
 });
 
 describe('POST /api/finances/movements', () => {
-  it('crea un gasto puntual planned', async () => {
+  it('crea un gasto puntual confirmed por defecto', async () => {
     const res = await request(app)
       .post('/api/finances/movements')
       .set('Authorization', 'Bearer valid-token')
@@ -225,7 +225,7 @@ describe('POST /api/finances/movements', () => {
     expect(res.status).toBe(201);
     expect(lastMovementInsert?.day_id).toBe('2026-08-17');
     expect(lastMovementInsert?.flow).toBe('expense');
-    expect(lastMovementInsert?.status).toBe('planned');
+    expect(lastMovementInsert?.status).toBe('confirmed');
     expect(lastMovementInsert?.payload).toEqual({});
     expect(lastMovementInsert?.payload_enc).toBeTruthy();
     expect(res.body.title).toBe('Café');

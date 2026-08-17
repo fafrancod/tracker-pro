@@ -35,6 +35,7 @@ import { GoalsPanel } from '@/components/Finances/GoalsPanel';
 import { CreditsPanel } from '@/components/Finances/CreditsPanel';
 import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
 import { HealthPanel } from '@/components/Finances/HealthPanel';
+import { CategoriesPanel } from '@/components/Finances/CategoriesPanel';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -66,6 +67,8 @@ import type {
   FinanceRuleFrequency,
 } from '@core/lib/finance/types';
 import { FINANCE_CATEGORIES } from '@core/lib/finance/types';
+import type { FinanceUserCategory } from '@core/lib/finance/types';
+import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import {
   defaultCurrencyFromLocale,
   normalizeCurrencyCode,
@@ -74,14 +77,20 @@ import {
 
 function money(n: number, currency: string): string {
   try {
-    return new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat('es-CL', {
       style: 'currency',
-      currency: currency || 'EUR',
-      maximumFractionDigits: 2,
+      currency: currency || 'CLP',
+      maximumFractionDigits: currency === 'CLP' || currency === 'JPY' ? 0 : 2,
     }).format(n);
   } catch {
-    return `${n.toFixed(2)} ${currency}`;
+    return `$ ${n.toFixed(0)}`;
   }
+}
+
+function currencySymbol(code: string): string {
+  if (code === 'EUR') return '€';
+  if (code === 'GBP') return '£';
+  return '$';
 }
 
 type CalView = 'month' | 'week';
@@ -108,13 +117,14 @@ interface MovementForm {
   assetName: string;
   quantity: number;
   category: FinanceCategory;
+  categoryId: string;
 }
 
 function emptyForm(dayId: string, currency: string): MovementForm {
   return {
     dayId,
     flow: 'expense',
-    status: 'planned',
+    status: 'confirmed',
     currency,
     title: '',
     amount: 0,
@@ -133,6 +143,7 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     assetName: '',
     quantity: 1,
     category: 'other',
+    categoryId: '',
   };
 }
 
@@ -179,10 +190,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     | 'credits'
     | 'investments'
     | 'health'
+    | 'categories'
   >('calendar');
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [goals, setGoals] = useState<FinanceGoal[]>([]);
   const [credits, setCredits] = useState<FinanceCredit[]>([]);
+  const [userCategories, setUserCategories] = useState<FinanceUserCategory[]>(
+    []
+  );
   const [ledgerMovements, setLedgerMovements] = useState<FinanceMovement[]>([]);
   const [filterAccountId, setFilterAccountId] = useState('all');
 
@@ -218,16 +233,18 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [rows, accs, gls, crs, ledger] = await Promise.all([
+      const [rows, accs, gls, crs, ledger, cats] = await Promise.all([
         fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
         fetchFinanceAccounts(),
         fetchFinanceGoals(),
         fetchFinanceCredits(),
         fetchFinanceLedger(),
+        fetchFinanceCategories().catch(() => [] as FinanceUserCategory[]),
       ]);
       setAccounts(accs);
       setGoals(gls);
       setCredits(crs);
+      setUserCategories(cats);
       setLedgerMovements(ledger.movements);
       const pending = rows.filter(m => m.fxPending && !m.virtual);
       let next = rows;
@@ -367,6 +384,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           : mov.tag === 'credit_payment'
             ? 'debt'
             : 'other'),
+      categoryId: mov.categoryId ?? '',
       notes: mov.notes,
       repeat: 'none',
       recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
@@ -429,6 +447,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         : form.creditPayment
           ? 'debt'
           : form.category,
+      categoryId: isInvest ? null : form.categoryId || null,
       installmentTotal:
         form.installmentTotal > 1 ? form.installmentTotal : undefined,
       ...fx,
@@ -473,6 +492,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             investmentStatus: payload.investmentStatus,
             closesLotId: payload.closesLotId,
             category: payload.category,
+            categoryId: payload.categoryId,
             updatedAt: editing.updatedAt,
           },
           vault ?? undefined
@@ -541,6 +561,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               'credits',
               'investments',
               'health',
+              'categories',
             ] as const
           ).map(id => (
             <button
@@ -564,7 +585,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                       ? t('fin_tab_credits')
                       : id === 'investments'
                         ? t('fin_tab_investments')
-                        : t('fin_tab_health')}
+                        : id === 'health'
+                          ? t('fin_tab_health')
+                          : t('fin_tab_categories')}
             </button>
           ))}
         </div>
@@ -614,6 +637,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             credits={credits}
             monthId={monthId}
             reportingCurrency={preferred}
+          />
+        ) : null}
+
+        {hub === 'categories' ? (
+          <CategoriesPanel
+            categories={userCategories}
+            movements={ledgerMovements.length ? ledgerMovements : movements}
+            monthId={monthId}
+            defaultCurrency={preferred}
+            onChanged={reload}
           />
         ) : null}
 
@@ -807,7 +840,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             openEdit(mov);
                           }}
                           className={cn(
-                            'block truncate rounded px-1 py-0.5 text-[10px] leading-tight',
+                            'block truncate rounded px-1.5 py-0.5 text-[10px] leading-tight',
                             mov.flow === 'income'
                               ? 'bg-accent-green/15 text-accent-green'
                               : mov.flow === 'investment'
@@ -822,6 +855,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             : mov.flow === 'investment'
                               ? '◆'
                               : '−'}
+                          {money(mov.amount, mov.currency)}{' '}
                           {mov.title}
                           {mov.fxPending ? ' · FX' : ''}
                         </span>
@@ -897,8 +931,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                   }
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
-                  <option value="planned">{t('fin_status_planned')}</option>
                   <option value="confirmed">{t('fin_status_confirmed')}</option>
+                  <option value="planned">{t('fin_status_planned')}</option>
                 </select>
               </label>
             </div>
@@ -906,6 +940,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_amount')}</span>
                 <DecimalInput
+                  prefix={currencySymbol(form.currency)}
                   value={form.amount}
                   onChange={v => setForm(f => ({ ...f, amount: v }))}
                   min={0}
@@ -934,20 +969,31 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_category')}</span>
                 <select
-                  value={form.category}
-                  onChange={e =>
+                  value={form.categoryId || form.category}
+                  onChange={e => {
+                    const value = e.target.value;
+                    const custom = userCategories.find(c => c.id === value);
                     setForm(f => ({
                       ...f,
-                      category: e.target.value as FinanceCategory,
-                    }))
-                  }
+                      categoryId: custom ? custom.id : '',
+                      category: custom
+                        ? custom.groupKey
+                        : (value as FinanceCategory),
+                    }));
+                  }}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
-                  {FINANCE_CATEGORIES.filter(c => c !== 'invest').map(cat => (
-                    <option key={cat} value={cat}>
-                      {t(`fin_cat_${cat}` as 'fin_cat_other')}
-                    </option>
-                  ))}
+                  {userCategories.length > 0
+                    ? userCategories.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name || t(`fin_cat_${cat.groupKey}` as 'fin_cat_other')}
+                        </option>
+                      ))
+                    : FINANCE_CATEGORIES.filter(c => c !== 'invest').map(cat => (
+                        <option key={cat} value={cat}>
+                          {t(`fin_cat_${cat}` as 'fin_cat_other')}
+                        </option>
+                      ))}
                 </select>
               </label>
             )}

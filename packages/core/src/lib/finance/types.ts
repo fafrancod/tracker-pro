@@ -38,6 +38,26 @@ export const FINANCE_CATEGORIES = [
 
 export type FinanceCategory = (typeof FINANCE_CATEGORIES)[number];
 
+export interface FinanceCategoryPayload {
+  name: string;
+  monthlyBudget: number;
+  necessary: boolean;
+}
+
+export interface FinanceUserCategory {
+  id: string;
+  groupKey: FinanceCategory;
+  color: string;
+  currency: string;
+  name: string;
+  monthlyBudget: number;
+  necessary: boolean;
+  archived: boolean;
+  sealed?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FinanceMovementPayload {
   title: string;
   amount: number;
@@ -57,6 +77,7 @@ export interface FinanceMovementPayload {
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
   category?: FinanceCategory | null;
+  categoryId?: string | null;
 }
 
 export interface FinanceAccountPayload {
@@ -153,6 +174,7 @@ export interface FinanceMovement {
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
   category?: FinanceCategory | null;
+  categoryId?: string | null;
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
@@ -219,6 +241,7 @@ export interface CreateFinanceMovementPayload {
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
   category?: FinanceCategory | null;
+  categoryId?: string | null;
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -258,6 +281,7 @@ export interface UpdateFinanceMovementPayload {
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
   category?: FinanceCategory | null;
+  categoryId?: string | null;
 }
 
 export interface FinanceMovementMonthSummary {

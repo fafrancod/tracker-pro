@@ -128,6 +128,10 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
         ? o.closesLotId.trim().slice(0, 80)
         : null,
     category: normalizeFinanceCategory(o.category),
+    categoryId:
+      typeof o.categoryId === 'string' && o.categoryId.trim()
+        ? o.categoryId.trim().slice(0, 80)
+        : null,
   };
 }
 
@@ -150,6 +154,7 @@ export function buildFinancePayload(input: {
   investmentStatus?: FinanceInvestmentStatus | null;
   closesLotId?: string | null;
   category?: FinanceCategory | null;
+  categoryId?: string | null;
   existing?: FinanceMovementPayload;
 }): FinanceMovementPayload {
   const existing = input.existing;
@@ -194,7 +199,19 @@ export function buildFinancePayload(input: {
     closesLotId:
       input.closesLotId !== undefined ? input.closesLotId : existing?.closesLotId,
     category: input.category !== undefined ? input.category : existing?.category,
+    categoryId:
+      input.categoryId !== undefined ? input.categoryId : existing?.categoryId,
   });
+}
+
+export function parseCategoryPayload(raw: unknown): import('./types').FinanceCategoryPayload {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const budget = Number(o.monthlyBudget);
+  return {
+    name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
+    monthlyBudget: Number.isFinite(budget) && budget >= 0 ? budget : 0,
+    necessary: o.necessary !== false,
+  };
 }
 
 export function parseCreditPayload(

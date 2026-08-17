@@ -112,6 +112,7 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
     investmentStatus: payload.investmentStatus ?? null,
     closesLotId: payload.closesLotId ?? null,
     category: payload.category ?? null,
+    categoryId: payload.categoryId ?? null,
     ruleId: (raw.ruleId as string | null) ?? (raw.rule_id as string | null) ?? null,
     sourceTaskId:
       (raw.sourceTaskId as string | null) ??
@@ -232,7 +233,7 @@ export async function createFinanceMovement(
       id,
       dayId: payload.dayId,
       flow: payload.flow,
-      status: payload.status ?? 'planned',
+      status: payload.status ?? 'confirmed',
       currency: payload.currency ?? 'EUR',
       title: payload.title ?? '',
       amount: payload.amount ?? 0,
@@ -259,6 +260,7 @@ export async function createFinanceMovement(
       investmentStatus: payload.investmentStatus ?? (payload.flow === 'investment' ? 'open' : null),
       closesLotId: payload.closesLotId ?? null,
       category: payload.category ?? (payload.flow === 'investment' ? 'invest' : null),
+      categoryId: payload.categoryId ?? null,
       ruleId,
       sourceTaskId: payload.sourceTaskId ?? null,
       createdAt: now,
@@ -292,6 +294,7 @@ export async function createFinanceMovement(
       investmentStatus: payload.investmentStatus,
       closesLotId: payload.closesLotId,
       category: payload.category,
+      categoryId: payload.categoryId,
     });
     const payloadEnc = await encryptFinancePayload(vault.dek, inner, aad);
     let ruleId: string | undefined;
@@ -333,6 +336,7 @@ export async function createFinanceMovement(
       investmentStatus: payload.investmentStatus,
       closesLotId: payload.closesLotId,
       category: payload.category,
+      categoryId: payload.categoryId,
     };
   }
   const res = await api.post<Record<string, unknown>>(
@@ -408,6 +412,7 @@ export async function updateFinanceMovement(
         investmentStatus: payload.investmentStatus,
         closesLotId: payload.closesLotId,
         category: payload.category,
+        categoryId: payload.categoryId,
       }),
       financePayloadAad(vault.uid, 'finance_movements', id)
     );

@@ -95,6 +95,7 @@ const createSchema = z
       ])
       .nullable()
       .optional(),
+    categoryId: z.string().min(1).max(80).nullable().optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -156,6 +157,7 @@ const updateSchema = z
       ])
       .nullable()
       .optional(),
+    categoryId: z.string().min(1).max(80).nullable().optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
     message: 'patch vacio',
@@ -309,6 +311,7 @@ function mapMovement(
     investmentStatus: payload.investmentStatus ?? null,
     closesLotId: payload.closesLotId ?? null,
     category: payload.category ?? null,
+    categoryId: payload.categoryId ?? null,
     ruleId: (row.rule_id as string | null) ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
@@ -721,6 +724,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           investmentStatus: body.investmentStatus,
           closesLotId: body.closesLotId,
           category: body.category,
+          categoryId: body.categoryId,
         });
     let accountDek: Buffer | null = null;
     if (!clientSealed) {
@@ -778,7 +782,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         user_id: uid,
         day_id: dayId,
         flow: body.flow,
-        status: body.status ?? 'planned',
+        status: body.status ?? 'confirmed',
         currency,
         payload,
         payload_enc: clientSealed
@@ -870,7 +874,8 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
         patch.investedAmount !== undefined ||
         patch.closesLotId !== undefined ||
         patch.assetName !== undefined ||
-        patch.category !== undefined)
+        patch.category !== undefined ||
+        patch.categoryId !== undefined)
         ? buildFinancePayload({
             title: patch.title,
             amount: patch.amount,
@@ -890,6 +895,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             investmentStatus: patch.investmentStatus,
             closesLotId: patch.closesLotId,
             category: patch.category,
+            categoryId: patch.categoryId,
             existing: prevPayload,
           })
         : null;
