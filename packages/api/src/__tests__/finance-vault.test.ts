@@ -44,8 +44,9 @@ function buildFromMock() {
     }
     if (table === 'finance_movements') {
       return {
-        insert: vi.fn(async (row: Record<string, unknown>) => {
-          lastMovementInsert = row;
+        insert: vi.fn(async (row: Record<string, unknown> | Record<string, unknown>[]) => {
+          const list = Array.isArray(row) ? row : [row];
+          lastMovementInsert = list[0] ?? null;
           return { data: null, error: null };
         }),
         update: vi.fn(() => {

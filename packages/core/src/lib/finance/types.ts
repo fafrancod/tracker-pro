@@ -15,7 +15,12 @@ export type FinanceAccountType =
   | 'brokerage'
   | 'other';
 
-export type FinanceMovementTag = 'card_payment' | 'goal_contribution';
+export type FinanceMovementTag =
+  | 'card_payment'
+  | 'goal_contribution'
+  | 'credit_payment';
+
+export type FinanceCreditKind = 'consumer' | 'mortgage' | 'auto' | 'other';
 
 export interface FinanceMovementPayload {
   title: string;
@@ -40,6 +45,30 @@ export interface FinanceGoalPayload {
   name: string;
   targetAmount: number;
   notes: string;
+}
+
+export interface FinanceCreditPayload {
+  name: string;
+  principal: number;
+  monthlyInstallment: number;
+  notes: string;
+}
+
+export interface FinanceCredit {
+  id: string;
+  currency: string;
+  kind: FinanceCreditKind;
+  dueDay: number;
+  startDayId: string;
+  termMonths: number;
+  name: string;
+  principal: number;
+  monthlyInstallment: number;
+  notes: string;
+  archived: boolean;
+  sealed?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FinanceGoal {
@@ -82,6 +111,10 @@ export interface FinanceMovement {
   accountId: string | null;
   cardAccountId: string | null;
   goalId: string | null;
+  creditId: string | null;
+  installmentGroupId: string | null;
+  installmentIndex: number | null;
+  installmentTotal: number | null;
   tag: FinanceMovementTag | null;
   originalAmount: number | null;
   originalCurrency: string | null;
@@ -136,6 +169,10 @@ export interface CreateFinanceMovementPayload {
   accountId?: string | null;
   cardAccountId?: string | null;
   goalId?: string | null;
+  creditId?: string | null;
+  installmentGroupId?: string | null;
+  installmentIndex?: number | null;
+  installmentTotal?: number | null;
   tag?: FinanceMovementTag | null;
   originalAmount?: number | null;
   originalCurrency?: string | null;
@@ -163,6 +200,10 @@ export interface UpdateFinanceMovementPayload {
   accountId?: string | null;
   cardAccountId?: string | null;
   goalId?: string | null;
+  creditId?: string | null;
+  installmentGroupId?: string | null;
+  installmentIndex?: number | null;
+  installmentTotal?: number | null;
   tag?: FinanceMovementTag | null;
   originalAmount?: number | null;
   originalCurrency?: string | null;

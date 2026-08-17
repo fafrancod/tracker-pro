@@ -79,6 +79,24 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
       null,
     goalId:
       (raw.goalId as string | null) ?? (raw.goal_id as string | null) ?? null,
+    creditId:
+      (raw.creditId as string | null) ?? (raw.credit_id as string | null) ?? null,
+    installmentGroupId:
+      (raw.installmentGroupId as string | null) ??
+      (raw.installment_group_id as string | null) ??
+      null,
+    installmentIndex:
+      typeof raw.installmentIndex === 'number'
+        ? raw.installmentIndex
+        : typeof raw.installment_index === 'number'
+          ? raw.installment_index
+          : null,
+    installmentTotal:
+      typeof raw.installmentTotal === 'number'
+        ? raw.installmentTotal
+        : typeof raw.installment_total === 'number'
+          ? raw.installment_total
+          : null,
     tag: payload.tag ?? null,
     originalAmount: payload.originalAmount ?? null,
     originalCurrency: payload.originalCurrency ?? null,
@@ -214,6 +232,10 @@ export async function createFinanceMovement(
       accountId: payload.accountId ?? null,
       cardAccountId: payload.cardAccountId ?? null,
       goalId: payload.goalId ?? null,
+      creditId: payload.creditId ?? null,
+      installmentGroupId: payload.installmentGroupId ?? null,
+      installmentIndex: payload.installmentIndex ?? null,
+      installmentTotal: payload.installmentTotal ?? null,
       tag: payload.tag ?? null,
       originalAmount: payload.originalAmount ?? payload.amount ?? 0,
       originalCurrency: payload.originalCurrency ?? payload.currency ?? 'EUR',

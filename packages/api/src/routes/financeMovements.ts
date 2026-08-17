@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   FINANCE_RANGE_MAX_DAYS,
+  addMonthsToDayId,
   buildFinancePayload,
   inclusiveDaySpan,
   normalizeFinanceFlow,
@@ -59,7 +60,14 @@ const createSchema = z
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
-    tag: z.enum(['card_payment', 'goal_contribution']).nullable().optional(),
+    tag: z
+      .enum(['card_payment', 'goal_contribution', 'credit_payment'])
+      .nullable()
+      .optional(),
+    creditId: z.string().min(1).max(80).nullable().optional(),
+    installmentGroupId: z.string().min(1).max(80).nullable().optional(),
+    installmentIndex: z.number().int().min(1).max(120).nullable().optional(),
+    installmentTotal: z.number().int().min(1).max(120).optional(),
     goalId: z.string().min(1).max(80).nullable().optional(),
     originalAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
     originalCurrency: z.string().min(1).max(8).nullable().optional(),
@@ -93,7 +101,14 @@ const updateSchema = z
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
-    tag: z.enum(['card_payment', 'goal_contribution']).nullable().optional(),
+    tag: z
+      .enum(['card_payment', 'goal_contribution', 'credit_payment'])
+      .nullable()
+      .optional(),
+    creditId: z.string().min(1).max(80).nullable().optional(),
+    installmentGroupId: z.string().min(1).max(80).nullable().optional(),
+    installmentIndex: z.number().int().min(1).max(120).nullable().optional(),
+    installmentTotal: z.number().int().min(1).max(120).optional(),
     goalId: z.string().min(1).max(80).nullable().optional(),
     originalAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
     originalCurrency: z.string().min(1).max(8).nullable().optional(),
@@ -200,7 +215,7 @@ function mapMovement(
     amount: number;
     notes: string;
     certainty: 'fixed' | 'potential';
-    tag?: 'card_payment' | 'goal_contribution' | null;
+    tag?: 'card_payment' | 'goal_contribution' | 'credit_payment' | null;
     originalAmount?: number | null;
     originalCurrency?: string | null;
     exchangeRate?: number | null;
@@ -230,6 +245,12 @@ function mapMovement(
     accountId: (row.account_id as string | null) ?? null,
     cardAccountId: (row.card_account_id as string | null) ?? null,
     goalId: (row.goal_id as string | null) ?? null,
+    creditId: (row.credit_id as string | null) ?? null,
+    installmentGroupId: (row.installment_group_id as string | null) ?? null,
+    installmentIndex:
+      typeof row.installment_index === 'number' ? row.installment_index : null,
+    installmentTotal:
+      typeof row.installment_total === 'number' ? row.installment_total : null,
     tag: payload.tag ?? null,
     originalAmount: payload.originalAmount ?? null,
     originalCurrency: payload.originalCurrency ?? null,
@@ -675,36 +696,62 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
       if (ruleErr) throw ruleErr;
     }
 
-    const id = body.id ?? generateId();
-    const row = {
-      id,
-      user_id: uid,
-      day_id: body.dayId,
-      flow: body.flow,
-      status: body.status ?? 'planned',
-      currency,
-      payload,
-      payload_enc: clientSealed
-        ? (body.payloadEnc ?? null)
-        : accountDek && inner
-          ? encryptAccountPayload(uid, accountDek, 'finance_movements', id, inner)
-          : null,
-      enc_v: clientSealed ? '1' : accountDek ? '2' : null,
-      rule_id: ruleId,
-      source_task_id: body.sourceTaskId ?? null,
-      account_id: body.accountId ?? null,
-      card_account_id: body.cardAccountId ?? null,
-      goal_id: body.goalId ?? null,
-      client_mutation_id: body.clientMutationId ?? null,
-      deleted_at: null,
-      created_at: now,
-      updated_at: now,
-    };
+    const installmentTotal =
+      body.installmentTotal && body.installmentTotal > 1 ? body.installmentTotal : 1;
+    if (clientSealed && installmentTotal > 1) {
+      throw ApiError.badRequest(
+        'La compra en cuotas se materializa en el servidor: envía el importe en claro'
+      );
+    }
+    const installmentGroupId =
+      installmentTotal > 1
+        ? (body.installmentGroupId ?? generateId())
+        : (body.installmentGroupId ?? null);
+    const rows: Record<string, unknown>[] = [];
+    for (let index = 1; index <= installmentTotal; index += 1) {
+      const id =
+        index === 1 ? (body.id ?? generateId()) : generateId();
+      const dayId =
+        index === 1 ? body.dayId : addMonthsToDayId(body.dayId, index - 1);
+      rows.push({
+        id,
+        user_id: uid,
+        day_id: dayId,
+        flow: body.flow,
+        status: body.status ?? 'planned',
+        currency,
+        payload,
+        payload_enc: clientSealed
+          ? (body.payloadEnc ?? null)
+          : accountDek && inner
+            ? encryptAccountPayload(uid, accountDek, 'finance_movements', id, inner)
+            : null,
+        enc_v: clientSealed ? '1' : accountDek ? '2' : null,
+        rule_id: ruleId,
+        source_task_id: body.sourceTaskId ?? null,
+        account_id: body.accountId ?? null,
+        card_account_id: body.cardAccountId ?? null,
+        goal_id: body.goalId ?? null,
+        credit_id: body.creditId ?? null,
+        installment_group_id: installmentGroupId,
+        installment_index: installmentTotal > 1 ? index : (body.installmentIndex ?? null),
+        installment_total: installmentTotal > 1 ? installmentTotal : null,
+        client_mutation_id:
+          index === 1 ? (body.clientMutationId ?? null) : null,
+        deleted_at: null,
+        created_at: now,
+        updated_at: now,
+      });
+    }
     const { error } = await getSupabaseAdmin()
       .from('finance_movements')
-      .insert(row);
+      .insert(rows);
     if (error) throw error;
-    res.status(201).json(mapMovement(row, inner));
+    const first = rows[0];
+    res.status(201).json({
+      ...mapMovement(first, inner),
+      instances: rows.map(r => mapMovement(r, inner)),
+    });
   } catch (err) {
     next(err);
   }
@@ -795,6 +842,16 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
       update.card_account_id = patch.cardAccountId;
     }
     if (patch.goalId !== undefined) update.goal_id = patch.goalId;
+    if (patch.creditId !== undefined) update.credit_id = patch.creditId;
+    if (patch.installmentGroupId !== undefined) {
+      update.installment_group_id = patch.installmentGroupId;
+    }
+    if (patch.installmentIndex !== undefined) {
+      update.installment_index = patch.installmentIndex;
+    }
+    if (patch.installmentTotal !== undefined) {
+      update.installment_total = patch.installmentTotal;
+    }
 
     const { error } = await getSupabaseAdmin()
       .from('finance_movements')

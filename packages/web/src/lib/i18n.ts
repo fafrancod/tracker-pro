@@ -53,6 +53,34 @@ export interface TranslationDict {
   fin_tab_calendar: string;
   fin_tab_accounts: string;
   fin_tab_goals: string;
+  fin_tab_credits: string;
+  fin_credit_add: string;
+  fin_credit_edit: string;
+  fin_credit_name: string;
+  fin_credit_principal: string;
+  fin_credit_cuota: string;
+  fin_credit_term: string;
+  fin_credit_due_day: string;
+  fin_credit_kind: string;
+  fin_credit_kind_consumer: string;
+  fin_credit_kind_mortgage: string;
+  fin_credit_kind_auto: string;
+  fin_credit_kind_other: string;
+  fin_credit_empty: string;
+  fin_credit_empty_hint: string;
+  fin_credit_name_required: string;
+  fin_credit_saved: string;
+  fin_credit_progress: string;
+  fin_credit_per_month: string;
+  fin_credit_payment: string;
+  fin_credit_payment_of: string;
+  fin_credit_sim_title: string;
+  fin_credit_sim_term: string;
+  fin_credit_sim_cuota: string;
+  fin_credit_sim_extra: string;
+  fin_credit_sim_term_result: string;
+  fin_credit_sim_cuota_result: string;
+  fin_installments: string;
   fin_goal_add: string;
   fin_goal_edit: string;
   fin_goal_name: string;
@@ -1106,6 +1134,35 @@ const es_dict: TranslationDict = {
   fin_tab_calendar: 'Calendario',
   fin_tab_accounts: 'Cuentas',
   fin_tab_goals: 'Objetivos',
+  fin_tab_credits: 'Créditos',
+  fin_credit_add: 'Añadir crédito',
+  fin_credit_edit: 'Editar crédito',
+  fin_credit_name: 'Nombre',
+  fin_credit_principal: 'Principal',
+  fin_credit_cuota: 'Cuota mensual',
+  fin_credit_term: 'Plazo (meses)',
+  fin_credit_due_day: 'Día de vencimiento',
+  fin_credit_kind: 'Tipo',
+  fin_credit_kind_consumer: 'Consumo',
+  fin_credit_kind_mortgage: 'Hipotecario',
+  fin_credit_kind_auto: 'Auto',
+  fin_credit_kind_other: 'Otro',
+  fin_credit_empty: 'Sin créditos todavía',
+  fin_credit_empty_hint:
+    'Un crédito no es una compra en cuotas. Declara plazo y día de vencimiento.',
+  fin_credit_name_required: 'Ponle un nombre al crédito.',
+  fin_credit_saved: 'Crédito guardado.',
+  fin_credit_progress: 'Van {paid} de {total} cuotas',
+  fin_credit_per_month: '/mes',
+  fin_credit_payment: 'Este es el pago de un crédito',
+  fin_credit_payment_of: 'Crédito',
+  fin_credit_sim_title: 'Simular abono extra',
+  fin_credit_sim_term: 'Acortar plazo',
+  fin_credit_sim_cuota: 'Bajar cuota',
+  fin_credit_sim_extra: 'Abono extra',
+  fin_credit_sim_term_result: 'Te ahorras {months} cuotas de plazo.',
+  fin_credit_sim_cuota_result: 'La cuota pasaría a {amount}.',
+  fin_installments: 'Cuotas (compra)',
   fin_goal_add: 'Añadir objetivo',
   fin_goal_edit: 'Editar objetivo',
   fin_goal_name: 'Nombre',
@@ -2252,6 +2309,35 @@ const en_dict: TranslationDict = {
   fin_tab_calendar: 'Calendar',
   fin_tab_accounts: 'Accounts',
   fin_tab_goals: 'Goals',
+  fin_tab_credits: 'Credits',
+  fin_credit_add: 'Add credit',
+  fin_credit_edit: 'Edit credit',
+  fin_credit_name: 'Name',
+  fin_credit_principal: 'Principal',
+  fin_credit_cuota: 'Monthly installment',
+  fin_credit_term: 'Term (months)',
+  fin_credit_due_day: 'Due day',
+  fin_credit_kind: 'Kind',
+  fin_credit_kind_consumer: 'Consumer',
+  fin_credit_kind_mortgage: 'Mortgage',
+  fin_credit_kind_auto: 'Auto',
+  fin_credit_kind_other: 'Other',
+  fin_credit_empty: 'No credits yet',
+  fin_credit_empty_hint:
+    'A loan is not an installment purchase. Set term and due day.',
+  fin_credit_name_required: 'Give the credit a name.',
+  fin_credit_saved: 'Credit saved.',
+  fin_credit_progress: '{paid} of {total} installments paid',
+  fin_credit_per_month: '/mo',
+  fin_credit_payment: 'This is a loan payment',
+  fin_credit_payment_of: 'Credit',
+  fin_credit_sim_title: 'Simulate extra payment',
+  fin_credit_sim_term: 'Shorten term',
+  fin_credit_sim_cuota: 'Lower installment',
+  fin_credit_sim_extra: 'Extra payment',
+  fin_credit_sim_term_result: 'You save {months} installments.',
+  fin_credit_sim_cuota_result: 'The installment would become {amount}.',
+  fin_installments: 'Installments (purchase)',
   fin_goal_add: 'Add goal',
   fin_goal_edit: 'Edit goal',
   fin_goal_name: 'Name',

@@ -26,7 +26,13 @@ export function normalizeMovementCertainty(raw: unknown): FinanceCertainty {
 }
 
 export function normalizeFinanceTag(raw: unknown): FinanceMovementTag | null {
-  if (raw === 'card_payment' || raw === 'goal_contribution') return raw;
+  if (
+    raw === 'card_payment' ||
+    raw === 'goal_contribution' ||
+    raw === 'credit_payment'
+  ) {
+    return raw;
+  }
   return null;
 }
 
@@ -107,6 +113,27 @@ export function buildFinancePayload(input: {
         ? input.reportingCurrency
         : existing?.reportingCurrency,
   });
+}
+
+export function parseCreditPayload(
+  raw: unknown
+): import('./types').FinanceCreditPayload {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const principal = Number(o.principal);
+  const cuota = Number(o.monthlyInstallment);
+  return {
+    name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
+    principal: Number.isFinite(principal) && principal >= 0 ? principal : 0,
+    monthlyInstallment: Number.isFinite(cuota) && cuota >= 0 ? cuota : 0,
+    notes: typeof o.notes === 'string' ? o.notes.slice(0, 2000) : '',
+  };
+}
+
+export function normalizeCreditKind(
+  raw: unknown
+): import('./types').FinanceCreditKind {
+  if (raw === 'mortgage' || raw === 'auto' || raw === 'consumer') return raw;
+  return 'other';
 }
 
 export function parseGoalPayload(raw: unknown): import('./types').FinanceGoalPayload {

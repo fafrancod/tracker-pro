@@ -52,9 +52,10 @@ function buildFromMock() {
           }));
           return c;
         }),
-        insert: vi.fn(async (row: Record<string, unknown>) => {
-          lastMovementInsert = row;
-          movementRows = [...movementRows, row];
+        insert: vi.fn(async (row: Record<string, unknown> | Record<string, unknown>[]) => {
+          const list = Array.isArray(row) ? row : [row];
+          lastMovementInsert = list[0] ?? null;
+          movementRows = [...movementRows, ...list];
           return { data: null, error: null };
         }),
         update: vi.fn(() => {
@@ -181,6 +182,10 @@ describe('finance rule expansion', () => {
           accountId: null,
           cardAccountId: null,
           goalId: null,
+          creditId: null,
+          installmentGroupId: null,
+          installmentIndex: null,
+          installmentTotal: null,
           tag: null,
           originalAmount: null,
           originalCurrency: null,

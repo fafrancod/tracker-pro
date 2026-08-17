@@ -4,7 +4,7 @@
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
 **Versión del repo al escribir:** v2.24.0.
 
-**Estado:** Fases 1–5 en `main` (v2.27). Siguiente: Fase 6 objetivos.
+**Estado:** Fases 1–6 en `main` (v2.28). Siguiente: Fase 7 créditos y cuotas.
 
 **Respuesta corta:** dos calendarios, un libro, cifrado **con la cuenta**. El tablero no es el mayor. Login = ves el dinero. Restablecer la contraseña **no** pierde importes. La bóveda privada (frase + 12 palabras) queda como legado opt-in, no como default.
 
@@ -394,7 +394,11 @@ Avance = saldo de cuenta-sobre si hay `linked_account_id`; si no, aportes tag `g
 Crédito ≠ compra en 12 cuotas (grupo en movimientos).  
 `due_day` en claro para que el worker avise sin leer el principal.
 
-**Hecho:** 36 cuotas con “van 10”; simulación extra en tests numéricos; 6 cuotas = 1 compra en el resumen.
+**Hecho:**
+
+- [x] 36 cuotas con “van 10”.
+- [x] Simulación extra (plazo o cuota) en tests numéricos.
+- [x] 6 cuotas = 1 compra en el resumen.
 
 ### Fase 8 — Inversiones
 
