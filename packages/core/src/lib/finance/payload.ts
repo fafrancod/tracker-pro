@@ -50,6 +50,22 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
     notes: typeof o.notes === 'string' ? o.notes.slice(0, 2000) : '',
     certainty: normalizeMovementCertainty(o.certainty),
     tag: normalizeFinanceTag(o.tag),
+    originalAmount: Number.isFinite(Number(o.originalAmount))
+      ? Number(o.originalAmount)
+      : null,
+    originalCurrency:
+      typeof o.originalCurrency === 'string'
+        ? o.originalCurrency.trim().toUpperCase().slice(0, 8)
+        : null,
+    exchangeRate:
+      Number.isFinite(Number(o.exchangeRate)) && Number(o.exchangeRate) > 0
+        ? Number(o.exchangeRate)
+        : null,
+    fxPending: o.fxPending === true,
+    reportingCurrency:
+      typeof o.reportingCurrency === 'string'
+        ? o.reportingCurrency.trim().toUpperCase().slice(0, 8)
+        : null,
   };
 }
 
@@ -59,6 +75,11 @@ export function buildFinancePayload(input: {
   notes?: string;
   certainty?: FinanceCertainty;
   tag?: FinanceMovementTag | null;
+  originalAmount?: number | null;
+  originalCurrency?: string | null;
+  exchangeRate?: number | null;
+  fxPending?: boolean;
+  reportingCurrency?: string | null;
   existing?: FinanceMovementPayload;
 }): FinanceMovementPayload {
   const existing = input.existing;
@@ -68,6 +89,22 @@ export function buildFinancePayload(input: {
     notes: input.notes ?? existing?.notes ?? '',
     certainty: input.certainty ?? existing?.certainty ?? 'fixed',
     tag: input.tag !== undefined ? input.tag : existing?.tag,
+    originalAmount:
+      input.originalAmount !== undefined
+        ? input.originalAmount
+        : existing?.originalAmount,
+    originalCurrency:
+      input.originalCurrency !== undefined
+        ? input.originalCurrency
+        : existing?.originalCurrency,
+    exchangeRate:
+      input.exchangeRate !== undefined ? input.exchangeRate : existing?.exchangeRate,
+    fxPending:
+      input.fxPending !== undefined ? input.fxPending : existing?.fxPending,
+    reportingCurrency:
+      input.reportingCurrency !== undefined
+        ? input.reportingCurrency
+        : existing?.reportingCurrency,
   });
 }
 

@@ -73,6 +73,7 @@ export interface TranslationDict {
   fin_field_account: string;
   fin_card_payment: string;
   fin_card_payment_of: string;
+  fin_fx_pending: string;
   fin_status_planned: string;
   fin_status_confirmed: string;
   fin_kpi_planned: string;
@@ -1110,6 +1111,8 @@ const es_dict: TranslationDict = {
   fin_field_account: 'Cuenta',
   fin_card_payment: 'Este es un pago de tarjeta',
   fin_card_payment_of: 'Tarjeta que pagas',
+  fin_fx_pending:
+    'Guardado. El tipo de cambio se aplicará cuando haya red.',
   fin_status_planned: 'Previsto',
   fin_status_confirmed: 'Hecho',
   fin_kpi_planned: 'Previsto',
@@ -1794,9 +1797,9 @@ const es_dict: TranslationDict = {
   settings_finances_title: 'Finances',
   settings_finances_intro:
     'Define cómo se comportan los movimientos de dinero en la app.',
-  settings_preferred_currency: 'Divisa preferida',
+  settings_preferred_currency: 'Moneda de reporte',
   settings_preferred_currency_desc:
-    'Se usa por defecto en el módulo Finances y al crear ingresos o gastos en el calendario.',
+    'Los importes de otras divisas se convierten a esta moneda en el resumen de Finanzas.',
   settings_language: 'Idioma',
   settings_language_es: 'Español',
   settings_language_en: 'English',
@@ -2237,6 +2240,7 @@ const en_dict: TranslationDict = {
   fin_field_account: 'Account',
   fin_card_payment: 'This is a card payment',
   fin_card_payment_of: 'Card you are paying',
+  fin_fx_pending: 'Saved. The exchange rate will apply when you are back online.',
   fin_status_planned: 'Planned',
   fin_status_confirmed: 'Done',
   fin_kpi_planned: 'Planned',
@@ -2921,9 +2925,9 @@ const en_dict: TranslationDict = {
   settings_finances_title: 'Finances',
   settings_finances_intro:
     'How money movements behave in the app.',
-  settings_preferred_currency: 'Preferred currency',
+  settings_preferred_currency: 'Reporting currency',
   settings_preferred_currency_desc:
-    'Default for the Finances module and when creating income or expenses on the calendar.',
+    'Amounts in other currencies are converted to this one in the Finances summary.',
   settings_language: 'Language',
   settings_language_es: 'Spanish',
   settings_language_en: 'English',

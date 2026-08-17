@@ -6,6 +6,7 @@ import {
   deleteFinanceMovement,
   fetchFinanceCalendar,
   fetchFinanceMovement,
+  resolveFinanceFx,
   updateFinanceMovement,
 } from '../../services/financeMovementService';
 import type { FinanceMovement, FinanceVaultCtx } from './types';
@@ -31,7 +32,16 @@ export async function createBridgeMovement(opts: {
   certainty: NonNullable<CreateTaskPayload['financeCertainty']>;
   flow: FinanceMovement['flow'];
   vault?: FinanceVaultCtx;
+  reportingCurrency?: string;
 }): Promise<{ id: string; linked: NonNullable<Task['linkedFinance']> }> {
+  const fx = opts.reportingCurrency
+    ? await resolveFinanceFx({
+        amount: opts.amount,
+        currency: opts.currency,
+        reportingCurrency: opts.reportingCurrency,
+        dayId: opts.dayId,
+      })
+    : null;
   const mov = await createFinanceMovement(
     {
       dayId: opts.dayId,
@@ -41,6 +51,7 @@ export async function createBridgeMovement(opts: {
       amount: opts.amount,
       currency: opts.currency,
       certainty: opts.certainty,
+      ...(fx ?? {}),
     },
     opts.vault
   );

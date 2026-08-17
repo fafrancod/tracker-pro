@@ -78,6 +78,11 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
       (raw.card_account_id as string | null) ??
       null,
     tag: payload.tag ?? null,
+    originalAmount: payload.originalAmount ?? null,
+    originalCurrency: payload.originalCurrency ?? null,
+    exchangeRate: payload.exchangeRate ?? null,
+    fxPending: Boolean(payload.fxPending),
+    reportingCurrency: payload.reportingCurrency ?? null,
     ruleId: (raw.ruleId as string | null) ?? (raw.rule_id as string | null) ?? null,
     sourceTaskId:
       (raw.sourceTaskId as string | null) ??
@@ -207,6 +212,11 @@ export async function createFinanceMovement(
       accountId: payload.accountId ?? null,
       cardAccountId: payload.cardAccountId ?? null,
       tag: payload.tag ?? null,
+      originalAmount: payload.originalAmount ?? payload.amount ?? 0,
+      originalCurrency: payload.originalCurrency ?? payload.currency ?? 'EUR',
+      exchangeRate: payload.exchangeRate ?? null,
+      fxPending: Boolean(payload.fxPending),
+      reportingCurrency: payload.reportingCurrency ?? null,
       ruleId,
       sourceTaskId: payload.sourceTaskId ?? null,
       createdAt: now,
@@ -227,6 +237,11 @@ export async function createFinanceMovement(
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
       tag: payload.tag ?? null,
+      originalAmount: payload.originalAmount ?? payload.amount ?? 0,
+      originalCurrency: payload.originalCurrency ?? payload.currency ?? null,
+      exchangeRate: payload.exchangeRate ?? null,
+      fxPending: Boolean(payload.fxPending),
+      reportingCurrency: payload.reportingCurrency ?? null,
     };
     const payloadEnc = await encryptFinancePayload(vault.dek, inner, aad);
     let ruleId: string | undefined;
@@ -254,6 +269,11 @@ export async function createFinanceMovement(
       accountId: payload.accountId ?? null,
       cardAccountId: payload.cardAccountId ?? null,
       tag: payload.tag ?? null,
+      originalAmount: payload.originalAmount,
+      originalCurrency: payload.originalCurrency,
+      exchangeRate: payload.exchangeRate,
+      fxPending: payload.fxPending,
+      reportingCurrency: payload.reportingCurrency,
     };
   }
   const res = await api.post<Record<string, unknown>>(
@@ -336,6 +356,80 @@ export async function updateFinanceMovement(
     body
   );
   return mapMovement(res);
+}
+
+export async function fetchFinanceRate(
+  from: string,
+  to: string,
+  date?: string
+): Promise<{ from: string; to: string; rate: number; date: string }> {
+  if (from.toUpperCase() === to.toUpperCase()) {
+    return {
+      from: from.toUpperCase(),
+      to: to.toUpperCase(),
+      rate: 1,
+      date: date ?? new Date().toISOString().slice(0, 10),
+    };
+  }
+  if (isDemoMode()) {
+    return {
+      from: from.toUpperCase(),
+      to: to.toUpperCase(),
+      rate: 900,
+      date: date ?? new Date().toISOString().slice(0, 10),
+    };
+  }
+  const qs = new URLSearchParams({ from, to });
+  if (date) qs.set('date', date);
+  return api.get(`/api/finances/fx?${qs.toString()}`);
+}
+
+export async function resolveFinanceFx(opts: {
+  amount: number;
+  currency: string;
+  reportingCurrency: string;
+  dayId: string;
+}): Promise<{
+  originalAmount: number;
+  originalCurrency: string;
+  exchangeRate: number | null;
+  fxPending: boolean;
+  reportingCurrency: string;
+}> {
+  const originalAmount = opts.amount;
+  const originalCurrency = opts.currency;
+  const reportingCurrency = opts.reportingCurrency;
+  if (originalCurrency.toUpperCase() === reportingCurrency.toUpperCase()) {
+    return {
+      originalAmount,
+      originalCurrency,
+      exchangeRate: 1,
+      fxPending: false,
+      reportingCurrency,
+    };
+  }
+  try {
+    const quote = await fetchFinanceRate(
+      originalCurrency,
+      reportingCurrency,
+      opts.dayId
+    );
+    return {
+      originalAmount,
+      originalCurrency,
+      exchangeRate: quote.rate,
+      fxPending: false,
+      reportingCurrency,
+    };
+  } catch {
+    return {
+      originalAmount,
+      originalCurrency,
+      exchangeRate: null,
+      fxPending: true,
+      reportingCurrency,
+    };
+  }
 }
 
 export async function deleteFinanceMovement(id: string): Promise<void> {

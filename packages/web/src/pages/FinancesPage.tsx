@@ -38,6 +38,7 @@ import {
   createFinanceMovement,
   deleteFinanceMovement,
   fetchFinanceCalendar,
+  resolveFinanceFx,
   updateFinanceMovement,
   type FinanceVaultCtx,
 } from '@core/services/financeMovementService';
@@ -182,8 +183,31 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
         fetchFinanceAccounts(),
       ]);
-      setMovements(rows);
       setAccounts(accs);
+      const pending = rows.filter(m => m.fxPending && !m.virtual);
+      let next = rows;
+      if (pending.length > 0) {
+        let converted = 0;
+        for (const mov of pending) {
+          const fx = await resolveFinanceFx({
+            amount: mov.amount,
+            currency: mov.originalCurrency || mov.currency,
+            reportingCurrency: preferred,
+            dayId: mov.dayId,
+          });
+          if (fx.fxPending) continue;
+          await updateFinanceMovement(
+            mov.id,
+            { ...fx, updatedAt: mov.updatedAt },
+            vault ?? undefined
+          );
+          converted += 1;
+        }
+        next = converted
+          ? await fetchFinanceCalendar(range.from, range.to, vault ?? undefined)
+          : rows;
+      }
+      setMovements(next);
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
@@ -194,7 +218,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     } finally {
       setLoading(false);
     }
-  }, [range.from, range.to, showToast, t, vault]);
+  }, [range.from, range.to, showToast, t, vault, preferred]);
 
   useEffect(() => {
     void reload();
@@ -219,8 +243,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }, [movements, filterFlow, filterAccountId]);
 
   const summaries = useMemo(
-    () => summarizeMovementsByCurrency(movements, monthId),
-    [movements, monthId]
+    () => summarizeMovementsByCurrency(movements, monthId, preferred),
+    [movements, monthId, preferred]
   );
   const currencyKeys = Object.keys(summaries).sort();
   const [summaryCurrency, setSummaryCurrency] = useState(preferred);
@@ -294,6 +318,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       showToast(t('fin_title_required'), 'error');
       return;
     }
+    const fx = await resolveFinanceFx({
+      amount: form.amount,
+      currency: form.currency,
+      reportingCurrency: preferred,
+      dayId: form.dayId,
+    });
     const payload: CreateFinanceMovementPayload = {
       dayId: form.dayId,
       flow: form.flow,
@@ -305,6 +335,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       accountId: form.accountId || null,
       tag: form.cardPayment ? 'card_payment' : null,
       cardAccountId: form.cardPayment ? form.cardAccountId || null : null,
+      ...fx,
       recurrence:
         !editing && form.repeat !== 'none'
           ? {
@@ -331,14 +362,25 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             accountId: payload.accountId,
             tag: payload.tag,
             cardAccountId: payload.cardAccountId,
+            originalAmount: payload.originalAmount,
+            originalCurrency: payload.originalCurrency,
+            exchangeRate: payload.exchangeRate,
+            fxPending: payload.fxPending,
+            reportingCurrency: payload.reportingCurrency,
             updatedAt: editing.updatedAt,
           },
           vault ?? undefined
         );
-        showToast(t('fin_saved'), 'success');
+        showToast(
+          fx.fxPending ? t('fin_fx_pending') : t('fin_saved'),
+          fx.fxPending ? 'info' : 'success'
+        );
       } else {
         await createFinanceMovement(payload, vault ?? undefined);
-        showToast(t('fin_created'), 'success');
+        showToast(
+          fx.fxPending ? t('fin_fx_pending') : t('fin_created'),
+          fx.fxPending ? 'info' : 'success'
+        );
       }
       setDialogOpen(false);
       await reload();
@@ -604,6 +646,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                         >
                           {mov.flow === 'income' ? '+' : '−'}
                           {mov.title}
+                          {mov.fxPending ? ' · FX' : ''}
                         </span>
                       </li>
                     ))}

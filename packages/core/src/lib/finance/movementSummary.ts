@@ -1,4 +1,5 @@
 import type { FinanceMovement, FinanceMovementMonthSummary } from './types';
+import { reportingAmountOf } from './fx';
 
 export function monthIdFromDayId(dayId: string): string {
   return dayId.slice(0, 7);
@@ -6,7 +7,8 @@ export function monthIdFromDayId(dayId: string): string {
 
 export function summarizeMovementsByCurrency(
   movements: FinanceMovement[],
-  monthId: string
+  monthId: string,
+  reportingCurrency?: string
 ): Record<string, FinanceMovementMonthSummary> {
   const out: Record<string, FinanceMovementMonthSummary> = {};
   for (const mov of movements) {
@@ -14,7 +16,11 @@ export function summarizeMovementsByCurrency(
     if (mov.flow === 'investment') continue;
     if (mov.status === 'skipped') continue;
     if (mov.tag === 'card_payment') continue;
-    const currency = mov.currency || 'EUR';
+    const converted = reportingCurrency
+      ? reportingAmountOf(mov, reportingCurrency)
+      : mov.amount;
+    if (converted == null) continue;
+    const currency = reportingCurrency || mov.currency || 'EUR';
     const bucket = out[currency] ?? {
       monthId,
       currency,
@@ -24,7 +30,7 @@ export function summarizeMovementsByCurrency(
       plannedExpense: 0,
       balance: 0,
     };
-    const amount = mov.amount;
+    const amount = converted;
     if (mov.status === 'confirmed') {
       if (mov.flow === 'income') bucket.confirmedIncome += amount;
       else bucket.confirmedExpense += amount;

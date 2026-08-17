@@ -60,6 +60,11 @@ const createSchema = z
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
     tag: z.enum(['card_payment']).nullable().optional(),
+    originalAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
+    originalCurrency: z.string().min(1).max(8).nullable().optional(),
+    exchangeRate: z.number().positive().max(1_000_000).nullable().optional(),
+    fxPending: z.boolean().optional(),
+    reportingCurrency: z.string().min(1).max(8).nullable().optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -88,6 +93,11 @@ const updateSchema = z
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
     tag: z.enum(['card_payment']).nullable().optional(),
+    originalAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
+    originalCurrency: z.string().min(1).max(8).nullable().optional(),
+    exchangeRate: z.number().positive().max(1_000_000).nullable().optional(),
+    fxPending: z.boolean().optional(),
+    reportingCurrency: z.string().min(1).max(8).nullable().optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
     message: 'patch vacio',
@@ -189,6 +199,11 @@ function mapMovement(
     notes: string;
     certainty: 'fixed' | 'potential';
     tag?: 'card_payment' | null;
+    originalAmount?: number | null;
+    originalCurrency?: string | null;
+    exchangeRate?: number | null;
+    fxPending?: boolean;
+    reportingCurrency?: string | null;
   } | null
 ) {
   const clientSealed =
@@ -213,6 +228,11 @@ function mapMovement(
     accountId: (row.account_id as string | null) ?? null,
     cardAccountId: (row.card_account_id as string | null) ?? null,
     tag: payload.tag ?? null,
+    originalAmount: payload.originalAmount ?? null,
+    originalCurrency: payload.originalCurrency ?? null,
+    exchangeRate: payload.exchangeRate ?? null,
+    fxPending: Boolean(payload.fxPending),
+    reportingCurrency: payload.reportingCurrency ?? null,
     ruleId: (row.rule_id as string | null) ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
@@ -612,6 +632,11 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           notes: body.notes,
           certainty: body.certainty,
           tag: body.tag,
+          originalAmount: body.originalAmount,
+          originalCurrency: body.originalCurrency,
+          exchangeRate: body.exchangeRate,
+          fxPending: body.fxPending,
+          reportingCurrency: body.reportingCurrency,
         });
     let accountDek: Buffer | null = null;
     if (!clientSealed) {
@@ -726,6 +751,11 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             notes: patch.notes,
             certainty: patch.certainty,
             tag: patch.tag,
+            originalAmount: patch.originalAmount,
+            originalCurrency: patch.originalCurrency,
+            exchangeRate: patch.exchangeRate,
+            fxPending: patch.fxPending,
+            reportingCurrency: patch.reportingCurrency,
             existing: prevPayload,
           })
         : null;

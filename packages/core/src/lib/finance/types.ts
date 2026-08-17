@@ -23,6 +23,11 @@ export interface FinanceMovementPayload {
   notes: string;
   certainty: FinanceCertainty;
   tag?: FinanceMovementTag | null;
+  originalAmount?: number | null;
+  originalCurrency?: string | null;
+  exchangeRate?: number | null;
+  fxPending?: boolean;
+  reportingCurrency?: string | null;
 }
 
 export interface FinanceAccountPayload {
@@ -57,6 +62,11 @@ export interface FinanceMovement {
   accountId: string | null;
   cardAccountId: string | null;
   tag: FinanceMovementTag | null;
+  originalAmount: number | null;
+  originalCurrency: string | null;
+  exchangeRate: number | null;
+  fxPending: boolean;
+  reportingCurrency: string | null;
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
@@ -105,6 +115,11 @@ export interface CreateFinanceMovementPayload {
   accountId?: string | null;
   cardAccountId?: string | null;
   tag?: FinanceMovementTag | null;
+  originalAmount?: number | null;
+  originalCurrency?: string | null;
+  exchangeRate?: number | null;
+  fxPending?: boolean;
+  reportingCurrency?: string | null;
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -126,6 +141,11 @@ export interface UpdateFinanceMovementPayload {
   accountId?: string | null;
   cardAccountId?: string | null;
   tag?: FinanceMovementTag | null;
+  originalAmount?: number | null;
+  originalCurrency?: string | null;
+  exchangeRate?: number | null;
+  fxPending?: boolean;
+  reportingCurrency?: string | null;
 }
 
 export interface FinanceMovementMonthSummary {

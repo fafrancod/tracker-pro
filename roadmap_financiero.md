@@ -4,7 +4,7 @@
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
 **Versión del repo al escribir:** v2.24.0.
 
-**Estado:** Fases 1–3 + cifrado de cuenta en `main` (v2.25). Siguiente: Fase 4 cuentas / TC.
+**Estado:** Fases 1–4 en `main` (v2.26). Siguiente: Fase 5 FX.
 
 **Respuesta corta:** dos calendarios, un libro, cifrado **con la cuenta**. El tablero no es el mayor. Login = ves el dinero. Restablecer la contraseña **no** pierde importes. La bóveda privada (frase + 12 palabras) queda como legado opt-in, no como default.
 
@@ -373,9 +373,12 @@ Pago de tarjeta = movimiento en el débito con `tag=card_payment` + `card_accoun
 
 ### Fase 5 — FX
 
-`settings.reportingCurrency`. Original + rate en el payload cifrado. Reintento de `fx_pending` al desbloquear, no en el worker.
+`settings.preferredCurrency` es la **moneda de reporte**. Original + `exchangeRate` en el payload cifrado. Reintento de `fxPending` al abrir Finanzas, no en el worker. `GET /api/finances/fx` (Frankfurter, sin uid al proveedor).
 
-**Hecho:** USD + CLP cuadran en la moneda de reporte; si cae la API de tipos, el movimiento no se pierde.
+**Hecho:**
+
+- [x] USD + CLP cuadran en la moneda de reporte.
+- [x] Si cae la API de tipos, el movimiento se guarda (`fxPending`) y no se pierde.
 
 ### Fase 6 — Objetivos
 

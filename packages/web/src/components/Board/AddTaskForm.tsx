@@ -567,6 +567,7 @@ export function AddTaskForm({
           certainty: financeCertainty,
           flow: financeFlow,
           vault: vault ?? undefined,
+          reportingCurrency: settings.preferredCurrency,
         });
         financeMovementId = created.id;
         linkedFinance = created.linked;
