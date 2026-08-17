@@ -25,6 +25,9 @@ export interface FinanceMovement {
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
+  /** Presente si el mayor está en bóveda: el cliente debe descifrar. */
+  payloadEnc?: string | null;
+  sealed?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +44,8 @@ export interface FinanceRule {
   amount: number;
   notes: string;
   certainty: FinanceCertainty;
+  payloadEnc?: string | null;
+  sealed?: boolean;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -51,11 +56,16 @@ export interface CreateFinanceMovementPayload {
   flow: FinanceMovementFlow;
   status?: FinanceMovementStatus;
   currency?: string;
-  title: string;
-  amount: number;
+  title?: string;
+  amount?: number;
   notes?: string;
   certainty?: FinanceCertainty;
   clientMutationId?: string;
+  /** Id generado en cliente (obligatorio si se manda payloadEnc). */
+  id?: string;
+  payloadEnc?: string;
+  ruleId?: string;
+  rulePayloadEnc?: string;
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -72,6 +82,7 @@ export interface UpdateFinanceMovementPayload {
   notes?: string;
   certainty?: FinanceCertainty;
   updatedAt?: string;
+  payloadEnc?: string;
 }
 
 export interface FinanceMovementMonthSummary {

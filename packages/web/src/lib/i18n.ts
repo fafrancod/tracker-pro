@@ -60,6 +60,23 @@ export interface TranslationDict {
   fin_repeat: string;
   fin_repeat_none: string;
   fin_field_status: string;
+  fin_vault_title: string;
+  fin_vault_desc: string;
+  fin_vault_phrase: string;
+  fin_vault_phrase2: string;
+  fin_vault_create: string;
+  fin_vault_unlock: string;
+  fin_vault_phrase_short: string;
+  fin_vault_phrase_mismatch: string;
+  fin_vault_bad_phrase: string;
+  fin_vault_save_error: string;
+  fin_vault_load_error: string;
+  fin_vault_recovery_warn: string;
+  fin_vault_recovery_ack: string;
+  fin_vault_continue: string;
+  fin_vault_recovery: string;
+  fin_vault_use_recovery: string;
+  fin_vault_use_phrase: string;
   fin_field_title: string;
   fin_title_ph: string;
   fin_field_flow: string;
@@ -1048,6 +1065,25 @@ const es_dict: TranslationDict = {
   fin_repeat: 'Repetir',
   fin_repeat_none: 'Solo este día',
   fin_field_status: 'Estado',
+  fin_vault_title: 'Bóveda financiera',
+  fin_vault_desc:
+    'Los montos y conceptos se cifran en este dispositivo. El servidor no puede leerlos. Si olvidas la frase y las palabras de recuperación, nadie podrá recuperarlos.',
+  fin_vault_phrase: 'Frase de desbloqueo',
+  fin_vault_phrase2: 'Repite la frase',
+  fin_vault_create: 'Crear bóveda',
+  fin_vault_unlock: 'Desbloquear',
+  fin_vault_phrase_short: 'Usa al menos 8 caracteres.',
+  fin_vault_phrase_mismatch: 'Las frases no coinciden.',
+  fin_vault_bad_phrase: 'Frase incorrecta.',
+  fin_vault_save_error: 'No se pudo crear la bóveda.',
+  fin_vault_load_error: 'No se pudo leer el estado de la bóveda.',
+  fin_vault_recovery_warn:
+    'Anota estas 12 palabras en un lugar seguro. Sin ellas no hay recuperación.',
+  fin_vault_recovery_ack: 'Ya las anoté. Entiendo que no hay soporte que las recupere.',
+  fin_vault_continue: 'Continuar al calendario',
+  fin_vault_recovery: 'Palabras de recuperación',
+  fin_vault_use_recovery: 'Usar las 12 palabras',
+  fin_vault_use_phrase: 'Usar la frase de desbloqueo',
   fin_empty_hint:
     'Registra gastos e ingresos recurrentes, esperados o específicos para ver el balance mensual.',
   fin_field_title: 'Concepto',
@@ -2120,6 +2156,25 @@ const en_dict: TranslationDict = {
   fin_repeat: 'Repeat',
   fin_repeat_none: 'This day only',
   fin_field_status: 'Status',
+  fin_vault_title: 'Finance vault',
+  fin_vault_desc:
+    'Amounts and titles are encrypted on this device. The server cannot read them. If you lose the passphrase and recovery words, nobody can restore the data.',
+  fin_vault_phrase: 'Unlock passphrase',
+  fin_vault_phrase2: 'Repeat passphrase',
+  fin_vault_create: 'Create vault',
+  fin_vault_unlock: 'Unlock',
+  fin_vault_phrase_short: 'Use at least 8 characters.',
+  fin_vault_phrase_mismatch: 'Passphrases do not match.',
+  fin_vault_bad_phrase: 'Incorrect passphrase.',
+  fin_vault_save_error: 'Could not create the vault.',
+  fin_vault_load_error: 'Could not read vault status.',
+  fin_vault_recovery_warn:
+    'Write these 12 words down somewhere safe. There is no recovery without them.',
+  fin_vault_recovery_ack: 'I wrote them down. I understand support cannot restore them.',
+  fin_vault_continue: 'Continue to calendar',
+  fin_vault_recovery: 'Recovery words',
+  fin_vault_use_recovery: 'Use the 12 words',
+  fin_vault_use_phrase: 'Use the unlock passphrase',
   fin_empty_hint:
     'Track recurring, expected, and specific expenses and income to see your monthly balance.',
   fin_field_title: 'Title',

@@ -2,12 +2,24 @@ import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
 import { parseFinancePayload } from '../lib/finance/payload';
 import { expandFinanceRules } from '../lib/finance/expandRules';
+import {
+  encryptFinancePayload,
+  financePayloadAad,
+} from '../lib/finance/vault';
+import { unsealFinanceLedger } from '../lib/finance/unseal';
 import type {
   CreateFinanceMovementPayload,
   FinanceMovement,
   FinanceRule,
   UpdateFinanceMovementPayload,
 } from '../lib/finance/types';
+
+export type FinanceVaultCtx = { uid: string; dek: import('../lib/finance/vault').FinanceDek };
+
+function newFinanceId(prefix: string): string {
+  const rnd = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+  return `${prefix}_${rnd.replace(/-/g, '').slice(0, 20)}`;
+}
 
 const DEMO_MOV_KEY = 'daily-tracker:demo-finance-movements';
 const DEMO_RULE_KEY = 'daily-tracker:demo-finance-rules';
@@ -62,6 +74,13 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
       (raw.source_task_id as string | null) ??
       null,
     virtual: Boolean(raw.virtual),
+    payloadEnc:
+      typeof raw.payloadEnc === 'string'
+        ? raw.payloadEnc
+        : typeof raw.payload_enc === 'string'
+          ? raw.payload_enc
+          : null,
+    sealed: Boolean(raw.sealed),
     createdAt: String(raw.createdAt ?? raw.created_at ?? ''),
     updatedAt: String(raw.updatedAt ?? raw.updated_at ?? ''),
   };
@@ -85,6 +104,13 @@ function mapRule(raw: Record<string, unknown>): FinanceRule {
     amount: typeof raw.amount === 'number' ? raw.amount : payload.amount,
     notes: typeof raw.notes === 'string' ? raw.notes : payload.notes,
     certainty: raw.certainty === 'potential' ? 'potential' : payload.certainty,
+    payloadEnc:
+      typeof raw.payloadEnc === 'string'
+        ? raw.payloadEnc
+        : typeof raw.payload_enc === 'string'
+          ? raw.payload_enc
+          : null,
+    sealed: Boolean(raw.sealed),
     active: raw.active !== false,
     createdAt: String(raw.createdAt ?? raw.created_at ?? ''),
     updatedAt: String(raw.updatedAt ?? raw.updated_at ?? ''),
@@ -116,9 +142,13 @@ export async function fetchFinanceMovements(
 
 export async function fetchFinanceCalendar(
   fromDayId: string,
-  toDayId: string
+  toDayId: string,
+  vault?: FinanceVaultCtx
 ): Promise<FinanceMovement[]> {
-  const { movements, rules } = await fetchFinanceMovements(fromDayId, toDayId);
+  const raw = await fetchFinanceMovements(fromDayId, toDayId);
+  const { movements, rules } = vault
+    ? await unsealFinanceLedger(vault.uid, vault.dek, raw.movements, raw.rules)
+    : raw;
   const virtuals = expandFinanceRules(rules, movements, fromDayId, toDayId);
   return [...movements, ...virtuals].sort((a, b) => {
     if (a.dayId !== b.dayId) return a.dayId.localeCompare(b.dayId);
@@ -127,7 +157,8 @@ export async function fetchFinanceCalendar(
 }
 
 export async function createFinanceMovement(
-  payload: CreateFinanceMovementPayload
+  payload: CreateFinanceMovementPayload,
+  vault?: FinanceVaultCtx
 ): Promise<FinanceMovement> {
   if (isDemoMode()) {
     const now = new Date().toISOString();
@@ -143,8 +174,8 @@ export async function createFinanceMovement(
         frequency: payload.recurrence.frequency,
         recurrenceDay: payload.recurrence.recurrenceDay,
         startDayId: payload.dayId,
-        title: payload.title,
-        amount: payload.amount,
+        title: payload.title ?? '',
+        amount: payload.amount ?? 0,
         notes: payload.notes ?? '',
         certainty: payload.certainty ?? 'fixed',
         active: true,
@@ -159,8 +190,8 @@ export async function createFinanceMovement(
       flow: payload.flow,
       status: payload.status ?? 'planned',
       currency: payload.currency ?? 'EUR',
-      title: payload.title,
-      amount: payload.amount,
+      title: payload.title ?? '',
+      amount: payload.amount ?? 0,
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
       ruleId,
@@ -173,16 +204,62 @@ export async function createFinanceMovement(
     saveJson(DEMO_MOV_KEY, all);
     return mov;
   }
+  let body: CreateFinanceMovementPayload = payload;
+  if (vault) {
+    const id = payload.id ?? newFinanceId('fm');
+    const aad = financePayloadAad(vault.uid, 'finance_movements', id);
+    const inner = {
+      title: payload.title ?? '',
+      amount: payload.amount ?? 0,
+      notes: payload.notes ?? '',
+      certainty: payload.certainty ?? 'fixed',
+    };
+    const payloadEnc = await encryptFinancePayload(vault.dek, inner, aad);
+    let ruleId: string | undefined;
+    let rulePayloadEnc: string | undefined;
+    if (payload.recurrence) {
+      ruleId = newFinanceId('fr');
+      rulePayloadEnc = await encryptFinancePayload(
+        vault.dek,
+        inner,
+        financePayloadAad(vault.uid, 'finance_rules', ruleId)
+      );
+    }
+    body = {
+      id,
+      dayId: payload.dayId,
+      flow: payload.flow,
+      status: payload.status,
+      currency: payload.currency,
+      clientMutationId: payload.clientMutationId,
+      recurrence: payload.recurrence,
+      payloadEnc,
+      ruleId,
+      rulePayloadEnc,
+    };
+  }
   const res = await api.post<Record<string, unknown>>(
     '/api/finances/movements',
-    payload
+    body
   );
-  return mapMovement(res);
+  const mapped = mapMovement(res);
+  if (vault && mapped.sealed) {
+    return {
+      ...mapped,
+      title: payload.title ?? '',
+      amount: payload.amount ?? 0,
+      notes: payload.notes ?? '',
+      certainty: payload.certainty ?? 'fixed',
+      sealed: false,
+    };
+  }
+  return mapped;
 }
 
 export async function updateFinanceMovement(
   id: string,
-  payload: UpdateFinanceMovementPayload
+  payload: UpdateFinanceMovementPayload,
+  vault?: FinanceVaultCtx
 ): Promise<FinanceMovement> {
   if (isDemoMode()) {
     const all = loadJson<FinanceMovement>(DEMO_MOV_KEY);
@@ -197,9 +274,30 @@ export async function updateFinanceMovement(
     saveJson(DEMO_MOV_KEY, all);
     return next;
   }
+  let body: UpdateFinanceMovementPayload = payload;
+  if (vault && (payload.title !== undefined || payload.amount !== undefined)) {
+    const payloadEnc = await encryptFinancePayload(
+      vault.dek,
+      {
+        title: payload.title ?? '',
+        amount: payload.amount ?? 0,
+        notes: payload.notes ?? '',
+        certainty: payload.certainty ?? 'fixed',
+      },
+      financePayloadAad(vault.uid, 'finance_movements', id)
+    );
+    body = {
+      dayId: payload.dayId,
+      flow: payload.flow,
+      status: payload.status,
+      currency: payload.currency,
+      updatedAt: payload.updatedAt,
+      payloadEnc,
+    };
+  }
   const res = await api.patch<Record<string, unknown>>(
     `/api/finances/movements/${encodeURIComponent(id)}`,
-    payload
+    body
   );
   return mapMovement(res);
 }
@@ -213,4 +311,59 @@ export async function deleteFinanceMovement(id: string): Promise<void> {
     return;
   }
   await api.del<void>(`/api/finances/movements/${encodeURIComponent(id)}`);
+}
+
+export interface FinanceVaultRemote {
+  enabled: boolean;
+  kdfSalt?: string;
+  kdfParams?: { algo: 'PBKDF2'; iterations: number; hash: 'SHA-256' };
+  wrappedDek?: string;
+  recoveryWrappedDek?: string;
+  encV?: string;
+}
+
+export async function fetchFinanceVault(): Promise<FinanceVaultRemote> {
+  if (isDemoMode()) return { enabled: false };
+  return api.get<FinanceVaultRemote>('/api/finances/vault');
+}
+
+export async function putFinanceVault(meta: {
+  kdfSalt: string;
+  kdfParams: { algo: 'PBKDF2'; iterations: number; hash: 'SHA-256' };
+  wrappedDek: string;
+  recoveryWrappedDek: string;
+  encV: string;
+}): Promise<void> {
+  if (isDemoMode()) return;
+  await api.put('/api/finances/vault', meta);
+}
+
+export async function fetchFinanceLedger(): Promise<{
+  movements: FinanceMovement[];
+  rules: FinanceRule[];
+}> {
+  if (isDemoMode()) {
+    return {
+      movements: loadJson<FinanceMovement>(DEMO_MOV_KEY),
+      rules: loadJson<FinanceRule>(DEMO_RULE_KEY),
+    };
+  }
+  const res = await api.get<{
+    movements?: Record<string, unknown>[];
+    rules?: Record<string, unknown>[];
+  }>('/api/finances/ledger');
+  return {
+    movements: (res.movements ?? []).map(mapMovement),
+    rules: (res.rules ?? []).map(mapRule),
+  };
+}
+
+export async function sealFinanceRule(
+  ruleId: string,
+  payloadEnc: string
+): Promise<void> {
+  if (isDemoMode()) return;
+  await api.patch(`/api/finances/rules/${encodeURIComponent(ruleId)}`, {
+    payloadEnc,
+  });
 }

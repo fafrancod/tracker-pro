@@ -29,6 +29,7 @@ import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
+import { FinanceVaultGate } from '@/components/Finances/FinanceVaultGate';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -37,6 +38,7 @@ import {
   deleteFinanceMovement,
   fetchFinanceCalendar,
   updateFinanceMovement,
+  type FinanceVaultCtx,
 } from '@core/services/financeMovementService';
 import {
   monthIdFromDayId,
@@ -96,6 +98,14 @@ function emptyForm(dayId: string, currency: string): MovementForm {
 }
 
 export function FinancesPage() {
+  return (
+    <FinanceVaultGate>
+      {vault => <FinancesCalendar vault={vault} />}
+    </FinanceVaultGate>
+  );
+}
+
+function FinancesCalendar({ vault }: { vault: FinanceVaultCtx }) {
   const { t, locale, language } = useT();
   const { showToast } = useToast();
   const { settings } = useSettings();
@@ -156,7 +166,7 @@ export function FinancesPage() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await fetchFinanceCalendar(range.from, range.to);
+      const rows = await fetchFinanceCalendar(range.from, range.to, vault);
       setMovements(rows);
     } catch (err) {
       const msg =
@@ -168,7 +178,7 @@ export function FinancesPage() {
     } finally {
       setLoading(false);
     }
-  }, [range.from, range.to, showToast, t]);
+  }, [range.from, range.to, showToast, t, vault]);
 
   useEffect(() => {
     void reload();
@@ -279,19 +289,23 @@ export function FinancesPage() {
     };
     try {
       if (editing) {
-        await updateFinanceMovement(editing.id, {
-          dayId: payload.dayId,
-          flow: payload.flow,
-          status: payload.status,
-          currency: payload.currency,
-          title: payload.title,
-          amount: payload.amount,
-          notes: payload.notes,
-          updatedAt: editing.updatedAt,
-        });
+        await updateFinanceMovement(
+          editing.id,
+          {
+            dayId: payload.dayId,
+            flow: payload.flow,
+            status: payload.status,
+            currency: payload.currency,
+            title: payload.title,
+            amount: payload.amount,
+            notes: payload.notes,
+            updatedAt: editing.updatedAt,
+          },
+          vault
+        );
         showToast(t('fin_saved'), 'success');
       } else {
-        await createFinanceMovement(payload);
+        await createFinanceMovement(payload, vault);
         showToast(t('fin_created'), 'success');
       }
       setDialogOpen(false);

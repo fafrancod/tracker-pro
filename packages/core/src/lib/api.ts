@@ -266,6 +266,7 @@ export async function authFetch<T = unknown>(
 export const api = {
   get: <T>(path: string) => authFetch<T>(path, { method: 'GET' }),
   post: <T>(path: string, json?: unknown) => authFetch<T>(path, { method: 'POST', json }),
+  put: <T>(path: string, json?: unknown) => authFetch<T>(path, { method: 'PUT', json }),
   patch: <T>(path: string, json?: unknown) => authFetch<T>(path, { method: 'PATCH', json }),
   del: <T>(path: string) => authFetch<T>(path, { method: 'DELETE' }),
   publicGet: <T>(path: string) => authFetch<T>(path, { method: 'GET', withAuth: false }),
