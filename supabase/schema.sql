@@ -570,6 +570,7 @@ revoke all on function public.admin_user_stats() from anon, authenticated;
 grant execute on function public.admin_user_stats() to service_role;
 
 -- Hábitos: plan (días ISO 1=lun … 7=dom). NULL = clásico; [] = fechas concretas.
+-- CHECK sin subconsulta (PG 0A000): <@ = contenido en 1..7. [] <@ {1..7} es TRUE.
 alter table public.tasks add column if not exists recurrence_weekdays int[];
 do $$
 begin
@@ -584,11 +585,7 @@ begin
         recurrence_weekdays is null
         or (
           cardinality(recurrence_weekdays) <= 7
-          and not exists (
-            select 1
-            from unnest(recurrence_weekdays) as d
-            where d < 1 or d > 7
-          )
+          and recurrence_weekdays <@ array[1, 2, 3, 4, 5, 6, 7]::int[]
         )
       );
   end if;
