@@ -9,7 +9,7 @@ import {
   parseFinancePayload,
   unlockFinanceVault,
 } from '@daily-tracker/core';
-import { inferVaultScheme } from '../lib/financeEnvelope.js';
+import { inferVaultScheme, parseFinanceMasterKey } from '../lib/financeEnvelope.js';
 import { buildApp } from '../app.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 
@@ -200,6 +200,17 @@ describe('API vault + movements ciegos', () => {
       });
     expect(res.status).toBe(201);
     expect(res.body.title).toBe('Café');
+  });
+
+  it('parseFinanceMasterKey acepta base64 de 32 bytes y hex de 64', () => {
+    const b64 = 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
+    expect(parseFinanceMasterKey(b64).length).toBe(32);
+    expect(parseFinanceMasterKey(`"${b64}"`).length).toBe(32);
+    expect(
+      parseFinanceMasterKey('3031323334353637383961626364656630313233343536373839616263646566')
+        .length
+    ).toBe(32);
+    expect(() => parseFinanceMasterKey('corto')).toThrow(/decodifica a/);
   });
 
   it('wrapped_dek vacío no es bóveda privada', () => {

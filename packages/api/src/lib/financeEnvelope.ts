@@ -20,17 +20,23 @@ export function isFinanceSchemaError(err: unknown): boolean {
   );
 }
 
+/** Acepta base64 de 32 bytes o hex de 64 chars. */
+export function parseFinanceMasterKey(raw: string): Buffer {
+  const value = raw.trim().replace(/^['"]|['"]$/g, '');
+  const fromB64 = Buffer.from(value, 'base64');
+  if (fromB64.length === DEK_BYTES) return fromB64;
+  const hex = value.replace(/^0x/i, '');
+  if (/^[0-9a-fA-F]{64}$/.test(hex)) return Buffer.from(hex, 'hex');
+  throw new Error(
+    `FINANCE_MASTER_KEY debe ser 32 bytes en base64 (ahora decodifica a ${fromB64.length} bytes). Genera una con: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+  );
+}
+
 function masterKey(): Buffer {
   const raw =
     process.env.FINANCE_MASTER_KEY?.trim() ||
     process.env.ENCRYPTION_LOCAL_MASTER_KEY?.trim();
-  if (raw) {
-    const key = Buffer.from(raw, 'base64');
-    if (key.length !== DEK_BYTES) {
-      throw new Error('FINANCE_MASTER_KEY debe ser 32 bytes en base64');
-    }
-    return key;
-  }
+  if (raw) return parseFinanceMasterKey(raw);
   if (process.env.NODE_ENV === 'production') {
     throw new Error('Falta FINANCE_MASTER_KEY en producción');
   }
