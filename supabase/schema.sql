@@ -488,10 +488,12 @@ create unique index if not exists finance_movements_user_mutation_idx
 
 create table if not exists public.finance_vault (
   user_id uuid primary key references public.profiles (id) on delete cascade,
+  scheme text,
   kdf_salt text,
   kdf_params jsonb,
   wrapped_dek text,
   recovery_wrapped_dek text,
+  account_wrapped_dek text,
   enc_v text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

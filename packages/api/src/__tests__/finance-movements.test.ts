@@ -60,6 +60,7 @@ function buildFromMock() {
         update: vi.fn(() => {
           const c: Record<string, unknown> = {};
           c.eq = vi.fn(() => c);
+          c.not = vi.fn(() => c);
           c.then = (resolve: (v: unknown) => void) =>
             resolve({ data: null, error: null });
           return c;
@@ -67,6 +68,25 @@ function buildFromMock() {
         delete: vi.fn(() => {
           const c: Record<string, unknown> = {};
           c.eq = vi.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) =>
+            resolve({ data: null, error: null });
+          return c;
+        }),
+      };
+    }
+    if (table === 'finance_vault') {
+      return {
+        select: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+          return c;
+        }),
+        upsert: vi.fn(async () => ({ data: null, error: null })),
+        update: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.not = vi.fn(() => c);
           c.then = (resolve: (v: unknown) => void) =>
             resolve({ data: null, error: null });
           return c;
@@ -192,7 +212,8 @@ describe('POST /api/finances/movements', () => {
     expect(lastMovementInsert?.day_id).toBe('2026-08-17');
     expect(lastMovementInsert?.flow).toBe('expense');
     expect(lastMovementInsert?.status).toBe('planned');
-    expect((lastMovementInsert?.payload as { title?: string })?.title).toBe('Café');
+    expect(lastMovementInsert?.payload).toEqual({});
+    expect(lastMovementInsert?.payload_enc).toBeTruthy();
     expect(res.body.title).toBe('Café');
     expect(res.body.amount).toBe(2800);
     expect(lastRuleInsert).toBeNull();

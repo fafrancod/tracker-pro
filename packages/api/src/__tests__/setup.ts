@@ -5,6 +5,7 @@ process.env.PORT = '0';
 process.env.ALLOWED_ORIGINS = 'http://localhost:3005';
 process.env.SUPABASE_URL = 'http://localhost:54321';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+process.env.FINANCE_MASTER_KEY = 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=';
 
 export const MOCK_PROFILES = [
   {

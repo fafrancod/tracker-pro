@@ -77,6 +77,11 @@ export interface TranslationDict {
   fin_vault_recovery: string;
   fin_vault_use_recovery: string;
   fin_vault_use_phrase: string;
+  fin_vault_reset: string;
+  fin_vault_reset_hint: string;
+  fin_vault_reset_done: string;
+  fin_vault_reset_error: string;
+  fin_vault_adopt_done: string;
   fin_field_title: string;
   fin_title_ph: string;
   fin_field_flow: string;
@@ -1072,7 +1077,7 @@ const es_dict: TranslationDict = {
   fin_field_status: 'Estado',
   fin_vault_title: 'Bóveda financiera',
   fin_vault_desc:
-    'Los montos y conceptos se cifran en este dispositivo. El servidor no puede leerlos. Si olvidas la frase y las palabras de recuperación, nadie podrá recuperarlos.',
+    'Por defecto el cifrado va con tu cuenta (como en Meteora): inicias sesión y ves tus importes. Si restableces la contraseña, no pierdes el dinero. La frase solo aplica si activaste una bóveda privada antigua.',
   fin_vault_phrase: 'Frase de desbloqueo',
   fin_vault_phrase2: 'Repite la frase',
   fin_vault_create: 'Crear bóveda',
@@ -1089,6 +1094,12 @@ const es_dict: TranslationDict = {
   fin_vault_recovery: 'Palabras de recuperación',
   fin_vault_use_recovery: 'Usar las 12 palabras',
   fin_vault_use_phrase: 'Usar la frase de desbloqueo',
+  fin_vault_reset: 'Olvidé la frase: restablecer cifrado',
+  fin_vault_reset_hint:
+    'Se borran los importes que no podamos abrir. A partir de ahora el cifrado va con tu cuenta: si restableces la contraseña, el dinero sigue accesible.',
+  fin_vault_reset_done: 'Cifrado restablecido. Entras con tu sesión.',
+  fin_vault_reset_error: 'No se pudo restablecer el cifrado.',
+  fin_vault_adopt_done: 'Pasamos al cifrado de cuenta. Ya no necesitas la frase.',
   fin_empty_hint:
     'Registra gastos e ingresos recurrentes, esperados o específicos para ver el balance mensual.',
   fin_field_title: 'Concepto',
@@ -2170,7 +2181,7 @@ const en_dict: TranslationDict = {
   fin_field_status: 'Status',
   fin_vault_title: 'Finance vault',
   fin_vault_desc:
-    'Amounts and titles are encrypted on this device. The server cannot read them. If you lose the passphrase and recovery words, nobody can restore the data.',
+    'By default encryption follows your account (like Meteora): sign in and see your amounts. Resetting your password does not lose money. The phrase only applies if you enabled an old private vault.',
   fin_vault_phrase: 'Unlock passphrase',
   fin_vault_phrase2: 'Repeat passphrase',
   fin_vault_create: 'Create vault',
@@ -2187,6 +2198,12 @@ const en_dict: TranslationDict = {
   fin_vault_recovery: 'Recovery words',
   fin_vault_use_recovery: 'Use the 12 words',
   fin_vault_use_phrase: 'Use the unlock passphrase',
+  fin_vault_reset: 'I forgot the phrase: reset encryption',
+  fin_vault_reset_hint:
+    'Amounts we cannot open will be deleted. From now on encryption follows your account: if you reset your password, money stays accessible.',
+  fin_vault_reset_done: 'Encryption reset. You sign in with your session.',
+  fin_vault_reset_error: 'Could not reset encryption.',
+  fin_vault_adopt_done: 'Switched to account encryption. You no longer need the phrase.',
   fin_empty_hint:
     'Track recurring, expected, and specific expenses and income to see your monthly balance.',
   fin_field_title: 'Title',

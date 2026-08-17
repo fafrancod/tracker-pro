@@ -29,8 +29,16 @@ function buildFromMock() {
           return c;
         }),
         upsert: vi.fn(async (row: Record<string, unknown>) => {
-          vaultRow = row;
+          vaultRow = { ...(vaultRow ?? {}), ...row };
           return { data: null, error: null };
+        }),
+        update: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.not = vi.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) =>
+            resolve({ data: null, error: null });
+          return c;
         }),
       };
     }
@@ -40,11 +48,27 @@ function buildFromMock() {
           lastMovementInsert = row;
           return { data: null, error: null };
         }),
+        update: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.not = vi.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) =>
+            resolve({ data: null, error: null });
+          return c;
+        }),
       };
     }
     if (table === 'finance_rules') {
       return {
         insert: vi.fn(async () => ({ data: null, error: null })),
+        update: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.not = vi.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) =>
+            resolve({ data: null, error: null });
+          return c;
+        }),
       };
     }
     const c: Record<string, unknown> = {};
@@ -108,6 +132,43 @@ describe('API vault + movements ciegos', () => {
       .set('Authorization', 'Bearer valid-token');
     expect(res.status).toBe(200);
     expect(res.body.enabled).toBe(false);
+    expect(res.body.scheme).toBe('none');
+  });
+
+  it('POST en claro sin bóveda privada cifra en servidor (sobre de cuenta)', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-08-17',
+        flow: 'expense',
+        title: 'Café',
+        amount: 2800,
+        currency: 'CLP',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.title).toBe('Café');
+    expect(res.body.amount).toBe(2800);
+    expect(res.body.sealed).toBe(false);
+    expect(lastMovementInsert?.payload).toEqual({});
+    expect(String(lastMovementInsert?.payload_enc ?? '')).not.toContain('2800');
+    expect(lastMovementInsert?.enc_v).toBe('2');
+  });
+
+  it('POST /vault/reset deja scheme account', async () => {
+    vaultRow = {
+      user_id: 'test-uid',
+      scheme: 'private',
+      wrapped_dek: 'd3JhcHBlZC1kZWstdmFsaWRvLTEyMzQ1Ng==',
+    };
+    const res = await request(app)
+      .post('/api/finances/vault/reset')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(200);
+    expect(res.body.scheme).toBe('account');
+    expect(res.body.wiped).toBe(true);
+    expect(vaultRow?.scheme).toBe('account');
+    expect(vaultRow?.wrapped_dek).toBeNull();
   });
 
   it('PUT vault y luego POST en claro → 400', async () => {

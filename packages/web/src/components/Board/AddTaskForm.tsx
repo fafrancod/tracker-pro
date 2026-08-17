@@ -549,11 +549,7 @@ export function AddTaskForm({
     let financeMovementId: string | undefined;
     let linkedFinance: CreateTaskPayload['linkedFinance'];
     if (canEntailMoney && entailsMoney) {
-      const vault = getFinanceVaultSession();
-      if (!vault) {
-        showToast(t('task_entails_money_need_vault'), 'error');
-        return;
-      }
+      const vault = getFinanceVaultSession() ?? undefined;
       if (!startForCreate) {
         showToast(t('task_time_range_error'), 'error');
         return;
@@ -570,7 +566,7 @@ export function AddTaskForm({
           currency: financeCurrency,
           certainty: financeCertainty,
           flow: financeFlow,
-          vault,
+          vault: vault ?? undefined,
         });
         financeMovementId = created.id;
         linkedFinance = created.linked;

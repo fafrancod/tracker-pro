@@ -30,7 +30,7 @@ export async function createBridgeMovement(opts: {
   currency: string;
   certainty: NonNullable<CreateTaskPayload['financeCertainty']>;
   flow: FinanceMovement['flow'];
-  vault: FinanceVaultCtx;
+  vault?: FinanceVaultCtx;
 }): Promise<{ id: string; linked: NonNullable<Task['linkedFinance']> }> {
   const mov = await createFinanceMovement(
     {

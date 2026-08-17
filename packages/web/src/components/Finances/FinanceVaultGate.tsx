@@ -8,6 +8,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useStore } from '@core/store';
 import {
   createFinanceVault,
+  decryptFinancePayload,
   encryptFinancePayload,
   financePayloadAad,
   generateRecoveryPhrase,
@@ -18,9 +19,11 @@ import {
   type FinanceVaultMeta,
 } from '@core/lib/finance';
 import {
+  adoptAccountVault,
   fetchFinanceLedger,
   fetchFinanceVault,
   putFinanceVault,
+  resetFinanceVault,
   sealFinanceRule,
   updateFinanceMovement,
   type FinanceVaultCtx,
@@ -31,7 +34,7 @@ type Phase = 'loading' | 'setup' | 'recovery' | 'unlock' | 'ready';
 export function FinanceVaultGate({
   children,
 }: {
-  children: (ctx: FinanceVaultCtx) => ReactNode;
+  children: (ctx: FinanceVaultCtx | null) => ReactNode;
 }) {
   const { t } = useT();
   const { showToast } = useToast();
@@ -51,8 +54,8 @@ export function FinanceVaultGate({
     setPhase('loading');
     try {
       const remote = await fetchFinanceVault();
-      if (!remote.enabled || !remote.kdfSalt || !remote.wrappedDek) {
-        setPhase('setup');
+      if (remote.scheme !== 'private' || !remote.kdfSalt || !remote.wrappedDek) {
+        setPhase('ready');
         return;
       }
       setMeta({
@@ -69,7 +72,7 @@ export function FinanceVaultGate({
       setPhase('unlock');
     } catch {
       showToast(t('fin_vault_load_error'), 'error');
-      setPhase('setup');
+      setPhase('ready');
     }
   }, [uid, showToast, t]);
 
@@ -153,6 +156,11 @@ export function FinanceVaultGate({
       );
       setDek(key);
       setPhrase('');
+      try {
+        await adoptFromDek(key);
+      } catch {
+        /* esta sesión sigue en bóveda privada */
+      }
       setPhase('ready');
     } catch {
       showToast(t('fin_vault_bad_phrase'), 'error');
@@ -161,14 +169,104 @@ export function FinanceVaultGate({
     }
   }
 
+  async function handleReset() {
+    if (!uid) return;
+    setBusy(true);
+    try {
+      await resetFinanceVault();
+      setDek(null);
+      setMeta(null);
+      setFinanceVaultSession(null);
+      setPhase('ready');
+      showToast(t('fin_vault_reset_done'), 'success');
+    } catch {
+      showToast(t('fin_vault_reset_error'), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function adoptFromDek(key: FinanceDek) {
+    if (!uid) return;
+    const ledger = await fetchFinanceLedger();
+    const movements = [];
+    for (const mov of ledger.movements) {
+      if (!mov.sealed && mov.title) {
+        movements.push({
+          id: mov.id,
+          title: mov.title,
+          amount: mov.amount,
+          notes: mov.notes,
+          certainty: mov.certainty,
+        });
+        continue;
+      }
+      if (!mov.payloadEnc) continue;
+      try {
+        const opened = await decryptFinancePayload<{
+          title: string;
+          amount: number;
+          notes: string;
+          certainty: 'fixed' | 'potential';
+        }>(key, mov.payloadEnc, financePayloadAad(uid, 'finance_movements', mov.id));
+        movements.push({
+          id: mov.id,
+          title: opened.title,
+          amount: opened.amount,
+          notes: opened.notes,
+          certainty: opened.certainty,
+        });
+      } catch {
+        /* se pierde esa fila si no abre */
+      }
+    }
+    const rules = [];
+    for (const rule of ledger.rules) {
+      if (!rule.sealed && rule.title) {
+        rules.push({
+          id: rule.id,
+          title: rule.title,
+          amount: rule.amount,
+          notes: rule.notes,
+          certainty: rule.certainty,
+        });
+        continue;
+      }
+      if (!rule.payloadEnc) continue;
+      try {
+        const opened = await decryptFinancePayload<{
+          title: string;
+          amount: number;
+          notes: string;
+          certainty: 'fixed' | 'potential';
+        }>(key, rule.payloadEnc, financePayloadAad(uid, 'finance_rules', rule.id));
+        rules.push({
+          id: rule.id,
+          title: opened.title,
+          amount: opened.amount,
+          notes: opened.notes,
+          certainty: opened.certainty,
+        });
+      } catch {
+        /* se pierde esa regla si no abre */
+      }
+    }
+    await adoptAccountVault({ movements, rules });
+    setDek(null);
+    setMeta(null);
+    setFinanceVaultSession(null);
+    showToast(t('fin_vault_adopt_done'), 'success');
+  }
+
   useEffect(() => {
-    if (phase === 'ready' && dek && uid) {
-      setFinanceVaultSession({ uid, dek });
+    if (phase === 'ready') {
+      if (dek && uid) setFinanceVaultSession({ uid, dek });
+      else setFinanceVaultSession(null);
     }
   }, [phase, dek, uid]);
 
-  if (phase === 'ready' && dek && uid) {
-    return <>{children({ uid, dek })}</>;
+  if (phase === 'ready') {
+    return <>{children(dek && uid ? { uid, dek } : null)}</>;
   }
 
   return (
@@ -278,6 +376,17 @@ export function FinanceVaultGate({
           >
             {useRecovery ? t('fin_vault_use_phrase') : t('fin_vault_use_recovery')}
           </button>
+          <button
+            type="button"
+            disabled={busy}
+            className="text-left text-[11px] text-text-muted"
+            onClick={() => void handleReset()}
+          >
+            {t('fin_vault_reset')}
+          </button>
+          <p className="text-[11px] leading-relaxed text-text-muted">
+            {t('fin_vault_reset_hint')}
+          </p>
         </>
       )}
     </div>

@@ -105,7 +105,7 @@ export function FinancesPage() {
   );
 }
 
-function FinancesCalendar({ vault }: { vault: FinanceVaultCtx }) {
+function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const { t, locale, language } = useT();
   const { showToast } = useToast();
   const { settings } = useSettings();
@@ -166,7 +166,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx }) {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await fetchFinanceCalendar(range.from, range.to, vault);
+      const rows = await fetchFinanceCalendar(range.from, range.to, vault ?? undefined);
       setMovements(rows);
     } catch (err) {
       const msg =
@@ -301,11 +301,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx }) {
             notes: payload.notes,
             updatedAt: editing.updatedAt,
           },
-          vault
+          vault ?? undefined
         );
         showToast(t('fin_saved'), 'success');
       } else {
-        await createFinanceMovement(payload, vault);
+        await createFinanceMovement(payload, vault ?? undefined);
         showToast(t('fin_created'), 'success');
       }
       setDialogOpen(false);

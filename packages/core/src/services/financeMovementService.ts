@@ -329,18 +329,50 @@ export async function deleteFinanceMovement(id: string): Promise<void> {
   await api.del<void>(`/api/finances/movements/${encodeURIComponent(id)}`);
 }
 
+export type FinanceVaultScheme = 'none' | 'account' | 'private';
+
 export interface FinanceVaultRemote {
   enabled: boolean;
+  scheme?: FinanceVaultScheme;
   kdfSalt?: string;
   kdfParams?: { algo: 'PBKDF2'; iterations: number; hash: 'SHA-256' };
   wrappedDek?: string;
   recoveryWrappedDek?: string;
   encV?: string;
+  wiped?: boolean;
+  adopted?: number;
 }
 
 export async function fetchFinanceVault(): Promise<FinanceVaultRemote> {
-  if (isDemoMode()) return { enabled: false };
+  if (isDemoMode()) return { enabled: false, scheme: 'none' };
   return api.get<FinanceVaultRemote>('/api/finances/vault');
+}
+
+export async function resetFinanceVault(): Promise<FinanceVaultRemote> {
+  if (isDemoMode()) return { enabled: false, scheme: 'account', wiped: true };
+  return api.post<FinanceVaultRemote>('/api/finances/vault/reset', {});
+}
+
+export async function adoptAccountVault(body: {
+  movements: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    notes?: string;
+    certainty?: 'fixed' | 'potential';
+  }>;
+  rules?: Array<{
+    id: string;
+    title: string;
+    amount: number;
+    notes?: string;
+    certainty?: 'fixed' | 'potential';
+  }>;
+}): Promise<FinanceVaultRemote> {
+  if (isDemoMode()) {
+    return { enabled: false, scheme: 'account', adopted: body.movements.length };
+  }
+  return api.post<FinanceVaultRemote>('/api/finances/vault/adopt-account', body);
 }
 
 export async function putFinanceVault(meta: {

@@ -1,12 +1,12 @@
 # Roadmap financiero — Daily Tracker
 
-**Fecha:** 2026-08-17 (rev. ingeniería BE/FE)  
+**Fecha:** 2026-08-17 (rev. cifrado de cuenta)  
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
-**Versión del repo al escribir:** v2.22.0.
+**Versión del repo al escribir:** v2.24.0.
 
-**Estado:** Fase 1 (calendario) y Fase 2 (bóveda) están en `main` (v2.23). El SQL de movimientos/vault ya se aplicó. Siguiente: puente vida ↔ dinero.
+**Estado:** Fases 1–3 están en `main` (v2.24). El cifrado **no** es zero-knowledge duro: default = sobre de cuenta restablecible (como Meteora `server-envelope`).
 
-**Respuesta corta:** dos calendarios, un libro, una bóveda. El tablero no es el mayor. El API, después de la bóveda, es **ciego a montos**. Se recicla el dominio de Meteora, no Firestore ni el KMS del servidor.
+**Respuesta corta:** dos calendarios, un libro, cifrado **con la cuenta**. El tablero no es el mayor. Login = ves el dinero. Restablecer la contraseña **no** pierde importes. La bóveda privada (frase + 12 palabras) queda como legado opt-in, no como default.
 
 ### Qué cambió en esta revisión
 
@@ -50,7 +50,8 @@ Daily Tracker planifica **qué haces**. El dinero es **qué se mueve**. Un event
      vínculo (dueño: movimiento)
               │
               ▼
-     bóveda en el dispositivo
+     cifrado de cuenta (sobre servidor)
+     login = acceso; se puede restablecer
 ```
 
 **Regla de oro:** el mayor es `finance_movements`. El tablero apunta. Un pago de tarjeta no es una tarea. Un hábito “Gym” no guarda el CLP en `tasks`.
@@ -68,7 +69,7 @@ Daily Tracker planifica **qué haces**. El dinero es **qué se mueve**. Un event
 | Divisas | `core/lib/currencies.ts` | Código ISO, sin FX |
 | Recurrencia de vida | hábitos lazy | Las `finance_entries` no se materializan por día |
 | Offline | cola de **tareas** | El ledger no está en la cola |
-| Notificaciones | worker + email + local | Sin “vence la Visa”; el worker **no** podrá leer montos cifrados |
+| Notificaciones | worker + email + local | El worker no necesita montos; avisos por día/estado |
 | Admin | `/admin` tamaño MB | Debe seguir sin ver montos |
 
 ### 2.2 Reciclar de Meteora (código, no stack)
@@ -99,9 +100,9 @@ Esto es lo que un BE/FE tiene que respetar. Si una fase lo rompe, la fase está 
 
 | Actor | Ve montos / títulos / tickers |
 |-------|-------------------------------|
-| Navegador con bóveda abierta | Sí, tras descifrar en core |
-| API Express (service role) | **No** (desde Fase 2). Persiste blobs + metadatos de índice |
-| SQL Editor / backup Supabase | Blobs |
+| Navegador con sesión | Sí. El API abre el sobre y devuelve el importe |
+| API Express (service role + `FINANCE_MASTER_KEY`) | Sí, para servir a **ese** uid. Dump de Postgres sigue siendo blob |
+| SQL Editor / backup Supabase | Blobs (`payload_enc`) |
 | Worker de notificaciones | Solo metadatos en claro (`day_id`, `status`, `flow`). Copy sin cifras |
 | `/admin` | Conteos y bytes, no 28.000 CLP |
 | Proveedor de quotes | Tickers que el **cliente** elige mandar. Sin uid |
@@ -116,7 +117,7 @@ En `payload_enc` (AES-GCM, AAD = `user_id|table|id|enc_v`):
 
 título, notas, montos, FX, certainty, categoría, ticker, qty, coste, nombre de cuenta/institución, límite, principal, nombre de objetivo.
 
-**Prohibido** después de Fase 2: volver a escribir `finance_meta.amount` en `tasks`. La pastilla del board abre el movimiento y descifra.
+**Prohibido:** volver a escribir `finance_meta.amount` en `tasks`. La pastilla lee el movimiento (ya abierto por el API en modo cuenta).
 
 ### 3.3 Dueño del vínculo (evita FK doble huérfana)
 
@@ -138,14 +139,20 @@ POST /api/finance/movements   { dayId, flow, status, currency, payloadEnc, sourc
 POST /api/tasks               { …, financeMovementId }
 ```
 
-### 3.4 API ciega (Fase 2+)
+### 3.4 Cifrado de cuenta (default) — no ZK hardcore
 
-El API valida forma, no semántica de dinero:
+Como Meteora en producción (`server-envelope` / `kmsEnvelope` local):
 
-- Zod: `dayId`, `flow`, `status`, `currency`, `payloadEnc` (base64, tamaño tope), ids.
-- **No** parsea el JSON interior. No suma. No puntúa salud.
-- Listado: `GET /api/finance/movements?from=&to=` (rango, como `fetchTasksInRange`). Tope duro p.ej. 93 días por request.
-- Límites de plan: `COUNT(*)` de reglas / movimientos del mes, no de pesos.
+- El cliente manda título/importe por HTTPS autenticado.
+- El API sella `payload_enc` con una DEK por usuario envuelta por `FINANCE_MASTER_KEY`.
+- El GET **descifra** para esa sesión. El dump de Supabase no se lee.
+- Restablecer la contraseña de Supabase **no** rompe el mayor.
+- `POST /api/finances/vault/reset` — olvidé la frase de una bóveda **privada**: pasa a `account` y tira las filas que no se puedan abrir.
+- `POST /api/finances/vault/adopt-account` — tengo la frase: re-sella y quita la frase.
+
+La bóveda privada (frase + 12 palabras) es **legado**. No se ofrece en el alta.
+
+Zod sigue validando forma. El API **no** suma ni puntúa salud. Listado: `GET /api/finances/movements?from=&to=` (tope 93 días). Límites de plan: `COUNT(*)`, no pesos.
 - Idempotencia: `client_mutation_id` (el `eventId` de tasks ya existe — mismo patrón).
 
 ### 3.5 Recurrencia lazy + cifrado
@@ -316,17 +323,26 @@ select count(*) as entries from public.finance_entries;
 
 **Primer PR:** `finance_vault` + `financeVault.ts` + gate + migración cliente de filas claras.
 
-Reciclar Meteora `clientSideEncryption` / IndexedDB. **No** `kmsEnvelope`.
+Reciclar el **sobre de cuenta** de Meteora (`kmsEnvelope` local / `ENCRYPTION_LOCAL_MASTER_KEY`), **no** el ZK duro de `clientSideEncryption`.
+
+**Modelo (igual que Meteora en producción):**
+
+| Esquema | Quién cifra | Cómo entras | Si olvidas |
+|---------|-------------|-------------|------------|
+| **`account`** (default) | API con DEK envuelta por `FINANCE_MASTER_KEY` | Tu sesión de Supabase | Restableces la **contraseña de la cuenta**. Los importes siguen |
+| **`private`** (legado) | Cliente AES-GCM + frase | Frase o 12 palabras | «Restablecer cifrado» borra lo que no se pueda abrir y pasa a `account` |
+
+**No hacer:** pedir frase a un usuario nuevo. No decir «nadie puede recuperar». Eso era demasiado hardcore para este producto.
 
 **Hecho:**
 
-- [ ] SQL Editor: hay `payload_enc`, no `28000`.
-- [ ] Frase mala → error tipado, el mes no explota.
-- [ ] Sin desbloqueo no hay cache offline de finanzas.
-- [ ] Escritura en claro = 400 si el usuario ya tiene vault.
-- [ ] Admin sigue viendo MB.
+- [x] SQL Editor: hay `payload_enc`, no `28000`.
+- [x] Usuario nuevo: `/finances` abre sin frase.
+- [x] POST en claro → el servidor sella; GET devuelve el importe a la sesión.
+- [x] Bóveda privada antigua: unlock **o** restablecer.
+- [x] Admin sigue viendo MB, no importes.
 
-**SemVer:** MINOR. Onboarding de 12 palabras, sin letra pequeña.
+**SemVer:** MINOR. Copy: «el cifrado va con tu cuenta».
 
 ### Fase 3 — Puente
 
@@ -402,8 +418,9 @@ Avisos sin montos; presupuestos; recetario con coste; saldo inicial / transferen
 
 | Riesgo | Mitigación |
 |--------|------------|
-| XSS usa la `CryptoKey` de la sesión | CSP ya; la bóveda no sustituye higiene de DOM. Timeout de inactividad |
-| Usuario pierde frase + 12 palabras | Irrecuperable. Copy explícito. No “te lo reseteamos” |
+| XSS usa la sesión autenticada | CSP ya. El sobre de cuenta no sustituye higiene de DOM |
+| Usuario pierde frase de bóveda **privada** | Restablecer cifrado → `account`. Se pierden solo filas que no se puedan abrir |
+| Falta `FINANCE_MASTER_KEY` en Railway | Obligatorio en prod. 32 bytes base64. Sin eso no se sella el mayor |
 | Fase 1 en prod sin Fase 2 | **No.** Mismo release o flag off |
 | Calendario lento (descifrar 90 días) | Rango ≤ 93 días; decrypt por fila; virtuales de reglas, no 900 inserts |
 | Puente a medias (tarea sin movimiento) | Orden create + compensación; never amount on task |
@@ -421,8 +438,10 @@ Avisos sin montos; presupuestos; recetario con coste; saldo inicial / transferen
 - [ ] 0 / 1 / 3 divisas en el mes (suma en cliente).
 - [ ] TC: compra + pago no dobla.
 - [ ] Cuotas: nº de compras = 1.
-- [ ] Vault locked: pastilla muda, no hay monto en `tasks`.
-- [ ] SQL: ni monto ni ticker en claro.
+- [ ] Vault **privada** locked: pastilla muda, no hay monto en `tasks`.
+- [ ] Cifrado de cuenta: pastilla con importe tras login, sin frase.
+- [ ] SQL: ni monto ni ticker en claro (sí `payload_enc`).
+- [ ] Restablecer cifrado con frase olvidada no tira 500.
 - [ ] Mobile 360 + desktop: calendario dinero, ficha, interruptor.
 - [ ] Quote API en tests con fixture.
 
@@ -452,7 +471,7 @@ Ship: `version:minor`, `chore(release): vX.Y.Z`, **ambos** remotes, SQL al usuar
 
 ## 13. Defaults (si no hay otra orden)
 
-Hub = `/finances`. Saldo de cuenta = 0 (+ `opening_balance` después). Objetivo = cuenta-sobre si está linkeada. **Bóveda en el mismo release que el primer movimiento de producción.**
+Hub = `/finances`. Saldo de cuenta = 0 (+ `opening_balance` después). Objetivo = cuenta-sobre si está linkeada. **Cifrado de cuenta (sobre servidor) en el mismo release que el primer movimiento de producción. Bóveda privada = legado, no default.**
 
 ## Next step
 
