@@ -7,6 +7,19 @@ const LOCAL_VERSION = 1;
 
 export type FinanceVaultScheme = 'none' | 'account' | 'private';
 
+export function isFinanceSchemaError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { message?: unknown; code?: unknown };
+  const message = typeof e.message === 'string' ? e.message : '';
+  const code = typeof e.code === 'string' ? e.code : '';
+  return (
+    code === 'PGRST204' ||
+    code === '42703' ||
+    code === '42P01' ||
+    /schema cache|does not exist|Could not find the/i.test(message)
+  );
+}
+
 function masterKey(): Buffer {
   const raw =
     process.env.FINANCE_MASTER_KEY?.trim() ||

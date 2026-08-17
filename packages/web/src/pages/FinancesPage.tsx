@@ -256,7 +256,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
-        /schema cache|does not exist|PGRST|finance_movements/i.test(err.message)
+        /schema cache|does not exist|PGRST204|42703|42P01|SQL de finanzas/i.test(
+          err.message
+        )
           ? t('fin_sql_needed')
           : t('fin_load_error');
       showToast(msg, 'error');
@@ -491,9 +493,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
-        /schema cache|does not exist|PGRST|finance_/i.test(err.message)
+        /schema cache|does not exist|PGRST204|42703|42P01|SQL de finanzas/i.test(
+          err.message
+        )
           ? t('fin_sql_needed')
-          : t('fin_save_error');
+          : err instanceof ApiClientError && err.message
+            ? err.message
+            : t('fin_save_error');
       showToast(msg, 'error');
     }
   }

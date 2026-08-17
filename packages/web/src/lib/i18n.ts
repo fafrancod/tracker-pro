@@ -1307,7 +1307,7 @@ const es_dict: TranslationDict = {
   fin_view_month: 'Mes',
   fin_view_week: 'Semana',
   fin_sql_needed:
-    'Faltan las tablas de movimientos. Ejecuta el SQL de finanzas en Supabase y recarga.',
+    'Supabase no tiene una columna o tabla que Finanzas necesita. Pega el SQL de reparación (scheme, account_wrapped_dek, account_id) y recarga.',
   fin_repeat: 'Repetir',
   fin_repeat_none: 'Solo este día',
   fin_field_status: 'Estado',
@@ -2533,7 +2533,7 @@ const en_dict: TranslationDict = {
   fin_view_month: 'Month',
   fin_view_week: 'Week',
   fin_sql_needed:
-    'Money ledger tables are missing. Run the finances SQL in Supabase and reload.',
+    'Supabase is missing a finance column or table. Paste the repair SQL (scheme, account_wrapped_dek, account_id) and reload.',
   fin_repeat: 'Repeat',
   fin_repeat_none: 'This day only',
   fin_field_status: 'Status',

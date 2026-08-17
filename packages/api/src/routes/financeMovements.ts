@@ -20,6 +20,7 @@ import {
   decryptAccountPayload,
   encryptAccountPayload,
   inferVaultScheme,
+  isFinanceSchemaError,
   newAccountDek,
   unwrapAccountDek,
   wrapAccountDek,
@@ -205,7 +206,14 @@ async function writeAccountVaultRow(
     },
     { onConflict: 'user_id' }
   );
-  if (error) throw error;
+  if (error) {
+    if (isFinanceSchemaError(error)) {
+      throw ApiError.badRequest(
+        'Falta SQL de finanzas en Supabase (finance_vault.scheme / account_wrapped_dek). Pega el script de reparación y recarga.'
+      );
+    }
+    throw error;
+  }
 }
 
 async function ensureAccountDek(uid: string): Promise<Buffer> {
@@ -798,7 +806,14 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
     const { error } = await getSupabaseAdmin()
       .from('finance_movements')
       .insert(rows);
-    if (error) throw error;
+    if (error) {
+      if (isFinanceSchemaError(error)) {
+        throw ApiError.badRequest(
+          'Falta SQL de finanzas en Supabase (columnas de finance_movements). Pega el script de reparación y recarga.'
+        );
+      }
+      throw error;
+    }
     const first = rows[0];
     res.status(201).json({
       ...mapMovement(first, inner),
