@@ -9,6 +9,7 @@ import {
   parseFinancePayload,
   unlockFinanceVault,
 } from '@daily-tracker/core';
+import { inferVaultScheme } from '../lib/financeEnvelope.js';
 import { buildApp } from '../app.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 
@@ -172,18 +173,21 @@ describe('API vault + movements ciegos', () => {
     expect(vaultRow?.wrapped_dek).toBeNull();
   });
 
-  it('PUT vault y luego POST en claro → 400', async () => {
-    const put = await request(app)
-      .put('/api/finances/vault')
-      .set('Authorization', 'Bearer valid-token')
-      .send({
-        kdfSalt: 'YWFhYWFhYWFhYWFhYWFhYQ==',
-        kdfParams: { algo: 'PBKDF2', iterations: 210000, hash: 'SHA-256' },
-        wrappedDek: 'd3JhcHBlZC1kZWstdmFsaWRvLTEyMzQ1Ng==',
-        recoveryWrappedDek: 'cmVjb3ZlcnktZGVrLXZhbGlkby0xMjM0NTY=',
-        encV: '1',
-      });
-    expect(put.status).toBe(201);
+  it('fila private residual no bloquea: GET y POST pasan a account', async () => {
+    vaultRow = {
+      user_id: 'test-uid',
+      scheme: 'private',
+      kdf_salt: 'YWFhYWFhYWFhYWFhYWFhYQ==',
+      wrapped_dek: 'd3JhcHBlZC1kZWstdmFsaWRvLTEyMzQ1Ng==',
+    };
+    const get = await request(app)
+      .get('/api/finances/vault')
+      .set('Authorization', 'Bearer valid-token');
+    expect(get.status).toBe(200);
+    expect(get.body.enabled).toBe(false);
+    expect(get.body.scheme).toBe('account');
+    expect(vaultRow?.scheme).toBe('account');
+    expect(vaultRow?.wrapped_dek).toBeNull();
 
     const res = await request(app)
       .post('/api/finances/movements')
@@ -194,8 +198,21 @@ describe('API vault + movements ciegos', () => {
         title: 'Café',
         amount: 2800,
       });
-    expect(res.status).toBe(400);
-    expect(lastMovementInsert).toBeNull();
+    expect(res.status).toBe(201);
+    expect(res.body.title).toBe('Café');
+  });
+
+  it('wrapped_dek vacío no es bóveda privada', () => {
+    expect(inferVaultScheme({ scheme: null, wrapped_dek: '' })).toBe('none');
+    expect(
+      inferVaultScheme({ scheme: 'account', account_wrapped_dek: 'abc' })
+    ).toBe('account');
+    expect(
+      inferVaultScheme({
+        scheme: 'private',
+        wrapped_dek: 'd3JhcHBlZC1kZWstdmFsaWRvLTEyMzQ1Ng==',
+      })
+    ).toBe('private');
   });
 
   it('POST vaulted con payloadEnc guarda blob y payload vacío', async () => {

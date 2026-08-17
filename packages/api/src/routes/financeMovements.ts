@@ -179,25 +179,16 @@ function vaultSchemeOf(row: Record<string, unknown> | null): FinanceVaultScheme 
   return inferVaultScheme(row);
 }
 
-async function userHasPrivateVault(uid: string): Promise<boolean> {
-  return vaultSchemeOf(await loadVaultRow(uid)) === 'private';
+async function userHasPrivateVault(_uid: string): Promise<boolean> {
+  void _uid;
+  return false;
 }
 
-async function ensureAccountDek(uid: string): Promise<Buffer> {
-  const existing = await loadVaultRow(uid);
-  if (vaultSchemeOf(existing) === 'private') {
-    throw ApiError.badRequest(
-      'La bóveda privada está activa: envía payloadEnc o restablece el cifrado'
-    );
-  }
-  if (
-    existing &&
-    typeof existing.account_wrapped_dek === 'string' &&
-    existing.account_wrapped_dek
-  ) {
-    return unwrapAccountDek(uid, existing.account_wrapped_dek);
-  }
-  const dek = newAccountDek();
+async function writeAccountVaultRow(
+  uid: string,
+  dek: Buffer,
+  createdAt?: unknown
+): Promise<void> {
   const now = new Date().toISOString();
   const { error } = await getSupabaseAdmin().from('finance_vault').upsert(
     {
@@ -209,12 +200,26 @@ async function ensureAccountDek(uid: string): Promise<Buffer> {
       wrapped_dek: null,
       recovery_wrapped_dek: null,
       enc_v: '2',
-      created_at: existing?.created_at ?? now,
+      created_at: typeof createdAt === 'string' ? createdAt : now,
       updated_at: now,
     },
     { onConflict: 'user_id' }
   );
   if (error) throw error;
+}
+
+async function ensureAccountDek(uid: string): Promise<Buffer> {
+  const existing = await loadVaultRow(uid);
+  if (
+    vaultSchemeOf(existing) !== 'private' &&
+    existing &&
+    typeof existing.account_wrapped_dek === 'string' &&
+    existing.account_wrapped_dek
+  ) {
+    return unwrapAccountDek(uid, existing.account_wrapped_dek);
+  }
+  const dek = newAccountDek();
+  await writeAccountVaultRow(uid, dek, existing?.created_at);
   return dek;
 }
 
@@ -368,15 +373,15 @@ financeMovementsRouter.get('/vault', async (req, res, next) => {
       res.json({ enabled: false, scheme: 'none' });
       return;
     }
-    const scheme = vaultSchemeOf(data as Record<string, unknown>);
+    let scheme = vaultSchemeOf(data as Record<string, unknown>);
+    if (scheme === 'private') {
+      await ensureAccountDek(uid);
+      scheme = 'account';
+    }
     res.json({
-      enabled: scheme === 'private',
+      enabled: false,
       scheme,
-      kdfSalt: data.kdf_salt,
-      kdfParams: data.kdf_params,
-      wrappedDek: data.wrapped_dek,
-      recoveryWrappedDek: data.recovery_wrapped_dek,
-      encV: data.enc_v,
+      encV: '2',
       createdAt: data.created_at,
     });
   } catch (err) {

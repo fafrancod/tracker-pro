@@ -10,7 +10,7 @@ import {
   subscribeFinanceVaultSession,
 } from '../lib/finance/session';
 
-/** Cuando la bóveda está abierta, rellena linkedFinance en las tareas del tablero. */
+/** El API ya abre el sobre de cuenta: hidrata pastillas sin frase. */
 export function useLinkedFinanceHydration(): void {
   const uid = useStore(s => s.uid);
   const [generation, setGeneration] = useState(0);
@@ -23,8 +23,11 @@ export function useLinkedFinanceHydration(): void {
       return;
     }
     const vault = getFinanceVaultSession();
-    if (!vault || vault.uid !== uid) return;
     const { from, to } = defaultHydrationWindow();
-    void hydrateBoardLinkedFinance(from, to, vault).catch(() => undefined);
+    void hydrateBoardLinkedFinance(
+      from,
+      to,
+      vault && vault.uid === uid ? vault : undefined
+    ).catch(() => undefined);
   }, [uid, generation]);
 }

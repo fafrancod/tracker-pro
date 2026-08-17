@@ -97,13 +97,19 @@ export function decryptAccountPayload<T>(
   return JSON.parse(raw.toString('utf8')) as T;
 }
 
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 export function inferVaultScheme(row: Record<string, unknown> | null): FinanceVaultScheme {
   if (!row) return 'none';
-  if (row.scheme === 'account' || typeof row.account_wrapped_dek === 'string') {
+  const scheme = typeof row.scheme === 'string' ? row.scheme : '';
+  const hasAccountDek = nonEmptyString(row.account_wrapped_dek);
+  const hasPrivateDek = nonEmptyString(row.wrapped_dek);
+  if (scheme === 'account' || (hasAccountDek && scheme !== 'private')) {
     return 'account';
   }
-  if (row.scheme === 'private' || typeof row.wrapped_dek === 'string') {
-    return 'private';
-  }
+  if (scheme === 'private' && hasPrivateDek) return 'private';
+  if (hasAccountDek) return 'account';
   return 'none';
 }

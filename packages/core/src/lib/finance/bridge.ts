@@ -82,7 +82,7 @@ export async function deletePlannedBridgeMovement(
 export async function hydrateBoardLinkedFinance(
   fromDayId: string,
   toDayId: string,
-  vault: FinanceVaultCtx
+  vault?: FinanceVaultCtx
 ): Promise<void> {
   const movements = await fetchFinanceCalendar(fromDayId, toDayId, vault);
   const byId: Record<string, NonNullable<Task['linkedFinance']>> = {};

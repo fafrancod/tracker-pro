@@ -1703,9 +1703,9 @@ const es_dict: TranslationDict = {
   task_entails_money_hint:
     'Se crea un movimiento cifrado en Finanzas. Esta tarea solo guarda el vínculo, no el importe.',
   task_entails_money_need_vault:
-    'Desbloquea la bóveda en Finanzas para vincular dinero.',
+    'El movimiento se guarda en Finanzas con tu sesión.',
   task_money_pill: 'Dinero',
-  task_money_pill_locked: 'Dinero (bóveda cerrada)',
+  task_money_pill_locked: 'Dinero',
   board_filter_category_finances: 'Finances',
   board_category_finances_hint: 'Ingresos y gastos del calendario.',
   board_filter_category_holidays: 'Feriados CL',
@@ -2929,9 +2929,9 @@ const en_dict: TranslationDict = {
   task_entails_money_hint:
     'Creates an encrypted movement in Finances. This task only stores the link, not the amount.',
   task_entails_money_need_vault:
-    'Unlock the vault in Finances to link money.',
+    'The movement is saved in Finances with your session.',
   task_money_pill: 'Money',
-  task_money_pill_locked: 'Money (vault locked)',
+  task_money_pill_locked: 'Money',
   board_filter_category_finances: 'Finances',
   board_category_finances_hint: 'Calendar income and expenses.',
   board_filter_category_holidays: 'CL holidays',

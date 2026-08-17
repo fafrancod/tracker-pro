@@ -66,12 +66,8 @@ async function loadVaultRow(uid: string): Promise<Record<string, unknown> | null
 
 async function ensureAccountDek(uid: string): Promise<Buffer> {
   const existing = await loadVaultRow(uid);
-  if (inferVaultScheme(existing) === 'private') {
-    throw ApiError.badRequest(
-      'La bóveda privada está activa: no se pueden guardar créditos en claro'
-    );
-  }
   if (
+    inferVaultScheme(existing) !== 'private' &&
     existing &&
     typeof existing.account_wrapped_dek === 'string' &&
     existing.account_wrapped_dek
