@@ -50,6 +50,16 @@ export interface TranslationDict {
   fin_filter_all_kinds: string;
   fin_empty_title: string;
   fin_empty_hint: string;
+  fin_tab_calendar: string;
+  fin_status_planned: string;
+  fin_status_confirmed: string;
+  fin_kpi_planned: string;
+  fin_view_month: string;
+  fin_view_week: string;
+  fin_sql_needed: string;
+  fin_repeat: string;
+  fin_repeat_none: string;
+  fin_field_status: string;
   fin_field_title: string;
   fin_title_ph: string;
   fin_field_flow: string;
@@ -1027,6 +1037,17 @@ const es_dict: TranslationDict = {
   fin_filter_all_flows: 'Todos los flujos',
   fin_filter_all_kinds: 'Todos los tipos',
   fin_empty_title: 'Sin movimientos este mes',
+  fin_tab_calendar: 'Calendario',
+  fin_status_planned: 'Previsto',
+  fin_status_confirmed: 'Hecho',
+  fin_kpi_planned: 'Previsto',
+  fin_view_month: 'Mes',
+  fin_view_week: 'Semana',
+  fin_sql_needed:
+    'Faltan las tablas de movimientos. Ejecuta el SQL de finanzas en Supabase y recarga.',
+  fin_repeat: 'Repetir',
+  fin_repeat_none: 'Solo este día',
+  fin_field_status: 'Estado',
   fin_empty_hint:
     'Registra gastos e ingresos recurrentes, esperados o específicos para ver el balance mensual.',
   fin_field_title: 'Concepto',
@@ -2088,6 +2109,17 @@ const en_dict: TranslationDict = {
   fin_filter_all_flows: 'All flows',
   fin_filter_all_kinds: 'All kinds',
   fin_empty_title: 'No entries this month',
+  fin_tab_calendar: 'Calendar',
+  fin_status_planned: 'Planned',
+  fin_status_confirmed: 'Done',
+  fin_kpi_planned: 'Planned',
+  fin_view_month: 'Month',
+  fin_view_week: 'Week',
+  fin_sql_needed:
+    'Money ledger tables are missing. Run the finances SQL in Supabase and reload.',
+  fin_repeat: 'Repeat',
+  fin_repeat_none: 'This day only',
+  fin_field_status: 'Status',
   fin_empty_hint:
     'Track recurring, expected, and specific expenses and income to see your monthly balance.',
   fin_field_title: 'Title',

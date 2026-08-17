@@ -1,0 +1,273 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import request from 'supertest';
+import {
+  expandFinanceRules,
+  financeRuleAppliesOnDay,
+  inclusiveDaySpan,
+  type FinanceRule,
+} from '@daily-tracker/core';
+import { buildApp } from '../app.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+
+const app = buildApp();
+
+let movementRows: Record<string, unknown>[] = [];
+let ruleRows: Record<string, unknown>[] = [];
+let lastMovementInsert: Record<string, unknown> | null = null;
+let lastRuleInsert: Record<string, unknown> | null = null;
+
+function chainEqMaybeSingle(result: { data: unknown; error: null }) {
+  const terminal = {
+    maybeSingle: vi.fn(async () => result),
+    single: vi.fn(async () => result),
+  };
+  const chain: Record<string, unknown> = {
+    eq: vi.fn(() => chain),
+    select: vi.fn(() => chain),
+    order: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
+    gte: vi.fn(() => chain),
+    lte: vi.fn(() => chain),
+    is: vi.fn(() => chain),
+    ...terminal,
+  };
+  chain.eq = vi.fn(() => chain);
+  return chain;
+}
+
+function buildFromMock() {
+  return vi.fn((table: string) => {
+    if (table === 'finance_movements') {
+      return {
+        select: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.gte = vi.fn(() => c);
+          c.lte = vi.fn(() => c);
+          c.is = vi.fn(() => c);
+          c.order = vi.fn(async () => ({ data: movementRows, error: null }));
+          c.maybeSingle = vi.fn(async () => ({
+            data: movementRows[0] ?? null,
+            error: null,
+          }));
+          return c;
+        }),
+        insert: vi.fn(async (row: Record<string, unknown>) => {
+          lastMovementInsert = row;
+          movementRows = [...movementRows, row];
+          return { data: null, error: null };
+        }),
+        update: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) =>
+            resolve({ data: null, error: null });
+          return c;
+        }),
+        delete: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) =>
+            resolve({ data: null, error: null });
+          return c;
+        }),
+      };
+    }
+    if (table === 'finance_rules') {
+      return {
+        select: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.lte = vi.fn(() => c);
+          c.order = vi.fn(async () => ({ data: ruleRows, error: null }));
+          return c;
+        }),
+        insert: vi.fn(async (row: Record<string, unknown>) => {
+          lastRuleInsert = row;
+          ruleRows = [...ruleRows, row];
+          return { data: null, error: null };
+        }),
+      };
+    }
+    return chainEqMaybeSingle({ data: null, error: null });
+  });
+}
+
+beforeEach(() => {
+  movementRows = [];
+  ruleRows = [];
+  lastMovementInsert = null;
+  lastRuleInsert = null;
+  vi.mocked(getSupabaseAdmin).mockReturnValue({
+    auth: {
+      getUser: vi.fn(async (token: string) => {
+        if (token === 'valid-token') {
+          return {
+            data: {
+              user: {
+                id: 'test-uid',
+                email: 'test@example.com',
+                app_metadata: {},
+              },
+            },
+            error: null,
+          };
+        }
+        return { data: { user: null }, error: new Error('invalid token') };
+      }),
+    },
+    from: buildFromMock(),
+  } as unknown as ReturnType<typeof getSupabaseAdmin>);
+});
+
+describe('finance rule expansion', () => {
+  const rule: FinanceRule = {
+    id: 'rule-1',
+    flow: 'expense',
+    currency: 'CLP',
+    frequency: 'monthly',
+    recurrenceDay: 5,
+    startDayId: '2026-08-01',
+    title: 'Arriendo',
+    amount: 500000,
+    notes: '',
+    certainty: 'fixed',
+    active: true,
+    createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-01T00:00:00.000Z',
+  };
+
+  it('aparece el día 5 y no el 4', () => {
+    expect(financeRuleAppliesOnDay(rule, '2026-08-05')).toBe(true);
+    expect(financeRuleAppliesOnDay(rule, '2026-08-04')).toBe(false);
+  });
+
+  it('no duplica si ya hay fila física ese día', () => {
+    const extra = expandFinanceRules(
+      [rule],
+      [
+        {
+          id: 'm1',
+          dayId: '2026-08-05',
+          flow: 'expense',
+          status: 'confirmed',
+          currency: 'CLP',
+          title: 'Arriendo',
+          amount: 500000,
+          notes: '',
+          certainty: 'fixed',
+          ruleId: 'rule-1',
+          sourceTaskId: null,
+          createdAt: rule.createdAt,
+          updatedAt: rule.updatedAt,
+        },
+      ],
+      '2026-08-01',
+      '2026-08-31'
+    );
+    expect(extra.some(m => m.dayId === '2026-08-05')).toBe(false);
+    expect(extra.length).toBe(0);
+  });
+
+  it('span inclusivo de 93 días es el tope', () => {
+    expect(inclusiveDaySpan('2026-08-01', '2026-10-31')).toBeGreaterThan(90);
+    expect(inclusiveDaySpan('2026-08-01', '2026-08-31')).toBe(31);
+    expect(inclusiveDaySpan('2026-08-10', '2026-08-01')).toBe(-1);
+  });
+});
+
+describe('POST /api/finances/movements', () => {
+  it('crea un gasto puntual planned', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-08-17',
+        flow: 'expense',
+        title: 'Café',
+        amount: 2800,
+        currency: 'CLP',
+      });
+    expect(res.status).toBe(201);
+    expect(lastMovementInsert?.day_id).toBe('2026-08-17');
+    expect(lastMovementInsert?.flow).toBe('expense');
+    expect(lastMovementInsert?.status).toBe('planned');
+    expect((lastMovementInsert?.payload as { title?: string })?.title).toBe('Café');
+    expect(res.body.title).toBe('Café');
+    expect(res.body.amount).toBe(2800);
+    expect(lastRuleInsert).toBeNull();
+  });
+
+  it('recurrente mensual crea regla + seed', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-08-05',
+        flow: 'expense',
+        title: 'Arriendo',
+        amount: 500000,
+        currency: 'CLP',
+        recurrence: { frequency: 'monthly', recurrenceDay: 5 },
+      });
+    expect(res.status).toBe(201);
+    expect(lastRuleInsert?.frequency).toBe('monthly');
+    expect(lastRuleInsert?.recurrence_day).toBe(5);
+    expect(lastMovementInsert?.rule_id).toBe(lastRuleInsert?.id);
+    expect(res.body.ruleId).toBeTruthy();
+  });
+
+  it('dayId inválido → 400', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '17-08-2026',
+        flow: 'expense',
+        title: 'X',
+        amount: 1,
+      });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /api/finances/movements', () => {
+  it('exige from y to', async () => {
+    const res = await request(app)
+      .get('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(400);
+  });
+
+  it('rechaza un rango de más de 93 días', async () => {
+    const res = await request(app)
+      .get('/api/finances/movements?from=2026-01-01&to=2026-06-01')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(400);
+  });
+
+  it('devuelve movimientos del rango', async () => {
+    movementRows = [
+      {
+        id: 'm1',
+        user_id: 'test-uid',
+        day_id: '2026-08-17',
+        flow: 'expense',
+        status: 'confirmed',
+        currency: 'CLP',
+        payload: { title: 'Café', amount: 2800, notes: '', certainty: 'fixed' },
+        rule_id: null,
+        source_task_id: null,
+        created_at: '2026-08-17T10:00:00.000Z',
+        updated_at: '2026-08-17T10:00:00.000Z',
+      },
+    ];
+    const res = await request(app)
+      .get('/api/finances/movements?from=2026-08-01&to=2026-08-31')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(200);
+    expect(res.body.movements).toHaveLength(1);
+    expect(res.body.movements[0].title).toBe('Café');
+    expect(Array.isArray(res.body.rules)).toBe(true);
+  });
+});

@@ -2,7 +2,9 @@
 
 **Fecha:** 2026-08-17 (rev. ingeniería BE/FE)  
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
-**Versión del repo al escribir:** v2.21.3.
+**Versión del repo al escribir:** v2.22.0.
+
+**Estado:** no hay `finance_entries` en prod. Fase 1 (libro + calendario) está en `main`. Pega el SQL de `supabase/migrations/20260817_finance_movements.sql` antes de usar `/finances`. Bóveda (Fase 2) es el siguiente corte.
 
 **Respuesta corta:** dos calendarios, un libro, una bóveda. El tablero no es el mayor. El API, después de la bóveda, es **ciego a montos**. Se recicla el dominio de Meteora, no Firestore ni el KMS del servidor.
 

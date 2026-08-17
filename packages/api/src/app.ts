@@ -15,6 +15,7 @@ import { contactsRouter } from './routes/contacts.js';
 import { authRouter } from './routes/auth.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { financesRouter } from './routes/finances.js';
+import { financeMovementsRouter } from './routes/financeMovements.js';
 import { adminRouter } from './routes/admin.js';
 
 /**
@@ -84,6 +85,7 @@ export function buildApp(): Express {
   app.use('/api/projects', projectsRouter);
   app.use('/api/contacts', contactsRouter);
   app.use('/api/notifications', notificationsRouter);
+  app.use('/api/finances', financeMovementsRouter);
   app.use('/api/finances', financesRouter);
   app.use('/api/admin', adminRouter);
 
@@ -105,6 +107,7 @@ export function buildApp(): Express {
         '/api/projects',
         '/api/contacts',
         '/api/finances',
+        '/api/finances/movements',
         '/api/notifications/status',
         '/api/notifications/test-email',
         '/api/notifications/dispatch',

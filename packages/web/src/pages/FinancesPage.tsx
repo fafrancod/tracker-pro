@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  addDays,
   addMonths,
   format,
-  parseISO,
+  getDay,
   startOfMonth,
+  startOfWeek,
 } from 'date-fns';
 import {
   ChevronLeft,
   ChevronRight,
-  Pencil,
   Plus,
   Trash2,
   Wallet,
@@ -26,31 +27,33 @@ import {
 } from '@/components/ui/dialog';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
+import { ApiClientError } from '@core/lib/api';
+import { todayCivilDate } from '@core/lib/civilDate';
+import { getDayId } from '@core/services/taskService';
 import {
-  createFinanceEntry,
-  deleteFinanceEntry,
-  fetchFinanceEntries,
-  updateFinanceEntry,
-} from '@core/services/financeService';
+  createFinanceMovement,
+  deleteFinanceMovement,
+  fetchFinanceCalendar,
+  updateFinanceMovement,
+} from '@core/services/financeMovementService';
 import {
-  entriesForMonth,
-  monthIdFromDate,
-  summarizeFinanceMonthByCurrency,
-} from '@core/lib/financeSummary';
+  monthIdFromDayId,
+  summarizeMovementsByCurrency,
+} from '@core/lib/finance/movementSummary';
 import type {
-  CreateFinanceEntryPayload,
-  FinanceEntry,
-  FinanceFlow,
-  FinanceFrequency,
-  FinanceKind,
-} from '@core/types';
+  CreateFinanceMovementPayload,
+  FinanceMovement,
+  FinanceMovementFlow,
+  FinanceMovementStatus,
+  FinanceRuleFrequency,
+} from '@core/lib/finance/types';
 import {
   defaultCurrencyFromLocale,
   normalizeCurrencyCode,
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
-import { useSettings } from '@/contexts/SettingsContext';
 
 function money(n: number, currency: string): string {
   try {
@@ -64,138 +67,187 @@ function money(n: number, currency: string): string {
   }
 }
 
-function emptyForm(preferredCurrency?: string): CreateFinanceEntryPayload {
+type CalView = 'month' | 'week';
+
+interface MovementForm {
+  dayId: string;
+  flow: FinanceMovementFlow;
+  status: FinanceMovementStatus;
+  currency: string;
+  title: string;
+  amount: number;
+  notes: string;
+  repeat: 'none' | FinanceRuleFrequency;
+  recurrenceDay: number;
+}
+
+function emptyForm(dayId: string, currency: string): MovementForm {
   return {
+    dayId,
+    flow: 'expense',
+    status: 'planned',
+    currency,
     title: '',
     amount: 0,
-    currency: normalizeCurrencyCode(
-      preferredCurrency,
-      defaultCurrencyFromLocale(
-        typeof navigator !== 'undefined' ? navigator.language : 'es'
-      )
-    ),
-    flow: 'expense',
-    kind: 'specific',
-    frequency: null,
-    recurrenceDay: null,
-    entryDate: format(new Date(), 'yyyy-MM-dd'),
     notes: '',
-    active: true,
+    repeat: 'none',
+    recurrenceDay: 1,
   };
 }
 
 export function FinancesPage() {
-  const { t, locale } = useT();
+  const { t, locale, language } = useT();
   const { showToast } = useToast();
   const { settings } = useSettings();
-  const [entries, setEntries] = useState<FinanceEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<FinanceEntry | null>(null);
-  const [form, setForm] = useState<CreateFinanceEntryPayload>(() =>
-    emptyForm(settings.preferredCurrency)
+  const preferred = normalizeCurrencyCode(
+    settings.preferredCurrency,
+    defaultCurrencyFromLocale(language === 'en' ? 'en-US' : 'es-CL')
   );
-  const [filterFlow, setFilterFlow] = useState<'all' | FinanceFlow>('all');
-  const [filterKind, setFilterKind] = useState<'all' | FinanceKind>('all');
-  const [deleteTarget, setDeleteTarget] = useState<FinanceEntry | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const today = useMemo(
+    () => todayCivilDate(settings.timezone),
+    [settings.timezone]
+  );
+  const todayId = getDayId(today);
 
-  const monthId = monthIdFromDate(monthCursor);
+  const [view, setView] = useState<CalView>('month');
+  const [cursor, setCursor] = useState(() => startOfMonth(today));
+  const [movements, setMovements] = useState<FinanceMovement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<FinanceMovement | null>(null);
+  const [form, setForm] = useState<MovementForm>(() =>
+    emptyForm(todayId, preferred)
+  );
+  const [deleteTarget, setDeleteTarget] = useState<FinanceMovement | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [filterFlow, setFilterFlow] = useState<'all' | 'income' | 'expense'>(
+    'all'
+  );
+
+  const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
+  const monthStart = startOfMonth(cursor);
+  const monthId = format(monthStart, 'yyyy-MM');
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: weekStartsOn as 0 | 1 });
+  const weekStart =
+    view === 'week'
+      ? startOfWeek(cursor, { weekStartsOn: weekStartsOn as 0 | 1 })
+      : gridStart;
+
+  const range = useMemo(() => {
+    if (view === 'week') {
+      const from = getDayId(weekStart);
+      const to = getDayId(addDays(weekStart, 6));
+      return { from, to };
+    }
+    const from = getDayId(gridStart);
+    const to = getDayId(addDays(gridStart, 41));
+    return { from, to };
+  }, [view, weekStart, gridStart]);
+
+  const cells = useMemo(() => {
+    const start = view === 'week' ? weekStart : gridStart;
+    const count = view === 'week' ? 7 : 42;
+    return Array.from({ length: count }, (_, i) => {
+      const date = addDays(start, i);
+      return { date, dayId: getDayId(date) };
+    });
+  }, [view, weekStart, gridStart]);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await fetchFinanceEntries();
-      setEntries(list);
-    } catch {
-      showToast(t('fin_load_error'), 'error');
+      const rows = await fetchFinanceCalendar(range.from, range.to);
+      setMovements(rows);
+    } catch (err) {
+      const msg =
+        err instanceof ApiClientError &&
+        /schema cache|does not exist|PGRST|finance_movements/i.test(err.message)
+          ? t('fin_sql_needed')
+          : t('fin_load_error');
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
-  }, [showToast, t]);
+  }, [range.from, range.to, showToast, t]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  const summariesByCurrency = useMemo(
-    () => summarizeFinanceMonthByCurrency(entries, monthId),
-    [entries, monthId]
+  const byDay = useMemo(() => {
+    const map = new Map<string, FinanceMovement[]>();
+    for (const mov of movements) {
+      if (filterFlow !== 'all' && mov.flow !== filterFlow) continue;
+      const list = map.get(mov.dayId) ?? [];
+      list.push(mov);
+      map.set(mov.dayId, list);
+    }
+    return map;
+  }, [movements, filterFlow]);
+
+  const summaries = useMemo(
+    () => summarizeMovementsByCurrency(movements, monthId),
+    [movements, monthId]
   );
-  const currencyKeys = useMemo(
-    () => Object.keys(summariesByCurrency).sort(),
-    [summariesByCurrency]
-  );
-  const [summaryCurrency, setSummaryCurrency] = useState<string>('');
+  const currencyKeys = Object.keys(summaries).sort();
+  const [summaryCurrency, setSummaryCurrency] = useState(preferred);
   useEffect(() => {
     if (currencyKeys.length === 0) {
-      setSummaryCurrency(
-        normalizeCurrencyCode(
-          settings.preferredCurrency,
-          defaultCurrencyFromLocale(
-            typeof navigator !== 'undefined' ? navigator.language : 'es'
-          )
-        )
-      );
+      setSummaryCurrency(preferred);
       return;
     }
     if (!currencyKeys.includes(summaryCurrency)) {
-      // Prefer user preferred if present in month, else first key.
-      const pref = normalizeCurrencyCode(settings.preferredCurrency, currencyKeys[0]);
       setSummaryCurrency(
-        currencyKeys.includes(pref) ? pref : currencyKeys[0]
+        currencyKeys.includes(preferred) ? preferred : currencyKeys[0]
       );
     }
-  }, [currencyKeys, summaryCurrency, settings.preferredCurrency]);
-  const summary = useMemo(() => {
-    if (summariesByCurrency[summaryCurrency]) {
-      return summariesByCurrency[summaryCurrency];
-    }
-    return {
-      monthId,
-      currency: summaryCurrency || 'EUR',
-      incomeRecurring: 0,
-      incomeExpected: 0,
-      incomeSpecific: 0,
-      expenseRecurring: 0,
-      expenseExpected: 0,
-      expenseSpecific: 0,
-      totalIncome: 0,
-      totalExpense: 0,
-      balance: 0,
-    };
-  }, [summariesByCurrency, summaryCurrency, monthId]);
+  }, [currencyKeys, preferred, summaryCurrency]);
+  const summary = summaries[summaryCurrency] ?? {
+    monthId,
+    currency: summaryCurrency,
+    confirmedIncome: 0,
+    confirmedExpense: 0,
+    plannedIncome: 0,
+    plannedExpense: 0,
+    balance: 0,
+  };
 
-  const monthEntries = useMemo(() => {
-    let list = entriesForMonth(entries, monthId);
-    if (filterFlow !== 'all') list = list.filter(e => e.flow === filterFlow);
-    if (filterKind !== 'all') list = list.filter(e => e.kind === filterKind);
-    return list.sort((a, b) => a.title.localeCompare(b.title));
-  }, [entries, monthId, filterFlow, filterKind]);
-
-  function openCreate() {
+  function openCreate(dayId = todayId) {
     setEditing(null);
+    const d = Number(dayId.slice(8, 10));
     setForm({
-      ...emptyForm(settings.preferredCurrency),
-      entryDate: format(monthCursor, 'yyyy-MM-dd'),
+      ...emptyForm(dayId, preferred),
+      recurrenceDay: d || 1,
     });
     setDialogOpen(true);
   }
 
-  function openEdit(entry: FinanceEntry) {
-    setEditing(entry);
+  function openEdit(mov: FinanceMovement) {
+    if (mov.virtual) {
+      setEditing(null);
+      setForm({
+        ...emptyForm(mov.dayId, mov.currency),
+        flow: mov.flow,
+        status: 'confirmed',
+        title: mov.title,
+        amount: mov.amount,
+        notes: mov.notes,
+        repeat: 'none',
+      });
+      setDialogOpen(true);
+      return;
+    }
+    setEditing(mov);
     setForm({
-      title: entry.title,
-      amount: entry.amount,
-      currency: entry.currency,
-      flow: entry.flow,
-      kind: entry.kind,
-      frequency: entry.frequency,
-      recurrenceDay: entry.recurrenceDay,
-      entryDate: entry.entryDate,
-      notes: entry.notes,
-      active: entry.active,
+      dayId: mov.dayId,
+      flow: mov.flow === 'investment' ? 'expense' : mov.flow,
+      status: mov.status,
+      currency: mov.currency,
+      title: mov.title,
+      amount: mov.amount,
+      notes: mov.notes,
+      repeat: 'none',
+      recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
     });
     setDialogOpen(true);
   }
@@ -206,41 +258,59 @@ export function FinancesPage() {
       showToast(t('fin_title_required'), 'error');
       return;
     }
-    if (!(form.amount >= 0)) {
-      showToast(t('fin_amount_required'), 'error');
-      return;
-    }
-    const payload: CreateFinanceEntryPayload = {
-      ...form,
+    const payload: CreateFinanceMovementPayload = {
+      dayId: form.dayId,
+      flow: form.flow,
+      status: form.status,
+      currency: form.currency,
       title,
-      frequency: form.kind === 'recurring' ? form.frequency ?? 'monthly' : null,
-      recurrenceDay:
-        form.kind === 'recurring'
-          ? form.recurrenceDay ?? (form.frequency === 'weekly' ? 1 : 1)
+      amount: form.amount,
+      notes: form.notes,
+      recurrence:
+        !editing && form.repeat !== 'none'
+          ? {
+              frequency: form.repeat,
+              recurrenceDay:
+                form.repeat === 'weekly'
+                  ? getDay(new Date(`${form.dayId}T00:00:00`))
+                  : form.recurrenceDay,
+            }
           : null,
-      entryDate:
-        form.kind === 'recurring' ? null : form.entryDate || format(new Date(), 'yyyy-MM-dd'),
     };
     try {
       if (editing) {
-        await updateFinanceEntry(editing.id, payload);
+        await updateFinanceMovement(editing.id, {
+          dayId: payload.dayId,
+          flow: payload.flow,
+          status: payload.status,
+          currency: payload.currency,
+          title: payload.title,
+          amount: payload.amount,
+          notes: payload.notes,
+          updatedAt: editing.updatedAt,
+        });
         showToast(t('fin_saved'), 'success');
       } else {
-        await createFinanceEntry(payload);
+        await createFinanceMovement(payload);
         showToast(t('fin_created'), 'success');
       }
       setDialogOpen(false);
       await reload();
-    } catch {
-      showToast(t('fin_save_error'), 'error');
+    } catch (err) {
+      const msg =
+        err instanceof ApiClientError &&
+        /schema cache|does not exist|PGRST|finance_/i.test(err.message)
+          ? t('fin_sql_needed')
+          : t('fin_save_error');
+      showToast(msg, 'error');
     }
   }
 
   async function confirmDelete() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleteTarget.virtual) return;
     setDeleting(true);
     try {
-      await deleteFinanceEntry(deleteTarget.id);
+      await deleteFinanceMovement(deleteTarget.id);
       showToast(t('fin_deleted'), 'info');
       setDeleteTarget(null);
       await reload();
@@ -251,33 +321,29 @@ export function FinancesPage() {
     }
   }
 
-  function kindLabel(k: FinanceKind): string {
-    if (k === 'recurring') return t('fin_kind_recurring');
-    if (k === 'expected') return t('fin_kind_expected');
-    return t('fin_kind_specific');
-  }
-
-  function flowLabel(f: FinanceFlow): string {
-    return f === 'income' ? t('fin_flow_income') : t('fin_flow_expense');
-  }
-
-  const monthLabel = format(monthCursor, 'MMMM yyyy', { locale });
+  const monthLabel = format(cursor, 'MMMM yyyy', { locale });
+  const weekdayLabels = cells.slice(0, 7).map(c =>
+    format(c.date, 'EEE', { locale })
+  );
 
   return (
     <Layout
       title={t('nav_finances')}
-      primaryAction={{ label: t('fin_add'), onClick: openCreate }}
-      onFabClick={openCreate}
+      primaryAction={{ label: t('fin_add'), onClick: () => openCreate(todayId) }}
+      onFabClick={() => openCreate(todayId)}
       showFab
     >
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
-        {/* Month nav */}
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setMonthCursor(c => startOfMonth(addMonths(c, -1)))}
+            onClick={() =>
+              setCursor(c =>
+                view === 'week' ? addDays(c, -7) : startOfMonth(addMonths(c, -1))
+              )
+            }
             aria-label={t('board_prev_week')}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -289,7 +355,11 @@ export function FinancesPage() {
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setMonthCursor(c => startOfMonth(addMonths(c, 1)))}
+            onClick={() =>
+              setCursor(c =>
+                view === 'week' ? addDays(c, 7) : startOfMonth(addMonths(c, 1))
+              )
+            }
             aria-label={t('board_next_week')}
           >
             <ChevronRight className="h-4 w-4" />
@@ -297,191 +367,185 @@ export function FinancesPage() {
           <Button
             variant="outline"
             size="sm"
-            className="ml-auto h-8 text-xs"
-            onClick={() => setMonthCursor(startOfMonth(new Date()))}
+            className="h-8 text-xs"
+            onClick={() => setCursor(startOfMonth(today))}
           >
             {t('fin_this_month')}
           </Button>
+          <div className="ml-auto flex gap-1">
+            {(['month', 'week'] as const).map(v => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-[11px]',
+                  view === v
+                    ? 'border-accent-teal bg-accent-teal/10 text-accent-teal'
+                    : 'border-border text-text-muted'
+                )}
+              >
+                {v === 'month' ? t('fin_view_month') : t('fin_view_week')}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Currency for summary (multi-moneda: LATAM, EU, USD) */}
-        {currencyKeys.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[11px] text-text-muted">
-              {t('fin_field_currency')}:
-            </span>
-            <select
-              value={summaryCurrency}
-              onChange={e => setSummaryCurrency(e.target.value)}
-              className="h-8 rounded-md border border-border bg-background px-2 text-xs text-text-primary"
-            >
-              {currencyKeys.map(c => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Summary cards */}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <SummaryCard
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <Kpi
             label={t('fin_total_income')}
-            value={money(summary.totalIncome, summary.currency)}
+            value={money(summary.confirmedIncome, summary.currency)}
             tone="green"
           />
-          <SummaryCard
+          <Kpi
             label={t('fin_total_expense')}
-            value={money(summary.totalExpense, summary.currency)}
+            value={money(summary.confirmedExpense, summary.currency)}
             tone="red"
           />
-          <SummaryCard
+          <Kpi
             label={t('fin_balance')}
             value={money(summary.balance, summary.currency)}
             tone={summary.balance >= 0 ? 'teal' : 'red'}
           />
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <MiniStat
-            label={t('fin_income_recurring')}
-            value={money(summary.incomeRecurring, summary.currency)}
-          />
-          <MiniStat
-            label={t('fin_income_expected')}
-            value={money(summary.incomeExpected, summary.currency)}
-          />
-          <MiniStat
-            label={t('fin_income_specific')}
-            value={money(summary.incomeSpecific, summary.currency)}
-          />
-          <MiniStat
-            label={t('fin_expense_recurring')}
-            value={money(summary.expenseRecurring, summary.currency)}
-          />
-          <MiniStat
-            label={t('fin_expense_expected')}
-            value={money(summary.expenseExpected, summary.currency)}
-          />
-          <MiniStat
-            label={t('fin_expense_specific')}
-            value={money(summary.expenseSpecific, summary.currency)}
+          <Kpi
+            label={t('fin_kpi_planned')}
+            value={money(
+              summary.plannedIncome + summary.plannedExpense,
+              summary.currency
+            )}
+            tone="muted"
           />
         </div>
 
-        {/* Filters + list */}
-        <div className="flex flex-wrap items-center gap-2">
+        {currencyKeys.length > 1 && (
           <select
-            value={filterFlow}
-            onChange={e => setFilterFlow(e.target.value as 'all' | FinanceFlow)}
-            className="h-9 rounded-md border border-border bg-background px-2 text-xs text-text-primary"
+            value={summaryCurrency}
+            onChange={e => setSummaryCurrency(e.target.value)}
+            className="h-8 w-fit rounded-md border border-border bg-background px-2 text-xs"
           >
-            <option value="all">{t('fin_filter_all_flows')}</option>
-            <option value="income">{t('fin_flow_income')}</option>
-            <option value="expense">{t('fin_flow_expense')}</option>
+            {currencyKeys.map(c => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
           </select>
-          <select
-            value={filterKind}
-            onChange={e => setFilterKind(e.target.value as 'all' | FinanceKind)}
-            className="h-9 rounded-md border border-border bg-background px-2 text-xs text-text-primary"
-          >
-            <option value="all">{t('fin_filter_all_kinds')}</option>
-            <option value="recurring">{t('fin_kind_recurring')}</option>
-            <option value="expected">{t('fin_kind_expected')}</option>
-            <option value="specific">{t('fin_kind_specific')}</option>
-          </select>
+        )}
+
+        <div className="flex flex-wrap gap-1.5">
+          {(['all', 'expense', 'income'] as const).map(id => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setFilterFlow(id)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs',
+                filterFlow === id
+                  ? 'border-accent-teal bg-accent-teal/10 text-accent-teal'
+                  : 'border-border text-text-muted'
+              )}
+            >
+              {id === 'all'
+                ? t('fin_filter_all_flows')
+                : id === 'income'
+                  ? t('fin_flow_income')
+                  : t('fin_flow_expense')}
+            </button>
+          ))}
         </div>
 
         {loading ? (
           <p className="text-sm text-text-muted">{t('status_checking')}</p>
-        ) : monthEntries.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border p-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-text-muted">
-              <Wallet className="h-5 w-5" />
-            </div>
-            <h2 className="text-sm font-semibold text-text-primary">
-              {t('fin_empty_title')}
-            </h2>
-            <p className="max-w-sm text-xs text-text-muted">{t('fin_empty_hint')}</p>
-            <Button onClick={openCreate} size="sm" className="mt-1">
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              {t('fin_add')}
-            </Button>
-          </div>
         ) : (
-          <ul className="space-y-1.5">
-            {monthEntries.map(entry => (
-              <li
-                key={entry.id}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5',
-                  !entry.active && 'opacity-50'
-                )}
+          <div
+            className={cn(
+              'grid gap-px overflow-hidden rounded-xl border border-border bg-border',
+              view === 'week' ? 'grid-cols-7' : 'grid-cols-7'
+            )}
+          >
+            {weekdayLabels.map(label => (
+              <div
+                key={label}
+                className="bg-surface px-1.5 py-1 text-center text-[10px] font-medium uppercase text-text-muted"
               >
-                <div
-                  className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                    entry.flow === 'income'
-                      ? 'bg-accent-green/15 text-accent-green'
-                      : 'bg-accent-red/15 text-accent-red'
-                  )}
-                >
-                  {entry.flow === 'income' ? '+' : '−'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-text-primary">
-                    {entry.title}
-                  </p>
-                  <p className="text-[11px] text-text-muted">
-                    {flowLabel(entry.flow)} · {kindLabel(entry.kind)}
-                    {entry.kind === 'recurring' && entry.frequency
-                      ? ` · ${entry.frequency === 'monthly' ? t('fin_freq_monthly') : t('fin_freq_weekly')}`
-                      : ''}
-                    {entry.entryDate
-                      ? ` · ${format(parseISO(`${entry.entryDate}T00:00:00`), 'd MMM', { locale })}`
-                      : ''}
-                  </p>
-                </div>
-                <p
-                  className={cn(
-                    'shrink-0 text-sm font-semibold tabular-nums',
-                    entry.flow === 'income'
-                      ? 'text-accent-green'
-                      : 'text-accent-red'
-                  )}
-                >
-                  {entry.flow === 'income' ? '+' : '−'}
-                  {money(entry.amount, entry.currency)}
-                </p>
-                <button
-                  type="button"
-                  className="rounded p-1.5 text-text-muted hover:bg-background hover:text-text-primary"
-                  onClick={() => openEdit(entry)}
-                  aria-label={t('task_ctx_edit')}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className="rounded p-1.5 text-text-muted hover:bg-background hover:text-accent-red"
-                  onClick={() => setDeleteTarget(entry)}
-                  aria-label={t('action_delete')}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </li>
+                {label}
+              </div>
             ))}
-          </ul>
+            {cells.map(cell => {
+              const inMonth = monthIdFromDayId(cell.dayId) === monthId;
+              const list = byDay.get(cell.dayId) ?? [];
+              const isToday = cell.dayId === todayId;
+              return (
+                <button
+                  key={cell.dayId}
+                  type="button"
+                  onClick={() => openCreate(cell.dayId)}
+                  className={cn(
+                    'flex min-h-[5.5rem] flex-col gap-0.5 bg-background p-1 text-left',
+                    view === 'week' && 'min-h-[12rem]',
+                    !inMonth && view === 'month' && 'opacity-40',
+                    isToday && 'ring-1 ring-inset ring-accent-teal'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'self-start rounded-full px-1.5 text-[11px] tabular-nums',
+                      isToday
+                        ? 'bg-accent-teal text-white'
+                        : 'text-text-muted'
+                    )}
+                  >
+                    {format(cell.date, 'd')}
+                  </span>
+                  <ul className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                    {list.slice(0, view === 'week' ? 8 : 3).map(mov => (
+                      <li key={mov.id}>
+                        <span
+                          role="presentation"
+                          onClick={e => {
+                            e.stopPropagation();
+                            openEdit(mov);
+                          }}
+                          className={cn(
+                            'block truncate rounded px-1 py-0.5 text-[10px] leading-tight',
+                            mov.flow === 'income'
+                              ? 'bg-accent-green/15 text-accent-green'
+                              : 'bg-accent-red/15 text-accent-red',
+                            mov.status === 'planned' && 'opacity-70',
+                            mov.virtual && 'border border-dashed border-current'
+                          )}
+                        >
+                          {mov.flow === 'income' ? '+' : '−'}
+                          {mov.title}
+                        </span>
+                      </li>
+                    ))}
+                    {list.length > (view === 'week' ? 8 : 3) && (
+                      <li className="px-1 text-[10px] text-text-muted">
+                        +{list.length - (view === 'week' ? 8 : 3)}
+                      </li>
+                    )}
+                  </ul>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {!loading && movements.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <Wallet className="h-5 w-5 text-text-muted" />
+            <p className="text-sm font-medium text-text-primary">
+              {t('fin_empty_title')}
+            </p>
+            <p className="max-w-sm text-xs text-text-muted">{t('fin_empty_hint')}</p>
+          </div>
         )}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {editing ? t('fin_edit') : t('fin_add')}
-            </DialogTitle>
+            <DialogTitle>{editing ? t('fin_edit') : t('fin_add')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <label className="block space-y-1 text-xs text-text-muted">
@@ -493,49 +557,40 @@ export function FinancesPage() {
                 placeholder={t('fin_title_ph')}
               />
             </label>
-
             <div className="grid grid-cols-2 gap-2">
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_flow')}</span>
                 <select
                   value={form.flow}
                   onChange={e =>
-                    setForm(f => ({ ...f, flow: e.target.value as FinanceFlow }))
+                    setForm(f => ({
+                      ...f,
+                      flow: e.target.value as 'income' | 'expense',
+                    }))
                   }
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary"
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
                   <option value="expense">{t('fin_flow_expense')}</option>
                   <option value="income">{t('fin_flow_income')}</option>
                 </select>
               </label>
               <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_field_kind')}</span>
+                <span>{t('fin_field_status')}</span>
                 <select
-                  value={form.kind}
-                  onChange={e => {
-                    const kind = e.target.value as FinanceKind;
+                  value={form.status}
+                  onChange={e =>
                     setForm(f => ({
                       ...f,
-                      kind,
-                      frequency:
-                        kind === 'recurring' ? f.frequency ?? 'monthly' : null,
-                      recurrenceDay:
-                        kind === 'recurring' ? f.recurrenceDay ?? 1 : null,
-                      entryDate:
-                        kind === 'recurring'
-                          ? null
-                          : f.entryDate || format(new Date(), 'yyyy-MM-dd'),
-                    }));
-                  }}
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary"
+                      status: e.target.value as FinanceMovementStatus,
+                    }))
+                  }
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
-                  <option value="specific">{t('fin_kind_specific')}</option>
-                  <option value="expected">{t('fin_kind_expected')}</option>
-                  <option value="recurring">{t('fin_kind_recurring')}</option>
+                  <option value="planned">{t('fin_status_planned')}</option>
+                  <option value="confirmed">{t('fin_status_confirmed')}</option>
                 </select>
               </label>
             </div>
-
             <div className="grid grid-cols-2 gap-2">
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_amount')}</span>
@@ -550,183 +605,146 @@ export function FinancesPage() {
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_currency')}</span>
                 <select
-                  value={form.currency ?? 'EUR'}
+                  value={form.currency}
                   onChange={e =>
                     setForm(f => ({ ...f, currency: e.target.value }))
                   }
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-xs text-text-primary"
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
                   {SUPPORTED_CURRENCIES.map(c => (
                     <option key={c.code} value={c.code}>
-                      {c.label}
+                      {c.code}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
-
-            {form.kind === 'recurring' ? (
-              <div className="grid grid-cols-2 gap-2">
-                <label className="block space-y-1 text-xs text-text-muted">
-                  <span>{t('fin_field_frequency')}</span>
-                  <select
-                    value={form.frequency ?? 'monthly'}
-                    onChange={e =>
-                      setForm(f => ({
-                        ...f,
-                        frequency: e.target.value as FinanceFrequency,
-                      }))
-                    }
-                    className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary"
-                  >
-                    <option value="monthly">{t('fin_freq_monthly')}</option>
-                    <option value="weekly">{t('fin_freq_weekly')}</option>
-                  </select>
-                </label>
-                <label className="block space-y-1 text-xs text-text-muted">
-                  <span>
-                    {form.frequency === 'weekly'
-                      ? t('fin_field_weekday')
-                      : t('fin_field_monthday')}
-                  </span>
-                  {form.frequency === 'weekly' ? (
-                    <select
-                      value={form.recurrenceDay ?? 1}
-                      onChange={e =>
-                        setForm(f => ({
-                          ...f,
-                          recurrenceDay: Number(e.target.value),
-                        }))
-                      }
-                      className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary"
-                    >
-                      {[0, 1, 2, 3, 4, 5, 6].map(d => (
-                        <option key={d} value={d}>
-                          {t(`fin_weekday_${d}` as 'fin_weekday_0')}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={form.recurrenceDay ?? 1}
-                      onChange={e =>
-                        setForm(f => ({
-                          ...f,
-                          recurrenceDay: Math.min(
-                            31,
-                            Math.max(1, Number(e.target.value) || 1)
-                          ),
-                        }))
-                      }
-                      className="h-9 text-sm"
-                    />
-                  )}
-                </label>
-              </div>
-            ) : (
+            <label className="block space-y-1 text-xs text-text-muted">
+              <span>{t('fin_field_date')}</span>
+              <Input
+                type="date"
+                value={form.dayId}
+                onChange={e => setForm(f => ({ ...f, dayId: e.target.value }))}
+                className="h-9 text-sm"
+              />
+            </label>
+            {!editing && (
               <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_field_date')}</span>
-                <input
-                  type="date"
-                  value={form.entryDate ?? ''}
+                <span>{t('fin_repeat')}</span>
+                <select
+                  value={form.repeat}
                   onChange={e =>
-                    setForm(f => ({ ...f, entryDate: e.target.value || null }))
+                    setForm(f => ({
+                      ...f,
+                      repeat: e.target.value as MovementForm['repeat'],
+                    }))
                   }
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm text-text-primary"
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                >
+                  <option value="none">{t('fin_repeat_none')}</option>
+                  <option value="monthly">{t('fin_freq_monthly')}</option>
+                  <option value="weekly">{t('fin_freq_weekly')}</option>
+                </select>
+              </label>
+            )}
+            {form.repeat === 'monthly' && !editing && (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_field_monthday')}</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={form.recurrenceDay}
+                  onChange={e =>
+                    setForm(f => ({
+                      ...f,
+                      recurrenceDay: Number(e.target.value) || 1,
+                    }))
+                  }
+                  className="h-9 text-sm"
                 />
               </label>
             )}
-
             <label className="block space-y-1 text-xs text-text-muted">
               <span>{t('fin_field_notes')}</span>
               <textarea
-                value={form.notes ?? ''}
+                value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                 rows={2}
-                className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-sm text-text-primary"
+                className="w-full rounded-md border border-border bg-field px-3 py-2 text-sm"
               />
             </label>
-
-            <label className="flex items-center gap-2 text-xs text-text-muted">
-              <input
-                type="checkbox"
-                checked={form.active !== false}
-                onChange={e =>
-                  setForm(f => ({ ...f, active: e.target.checked }))
-                }
-              />
-              {t('fin_field_active')}
-            </label>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDialogOpen(false)}
-              >
-                {t('action_cancel')}
-              </Button>
-              <Button size="sm" onClick={() => void handleSave()}>
-                {t('action_save')}
-              </Button>
+            <div className="flex justify-between pt-1">
+              {editing && !editing.virtual ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-accent-red"
+                  onClick={() => {
+                    setDeleteTarget(editing);
+                    setDialogOpen(false);
+                  }}
+                >
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  {t('action_delete')}
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setDialogOpen(false)}
+                >
+                  {t('action_cancel')}
+                </Button>
+                <Button type="button" onClick={() => void handleSave()}>
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  {editing ? t('action_save') : t('fin_add')}
+                </Button>
+              </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
       <ConfirmDialog
-        open={deleteTarget !== null}
+        open={Boolean(deleteTarget)}
         onOpenChange={open => {
-          if (!open && !deleting) setDeleteTarget(null);
+          if (!open) setDeleteTarget(null);
         }}
-        title={t('fin_delete_title')}
-        description={t('fin_delete_confirm').replace(
-          '{title}',
-          deleteTarget?.title ?? ''
-        )}
-        onConfirm={() => void confirmDelete()}
+        title={t('action_delete')}
+        description={deleteTarget?.title ?? ''}
+        confirmLabel={t('action_delete')}
         loading={deleting}
+        onConfirm={() => void confirmDelete()}
       />
     </Layout>
   );
 }
 
-function SummaryCard({
+function Kpi({
   label,
   value,
   tone,
 }: {
   label: string;
   value: string;
-  tone: 'green' | 'red' | 'teal';
+  tone: 'green' | 'red' | 'teal' | 'muted';
 }) {
+  const color =
+    tone === 'green'
+      ? 'text-accent-green'
+      : tone === 'red'
+        ? 'text-accent-red'
+        : tone === 'teal'
+          ? 'text-accent-teal'
+          : 'text-text-primary';
   return (
-    <div className="rounded-xl border border-border bg-surface px-4 py-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted">
-        {label}
-      </p>
-      <p
-        className={cn(
-          'mt-1 text-xl font-bold tabular-nums',
-          tone === 'green' && 'text-accent-green',
-          tone === 'red' && 'text-accent-red',
-          tone === 'teal' && 'text-accent-teal'
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
-      <p className="text-[10px] text-text-muted">{label}</p>
-      <p className="text-sm font-semibold tabular-nums text-text-primary">{value}</p>
+    <div className="rounded-2xl border border-border bg-surface px-3 py-3">
+      <p className="text-[11px] text-text-muted">{label}</p>
+      <p className={cn('text-lg font-semibold tabular-nums', color)}>{value}</p>
     </div>
   );
 }
