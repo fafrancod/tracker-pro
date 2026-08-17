@@ -67,6 +67,7 @@ const DEFAULT_SETTINGS = {
   timezone: 'UTC',
   preferredCurrency: 'EUR',
   hideCompletedTasks: false,
+  completedTaskStyle: 'strikethrough',
   onboardingTourCompleted: false,
 };
 

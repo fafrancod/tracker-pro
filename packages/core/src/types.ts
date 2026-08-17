@@ -37,6 +37,12 @@ export type Importance = 'important' | 'not_important';
 export type BoardViewMode = 'week' | 'month' | 'continuous' | 'day';
 /** Lista de actividades vs grilla horaria (semana / día). */
 export type ScheduleLayout = 'list' | 'schedule';
+/**
+ * Cómo se pintan las tareas completadas:
+ * strikethrough = ticket + tachado (default);
+ * check_only = ticket sin tachar el título.
+ */
+export type CompletedTaskStyle = 'strikethrough' | 'check_only';
 /** Unidad de dosis por sesión. */
 export type DoseUnit = 'pills' | 'ml';
 /** Fijo (confirmado) vs potencial (esperado / no seguro). */
@@ -215,6 +221,11 @@ export interface UserSettings {
    * Default false (se muestran al final de cada lista del día).
    */
   hideCompletedTasks: boolean;
+  /**
+   * Apariencia de tareas terminadas: tachadas con ticket, o ticket sin tachar.
+   * Default strikethrough.
+   */
+  completedTaskStyle: CompletedTaskStyle;
   /**
    * Tour de bienvenida visto o saltado.
    * Ausente en cuentas antiguas (no mostrar). false = pendiente (alta nueva).
@@ -435,6 +446,15 @@ export interface Task {
    * null en el resto de kinds.
    */
   finance: FinanceMeta | null;
+  /**
+   * Pomodoros planeados por día (hábitos). 0 / ausente = sin plan.
+   * Se comparte en toda la serie.
+   */
+  pomodoroTarget?: number;
+  /**
+   * Pomodoros hechos este día (instancia de hábito).
+   */
+  pomodoroDone?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -504,6 +524,8 @@ export interface CreateTaskPayload {
   financeAmount?: number;
   financeCurrency?: string;
   financeCertainty?: FinanceCertainty;
+  /** Pomodoros a dedicar cada día (hábitos). Se guarda en la serie. */
+  pomodoroTarget?: number;
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -543,6 +565,10 @@ export interface UpdateTaskPayload {
   financeAmount?: number;
   financeCurrency?: string;
   financeCertainty?: FinanceCertainty;
+  /** Plan diario de pomodoros (serie). */
+  pomodoroTarget?: number;
+  /** Conteo de pomodoros de este día (instancia). */
+  pomodoroDone?: number;
   /**
    * instance = solo esta ocurrencia (default).
    * series = propaga metadata (título, color, …) a toda la serie.
@@ -576,6 +602,7 @@ export type SeriesSharedTaskFields = Pick<
   | 'involvedContactIds'
   | 'location'
   | 'departureTime'
+  | 'pomodoroTarget'
 >;
 
 /** Filtros del tablero (week / month / continuous / day). */

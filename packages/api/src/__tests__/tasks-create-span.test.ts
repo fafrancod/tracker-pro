@@ -530,6 +530,32 @@ describe('PATCH /api/tasks — applyTo series', () => {
     expect(instanceUpdate).toBeTruthy();
     expect(instanceUpdate!.patch.completed).toBe(true);
   });
+
+  it('pomodoroTarget va a la serie; pomodoroDone solo a la instancia', async () => {
+    const updates: Array<{ patch: Record<string, unknown>; eqs: Array<{ col: string; val: unknown }> }> =
+      [];
+    mockTasksUpdate({
+      existing: { ...existingWithSeries, kind: 'habit_good', pomodoro_target: 2, pomodoro_done: 0 },
+      onUpdate: (p, eqs) => {
+        updates.push({ patch: p, eqs: [...eqs] });
+      },
+    });
+
+    const res = await request(app)
+      .patch('/api/tasks/2026-W11/2026-03-10/task-series-1')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ pomodoroTarget: 5, pomodoroDone: 1, applyTo: 'series' });
+
+    expect(res.status).toBe(200);
+    const seriesUpdate = updates.find(u => u.eqs.some(e => e.col === 'series_id'));
+    expect(seriesUpdate).toBeTruthy();
+    expect(seriesUpdate!.patch.pomodoro_target).toBe(5);
+    expect(seriesUpdate!.patch.pomodoro_done).toBeUndefined();
+    const instanceUpdate = updates.find(u => u.eqs.some(e => e.col === 'id'));
+    expect(instanceUpdate).toBeTruthy();
+    expect(instanceUpdate!.patch.pomodoro_done).toBe(1);
+    expect(instanceUpdate!.patch.pomodoro_target).toBeUndefined();
+  });
 });
 
 describe('POST /api/tasks/:weekId/:dayId/:taskId/move — keep duration', () => {

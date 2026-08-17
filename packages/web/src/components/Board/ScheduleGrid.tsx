@@ -185,7 +185,7 @@ export function ScheduleGrid({
                           }
                           className={cn(
                             'min-w-0 flex-1 truncate text-left',
-                            loc.completed && 'line-through'
+                            loc.completed && 'task-completed-title line-through'
                           )}
                           title={loc.title}
                         >
@@ -339,7 +339,7 @@ export function ScheduleGrid({
                         }
                         className={cn(
                           'min-w-0 flex-1 overflow-hidden px-0.5 text-left',
-                          loc.completed && 'line-through'
+                          loc.completed && 'task-completed-title line-through'
                         )}
                       >
                         <div className="truncate font-semibold text-text-primary">

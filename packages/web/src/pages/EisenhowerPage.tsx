@@ -443,7 +443,7 @@ export function EisenhowerPage() {
         draggable
         className={cn(
           'w-full rounded-md border border-border bg-background px-2 py-1.5 text-left text-xs transition-colors hover:border-accent-teal/40',
-          loc.completed && !badge && 'opacity-60 line-through',
+          loc.completed && !badge && 'task-completed-title opacity-60 line-through',
           loc.completed && badge && 'opacity-90'
         )}
         style={project ? { borderLeft: `3px solid ${project.color}` } : undefined}
@@ -451,7 +451,7 @@ export function EisenhowerPage() {
         <span
           className={cn(
             'block truncate text-text-primary',
-            loc.completed && !badge && 'line-through'
+            loc.completed && !badge && 'task-completed-title line-through'
           )}
         >
           {loc.title}

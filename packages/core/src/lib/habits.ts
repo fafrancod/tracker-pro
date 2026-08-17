@@ -3,6 +3,14 @@ import { getWeekIdFromDayId } from './recurrence';
 
 export type HabitKind = 'habit_good' | 'habit_quit';
 
+/** Tope razonable de pomodoros por día (25 min × 24 = 10 h). */
+export const MAX_DAILY_POMODOROS = 24;
+
+export function normalizePomodoroCount(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(MAX_DAILY_POMODOROS, Math.round(value)));
+}
+
 export function isHabitKind(kind: string | null | undefined): kind is HabitKind {
   return kind === 'habit_good' || kind === 'habit_quit';
 }
@@ -101,6 +109,8 @@ export function buildVirtualHabitForDay(
     endDayId: dayId,
     startTime: null,
     endTime: null,
+    pomodoroTarget: normalizePomodoroCount(seed.pomodoroTarget),
+    pomodoroDone: 0,
     weekId: getWeekIdFromDayId(dayId),
     startDayId: dayId,
     // El “orden” virtual no importa; se reordena al materializar

@@ -185,7 +185,7 @@ function TaskGroup({
                 <p
                   className={cn(
                     'truncate text-sm font-medium text-text-primary',
-                    task.completed && 'text-text-muted line-through'
+                    task.completed && 'task-completed-title text-text-muted line-through'
                   )}
                 >
                   {task.title}

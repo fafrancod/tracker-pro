@@ -222,6 +222,40 @@ describe('POST /api/tasks — hábitos lazy (Fase 2)', () => {
     expect(lastTaskInsert[0].recurrence_frequency).toBe('weekly');
     expect(res.body.createdCount).toBe(1);
   });
+
+  it('guarda pomodoroTarget en el seed y done=0', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        weekId: '2026-W11',
+        dayId: '2026-03-10',
+        title: 'Estudiar',
+        kind: 'habit_good',
+        pomodoroTarget: 4,
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert).toHaveLength(1);
+    expect(lastTaskInsert[0].pomodoro_target).toBe(4);
+    expect(lastTaskInsert[0].pomodoro_done).toBe(0);
+    expect(res.body.pomodoroTarget).toBe(4);
+    expect(res.body.pomodoroDone).toBe(0);
+  });
+
+  it('rechaza pomodoroTarget fuera de 0–24', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        weekId: '2026-W11',
+        dayId: '2026-03-10',
+        title: 'Estudiar',
+        kind: 'habit_good',
+        pomodoroTarget: 40,
+      });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('POST /api/tasks/habit-ensure', () => {
@@ -256,6 +290,8 @@ describe('POST /api/tasks/habit-ensure', () => {
         location: null,
         departure_time: null,
         steps: [],
+        pomodoro_target: 4,
+        pomodoro_done: 2,
         created_at: '2026-03-10T10:00:00.000Z',
         updated_at: '2026-03-10T10:00:00.000Z',
       },
@@ -294,6 +330,10 @@ describe('POST /api/tasks/habit-ensure', () => {
     expect(res.body.dayId).toBe('2026-03-12');
     expect(res.body.completed).toBe(true);
     expect(res.body.seriesId).toBe('series-habit-1');
+    expect(lastEnsureInsert!.pomodoro_target).toBe(4);
+    expect(lastEnsureInsert!.pomodoro_done).toBe(0);
+    expect(res.body.pomodoroTarget).toBe(4);
+    expect(res.body.pomodoroDone).toBe(0);
   });
 
   it('si ya existe el día, actualiza completed y no inserta', async () => {

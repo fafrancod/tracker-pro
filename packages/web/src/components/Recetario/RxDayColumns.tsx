@@ -313,7 +313,9 @@ function DoseChip({ task, onToggle }: { task: Task; onToggle: () => void }) {
           <p
             className={cn(
               'truncate text-xs font-medium',
-              task.completed ? 'text-text-muted line-through' : 'text-text-primary'
+              task.completed
+                ? 'task-completed-title text-text-muted line-through'
+                : 'text-text-primary'
             )}
           >
             {task.title}

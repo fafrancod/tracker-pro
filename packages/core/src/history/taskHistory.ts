@@ -111,6 +111,8 @@ export const taskHistory = {
       steps: apiPayload.steps ?? [],
       images: apiPayload.images ?? [],
       finance: apiPayload.finance ?? null,
+      pomodoroTarget: apiPayload.pomodoroTarget ?? 0,
+      pomodoroDone: 0,
       createdAt: now,
       updatedAt: now,
     };
@@ -362,8 +364,9 @@ export const taskHistory = {
       delete seriesPartial.endDayId;
       delete seriesPartial.order;
       delete seriesPartial.movedFrom;
-      // steps never propagate to the whole series (API instance-only)
+      // steps / pomodoroDone never propagate to the whole series
       delete seriesPartial.steps;
+      delete seriesPartial.pomodoroDone;
       store.patchSeriesOptimistic(before.seriesId, seriesPartial);
       const inst: Partial<Task> = {};
       if (patch.completed !== undefined) {
@@ -372,6 +375,7 @@ export const taskHistory = {
       }
       if (patch.endDayId !== undefined) inst.endDayId = patch.endDayId;
       if (patch.steps !== undefined) inst.steps = patch.steps;
+      if (patch.pomodoroDone !== undefined) inst.pomodoroDone = patch.pomodoroDone;
       if (Object.keys(inst).length) {
         store.updateTaskOptimistic(locWeekId, locDayId, taskId, inst);
       }

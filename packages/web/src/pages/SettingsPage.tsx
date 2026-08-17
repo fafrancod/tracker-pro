@@ -34,7 +34,12 @@ import { SUPPORTED_CURRENCIES, normalizeCurrencyCode } from '@core/lib/currencie
 
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
-import type { BoardViewMode, Language, ScheduleLayout } from '@core/types';
+import type {
+  BoardViewMode,
+  CompletedTaskStyle,
+  Language,
+  ScheduleLayout,
+} from '@core/types';
 import { cn } from '@/lib/utils';
 import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import {
@@ -802,6 +807,65 @@ export function SettingsPage() {
           {/* Skins */}
           {tab === 'appearance' && (
           <section className="rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-1 text-sm font-semibold text-text-primary">
+              {t('settings_completed_style')}
+            </h2>
+            <p className="mb-3 text-[11px] text-text-muted">
+              {t('settings_completed_style_desc')}
+            </p>
+            <div className="mb-6 grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  {
+                    id: 'strikethrough' as const,
+                    title: t('settings_completed_style_strike'),
+                    desc: t('settings_completed_style_strike_desc'),
+                    previewClass: 'text-text-muted line-through',
+                  },
+                  {
+                    id: 'check_only' as const,
+                    title: t('settings_completed_style_check'),
+                    desc: t('settings_completed_style_check_desc'),
+                    previewClass: 'text-text-muted',
+                  },
+                ] satisfies Array<{
+                  id: CompletedTaskStyle;
+                  title: string;
+                  desc: string;
+                  previewClass: string;
+                }>
+              ).map(opt => {
+                const selected =
+                  (settings.completedTaskStyle ?? 'strikethrough') === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() =>
+                      void updateSettings({ completedTaskStyle: opt.id })
+                    }
+                    className={cn(
+                      'rounded-lg border px-3 py-2.5 text-left transition-colors',
+                      selected
+                        ? 'border-accent-teal bg-accent-teal/10'
+                        : 'border-border bg-background hover:border-accent-teal/40'
+                    )}
+                  >
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full border border-accent-green bg-accent-green/20 text-accent-green">
+                        <span className="text-[10px] font-bold">✓</span>
+                      </span>
+                      <span className={cn('text-sm', opt.previewClass)}>
+                        {t('task_kind_task')}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium text-text-primary">{opt.title}</p>
+                    <p className="mt-0.5 text-[11px] text-text-muted">{opt.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+
             <h2 className="mb-1 text-sm font-semibold text-text-primary">{t('settings_skin')}</h2>
             <p className="mb-4 text-[11px] text-text-muted">{t('settings_skin_desc')}</p>
 

@@ -12,7 +12,7 @@ import {
   Cell,
   Legend,
 } from 'recharts';
-import { Flame, ListChecks } from 'lucide-react';
+import { Flame, ListChecks, Timer } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { ProGate } from '@/components/ProGate';
 import { useWeek } from '@core/hooks/useWeek';
@@ -23,6 +23,7 @@ import { collectTasksCovering } from '@core/lib/taskPresence';
 import { useT } from '@/hooks/useT';
 import { useSettings } from '@/contexts/SettingsContext';
 import type { Task } from '@core/types';
+import { isHabitKind, normalizePomodoroCount } from '@core/lib/habits';
 import { TaskSummaryDialog } from '@/components/Board/TaskSummaryDialog';
 import {
   chartTooltipStyle,
@@ -43,7 +44,7 @@ export function AnalyticsPage() {
 }
 
 function AnalyticsContent() {
-  const { locale, weekdayFormat, shortDateFormat } = useT();
+  const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { settings } = useSettings();
   const { currentWeekId, days } = useWeek({
     locale,
@@ -109,6 +110,57 @@ function AnalyticsContent() {
     });
   }, [backendAnalytics, weekTasks, projects]);
 
+  const pomoDaily = useMemo(() => {
+    return days.map(d => {
+      const habits = collectTasksCovering(tasksByWeek, d.dayId).filter(t =>
+        isHabitKind(t.kind)
+      );
+      const planned = habits.reduce(
+        (acc, t) => acc + normalizePomodoroCount(t.pomodoroTarget),
+        0
+      );
+      const done = habits.reduce(
+        (acc, t) => acc + normalizePomodoroCount(t.pomodoroDone),
+        0
+      );
+      return {
+        dayId: d.dayId,
+        day: d.label,
+        planned,
+        done,
+      };
+    });
+  }, [days, tasksByWeek]);
+
+  const pomoByHabit = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; title: string; planned: number; done: number }
+    >();
+    for (const d of days) {
+      for (const task of collectTasksCovering(tasksByWeek, d.dayId)) {
+        if (!isHabitKind(task.kind)) continue;
+        const key = task.seriesId ?? task.id;
+        const prev = map.get(key) ?? {
+          id: key,
+          title: task.title,
+          planned: 0,
+          done: 0,
+        };
+        prev.title = task.title || prev.title;
+        prev.planned += normalizePomodoroCount(task.pomodoroTarget);
+        prev.done += normalizePomodoroCount(task.pomodoroDone);
+        map.set(key, prev);
+      }
+    }
+    return [...map.values()].filter(h => h.planned > 0 || h.done > 0);
+  }, [days, tasksByWeek]);
+
+  const pomoPlanned = pomoDaily.reduce((acc, d) => acc + d.planned, 0);
+  const pomoDone = pomoDaily.reduce((acc, d) => acc + d.done, 0);
+  const pomoAdherence =
+    pomoPlanned > 0 ? Math.round((pomoDone / pomoPlanned) * 100) : 0;
+
   const totalCompleted = dailyChart.reduce((acc, d) => acc + d.completed, 0);
   const totalPending = dailyChart.reduce((acc, d) => acc + d.pending, 0);
   const streak = backendAnalytics?.streakCount ?? 0;
@@ -128,7 +180,7 @@ function AnalyticsContent() {
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
       <div className="mx-auto max-w-5xl space-y-4">
         {/* KPIs */}
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           <Kpi
             icon={<ListChecks className="h-4 w-4" />}
             label="Completadas (semana)"
@@ -146,6 +198,18 @@ function AnalyticsContent() {
             label="Streak"
             value={`${streak} sem`}
             accent="text-accent-pink"
+          />
+          <Kpi
+            icon={<Timer className="h-4 w-4" />}
+            label={t('analytics_pomo_week')}
+            value={`${pomoDone}/${pomoPlanned || 0}`}
+            accent="text-accent-teal"
+          />
+          <Kpi
+            icon={<Timer className="h-4 w-4" />}
+            label={t('analytics_pomo_adherence')}
+            value={pomoPlanned > 0 ? `${pomoAdherence}%` : '—'}
+            accent="text-accent-teal"
           />
         </div>
 
@@ -213,6 +277,79 @@ function AnalyticsContent() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+          )}
+        </section>
+
+        <section data-chrome="glass" className="analytics-surface rounded-3xl border border-border bg-surface p-5">
+          <h2 className="mb-3 text-sm font-semibold text-text-primary">
+            {t('analytics_pomo_by_day')}
+          </h2>
+          {pomoPlanned === 0 && pomoDone === 0 ? (
+            <p className="py-10 text-center text-xs text-text-muted">
+              {t('analytics_pomo_empty')}
+            </p>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={pomoDaily}>
+                  <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" stroke={axis} fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke={axis} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={tip}
+                    labelStyle={{ fontSize: 12 }}
+                    cursor={{ fill: dark ? 'rgba(255,255,255,0.045)' : 'rgba(10,132,255,0.06)' }}
+                  />
+                  <Bar
+                    dataKey="planned"
+                    name={t('analytics_pomo_planned')}
+                    fill={dark ? 'rgba(94,92,230,0.42)' : 'rgba(94,92,230,0.2)'}
+                    radius={[9, 9, 3, 3]}
+                    activeBar={false}
+                  />
+                  <Bar
+                    dataKey="done"
+                    name={t('analytics_pomo_done')}
+                    fill={macSystem.green}
+                    radius={[9, 9, 3, 3]}
+                    activeBar={false}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+
+        <section data-chrome="glass" className="analytics-surface rounded-3xl border border-border bg-surface p-5">
+          <h2 className="mb-3 text-sm font-semibold text-text-primary">
+            {t('analytics_pomo_by_habit')}
+          </h2>
+          {pomoByHabit.length === 0 ? (
+            <p className="py-8 text-center text-xs text-text-muted">
+              {t('analytics_pomo_empty')}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {pomoByHabit.map(h => {
+                const pct = h.planned > 0 ? Math.min(100, Math.round((h.done / h.planned) * 100)) : 0;
+                return (
+                  <li key={h.id} className="rounded-xl border border-border/70 px-3 py-2">
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="truncate text-sm text-text-primary">{h.title}</span>
+                      <span className="shrink-0 text-[11px] tabular-nums text-text-muted">
+                        {h.done}/{h.planned}
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-background">
+                      <div
+                        className="h-full rounded-full bg-accent-teal"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
 

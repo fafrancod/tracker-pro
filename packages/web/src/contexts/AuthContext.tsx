@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           dailyJournal: [],
           preferredCurrency: 'EUR',
           hideCompletedTasks: false,
+          completedTaskStyle: 'strikethrough',
         },
       };
       const initialProfile: UserProfile = persisted?.profile ?? defaultProfile;

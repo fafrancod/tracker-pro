@@ -376,6 +376,26 @@ export interface TranslationDict {
   habit_not_done: string;
   habit_badge_good: string;
   habit_badge_quit: string;
+  habit_pomo_section: string;
+  habit_pomo_plan: string;
+  habit_pomo_plan_hint: string;
+  habit_pomo_done: string;
+  habit_pomo_minus: string;
+  habit_pomo_plus: string;
+  settings_completed_style: string;
+  settings_completed_style_desc: string;
+  settings_completed_style_strike: string;
+  settings_completed_style_strike_desc: string;
+  settings_completed_style_check: string;
+  settings_completed_style_check_desc: string;
+  analytics_pomo_title: string;
+  analytics_pomo_week: string;
+  analytics_pomo_planned: string;
+  analytics_pomo_done: string;
+  analytics_pomo_adherence: string;
+  analytics_pomo_by_day: string;
+  analytics_pomo_by_habit: string;
+  analytics_pomo_empty: string;
   task_kind_possible_event: string;
   task_possible_event_placeholder: string;
   task_kind_event: string;
@@ -1280,7 +1300,7 @@ const es_dict: TranslationDict = {
   board_filter_category_events: 'Eventos',
   board_filter_category_habits: 'Hábitos',
   board_category_habits_hint:
-    'Hábitos buenos y a dejar. Cada día aparece con casilla para marcar si lo hiciste.',
+    'Hábitos buenos y a dejar. Cada día aparece con casilla y, si quieres, un plan de pomodoros.',
   board_category_events_hint:
     'Eventos con lugar, fechas y salida prevista (avisos según la hora de salida).',
   board_category_rx_hint:
@@ -1339,6 +1359,29 @@ const es_dict: TranslationDict = {
   habit_not_done: 'Pendiente',
   habit_badge_good: 'Cultivar',
   habit_badge_quit: 'Dejar',
+  habit_pomo_section: 'Pomodoros',
+  habit_pomo_plan: 'Plan del día',
+  habit_pomo_plan_hint:
+    'Define cuántos pomodoros dedicas a este hábito cada día y anota los que ya hiciste.',
+  habit_pomo_done: 'Hechos hoy',
+  habit_pomo_minus: 'Quitar un pomodoro',
+  habit_pomo_plus: 'Añadir un pomodoro',
+  settings_completed_style: 'Tareas terminadas',
+  settings_completed_style_desc:
+    'Elige si el título se tacha al completar o si solo se muestra el ticket.',
+  settings_completed_style_strike: 'Tachadas con ticket',
+  settings_completed_style_strike_desc: 'Título tachado y casilla marcada.',
+  settings_completed_style_check: 'Ticket sin tachar',
+  settings_completed_style_check_desc: 'Casilla marcada y título legible.',
+  analytics_pomo_title: 'Pomodoros de hábitos',
+  analytics_pomo_week: 'Pomodoros (semana)',
+  analytics_pomo_planned: 'Planificados',
+  analytics_pomo_done: 'Hechos',
+  analytics_pomo_adherence: 'Cumplimiento',
+  analytics_pomo_by_day: 'Pomodoros por día',
+  analytics_pomo_by_habit: 'Por hábito',
+  analytics_pomo_empty:
+    'Cuando asignes pomodoros a un hábito, verás el plan y el conteo aquí.',
   task_event_placeholder: 'Ej. Cena con Ana, partido, cita médica…',
   task_event_location: 'Lugar',
   task_event_location_ph: 'Ej. Casa de Ana, Teatro Colón, Zoom…',
@@ -2263,7 +2306,7 @@ const en_dict: TranslationDict = {
   board_filter_category_events: 'Events',
   board_filter_category_habits: 'Habits',
   board_category_habits_hint:
-    'Good habits and habits to quit. Each day shows a checkbox to mark if you did it.',
+    'Good habits and habits to quit. Each day shows a checkbox and, if you want, a pomodoro plan.',
   board_category_events_hint:
     'Events with place, dates and planned departure (reminders use departure time).',
   board_category_rx_hint:
@@ -2322,6 +2365,29 @@ const en_dict: TranslationDict = {
   habit_not_done: 'Pending',
   habit_badge_good: 'Build',
   habit_badge_quit: 'Quit',
+  habit_pomo_section: 'Pomodoros',
+  habit_pomo_plan: 'Daily plan',
+  habit_pomo_plan_hint:
+    'Set how many pomodoros you dedicate to this habit each day and log the ones you did.',
+  habit_pomo_done: 'Done today',
+  habit_pomo_minus: 'Remove one pomodoro',
+  habit_pomo_plus: 'Add one pomodoro',
+  settings_completed_style: 'Completed tasks',
+  settings_completed_style_desc:
+    'Choose whether the title is struck through when done, or only the checkmark is shown.',
+  settings_completed_style_strike: 'Strikethrough with check',
+  settings_completed_style_strike_desc: 'Checked box and struck title.',
+  settings_completed_style_check: 'Check without strikethrough',
+  settings_completed_style_check_desc: 'Checked box and a readable title.',
+  analytics_pomo_title: 'Habit pomodoros',
+  analytics_pomo_week: 'Pomodoros (week)',
+  analytics_pomo_planned: 'Planned',
+  analytics_pomo_done: 'Done',
+  analytics_pomo_adherence: 'Adherence',
+  analytics_pomo_by_day: 'Pomodoros by day',
+  analytics_pomo_by_habit: 'By habit',
+  analytics_pomo_empty:
+    'When you assign pomodoros to a habit, the plan and count show up here.',
   task_event_placeholder: 'e.g. Dinner with Ana, match, doctor visit…',
   task_event_location: 'Place',
   task_event_location_ph: "e.g. Ana's place, Colón Theatre, Zoom…",

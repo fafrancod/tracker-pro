@@ -463,7 +463,9 @@ function TaskRow({
       <span
         className={cn(
           'min-w-0 flex-1 truncate text-sm',
-          task.completed ? 'text-text-muted line-through' : 'text-text-primary'
+          task.completed
+            ? 'task-completed-title text-text-muted line-through'
+            : 'text-text-primary'
         )}
       >
         {task.title}

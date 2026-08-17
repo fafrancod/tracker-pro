@@ -59,6 +59,7 @@ const DEFAULTS: UserSettings = {
     typeof navigator !== 'undefined' ? navigator.language : 'es'
   ),
   hideCompletedTasks: false,
+  completedTaskStyle: 'strikethrough',
 };
 
 function loadLocal(): Partial<UserSettings> | null {
@@ -99,6 +100,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     applySkin(settings.skinId ?? DEFAULT_SKIN_ID);
   }, [settings.skinId]);
+
+  useEffect(() => {
+    const style =
+      settings.completedTaskStyle === 'check_only' ? 'check_only' : 'strikethrough';
+    document.documentElement.dataset.completedStyle = style;
+  }, [settings.completedTaskStyle]);
 
   const updateSettings = useCallback(
     async (patch: Partial<UserSettings>) => {

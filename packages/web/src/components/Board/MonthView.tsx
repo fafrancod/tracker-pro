@@ -890,8 +890,8 @@ export function MonthView({
                                 'flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
                                 task.completed
                                   ? isHabitQuit(task.kind)
-                                    ? 'bg-red-500/10 text-text-muted line-through'
-                                    : 'bg-accent-green/10 text-text-muted line-through'
+                                    ? 'task-completed-title bg-red-500/10 text-text-muted line-through'
+                                    : 'task-completed-title bg-accent-green/10 text-text-muted line-through'
                                   : habit && isHabitGood(task.kind)
                                     ? 'bg-emerald-500/10 text-text-primary hover:bg-emerald-500/20'
                                     : habit && isHabitQuit(task.kind)
@@ -1051,7 +1051,7 @@ export function MonthView({
                           type="button"
                           className={cn(
                             'min-w-0 flex-1 cursor-grab truncate text-left active:cursor-grabbing',
-                            bar.task.completed && 'line-through'
+                            bar.task.completed && 'task-completed-title line-through'
                           )}
                           onClick={e => e.stopPropagation()}
                           onDoubleClick={e => {

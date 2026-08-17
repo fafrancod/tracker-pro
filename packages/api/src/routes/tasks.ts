@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { MAX_TASK_IMAGES, normalizeTaskImages } from '@daily-tracker/core';
+import {
+  MAX_TASK_IMAGES,
+  normalizePomodoroCount,
+  normalizeTaskImages,
+} from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -139,6 +143,8 @@ function normalizeTimeValue(raw: unknown): string | null | undefined {
   if (!Number.isFinite(h) || !Number.isFinite(min) || h > 23 || min > 59) return s;
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
+
+const pomodoroCountSchema = z.number().int().min(0).max(24);
 
 const timeSchema = z.preprocess(
   normalizeTimeValue,
@@ -286,6 +292,7 @@ const createSchema = taskLocation.extend({
   financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
   financeCurrency: z.string().min(1).max(8).optional(),
   financeCertainty: financeCertaintySchema.optional(),
+  pomodoroTarget: pomodoroCountSchema.optional(),
 });
 
 const updateSchema = z
@@ -331,6 +338,8 @@ const updateSchema = z
     financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
     financeCurrency: z.string().min(1).max(8).optional(),
     financeCertainty: financeCertaintySchema.optional(),
+    pomodoroTarget: pomodoroCountSchema.optional(),
+    pomodoroDone: pomodoroCountSchema.optional(),
     /** instance = solo esta fila; series = metadata en toda la serie. */
     applyTo: z.enum(['instance', 'series']).optional().default('instance'),
   })
@@ -410,6 +419,8 @@ function toClientTask(
     steps: normalizeSteps(row.steps),
     images: normalizeImages(row.images),
     finance: parseFinanceMeta(row.finance_meta ?? row.finance),
+    pomodoroTarget: normalizePomodoroCount(row.pomodoro_target ?? row.pomodoroTarget),
+    pomodoroDone: normalizePomodoroCount(row.pomodoro_done ?? row.pomodoroDone),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
@@ -555,6 +566,7 @@ tasksRouter.post('/', async (req, res, next) => {
       financeAmount,
       financeCurrency,
       financeCertainty,
+      pomodoroTarget: rawPomodoroTarget,
     } = createSchema.parse(req.body);
 
     const taskKind = kind ?? 'task';
@@ -618,6 +630,9 @@ tasksRouter.post('/', async (req, res, next) => {
       financeCurrency,
       financeCertainty,
     });
+    const pomodoroTargetValue = isHabitKind(taskKind)
+      ? normalizePomodoroCount(rawPomodoroTarget)
+      : 0;
 
     // ——— Recetario: materializa 1 fila por (día × horario) con plan por fases ———
     if (isRxKind(taskKind)) {
@@ -709,6 +724,8 @@ tasksRouter.post('/', async (req, res, next) => {
           steps: [],
           // Primera toma del plan lleva las fotos; el resto vacío.
           images: rows.length === 0 ? imagesValue : [],
+          pomodoro_target: 0,
+          pomodoro_done: 0,
           created_at: now,
           updated_at: now,
         });
@@ -843,6 +860,8 @@ tasksRouter.post('/', async (req, res, next) => {
           steps: isHabit || isFinance ? [] : stepsValue,
           // Imágenes solo en la primera instancia (evita inflar toda la serie).
           images: rows.length === 0 ? imagesValue : [],
+          pomodoro_target: pomodoroTargetValue,
+          pomodoro_done: 0,
           created_at: now,
           updated_at: now,
         });
@@ -1019,6 +1038,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.departureTime !== undefined) {
       seriesUpdate.departure_time = patch.departureTime;
     }
+    if (patch.pomodoroTarget !== undefined) {
+      seriesUpdate.pomodoro_target = normalizePomodoroCount(patch.pomodoroTarget);
+    }
     // steps/images: solo en la instancia (roadmap §1.7). No volcar a toda la serie.
 
     // Campos solo de instancia (nunca se propagan a la serie).
@@ -1035,6 +1057,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     }
     if (patch.order !== undefined) instanceUpdate.order = patch.order;
     if (patch.movedFrom !== undefined) instanceUpdate.moved_from = patch.movedFrom;
+    if (patch.pomodoroDone !== undefined) {
+      instanceUpdate.pomodoro_done = normalizePomodoroCount(patch.pomodoroDone);
+    }
     if (patch.endDayId !== undefined) instanceUpdate.end_day_id = patch.endDayId;
     if (patch.recurrenceFrequency !== undefined) {
       instanceUpdate.recurrence_frequency = patch.recurrenceFrequency;
@@ -1250,6 +1275,12 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       }
       if (patch.images !== undefined) {
         update.images = normalizeImages(patch.images);
+      }
+      if (patch.pomodoroTarget !== undefined) {
+        update.pomodoro_target = normalizePomodoroCount(patch.pomodoroTarget);
+      }
+      if (patch.pomodoroDone !== undefined) {
+        update.pomodoro_done = normalizePomodoroCount(patch.pomodoroDone);
       }
       if (
         patch.rxAmount !== undefined ||
@@ -1582,6 +1613,10 @@ tasksRouter.post('/habit-ensure', async (req, res, next) => {
       steps: Array.isArray(template.steps) ? template.steps : [],
       images: [],
       finance_meta: template.finance_meta ?? null,
+      pomodoro_target: normalizePomodoroCount(
+        template.pomodoro_target ?? template.pomodoroTarget
+      ),
+      pomodoro_done: 0,
       created_at: now,
       updated_at: now,
     };

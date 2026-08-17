@@ -47,6 +47,7 @@ import {
   defaultHabitColor,
   isHabitKind,
 } from '@core/lib/habits';
+import { HabitPomodoroSection } from './HabitPomodoroSection';
 import {
   defaultFinanceColor,
   isFinanceKind,
@@ -218,6 +219,7 @@ export function AddTaskForm({
   );
   const [financeCertainty, setFinanceCertainty] =
     useState<FinanceCertainty>('fixed');
+  const [pomodoroTarget, setPomodoroTarget] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isRx = isRxKind(kind);
@@ -367,6 +369,7 @@ export function AddTaskForm({
     setSteps([]);
     setImages([]);
     setFinanceAmount(0);
+    setPomodoroTarget(0);
     setFinanceCertainty('fixed');
     setFinanceCurrency(
       normalizeCurrencyCode(
@@ -583,6 +586,7 @@ export function AddTaskForm({
             certainty: financeCertainty,
           }
         : undefined,
+      pomodoroTarget: isHabit ? pomodoroTarget : undefined,
     };
     // Fase 4.1: toast + reset al instante; red en background.
     resetForm();
@@ -1365,17 +1369,24 @@ export function AddTaskForm({
             </div>
           </div>
         ) : isHabit ? (
-          <DateRangeField
-            startDayId={formStartDayId}
-            endDayId={formStartDayId}
-            onChange={({ startDayId: s }) => {
-              setFormStartDayId(s);
-              setEndDayId(s);
-            }}
-            endReadOnly
-            showDragStrip={false}
-            compact={!isModal}
-          />
+          <>
+            <DateRangeField
+              startDayId={formStartDayId}
+              endDayId={formStartDayId}
+              onChange={({ startDayId: s }) => {
+                setFormStartDayId(s);
+                setEndDayId(s);
+              }}
+              endReadOnly
+              showDragStrip={false}
+              compact={!isModal}
+            />
+            <HabitPomodoroSection
+              target={pomodoroTarget}
+              planOnly
+              onTargetChange={setPomodoroTarget}
+            />
+          </>
         ) : (
           <DateRangeField
             startDayId={formStartDayId}

@@ -15,9 +15,10 @@ import {
   TaskContextMenu,
   type TaskContextMenuState,
 } from './TaskContextMenu';
-import type { Task, Project, Priority } from '@core/types';
+import type { Task, Project, Priority, UpdateTaskPayload } from '@core/types';
 import { formatDose, isRxKind } from '@core/lib/rx';
-import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
+import { isHabitGood, isHabitKind, isHabitQuit, normalizePomodoroCount } from '@core/lib/habits';
+import { HabitPomodoroSection } from './HabitPomodoroSection';
 import { isFinanceKind } from '@core/lib/financeKinds';
 import { isPdfAttachment, parseTaskAttachment } from '@core/lib/taskImages';
 import { useT } from '@/hooks/useT';
@@ -41,7 +42,7 @@ interface TaskCardProps {
   locationWeekId?: string;
   locationDayId?: string;
   onToggle: () => void;
-  onEdit: (payload: { title?: string; notes?: string; priority?: Priority; completed?: boolean }) => void;
+  onEdit: (payload: UpdateTaskPayload) => void;
   /** @deprecated Fechas se cambian con inicio/fin o arrastre en el tablero. */
   onMove?: (toDate: Date) => void;
   /** @deprecated */
@@ -396,7 +397,9 @@ export function TaskCard({
               className={cn(
                 'block cursor-pointer select-none leading-snug',
                 dense ? 'text-xs' : 'text-sm',
-                task.completed ? 'text-text-muted line-through' : 'text-text-primary hover:text-accent-teal'
+                task.completed
+                  ? 'task-completed-title text-text-muted line-through'
+                  : 'text-text-primary hover:text-accent-teal'
               )}
             >
               {task.title}
@@ -586,6 +589,18 @@ export function TaskCard({
           </div>
 
           {/* Notes toggle — hidden in dense week columns unless expanded */}
+          {isHabit && (
+            <HabitPomodoroSection
+              target={normalizePomodoroCount(task.pomodoroTarget)}
+              done={normalizePomodoroCount(task.pomodoroDone)}
+              dense={dense}
+              onTargetChange={next =>
+                onEdit({ pomodoroTarget: next, applyTo: 'series' })
+              }
+              onDoneChange={next => onEdit({ pomodoroDone: next })}
+            />
+          )}
+
           {!dense && (task.notes || notesOpen) && (
             <button
               onClick={() => setNotesOpen(v => !v)}

@@ -35,6 +35,8 @@ function taskToUpdatePayload(task: Task): UpdateTaskPayload {
     // Instance-only checklist — must round-trip on undo/redo.
     steps: task.steps ?? [],
     images: task.images ?? [],
+    pomodoroTarget: task.pomodoroTarget,
+    pomodoroDone: task.pomodoroDone,
   };
 }
 
@@ -55,6 +57,7 @@ function seriesSharedPatch(task: Task): UpdateTaskPayload {
     involvedContactIds: task.involvedContactIds,
     location: task.location,
     departureTime: task.departureTime,
+    pomodoroTarget: task.pomodoroTarget,
   };
 }
 
@@ -96,6 +99,12 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
       currency: payload.financeCurrency ?? 'EUR',
       certainty: payload.financeCertainty ?? 'fixed',
     };
+  }
+  if (payload.pomodoroTarget !== undefined) {
+    patch.pomodoroTarget = payload.pomodoroTarget;
+  }
+  if (payload.pomodoroDone !== undefined) {
+    patch.pomodoroDone = payload.pomodoroDone;
   }
   if (payload.completed !== undefined) {
     patch.completed = payload.completed;

@@ -73,6 +73,11 @@
   }
 }
 
+/* Preferencia: tareas terminadas con ticket, sin tachar el título. */
+html[data-completed-style='check_only'] .task-completed-title {
+  text-decoration-line: none;
+}
+
 /* Non-theme runtime tokens for Aero materials */
 :root {
   --color-background-solid: #0d1117;

@@ -73,7 +73,9 @@ function DoseToggleRow({
         <p
           className={cn(
             'truncate text-sm',
-            task.completed ? 'text-text-muted line-through' : 'text-text-primary'
+            task.completed
+              ? 'task-completed-title text-text-muted line-through'
+              : 'text-text-primary'
           )}
         >
           {task.title}

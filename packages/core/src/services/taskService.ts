@@ -21,6 +21,7 @@ import { isRxKind, materializeRxOccurrences, buildRxMetaForOccurrence, parseRxMe
 import {
   isHabitKind,
   isVirtualHabitId,
+  normalizePomodoroCount,
   parseVirtualHabitId,
 } from '../lib/habits';
 import { kindSupportsSteps, normalizeTaskSteps } from '../lib/steps';
@@ -600,6 +601,8 @@ function expandCreateInstances(
       // Solo la primera instancia de una serie lleva adjuntos (como el API).
       images: index === 0 ? images : [],
       finance,
+      pomodoroTarget: isHabit ? normalizePomodoroCount(payload.pomodoroTarget) : 0,
+      pomodoroDone: 0,
       createdAt: res.createdAt ?? now,
       updatedAt: res.updatedAt ?? now,
       weekId: instWeekId,
@@ -645,6 +648,7 @@ export async function createTask(
     financeAmount: payload.financeAmount,
     financeCurrency: payload.financeCurrency,
     financeCertainty: payload.financeCertainty,
+    pomodoroTarget: payload.pomodoroTarget,
     eventId,
   });
 
@@ -813,6 +817,8 @@ function materializeDemoCreate(
       steps,
       images: index === 0 ? images : [],
       finance,
+      pomodoroTarget: isHabit ? normalizePomodoroCount(payload.pomodoroTarget) : 0,
+      pomodoroDone: 0,
       createdAt: now,
       updatedAt: now,
       weekId: range.dayId === dayId ? weekId : getWeekIdFromDayId(range.dayId),
@@ -858,6 +864,8 @@ export async function ensureHabitInstance(opts: {
       endDayId: opts.dayId,
       completed: opts.completed ?? false,
       completedAt: opts.completed ? now : null,
+      pomodoroTarget: normalizePomodoroCount(seed.pomodoroTarget),
+      pomodoroDone: 0,
       updatedAt: now,
       createdAt: now,
     };
@@ -1296,6 +1304,8 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     steps: normalizeTaskSteps(raw.steps),
     images: normalizeTaskImages(raw.images),
     finance: normalizeFinanceMeta(raw.finance_meta ?? raw.finance),
+    pomodoroTarget: normalizePomodoroCount(raw.pomodoro_target ?? raw.pomodoroTarget),
+    pomodoroDone: normalizePomodoroCount(raw.pomodoro_done ?? raw.pomodoroDone),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),
     updatedAt: (raw.updated_at as string) ?? (raw.updatedAt as string) ?? new Date(0).toISOString(),
   };

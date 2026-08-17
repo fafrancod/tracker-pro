@@ -62,6 +62,8 @@ import {
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
 import { useSettings } from '@/contexts/SettingsContext';
+import { normalizePomodoroCount } from '@core/lib/habits';
+import { HabitPomodoroSection } from './HabitPomodoroSection';
 import type {
   DoseUnit,
   FinanceCertainty,
@@ -153,6 +155,8 @@ interface DraftState {
   financeAmount: number;
   financeCurrency: string;
   financeCertainty: FinanceCertainty;
+  pomodoroTarget: number;
+  pomodoroDone: number;
 }
 
 function taskToDraft(task: Task, fallbackDayId: string): DraftState {
@@ -183,6 +187,8 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     financeAmount: task.finance?.amount ?? 0,
     financeCurrency: task.finance?.currency ?? 'EUR',
     financeCertainty: task.finance?.certainty ?? 'fixed',
+    pomodoroTarget: normalizePomodoroCount(task.pomodoroTarget),
+    pomodoroDone: normalizePomodoroCount(task.pomodoroDone),
   };
 }
 
@@ -229,7 +235,9 @@ function isDirty(draft: DraftState, task: Task, dayId: string): boolean {
     !imagesEqual(draft.images, base.images) ||
     draft.financeAmount !== base.financeAmount ||
     draft.financeCurrency !== base.financeCurrency ||
-    draft.financeCertainty !== base.financeCertainty
+    draft.financeCertainty !== base.financeCertainty ||
+    draft.pomodoroTarget !== base.pomodoroTarget ||
+    draft.pomodoroDone !== base.pomodoroDone
   );
 }
 
@@ -700,6 +708,12 @@ function TaskDetailInner({
                 ? { finance: null }
                 : {}),
             applyTo: taskSnap.seriesId ? applyTo : 'instance',
+            ...(saveIsHabit
+              ? {
+                  pomodoroTarget: snap.pomodoroTarget,
+                  pomodoroDone: snap.pomodoroDone,
+                }
+              : {}),
           });
         }
       } catch (err) {
@@ -823,7 +837,7 @@ function TaskDetailInner({
             placeholder={t('task_title_placeholder')}
             className={cn(
               'h-9 border-none bg-transparent px-0 text-base font-medium focus-visible:ring-0',
-              task.completed && 'text-text-muted line-through'
+              task.completed && 'task-completed-title text-text-muted line-through'
             )}
           />
         </div>
@@ -833,6 +847,20 @@ function TaskDetailInner({
             ✓ {t('task_completed_at')}{' '}
             {format(parseISO(task.completedAt), `EEE ${shortDateFormat} · HH:mm`, { locale })}
           </p>
+        )}
+
+        {draftIsHabit && (
+          <div className="mb-4">
+            <HabitPomodoroSection
+              target={draft.pomodoroTarget}
+              done={draft.pomodoroDone}
+              onTargetChange={n => patchDraft({ pomodoroTarget: n })}
+              onDoneChange={n => {
+                patchDraft({ pomodoroDone: n });
+                void editTask(task.id, { pomodoroDone: n });
+              }}
+            />
+          </div>
         )}
 
         {/* Tipo — chip con icono; al clic se despliegan botones */}

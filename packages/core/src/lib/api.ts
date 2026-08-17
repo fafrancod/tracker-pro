@@ -121,6 +121,7 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
           dayStartHour: 7,
           dayEndHour: 22,
           defaultScheduleLayout: 'list',
+          completedTaskStyle: 'strikethrough',
         },
       },
     } as T;
