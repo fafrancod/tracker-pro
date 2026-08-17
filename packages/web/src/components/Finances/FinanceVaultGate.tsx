@@ -12,6 +12,7 @@ import {
   financePayloadAad,
   generateRecoveryPhrase,
   normalizeRecoveryPhrase,
+  setFinanceVaultSession,
   unlockFinanceVault,
   type FinanceDek,
   type FinanceVaultMeta,
@@ -159,6 +160,12 @@ export function FinanceVaultGate({
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (phase === 'ready' && dek && uid) {
+      setFinanceVaultSession({ uid, dek });
+    }
+  }, [phase, dek, uid]);
 
   if (phase === 'ready' && dek && uid) {
     return <>{children({ uid, dek })}</>;

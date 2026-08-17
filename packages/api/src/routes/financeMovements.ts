@@ -47,6 +47,7 @@ const createSchema = z
     payloadEnc: z.string().min(16).max(24_000).optional(),
     ruleId: z.string().min(8).max(80).optional(),
     rulePayloadEnc: z.string().min(16).max(24_000).optional(),
+    sourceTaskId: z.string().min(1).max(80).nullable().optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -71,6 +72,7 @@ const updateSchema = z
     certainty: certaintySchema.optional(),
     updatedAt: z.string().min(1).max(40).optional(),
     payloadEnc: z.string().min(16).max(24_000).optional(),
+    sourceTaskId: z.string().min(1).max(80).nullable().optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
     message: 'patch vacio',
@@ -289,6 +291,25 @@ financeMovementsRouter.get('/movements', async (req, res, next) => {
   }
 });
 
+financeMovementsRouter.get('/movements/:movementId', async (req, res, next) => {
+  try {
+    const uid = req.user!.uid;
+    const { movementId } = req.params;
+    const { data, error } = await getSupabaseAdmin()
+      .from('finance_movements')
+      .select('*')
+      .eq('id', movementId)
+      .eq('user_id', uid)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw ApiError.notFound('Movimiento no encontrado');
+    res.json(mapMovement(data as Record<string, unknown>));
+  } catch (err) {
+    next(err);
+  }
+});
+
 financeMovementsRouter.post('/movements', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
@@ -350,7 +371,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
       payload_enc: body.payloadEnc ?? null,
       enc_v: sealed ? '1' : null,
       rule_id: ruleId,
-      source_task_id: null,
+      source_task_id: body.sourceTaskId ?? null,
       client_mutation_id: body.clientMutationId ?? null,
       deleted_at: null,
       created_at: now,
@@ -421,6 +442,9 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
     if (patch.status !== undefined) update.status = patch.status;
     if (patch.currency !== undefined) {
       update.currency = normalizeMovementCurrency(patch.currency);
+    }
+    if (patch.sourceTaskId !== undefined) {
+      update.source_task_id = patch.sourceTaskId;
     }
 
     const { error } = await getSupabaseAdmin()

@@ -606,6 +606,8 @@ function expandCreateInstances(
       // Solo la primera instancia de una serie lleva adjuntos (como el API).
       images: index === 0 ? images : [],
       finance,
+      financeMovementId: index === 0 ? (payload.financeMovementId ?? null) : null,
+      linkedFinance: index === 0 ? (payload.linkedFinance ?? null) : null,
       pomodoroTarget: isHabit ? normalizePomodoroCount(payload.pomodoroTarget) : 0,
       pomodoroDone: 0,
       createdAt: res.createdAt ?? now,
@@ -656,6 +658,7 @@ export async function createTask(
     pomodoroTarget: payload.pomodoroTarget,
     recurrenceWeekdays: payload.recurrenceWeekdays,
     specificDayIds: payload.specificDayIds,
+    financeMovementId: payload.financeMovementId ?? null,
     eventId,
   });
 
@@ -728,6 +731,7 @@ function materializeDemoCreate(
         steps: [],
         images: index === 0 ? normalizeTaskImages(payload.images) : [],
         finance: null,
+        financeMovementId: null,
         createdAt: now,
         updatedAt: now,
         weekId: occ.dayId === dayId ? weekId : getWeekIdFromDayId(occ.dayId),
@@ -824,6 +828,8 @@ function materializeDemoCreate(
       steps,
       images: index === 0 ? images : [],
       finance,
+      financeMovementId: index === 0 ? (payload.financeMovementId ?? null) : null,
+      linkedFinance: index === 0 ? (payload.linkedFinance ?? null) : null,
       pomodoroTarget: isHabit ? normalizePomodoroCount(payload.pomodoroTarget) : 0,
       pomodoroDone: 0,
       createdAt: now,
@@ -1027,6 +1033,7 @@ export async function rematerializeRxSeries(
       steps: instance.steps ?? [],
       images: instance.images ?? [],
       finance: instance.finance ?? null,
+      financeMovementId: instance.financeMovementId ?? null,
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
     });
@@ -1132,6 +1139,7 @@ function rematerializeDemoRx(
       steps: [],
       images: [],
       finance: null,
+      financeMovementId: null,
       color: color ?? (kind === 'rx_pet' ? '#d29922' : '#a371f7'),
       startTime: occ.startTime,
       endTime: null,
@@ -1314,6 +1322,12 @@ export function mapTask(id: string, raw: Record<string, unknown>): Task {
     steps: normalizeTaskSteps(raw.steps),
     images: normalizeTaskImages(raw.images),
     finance: normalizeFinanceMeta(raw.finance_meta ?? raw.finance),
+    financeMovementId:
+      typeof raw.financeMovementId === 'string' && raw.financeMovementId
+        ? raw.financeMovementId
+        : typeof raw.finance_movement_id === 'string' && raw.finance_movement_id
+          ? raw.finance_movement_id
+          : null,
     pomodoroTarget: normalizePomodoroCount(raw.pomodoro_target ?? raw.pomodoroTarget),
     pomodoroDone: normalizePomodoroCount(raw.pomodoro_done ?? raw.pomodoroDone),
     createdAt: (raw.created_at as string) ?? (raw.createdAt as string) ?? new Date(0).toISOString(),

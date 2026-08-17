@@ -245,6 +245,45 @@ describe('POST /api/tasks — multi-day create', () => {
   });
 });
 
+describe('POST /api/tasks — finance bridge', () => {
+  it('persiste finance_movement_id y lo devuelve (sin montos)', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        title: 'Pagar arriendo',
+        financeMovementId: 'fm_bridge_1',
+      });
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert).toHaveLength(1);
+    expect(lastTaskInsert[0].finance_movement_id).toBe('fm_bridge_1');
+    expect(lastTaskInsert[0].finance_meta).toBeNull();
+    expect(res.body.financeMovementId).toBe('fm_bridge_1');
+    expect(res.body.amount).toBeUndefined();
+  });
+
+  it('en serie mensual solo la primera fila lleva finance_movement_id', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        ...baseBody,
+        endDayId: '2026-03-15',
+        recurrenceFrequency: 'monthly',
+        recurrenceInterval: 1,
+        financeMovementId: 'fm_only_first',
+      });
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert.length).toBeGreaterThan(1);
+    expect(lastTaskInsert[0].finance_movement_id).toBe('fm_only_first');
+    expect(lastTaskInsert.slice(1).every(r => r.finance_movement_id == null)).toBe(
+      true
+    );
+    expect(res.body.financeMovementId).toBe('fm_only_first');
+  });
+});
+
 describe('POST /api/tasks — urgency & importance', () => {
   it('persiste urgency e importance en insert y toClientTask', async () => {
     const res = await request(app)

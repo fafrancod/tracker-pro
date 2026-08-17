@@ -37,6 +37,7 @@ function taskToUpdatePayload(task: Task): UpdateTaskPayload {
     images: task.images ?? [],
     pomodoroTarget: task.pomodoroTarget,
     pomodoroDone: task.pomodoroDone,
+    financeMovementId: task.financeMovementId,
   };
 }
 
@@ -105,6 +106,12 @@ function patchToPartialTask(payload: UpdateTaskPayload): Partial<Task> {
   }
   if (payload.pomodoroDone !== undefined) {
     patch.pomodoroDone = payload.pomodoroDone;
+  }
+  if (payload.financeMovementId !== undefined) {
+    patch.financeMovementId = payload.financeMovementId;
+  }
+  if (payload.linkedFinance !== undefined) {
+    patch.linkedFinance = payload.linkedFinance;
   }
   if (payload.completed !== undefined) {
     patch.completed = payload.completed;
@@ -214,6 +221,8 @@ export async function applyHistoryMutation(mut: HistoryMutation): Promise<void> 
           steps: instance.steps ?? [],
           images: instance.images ?? [],
           finance: instance.finance ?? null,
+          financeMovementId: instance.financeMovementId ?? null,
+          linkedFinance: instance.linkedFinance ?? null,
           rx: instance.rx,
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,

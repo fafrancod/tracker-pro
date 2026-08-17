@@ -503,6 +503,7 @@ alter table public.finance_vault enable row level security;
 
 -- Finanzas en calendario (task kinds + meta)
 alter table public.tasks add column if not exists finance_meta jsonb;
+alter table public.tasks add column if not exists finance_movement_id text;
 do $$
 begin
   alter table public.tasks drop constraint if exists tasks_kind_check;

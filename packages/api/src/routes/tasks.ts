@@ -300,6 +300,7 @@ const createSchema = taskLocation.extend({
     .array(z.string().refine(isValidDayId, 'specificDayIds formato YYYY-MM-DD'))
     .max(90)
     .optional(),
+  financeMovementId: z.string().min(1).max(80).nullable().optional(),
 });
 
 const updateSchema = z
@@ -345,6 +346,7 @@ const updateSchema = z
     financeAmount: z.number().nonnegative().max(1_000_000_000).optional(),
     financeCurrency: z.string().min(1).max(8).optional(),
     financeCertainty: financeCertaintySchema.optional(),
+    financeMovementId: z.string().min(1).max(80).nullable().optional(),
     pomodoroTarget: pomodoroCountSchema.optional(),
     pomodoroDone: pomodoroCountSchema.optional(),
     recurrenceWeekdays: z.array(z.number().int().min(1).max(7)).max(7).nullable().optional(),
@@ -432,6 +434,12 @@ function toClientTask(
     steps: normalizeSteps(row.steps),
     images: normalizeImages(row.images),
     finance: parseFinanceMeta(row.finance_meta ?? row.finance),
+    financeMovementId:
+      typeof row.finance_movement_id === 'string' && row.finance_movement_id
+        ? row.finance_movement_id
+        : typeof row.financeMovementId === 'string' && row.financeMovementId
+          ? row.financeMovementId
+          : null,
     pomodoroTarget: normalizePomodoroCount(row.pomodoro_target ?? row.pomodoroTarget),
     pomodoroDone: normalizePomodoroCount(row.pomodoro_done ?? row.pomodoroDone),
     createdAt: row.created_at as string,
@@ -579,6 +587,7 @@ tasksRouter.post('/', async (req, res, next) => {
       financeAmount,
       financeCurrency,
       financeCertainty,
+      financeMovementId: rawFinanceMovementId,
       pomodoroTarget: rawPomodoroTarget,
       recurrenceWeekdays: rawWeekdays,
       specificDayIds: rawSpecificDayIds,
@@ -899,6 +908,8 @@ tasksRouter.post('/', async (req, res, next) => {
           end_time: isHabit || isFinance ? null : (endTime ?? null),
           rx_meta: null,
           finance_meta: isFinance ? financeValue : null,
+          finance_movement_id:
+            rows.length === 0 ? (rawFinanceMovementId ?? null) : null,
           involved_contact_ids: isEventLike ? involvedIds : [],
           location: isHabit || isFinance ? null : locationValue,
           departure_time: isHabit || isFinance ? null : departureValue,
@@ -1127,6 +1138,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
     if (patch.pomodoroDone !== undefined) {
       instanceUpdate.pomodoro_done = normalizePomodoroCount(patch.pomodoroDone);
     }
+    if (patch.financeMovementId !== undefined) {
+      instanceUpdate.finance_movement_id = patch.financeMovementId;
+    }
     if (patch.endDayId !== undefined) instanceUpdate.end_day_id = patch.endDayId;
     if (patch.recurrenceFrequency !== undefined) {
       instanceUpdate.recurrence_frequency = patch.recurrenceFrequency;
@@ -1348,6 +1362,9 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
       }
       if (patch.pomodoroDone !== undefined) {
         update.pomodoro_done = normalizePomodoroCount(patch.pomodoroDone);
+      }
+      if (patch.financeMovementId !== undefined) {
+        update.finance_movement_id = patch.financeMovementId;
       }
       if (patch.recurrenceWeekdays !== undefined) {
         update.recurrence_weekdays =

@@ -11,10 +11,11 @@ import type {
   CreateFinanceMovementPayload,
   FinanceMovement,
   FinanceRule,
+  FinanceVaultCtx,
   UpdateFinanceMovementPayload,
 } from '../lib/finance/types';
 
-export type FinanceVaultCtx = { uid: string; dek: import('../lib/finance/vault').FinanceDek };
+export type { FinanceVaultCtx };
 
 function newFinanceId(prefix: string): string {
   const rnd = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
@@ -195,7 +196,7 @@ export async function createFinanceMovement(
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
       ruleId,
-      sourceTaskId: null,
+      sourceTaskId: payload.sourceTaskId ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -236,6 +237,7 @@ export async function createFinanceMovement(
       payloadEnc,
       ruleId,
       rulePayloadEnc,
+      sourceTaskId: payload.sourceTaskId ?? null,
     };
   }
   const res = await api.post<Record<string, unknown>>(
@@ -254,6 +256,20 @@ export async function createFinanceMovement(
     };
   }
   return mapped;
+}
+
+export async function fetchFinanceMovement(
+  id: string
+): Promise<FinanceMovement> {
+  if (isDemoMode()) {
+    const found = loadJson<FinanceMovement>(DEMO_MOV_KEY).find(m => m.id === id);
+    if (!found) throw new Error('Not found');
+    return found;
+  }
+  const res = await api.get<Record<string, unknown>>(
+    `/api/finances/movements/${encodeURIComponent(id)}`
+  );
+  return mapMovement(res);
 }
 
 export async function updateFinanceMovement(

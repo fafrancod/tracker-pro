@@ -44,6 +44,10 @@ interface Actions {
   updateTaskById: (taskId: string, patch: Partial<Task>) => void;
   /** Patch every task in store that shares seriesId. */
   patchSeriesOptimistic: (seriesId: string, patch: Partial<Task>) => void;
+  /** Une fichas descifradas a tareas que ya tienen financeMovementId. */
+  applyLinkedFinance: (
+    byMovementId: Record<string, NonNullable<Task['linkedFinance']>>
+  ) => void;
   removeTaskOptimistic: (weekId: string, dayId: string, taskId: string) => void;
   reorderTasks: (weekId: string, dayId: string, tasks: Task[]) => void;
 
@@ -163,6 +167,19 @@ export const useStore = create<AppStore>()(
               } else {
                 Object.assign(task, patch);
               }
+            }
+          }
+        }
+      }),
+
+    applyLinkedFinance: byMovementId =>
+      set(state => {
+        for (const days of Object.values(state.tasksByDay)) {
+          for (const tasks of Object.values(days)) {
+            for (const task of tasks) {
+              if (!task.financeMovementId) continue;
+              const link = byMovementId[task.financeMovementId];
+              if (link) task.linkedFinance = link;
             }
           }
         }

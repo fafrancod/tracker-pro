@@ -48,6 +48,7 @@ function pushTask(
     steps: partial.steps ?? [],
     images: partial.images ?? [],
     finance: partial.finance ?? null,
+    financeMovementId: partial.financeMovementId ?? null,
     createdAt: partial.createdAt ?? new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

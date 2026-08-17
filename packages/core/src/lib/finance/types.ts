@@ -1,4 +1,7 @@
 import type { FinanceCertainty } from '../../types';
+import type { FinanceDek } from './vault';
+
+export type FinanceVaultCtx = { uid: string; dek: FinanceDek };
 
 export type FinanceMovementFlow = 'income' | 'expense' | 'investment';
 export type FinanceMovementStatus = 'planned' | 'confirmed' | 'skipped';
@@ -66,6 +69,7 @@ export interface CreateFinanceMovementPayload {
   payloadEnc?: string;
   ruleId?: string;
   rulePayloadEnc?: string;
+  sourceTaskId?: string | null;
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -83,6 +87,7 @@ export interface UpdateFinanceMovementPayload {
   certainty?: FinanceCertainty;
   updatedAt?: string;
   payloadEnc?: string;
+  sourceTaskId?: string | null;
 }
 
 export interface FinanceMovementMonthSummary {

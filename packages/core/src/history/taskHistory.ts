@@ -5,6 +5,11 @@ import {
   moveTask,
   updateTask,
 } from '../services/taskService';
+import {
+  claimBridgeMovement,
+  confirmBridgeMovement,
+  deletePlannedBridgeMovement,
+} from '../lib/finance/bridge';
 import type {
   CreateTaskPayload,
   Task,
@@ -111,6 +116,8 @@ export const taskHistory = {
       steps: apiPayload.steps ?? [],
       images: apiPayload.images ?? [],
       finance: apiPayload.finance ?? null,
+      financeMovementId: apiPayload.financeMovementId ?? null,
+      linkedFinance: apiPayload.linkedFinance ?? null,
       pomodoroTarget: apiPayload.pomodoroTarget ?? 0,
       pomodoroDone: 0,
       createdAt: now,
@@ -192,6 +199,12 @@ export const taskHistory = {
           steps: instance.steps ?? [],
           images: instance.images ?? [],
           finance: instance.finance ?? null,
+          financeMovementId:
+            instance.financeMovementId ??
+            (created.length === 0 ? apiPayload.financeMovementId ?? null : null),
+          linkedFinance:
+            instance.linkedFinance ??
+            (created.length === 0 ? apiPayload.linkedFinance ?? null : null),
           createdAt: instance.createdAt,
           updatedAt: instance.updatedAt,
         });
@@ -256,6 +269,12 @@ export const taskHistory = {
       useHistoryStore.getState().push(entry);
       // Monkey-patch: store multi delete list on entry for undo
       multiCreateMap.set(entry.id, created);
+      const ownerId = created[0]?.id;
+      if (apiPayload.financeMovementId && ownerId) {
+        void claimBridgeMovement(apiPayload.financeMovementId, ownerId).catch(
+          () => undefined
+        );
+      }
     } catch (err) {
       if (uid && shouldQueueMutation(err)) {
         enqueueOfflineMutation(uid, {
@@ -433,6 +452,14 @@ export const taskHistory = {
     try {
       await updateTask(locWeekId, locDayId, taskId, serverPatch);
       pushHistory(false);
+      if (patch.completed === true && before.financeMovementId) {
+        store.updateTaskOptimistic(locWeekId, locDayId, taskId, {
+          linkedFinance: before.linkedFinance
+            ? { ...before.linkedFinance, status: 'confirmed' }
+            : before.linkedFinance,
+        });
+        void confirmBridgeMovement(before.financeMovementId).catch(() => undefined);
+      }
     } catch (err) {
       if (uid && shouldQueueMutation(err)) {
         enqueueOfflineMutation(uid, {
@@ -498,6 +525,8 @@ export const taskHistory = {
         color: task.color,
         startTime: task.startTime,
         endTime: task.endTime,
+        financeMovementId: task.financeMovementId,
+        linkedFinance: task.linkedFinance,
       },
     };
 
@@ -529,6 +558,17 @@ export const taskHistory = {
 
     try {
       await deleteTask(locWeekId, locDayId, taskId);
+      if (task.financeMovementId) {
+        try {
+          const deleted = await deletePlannedBridgeMovement(task.financeMovementId);
+          if (deleted && inverse.op === 'create') {
+            inverse.payload.financeMovementId = undefined;
+            inverse.payload.linkedFinance = undefined;
+          }
+        } catch {
+          /* el movimiento confirmed se queda; planned huérfano se limpia luego */
+        }
+      }
       pushDelHistory(false);
     } catch (err) {
       if (uid && shouldQueueMutation(err)) {

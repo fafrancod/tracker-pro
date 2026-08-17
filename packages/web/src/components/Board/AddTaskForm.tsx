@@ -11,6 +11,7 @@ import {
   PawPrint,
   User,
   MapPin,
+  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,8 @@ import type {
   FinanceCertainty,
   MonthlyAnchor,
 } from '@core/types';
+import { createBridgeMovement, getFinanceVaultSession } from '@core/lib/finance';
+import { deleteFinanceMovement } from '@core/services/financeMovementService';
 import { isMultiDayRecurrenceAllowed } from '@core/lib/recurrence';
 import { isLastCalendarDayOfMonth } from '@core/lib/chileHolidays';
 import {
@@ -219,6 +222,8 @@ export function AddTaskForm({
   );
   const [financeCertainty, setFinanceCertainty] =
     useState<FinanceCertainty>('fixed');
+  const [entailsMoney, setEntailsMoney] = useState(false);
+  const [financeFlow, setFinanceFlow] = useState<'income' | 'expense'>('expense');
   const [pomodoroTarget, setPomodoroTarget] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -228,6 +233,7 @@ export function AddTaskForm({
   const isEventLike = isPossible || isEvent;
   const isHabit = isHabitKind(kind);
   const isFinance = isFinanceKind(kind);
+  const canEntailMoney = !isFinance && !isHabit && !isRx;
   const supportsSteps = kindSupportsSteps(kind);
   /** Lugar: tarea, recordatorio, evento y evento posible. */
   const supportsLocation =
@@ -371,6 +377,8 @@ export function AddTaskForm({
     setFinanceAmount(0);
     setPomodoroTarget(0);
     setFinanceCertainty('fixed');
+    setEntailsMoney(false);
+    setFinanceFlow('expense');
     setFinanceCurrency(
       normalizeCurrencyCode(
         settings.preferredCurrency,
@@ -538,6 +546,40 @@ export function AddTaskForm({
       return;
     }
 
+    let financeMovementId: string | undefined;
+    let linkedFinance: CreateTaskPayload['linkedFinance'];
+    if (canEntailMoney && entailsMoney) {
+      const vault = getFinanceVaultSession();
+      if (!vault) {
+        showToast(t('task_entails_money_need_vault'), 'error');
+        return;
+      }
+      if (!startForCreate) {
+        showToast(t('task_time_range_error'), 'error');
+        return;
+      }
+      if (!(financeAmount > 0)) {
+        showToast(t('fin_amount_required'), 'error');
+        return;
+      }
+      try {
+        const created = await createBridgeMovement({
+          dayId: startForCreate,
+          title: trimmed,
+          amount: financeAmount,
+          currency: financeCurrency,
+          certainty: financeCertainty,
+          flow: financeFlow,
+          vault,
+        });
+        financeMovementId = created.id;
+        linkedFinance = created.linked;
+      } catch {
+        showToast(t('fin_save_error'), 'error');
+        return;
+      }
+    }
+
     const payload = {
       title: trimmed,
       projectId: isEventLike || isHabit || isFinance ? null : projectId,
@@ -586,6 +628,8 @@ export function AddTaskForm({
             certainty: financeCertainty,
           }
         : undefined,
+      financeMovementId,
+      linkedFinance,
       pomodoroTarget: isHabit ? pomodoroTarget : undefined,
     };
     // Fase 4.1: toast + reset al instante; red en background.
@@ -593,6 +637,9 @@ export function AddTaskForm({
     showToast(t('task_saved_ok'), 'success');
     inputRef.current?.focus();
     void Promise.resolve(onAdd(payload)).catch(err => {
+      if (financeMovementId) {
+        void deleteFinanceMovement(financeMovementId).catch(() => undefined);
+      }
       showToast(formatCreateError(err), 'error');
     });
   }
@@ -722,14 +769,45 @@ export function AddTaskForm({
           </div>
         }
         finance={
-          isFinance ? (
+          isFinance || canEntailMoney ? (
         <div
           className={cn(
             'space-y-2 rounded-xl border border-border bg-field',
             isModal ? 'p-3' : 'p-2'
           )}
         >
-          <p className="text-[10px] text-text-muted">{t('task_finance_hint')}</p>
+          {canEntailMoney && (
+            <label className="flex items-center gap-2 text-xs text-text-primary">
+              <input
+                type="checkbox"
+                checked={entailsMoney}
+                onChange={e => setEntailsMoney(e.target.checked)}
+              />
+              <Wallet className="h-3.5 w-3.5 text-accent-teal" />
+              {t('task_entails_money')}
+            </label>
+          )}
+          {(isFinance || entailsMoney) && (
+            <>
+          <p className="text-[10px] text-text-muted">
+            {isFinance ? t('task_finance_hint') : t('task_entails_money_hint')}
+          </p>
+          {entailsMoney && !isFinance && (
+            <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
+              <span>{t('fin_field_flow')}</span>
+              <SimpleSelect
+                value={financeFlow}
+                onChange={value =>
+                  setFinanceFlow(value === 'income' ? 'income' : 'expense')
+                }
+                className="h-9 rounded-lg border border-border bg-field px-2 text-xs text-text-primary"
+                options={[
+                  { value: 'expense', label: t('fin_flow_expense') },
+                  { value: 'income', label: t('fin_flow_income') },
+                ]}
+              />
+            </label>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
               <span>{t('fin_field_amount')}</span>
@@ -766,6 +844,8 @@ export function AddTaskForm({
               ]}
             />
           </label>
+            </>
+          )}
         </div>
           ) : null
         }

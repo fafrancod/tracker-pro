@@ -452,6 +452,15 @@ export interface Task {
    * null en el resto de kinds.
    */
   finance: FinanceMeta | null;
+  /** Vínculo al ledger (no guarda montos). */
+  financeMovementId: string | null;
+  /** Solo cliente: ficha descifrada para la pastilla. */
+  linkedFinance?: {
+    flow: 'income' | 'expense' | 'investment';
+    amount: number;
+    currency: string;
+    status: 'planned' | 'confirmed' | 'skipped';
+  } | null;
   /**
    * Pomodoros planeados por día (hábitos). 0 / ausente = sin plan.
    * Se comparte en toda la serie.
@@ -530,6 +539,9 @@ export interface CreateTaskPayload {
   financeAmount?: number;
   financeCurrency?: string;
   financeCertainty?: FinanceCertainty;
+  financeMovementId?: string | null;
+  /** Solo cliente: ficha descifrada para la pastilla (no se envía al API). */
+  linkedFinance?: Task['linkedFinance'];
   /** Pomodoros a dedicar cada día (hábitos). Se guarda en la serie. */
   pomodoroTarget?: number;
   /**
@@ -578,6 +590,9 @@ export interface UpdateTaskPayload {
   financeAmount?: number;
   financeCurrency?: string;
   financeCertainty?: FinanceCertainty;
+  financeMovementId?: string | null;
+  /** Solo cliente: no se envía al API. */
+  linkedFinance?: Task['linkedFinance'];
   /** Plan diario de pomodoros (serie). */
   pomodoroTarget?: number;
   /** Conteo de pomodoros de este día (instancia). */

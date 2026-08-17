@@ -5,3 +5,5 @@ export * from './movementSummary';
 export * from './vault';
 export * from './recoveryWords';
 export * from './unseal';
+export * from './session';
+export * from './bridge';

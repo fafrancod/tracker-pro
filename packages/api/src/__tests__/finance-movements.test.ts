@@ -271,3 +271,101 @@ describe('GET /api/finances/movements', () => {
     expect(Array.isArray(res.body.rules)).toBe(true);
   });
 });
+
+describe('bridge vida ↔ dinero', () => {
+  it('POST acepta sourceTaskId', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-08-17',
+        flow: 'expense',
+        title: 'Arriendo',
+        amount: 500000,
+        currency: 'CLP',
+        sourceTaskId: 'task_owner_1',
+      });
+    expect(res.status).toBe(201);
+    expect(lastMovementInsert?.source_task_id).toBe('task_owner_1');
+    expect(res.body.sourceTaskId).toBe('task_owner_1');
+  });
+
+  it('GET /movements/:id devuelve status sin exigir payload claro', async () => {
+    movementRows = [
+      {
+        id: 'fm_sealed',
+        user_id: 'test-uid',
+        day_id: '2026-08-17',
+        flow: 'expense',
+        status: 'planned',
+        currency: 'EUR',
+        payload: {},
+        payload_enc: 'sealed-blob-not-empty-enough',
+        source_task_id: 'task_1',
+        rule_id: null,
+        created_at: '2026-08-17T10:00:00.000Z',
+        updated_at: '2026-08-17T10:00:00.000Z',
+      },
+    ];
+    const res = await request(app)
+      .get('/api/finances/movements/fm_sealed')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(200);
+    expect(res.body.id).toBe('fm_sealed');
+    expect(res.body.status).toBe('planned');
+    expect(res.body.sourceTaskId).toBe('task_1');
+    expect(res.body.sealed).toBe(true);
+    expect(res.body.title).toBe('');
+    expect(res.body.amount).toBe(0);
+  });
+
+  it('PATCH sourceTaskId no exige payloadEnc', async () => {
+    movementRows = [
+      {
+        id: 'fm_link',
+        user_id: 'test-uid',
+        day_id: '2026-08-17',
+        flow: 'expense',
+        status: 'planned',
+        currency: 'EUR',
+        payload: { title: 'Café', amount: 3, notes: '', certainty: 'fixed' },
+        source_task_id: null,
+        rule_id: null,
+        created_at: '2026-08-17T10:00:00.000Z',
+        updated_at: '2026-08-17T10:00:00.000Z',
+      },
+    ];
+    const res = await request(app)
+      .patch('/api/finances/movements/fm_link')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ sourceTaskId: 'task_after_create' });
+    expect(res.status).toBe(200);
+    expect(res.body.sourceTaskId).toBe('task_after_create');
+    expect(res.body.status).toBe('planned');
+  });
+
+  it('PATCH status confirmed no exige montos', async () => {
+    movementRows = [
+      {
+        id: 'fm_confirm',
+        user_id: 'test-uid',
+        day_id: '2026-08-17',
+        flow: 'expense',
+        status: 'planned',
+        currency: 'EUR',
+        payload: { title: 'Café', amount: 3, notes: '', certainty: 'fixed' },
+        source_task_id: 'task_1',
+        rule_id: null,
+        created_at: '2026-08-17T10:00:00.000Z',
+        updated_at: '2026-08-17T10:00:00.000Z',
+      },
+    ];
+    const res = await request(app)
+      .patch('/api/finances/movements/fm_confirm')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ status: 'confirmed' });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('confirmed');
+    expect(res.body.sourceTaskId).toBe('task_1');
+  });
+});

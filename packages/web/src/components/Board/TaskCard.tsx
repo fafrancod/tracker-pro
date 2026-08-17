@@ -441,7 +441,7 @@ export function TaskCard({
                 {task.images.length}
               </span>
             )}
-            {isFinanceKind(task.kind) && task.finance && (
+            {isFinanceKind(task.kind) && task.finance && !task.financeMovementId && (
               <span
                 className={cn(
                   'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
@@ -456,6 +456,29 @@ export function TaskCard({
                 })}{' '}
                 {task.finance.currency}
                 {task.finance.certainty === 'potential' ? ' · ~' : ''}
+              </span>
+            )}
+            {task.financeMovementId && (
+              <span
+                className={cn(
+                  'inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
+                  task.linkedFinance
+                    ? task.linkedFinance.flow === 'income'
+                      ? 'bg-accent-green/15 text-accent-green'
+                      : task.linkedFinance.flow === 'investment'
+                        ? 'bg-accent-teal/15 text-accent-teal'
+                        : 'bg-accent-red/15 text-accent-red'
+                    : 'bg-background text-text-muted ring-1 ring-border'
+                )}
+                title={
+                  task.linkedFinance
+                    ? undefined
+                    : t('task_money_pill_locked')
+                }
+              >
+                {task.linkedFinance
+                  ? `${task.linkedFinance.flow === 'income' ? '+' : task.linkedFinance.flow === 'investment' ? '↗' : '−'}${task.linkedFinance.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${task.linkedFinance.currency}${task.linkedFinance.status === 'planned' ? ' · …' : ''}`
+                  : t('task_money_pill')}
               </span>
             )}
             {isRxKind(task.kind) && task.rx && (

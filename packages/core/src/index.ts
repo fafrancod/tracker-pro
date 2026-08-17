@@ -3,6 +3,7 @@ export * from './theme';
 export * from './supabase';
 export * from './store';
 export * from './hooks/useTasks';
+export * from './hooks/useLinkedFinanceHydration';
 export * from './hooks/useTaskHistory';
 export * from './hooks/useProjects';
 export * from './hooks/useContacts';
