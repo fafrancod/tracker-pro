@@ -57,6 +57,7 @@ export function expandFinanceRules(
         certainty: rule.certainty,
         accountId: null,
         cardAccountId: null,
+        goalId: null,
         tag: null,
         originalAmount: null,
         originalCurrency: null,

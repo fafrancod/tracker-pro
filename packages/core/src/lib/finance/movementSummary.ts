@@ -15,7 +15,7 @@ export function summarizeMovementsByCurrency(
     if (!mov.dayId.startsWith(monthId)) continue;
     if (mov.flow === 'investment') continue;
     if (mov.status === 'skipped') continue;
-    if (mov.tag === 'card_payment') continue;
+    if (mov.tag === 'card_payment' || mov.tag === 'goal_contribution') continue;
     const converted = reportingCurrency
       ? reportingAmountOf(mov, reportingCurrency)
       : mov.amount;

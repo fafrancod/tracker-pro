@@ -180,6 +180,7 @@ describe('finance rule expansion', () => {
           sourceTaskId: null,
           accountId: null,
           cardAccountId: null,
+          goalId: null,
           tag: null,
           originalAmount: null,
           originalCurrency: null,

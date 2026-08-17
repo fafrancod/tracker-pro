@@ -77,6 +77,8 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
       (raw.cardAccountId as string | null) ??
       (raw.card_account_id as string | null) ??
       null,
+    goalId:
+      (raw.goalId as string | null) ?? (raw.goal_id as string | null) ?? null,
     tag: payload.tag ?? null,
     originalAmount: payload.originalAmount ?? null,
     originalCurrency: payload.originalCurrency ?? null,
@@ -211,6 +213,7 @@ export async function createFinanceMovement(
       certainty: payload.certainty ?? 'fixed',
       accountId: payload.accountId ?? null,
       cardAccountId: payload.cardAccountId ?? null,
+      goalId: payload.goalId ?? null,
       tag: payload.tag ?? null,
       originalAmount: payload.originalAmount ?? payload.amount ?? 0,
       originalCurrency: payload.originalCurrency ?? payload.currency ?? 'EUR',
@@ -268,6 +271,7 @@ export async function createFinanceMovement(
       sourceTaskId: payload.sourceTaskId ?? null,
       accountId: payload.accountId ?? null,
       cardAccountId: payload.cardAccountId ?? null,
+      goalId: payload.goalId ?? null,
       tag: payload.tag ?? null,
       originalAmount: payload.originalAmount,
       originalCurrency: payload.originalCurrency,
@@ -348,6 +352,7 @@ export async function updateFinanceMovement(
       payloadEnc,
       accountId: payload.accountId,
       cardAccountId: payload.cardAccountId,
+      goalId: payload.goalId,
       tag: payload.tag,
     };
   }

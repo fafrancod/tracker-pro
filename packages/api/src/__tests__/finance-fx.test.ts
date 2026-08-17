@@ -69,6 +69,7 @@ describe('resumen en moneda de reporte', () => {
     certainty: 'fixed' as const,
     accountId: null,
     cardAccountId: null,
+    goalId: null,
     tag: null,
     originalAmount: 10,
     originalCurrency: 'USD',

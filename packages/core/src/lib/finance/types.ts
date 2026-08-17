@@ -15,7 +15,7 @@ export type FinanceAccountType =
   | 'brokerage'
   | 'other';
 
-export type FinanceMovementTag = 'card_payment';
+export type FinanceMovementTag = 'card_payment' | 'goal_contribution';
 
 export interface FinanceMovementPayload {
   title: string;
@@ -34,6 +34,26 @@ export interface FinanceAccountPayload {
   name: string;
   institution: string;
   creditLimit: number;
+}
+
+export interface FinanceGoalPayload {
+  name: string;
+  targetAmount: number;
+  notes: string;
+}
+
+export interface FinanceGoal {
+  id: string;
+  currency: string;
+  targetDayId: string | null;
+  linkedAccountId: string | null;
+  name: string;
+  targetAmount: number;
+  notes: string;
+  archived: boolean;
+  sealed?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FinanceAccount {
@@ -61,6 +81,7 @@ export interface FinanceMovement {
   certainty: FinanceCertainty;
   accountId: string | null;
   cardAccountId: string | null;
+  goalId: string | null;
   tag: FinanceMovementTag | null;
   originalAmount: number | null;
   originalCurrency: string | null;
@@ -114,6 +135,7 @@ export interface CreateFinanceMovementPayload {
   sourceTaskId?: string | null;
   accountId?: string | null;
   cardAccountId?: string | null;
+  goalId?: string | null;
   tag?: FinanceMovementTag | null;
   originalAmount?: number | null;
   originalCurrency?: string | null;
@@ -140,6 +162,7 @@ export interface UpdateFinanceMovementPayload {
   sourceTaskId?: string | null;
   accountId?: string | null;
   cardAccountId?: string | null;
+  goalId?: string | null;
   tag?: FinanceMovementTag | null;
   originalAmount?: number | null;
   originalCurrency?: string | null;

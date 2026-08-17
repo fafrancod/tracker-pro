@@ -52,6 +52,22 @@ export interface TranslationDict {
   fin_empty_hint: string;
   fin_tab_calendar: string;
   fin_tab_accounts: string;
+  fin_tab_goals: string;
+  fin_goal_add: string;
+  fin_goal_edit: string;
+  fin_goal_name: string;
+  fin_goal_target: string;
+  fin_goal_deadline: string;
+  fin_goal_account: string;
+  fin_goal_account_none: string;
+  fin_goal_empty: string;
+  fin_goal_empty_hint: string;
+  fin_goal_name_required: string;
+  fin_goal_saved: string;
+  fin_goal_pace: string;
+  fin_goal_remaining: string;
+  fin_goal_contribution: string;
+  fin_goal_contribution_of: string;
   fin_account_add: string;
   fin_account_edit: string;
   fin_account_name: string;
@@ -1089,6 +1105,23 @@ const es_dict: TranslationDict = {
   fin_empty_title: 'Sin movimientos este mes',
   fin_tab_calendar: 'Calendario',
   fin_tab_accounts: 'Cuentas',
+  fin_tab_goals: 'Objetivos',
+  fin_goal_add: 'Añadir objetivo',
+  fin_goal_edit: 'Editar objetivo',
+  fin_goal_name: 'Nombre',
+  fin_goal_target: 'Meta',
+  fin_goal_deadline: 'Fecha límite',
+  fin_goal_account: 'Cuenta-sobre (opcional)',
+  fin_goal_account_none: 'Avance por aportes',
+  fin_goal_empty: 'Sin objetivos todavía',
+  fin_goal_empty_hint:
+    'Define una meta y una fecha. Cada aporte mueve la barra y el calendario.',
+  fin_goal_name_required: 'Ponle un nombre al objetivo.',
+  fin_goal_saved: 'Objetivo guardado.',
+  fin_goal_pace: 'Faltan {remaining} · {months} meses a {monthly}',
+  fin_goal_remaining: 'Faltan {remaining}',
+  fin_goal_contribution: 'Este es un aporte a un objetivo',
+  fin_goal_contribution_of: 'Objetivo',
   fin_account_add: 'Añadir cuenta',
   fin_account_edit: 'Editar cuenta',
   fin_account_name: 'Nombre',
@@ -2218,6 +2251,23 @@ const en_dict: TranslationDict = {
   fin_empty_title: 'No entries this month',
   fin_tab_calendar: 'Calendar',
   fin_tab_accounts: 'Accounts',
+  fin_tab_goals: 'Goals',
+  fin_goal_add: 'Add goal',
+  fin_goal_edit: 'Edit goal',
+  fin_goal_name: 'Name',
+  fin_goal_target: 'Target',
+  fin_goal_deadline: 'Deadline',
+  fin_goal_account: 'Envelope account (optional)',
+  fin_goal_account_none: 'Progress from contributions',
+  fin_goal_empty: 'No goals yet',
+  fin_goal_empty_hint:
+    'Set a target and a date. Each contribution moves the bar and the calendar.',
+  fin_goal_name_required: 'Give the goal a name.',
+  fin_goal_saved: 'Goal saved.',
+  fin_goal_pace: '{remaining} left · {months} months at {monthly}',
+  fin_goal_remaining: '{remaining} left',
+  fin_goal_contribution: 'This is a goal contribution',
+  fin_goal_contribution_of: 'Goal',
   fin_account_add: 'Add account',
   fin_account_edit: 'Edit account',
   fin_account_name: 'Name',

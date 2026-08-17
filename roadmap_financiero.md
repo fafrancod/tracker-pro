@@ -4,7 +4,7 @@
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
 **Versión del repo al escribir:** v2.24.0.
 
-**Estado:** Fases 1–4 en `main` (v2.26). Siguiente: Fase 5 FX.
+**Estado:** Fases 1–5 en `main` (v2.27). Siguiente: Fase 6 objetivos.
 
 **Respuesta corta:** dos calendarios, un libro, cifrado **con la cuenta**. El tablero no es el mayor. Login = ves el dinero. Restablecer la contraseña **no** pierde importes. La bóveda privada (frase + 12 palabras) queda como legado opt-in, no como default.
 
@@ -382,9 +382,12 @@ Pago de tarjeta = movimiento en el débito con `tag=card_payment` + `card_accoun
 
 ### Fase 6 — Objetivos
 
-Avance = saldo de cuenta-sobre si hay `linked_account_id`; si no, aportes tag `goal_contribution`. Montos cifrados.
+Avance = saldo de cuenta-sobre si hay `linked_account_id`; si no, aportes tag `goal_contribution`. Nombre y meta cifrados; `target_day_id` en claro.
 
-**Hecho:** “faltan 2,25 M · 15 meses a 150 k”. Un aporte mueve barra y calendario.
+**Hecho:**
+
+- [x] “faltan 2,25 M · 15 meses a 150 k”.
+- [x] Un aporte mueve barra y calendario (y no dobla el KPI del mes).
 
 ### Fase 7 — Créditos y cuotas
 

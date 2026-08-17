@@ -31,6 +31,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
 import { FinanceVaultGate } from '@/components/Finances/FinanceVaultGate';
 import { AccountsPanel } from '@/components/Finances/AccountsPanel';
+import { GoalsPanel } from '@/components/Finances/GoalsPanel';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -38,11 +39,13 @@ import {
   createFinanceMovement,
   deleteFinanceMovement,
   fetchFinanceCalendar,
+  fetchFinanceLedger,
   resolveFinanceFx,
   updateFinanceMovement,
   type FinanceVaultCtx,
 } from '@core/services/financeMovementService';
 import { fetchFinanceAccounts } from '@core/services/financeAccountService';
+import { fetchFinanceGoals } from '@core/services/financeGoalService';
 import {
   monthIdFromDayId,
   summarizeMovementsByCurrency,
@@ -50,6 +53,7 @@ import {
 import type {
   CreateFinanceMovementPayload,
   FinanceAccount,
+  FinanceGoal,
   FinanceMovement,
   FinanceMovementFlow,
   FinanceMovementStatus,
@@ -88,6 +92,8 @@ interface MovementForm {
   accountId: string;
   cardPayment: boolean;
   cardAccountId: string;
+  goalContribution: boolean;
+  goalId: string;
 }
 
 function emptyForm(dayId: string, currency: string): MovementForm {
@@ -104,6 +110,8 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     accountId: '',
     cardPayment: false,
     cardAccountId: '',
+    goalContribution: false,
+    goalId: '',
   };
 }
 
@@ -143,8 +151,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const [filterFlow, setFilterFlow] = useState<'all' | 'income' | 'expense'>(
     'all'
   );
-  const [hub, setHub] = useState<'calendar' | 'accounts'>('calendar');
+  const [hub, setHub] = useState<'calendar' | 'accounts' | 'goals'>('calendar');
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
+  const [goals, setGoals] = useState<FinanceGoal[]>([]);
+  const [ledgerMovements, setLedgerMovements] = useState<FinanceMovement[]>([]);
   const [filterAccountId, setFilterAccountId] = useState('all');
 
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
@@ -179,11 +189,15 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [rows, accs] = await Promise.all([
+      const [rows, accs, gls, ledger] = await Promise.all([
         fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
         fetchFinanceAccounts(),
+        fetchFinanceGoals(),
+        fetchFinanceLedger(),
       ]);
       setAccounts(accs);
+      setGoals(gls);
+      setLedgerMovements(ledger.movements);
       const pending = rows.filter(m => m.fxPending && !m.virtual);
       let next = rows;
       if (pending.length > 0) {
@@ -305,6 +319,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       accountId: mov.accountId ?? '',
       cardPayment: mov.tag === 'card_payment',
       cardAccountId: mov.cardAccountId ?? '',
+      goalContribution: mov.tag === 'goal_contribution',
+      goalId: mov.goalId ?? '',
       notes: mov.notes,
       repeat: 'none',
       recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
@@ -333,8 +349,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       amount: form.amount,
       notes: form.notes,
       accountId: form.accountId || null,
-      tag: form.cardPayment ? 'card_payment' : null,
+      tag: form.goalContribution
+        ? 'goal_contribution'
+        : form.cardPayment
+          ? 'card_payment'
+          : null,
       cardAccountId: form.cardPayment ? form.cardAccountId || null : null,
+      goalId: form.goalContribution ? form.goalId || null : null,
       ...fx,
       recurrence:
         !editing && form.repeat !== 'none'
@@ -362,6 +383,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             accountId: payload.accountId,
             tag: payload.tag,
             cardAccountId: payload.cardAccountId,
+            goalId: payload.goalId,
             originalAmount: payload.originalAmount,
             originalCurrency: payload.originalCurrency,
             exchangeRate: payload.exchangeRate,
@@ -423,7 +445,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     >
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
         <div className="flex gap-1">
-          {(['calendar', 'accounts'] as const).map(id => (
+          {(['calendar', 'accounts', 'goals'] as const).map(id => (
             <button
               key={id}
               type="button"
@@ -435,7 +457,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                   : 'border-border text-text-muted'
               )}
             >
-              {id === 'calendar' ? t('fin_tab_calendar') : t('fin_tab_accounts')}
+              {id === 'calendar'
+                ? t('fin_tab_calendar')
+                : id === 'accounts'
+                  ? t('fin_tab_accounts')
+                  : t('fin_tab_goals')}
             </button>
           ))}
         </div>
@@ -443,7 +469,18 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         {hub === 'accounts' ? (
           <AccountsPanel
             accounts={accounts}
-            movements={movements}
+            movements={ledgerMovements.length ? ledgerMovements : movements}
+            onChanged={reload}
+          />
+        ) : null}
+
+        {hub === 'goals' ? (
+          <GoalsPanel
+            goals={goals}
+            accounts={accounts}
+            movements={ledgerMovements.length ? ledgerMovements : movements}
+            todayDayId={todayId}
+            defaultCurrency={preferred}
             onChanged={reload}
           />
         ) : null}
@@ -771,6 +808,43 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </select>
               </label>
             )}
+            {goals.length > 0 && form.flow === 'expense' && (
+              <>
+                <label className="flex items-center gap-2 text-xs text-text-primary">
+                  <input
+                    type="checkbox"
+                    checked={form.goalContribution}
+                    onChange={e =>
+                      setForm(f => ({
+                        ...f,
+                        goalContribution: e.target.checked,
+                        cardPayment: e.target.checked ? false : f.cardPayment,
+                      }))
+                    }
+                  />
+                  {t('fin_goal_contribution')}
+                </label>
+                {form.goalContribution && (
+                  <label className="block space-y-1 text-xs text-text-muted">
+                    <span>{t('fin_goal_contribution_of')}</span>
+                    <select
+                      value={form.goalId}
+                      onChange={e =>
+                        setForm(f => ({ ...f, goalId: e.target.value }))
+                      }
+                      className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                    >
+                      <option value="">{t('fin_tab_goals')}</option>
+                      {goals.map(g => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </>
+            )}
             {accounts.some(a => a.type === 'credit') && form.flow === 'expense' && (
               <>
                 <label className="flex items-center gap-2 text-xs text-text-primary">
@@ -778,7 +852,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                     type="checkbox"
                     checked={form.cardPayment}
                     onChange={e =>
-                      setForm(f => ({ ...f, cardPayment: e.target.checked }))
+                      setForm(f => ({
+                        ...f,
+                        cardPayment: e.target.checked,
+                        goalContribution: e.target.checked
+                          ? false
+                          : f.goalContribution,
+                      }))
                     }
                   />
                   {t('fin_card_payment')}

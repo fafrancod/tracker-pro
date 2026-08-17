@@ -18,6 +18,7 @@ import { financesRouter } from './routes/finances.js';
 import { financeMovementsRouter } from './routes/financeMovements.js';
 import { financeAccountsRouter } from './routes/financeAccounts.js';
 import { financeFxRouter } from './routes/financeFx.js';
+import { financeGoalsRouter } from './routes/financeGoals.js';
 import { adminRouter } from './routes/admin.js';
 
 /**
@@ -88,6 +89,7 @@ export function buildApp(): Express {
   app.use('/api/contacts', contactsRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/finances', financeFxRouter);
+  app.use('/api/finances', financeGoalsRouter);
   app.use('/api/finances', financeAccountsRouter);
   app.use('/api/finances', financeMovementsRouter);
   app.use('/api/finances', financesRouter);

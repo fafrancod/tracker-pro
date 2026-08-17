@@ -118,6 +118,7 @@ describe('pago de tarjeta no dobla el mes', () => {
     certainty: 'fixed' as const,
     accountId: 'acc_visa',
     cardAccountId: null,
+    goalId: null,
     tag: null,
     originalAmount: 40_000,
     originalCurrency: 'CLP',

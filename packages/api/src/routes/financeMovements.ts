@@ -59,7 +59,8 @@ const createSchema = z
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
-    tag: z.enum(['card_payment']).nullable().optional(),
+    tag: z.enum(['card_payment', 'goal_contribution']).nullable().optional(),
+    goalId: z.string().min(1).max(80).nullable().optional(),
     originalAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
     originalCurrency: z.string().min(1).max(8).nullable().optional(),
     exchangeRate: z.number().positive().max(1_000_000).nullable().optional(),
@@ -92,7 +93,8 @@ const updateSchema = z
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
-    tag: z.enum(['card_payment']).nullable().optional(),
+    tag: z.enum(['card_payment', 'goal_contribution']).nullable().optional(),
+    goalId: z.string().min(1).max(80).nullable().optional(),
     originalAmount: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
     originalCurrency: z.string().min(1).max(8).nullable().optional(),
     exchangeRate: z.number().positive().max(1_000_000).nullable().optional(),
@@ -198,7 +200,7 @@ function mapMovement(
     amount: number;
     notes: string;
     certainty: 'fixed' | 'potential';
-    tag?: 'card_payment' | null;
+    tag?: 'card_payment' | 'goal_contribution' | null;
     originalAmount?: number | null;
     originalCurrency?: string | null;
     exchangeRate?: number | null;
@@ -227,6 +229,7 @@ function mapMovement(
     certainty: payload.certainty,
     accountId: (row.account_id as string | null) ?? null,
     cardAccountId: (row.card_account_id as string | null) ?? null,
+    goalId: (row.goal_id as string | null) ?? null,
     tag: payload.tag ?? null,
     originalAmount: payload.originalAmount ?? null,
     originalCurrency: payload.originalCurrency ?? null,
@@ -691,6 +694,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
       source_task_id: body.sourceTaskId ?? null,
       account_id: body.accountId ?? null,
       card_account_id: body.cardAccountId ?? null,
+      goal_id: body.goalId ?? null,
       client_mutation_id: body.clientMutationId ?? null,
       deleted_at: null,
       created_at: now,
@@ -790,6 +794,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
     if (patch.cardAccountId !== undefined) {
       update.card_account_id = patch.cardAccountId;
     }
+    if (patch.goalId !== undefined) update.goal_id = patch.goalId;
 
     const { error } = await getSupabaseAdmin()
       .from('finance_movements')

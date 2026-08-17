@@ -26,7 +26,8 @@ export function normalizeMovementCertainty(raw: unknown): FinanceCertainty {
 }
 
 export function normalizeFinanceTag(raw: unknown): FinanceMovementTag | null {
-  return raw === 'card_payment' ? 'card_payment' : null;
+  if (raw === 'card_payment' || raw === 'goal_contribution') return raw;
+  return null;
 }
 
 export function normalizeAccountType(raw: unknown): FinanceAccountType {
@@ -106,6 +107,16 @@ export function buildFinancePayload(input: {
         ? input.reportingCurrency
         : existing?.reportingCurrency,
   });
+}
+
+export function parseGoalPayload(raw: unknown): import('./types').FinanceGoalPayload {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const target = Number(o.targetAmount);
+  return {
+    name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
+    targetAmount: Number.isFinite(target) && target >= 0 ? target : 0,
+    notes: typeof o.notes === 'string' ? o.notes.slice(0, 2000) : '',
+  };
 }
 
 export function parseAccountPayload(raw: unknown): FinanceAccountPayload {
