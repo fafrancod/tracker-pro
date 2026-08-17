@@ -57,6 +57,9 @@ const createSchema = z
     ruleId: z.string().min(8).max(80).optional(),
     rulePayloadEnc: z.string().min(16).max(24_000).optional(),
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
+    accountId: z.string().min(1).max(80).nullable().optional(),
+    cardAccountId: z.string().min(1).max(80).nullable().optional(),
+    tag: z.enum(['card_payment']).nullable().optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -82,6 +85,9 @@ const updateSchema = z
     updatedAt: z.string().min(1).max(40).optional(),
     payloadEnc: z.string().min(16).max(24_000).optional(),
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
+    accountId: z.string().min(1).max(80).nullable().optional(),
+    cardAccountId: z.string().min(1).max(80).nullable().optional(),
+    tag: z.enum(['card_payment']).nullable().optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
     message: 'patch vacio',
@@ -182,6 +188,7 @@ function mapMovement(
     amount: number;
     notes: string;
     certainty: 'fixed' | 'potential';
+    tag?: 'card_payment' | null;
   } | null
 ) {
   const clientSealed =
@@ -203,6 +210,9 @@ function mapMovement(
     amount: payload.amount,
     notes: payload.notes,
     certainty: payload.certainty,
+    accountId: (row.account_id as string | null) ?? null,
+    cardAccountId: (row.card_account_id as string | null) ?? null,
+    tag: payload.tag ?? null,
     ruleId: (row.rule_id as string | null) ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
@@ -601,6 +611,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           amount: body.amount,
           notes: body.notes,
           certainty: body.certainty,
+          tag: body.tag,
         });
     let accountDek: Buffer | null = null;
     if (!clientSealed) {
@@ -653,6 +664,8 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
       enc_v: clientSealed ? '1' : accountDek ? '2' : null,
       rule_id: ruleId,
       source_task_id: body.sourceTaskId ?? null,
+      account_id: body.accountId ?? null,
+      card_account_id: body.cardAccountId ?? null,
       client_mutation_id: body.clientMutationId ?? null,
       deleted_at: null,
       created_at: now,
@@ -712,6 +725,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             amount: patch.amount,
             notes: patch.notes,
             certainty: patch.certainty,
+            tag: patch.tag,
             existing: prevPayload,
           })
         : null;
@@ -741,6 +755,10 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
     }
     if (patch.sourceTaskId !== undefined) {
       update.source_task_id = patch.sourceTaskId;
+    }
+    if (patch.accountId !== undefined) update.account_id = patch.accountId;
+    if (patch.cardAccountId !== undefined) {
+      update.card_account_id = patch.cardAccountId;
     }
 
     const { error } = await getSupabaseAdmin()

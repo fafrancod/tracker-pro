@@ -8,11 +8,40 @@ export type FinanceMovementStatus = 'planned' | 'confirmed' | 'skipped';
 export type FinanceRuleFrequency = 'monthly' | 'weekly';
 
 /** JSON interior (claro ahora; cifrado en payload_enc cuando haya bóveda). */
+export type FinanceAccountType =
+  | 'cash'
+  | 'debit'
+  | 'credit'
+  | 'brokerage'
+  | 'other';
+
+export type FinanceMovementTag = 'card_payment';
+
 export interface FinanceMovementPayload {
   title: string;
   amount: number;
   notes: string;
   certainty: FinanceCertainty;
+  tag?: FinanceMovementTag | null;
+}
+
+export interface FinanceAccountPayload {
+  name: string;
+  institution: string;
+  creditLimit: number;
+}
+
+export interface FinanceAccount {
+  id: string;
+  type: FinanceAccountType;
+  currency: string;
+  name: string;
+  institution: string;
+  creditLimit: number;
+  archived: boolean;
+  sealed?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FinanceMovement {
@@ -25,6 +54,9 @@ export interface FinanceMovement {
   amount: number;
   notes: string;
   certainty: FinanceCertainty;
+  accountId: string | null;
+  cardAccountId: string | null;
+  tag: FinanceMovementTag | null;
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
@@ -70,6 +102,9 @@ export interface CreateFinanceMovementPayload {
   ruleId?: string;
   rulePayloadEnc?: string;
   sourceTaskId?: string | null;
+  accountId?: string | null;
+  cardAccountId?: string | null;
+  tag?: FinanceMovementTag | null;
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -88,6 +123,9 @@ export interface UpdateFinanceMovementPayload {
   updatedAt?: string;
   payloadEnc?: string;
   sourceTaskId?: string | null;
+  accountId?: string | null;
+  cardAccountId?: string | null;
+  tag?: FinanceMovementTag | null;
 }
 
 export interface FinanceMovementMonthSummary {

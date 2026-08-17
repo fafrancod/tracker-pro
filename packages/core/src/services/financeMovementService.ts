@@ -69,6 +69,15 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
     amount: typeof raw.amount === 'number' ? raw.amount : payload.amount,
     notes: typeof raw.notes === 'string' ? raw.notes : payload.notes,
     certainty: raw.certainty === 'potential' ? 'potential' : payload.certainty,
+    accountId:
+      (raw.accountId as string | null) ??
+      (raw.account_id as string | null) ??
+      null,
+    cardAccountId:
+      (raw.cardAccountId as string | null) ??
+      (raw.card_account_id as string | null) ??
+      null,
+    tag: payload.tag ?? null,
     ruleId: (raw.ruleId as string | null) ?? (raw.rule_id as string | null) ?? null,
     sourceTaskId:
       (raw.sourceTaskId as string | null) ??
@@ -195,6 +204,9 @@ export async function createFinanceMovement(
       amount: payload.amount ?? 0,
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
+      accountId: payload.accountId ?? null,
+      cardAccountId: payload.cardAccountId ?? null,
+      tag: payload.tag ?? null,
       ruleId,
       sourceTaskId: payload.sourceTaskId ?? null,
       createdAt: now,
@@ -214,6 +226,7 @@ export async function createFinanceMovement(
       amount: payload.amount ?? 0,
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
+      tag: payload.tag ?? null,
     };
     const payloadEnc = await encryptFinancePayload(vault.dek, inner, aad);
     let ruleId: string | undefined;
@@ -238,6 +251,9 @@ export async function createFinanceMovement(
       ruleId,
       rulePayloadEnc,
       sourceTaskId: payload.sourceTaskId ?? null,
+      accountId: payload.accountId ?? null,
+      cardAccountId: payload.cardAccountId ?? null,
+      tag: payload.tag ?? null,
     };
   }
   const res = await api.post<Record<string, unknown>>(
@@ -299,6 +315,7 @@ export async function updateFinanceMovement(
         amount: payload.amount ?? 0,
         notes: payload.notes ?? '',
         certainty: payload.certainty ?? 'fixed',
+        tag: payload.tag ?? null,
       },
       financePayloadAad(vault.uid, 'finance_movements', id)
     );
@@ -309,6 +326,9 @@ export async function updateFinanceMovement(
       currency: payload.currency,
       updatedAt: payload.updatedAt,
       payloadEnc,
+      accountId: payload.accountId,
+      cardAccountId: payload.cardAccountId,
+      tag: payload.tag,
     };
   }
   const res = await api.patch<Record<string, unknown>>(

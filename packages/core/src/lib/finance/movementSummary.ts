@@ -13,6 +13,7 @@ export function summarizeMovementsByCurrency(
     if (!mov.dayId.startsWith(monthId)) continue;
     if (mov.flow === 'investment') continue;
     if (mov.status === 'skipped') continue;
+    if (mov.tag === 'card_payment') continue;
     const currency = mov.currency || 'EUR';
     const bucket = out[currency] ?? {
       monthId,

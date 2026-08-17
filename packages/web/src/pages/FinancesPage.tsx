@@ -30,6 +30,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
 import { FinanceVaultGate } from '@/components/Finances/FinanceVaultGate';
+import { AccountsPanel } from '@/components/Finances/AccountsPanel';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -40,12 +41,14 @@ import {
   updateFinanceMovement,
   type FinanceVaultCtx,
 } from '@core/services/financeMovementService';
+import { fetchFinanceAccounts } from '@core/services/financeAccountService';
 import {
   monthIdFromDayId,
   summarizeMovementsByCurrency,
 } from '@core/lib/finance/movementSummary';
 import type {
   CreateFinanceMovementPayload,
+  FinanceAccount,
   FinanceMovement,
   FinanceMovementFlow,
   FinanceMovementStatus,
@@ -81,6 +84,9 @@ interface MovementForm {
   notes: string;
   repeat: 'none' | FinanceRuleFrequency;
   recurrenceDay: number;
+  accountId: string;
+  cardPayment: boolean;
+  cardAccountId: string;
 }
 
 function emptyForm(dayId: string, currency: string): MovementForm {
@@ -94,6 +100,9 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     notes: '',
     repeat: 'none',
     recurrenceDay: 1,
+    accountId: '',
+    cardPayment: false,
+    cardAccountId: '',
   };
 }
 
@@ -133,6 +142,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const [filterFlow, setFilterFlow] = useState<'all' | 'income' | 'expense'>(
     'all'
   );
+  const [hub, setHub] = useState<'calendar' | 'accounts'>('calendar');
+  const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
+  const [filterAccountId, setFilterAccountId] = useState('all');
 
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const monthStart = startOfMonth(cursor);
@@ -166,8 +178,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await fetchFinanceCalendar(range.from, range.to, vault ?? undefined);
+      const [rows, accs] = await Promise.all([
+        fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
+        fetchFinanceAccounts(),
+      ]);
       setMovements(rows);
+      setAccounts(accs);
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
@@ -188,12 +204,19 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     const map = new Map<string, FinanceMovement[]>();
     for (const mov of movements) {
       if (filterFlow !== 'all' && mov.flow !== filterFlow) continue;
+      if (
+        filterAccountId !== 'all' &&
+        mov.accountId !== filterAccountId &&
+        mov.cardAccountId !== filterAccountId
+      ) {
+        continue;
+      }
       const list = map.get(mov.dayId) ?? [];
       list.push(mov);
       map.set(mov.dayId, list);
     }
     return map;
-  }, [movements, filterFlow]);
+  }, [movements, filterFlow, filterAccountId]);
 
   const summaries = useMemo(
     () => summarizeMovementsByCurrency(movements, monthId),
@@ -255,6 +278,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       currency: mov.currency,
       title: mov.title,
       amount: mov.amount,
+      accountId: mov.accountId ?? '',
+      cardPayment: mov.tag === 'card_payment',
+      cardAccountId: mov.cardAccountId ?? '',
       notes: mov.notes,
       repeat: 'none',
       recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
@@ -276,6 +302,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       title,
       amount: form.amount,
       notes: form.notes,
+      accountId: form.accountId || null,
+      tag: form.cardPayment ? 'card_payment' : null,
+      cardAccountId: form.cardPayment ? form.cardAccountId || null : null,
       recurrence:
         !editing && form.repeat !== 'none'
           ? {
@@ -299,6 +328,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             title: payload.title,
             amount: payload.amount,
             notes: payload.notes,
+            accountId: payload.accountId,
+            tag: payload.tag,
+            cardAccountId: payload.cardAccountId,
             updatedAt: editing.updatedAt,
           },
           vault ?? undefined
@@ -348,6 +380,34 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       showFab
     >
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
+        <div className="flex gap-1">
+          {(['calendar', 'accounts'] as const).map(id => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setHub(id)}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs',
+                hub === id
+                  ? 'border-accent-teal bg-accent-teal/10 text-accent-teal'
+                  : 'border-border text-text-muted'
+              )}
+            >
+              {id === 'calendar' ? t('fin_tab_calendar') : t('fin_tab_accounts')}
+            </button>
+          ))}
+        </div>
+
+        {hub === 'accounts' ? (
+          <AccountsPanel
+            accounts={accounts}
+            movements={movements}
+            onChanged={reload}
+          />
+        ) : null}
+
+        {hub === 'calendar' ? (
+        <>
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="ghost"
@@ -465,6 +525,20 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                   : t('fin_flow_expense')}
             </button>
           ))}
+          {accounts.length > 0 && (
+            <select
+              value={filterAccountId}
+              onChange={e => setFilterAccountId(e.target.value)}
+              className="h-7 rounded-full border border-border bg-background px-2 text-xs"
+            >
+              <option value="all">{t('fin_account_all')}</option>
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name || acc.type}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {loading ? (
@@ -554,6 +628,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             <p className="max-w-sm text-xs text-text-muted">{t('fin_empty_hint')}</p>
           </div>
         )}
+        </>
+        ) : null}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -633,6 +709,60 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </select>
               </label>
             </div>
+            {accounts.length > 0 && (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_field_account')}</span>
+                <select
+                  value={form.accountId}
+                  onChange={e =>
+                    setForm(f => ({ ...f, accountId: e.target.value }))
+                  }
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                >
+                  <option value="">{t('fin_account_all')}</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name || acc.type}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {accounts.some(a => a.type === 'credit') && form.flow === 'expense' && (
+              <>
+                <label className="flex items-center gap-2 text-xs text-text-primary">
+                  <input
+                    type="checkbox"
+                    checked={form.cardPayment}
+                    onChange={e =>
+                      setForm(f => ({ ...f, cardPayment: e.target.checked }))
+                    }
+                  />
+                  {t('fin_card_payment')}
+                </label>
+                {form.cardPayment && (
+                  <label className="block space-y-1 text-xs text-text-muted">
+                    <span>{t('fin_card_payment_of')}</span>
+                    <select
+                      value={form.cardAccountId}
+                      onChange={e =>
+                        setForm(f => ({ ...f, cardAccountId: e.target.value }))
+                      }
+                      className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                    >
+                      <option value="">{t('fin_account_all')}</option>
+                      {accounts
+                        .filter(a => a.type === 'credit')
+                        .map(acc => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.name || acc.type}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
+              </>
+            )}
             <label className="block space-y-1 text-xs text-text-muted">
               <span>{t('fin_field_date')}</span>
               <Input

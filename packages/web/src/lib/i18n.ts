@@ -51,6 +51,28 @@ export interface TranslationDict {
   fin_empty_title: string;
   fin_empty_hint: string;
   fin_tab_calendar: string;
+  fin_tab_accounts: string;
+  fin_account_add: string;
+  fin_account_edit: string;
+  fin_account_name: string;
+  fin_account_institution: string;
+  fin_account_type: string;
+  fin_account_type_cash: string;
+  fin_account_type_debit: string;
+  fin_account_type_credit: string;
+  fin_account_type_brokerage: string;
+  fin_account_type_other: string;
+  fin_account_limit: string;
+  fin_account_used: string;
+  fin_account_available: string;
+  fin_account_empty: string;
+  fin_account_empty_hint: string;
+  fin_account_all: string;
+  fin_account_name_required: string;
+  fin_account_saved: string;
+  fin_field_account: string;
+  fin_card_payment: string;
+  fin_card_payment_of: string;
   fin_status_planned: string;
   fin_status_confirmed: string;
   fin_kpi_planned: string;
@@ -1065,6 +1087,29 @@ const es_dict: TranslationDict = {
   fin_filter_all_kinds: 'Todos los tipos',
   fin_empty_title: 'Sin movimientos este mes',
   fin_tab_calendar: 'Calendario',
+  fin_tab_accounts: 'Cuentas',
+  fin_account_add: 'Añadir cuenta',
+  fin_account_edit: 'Editar cuenta',
+  fin_account_name: 'Nombre',
+  fin_account_institution: 'Institución',
+  fin_account_type: 'Tipo',
+  fin_account_type_cash: 'Efectivo',
+  fin_account_type_debit: 'Débito',
+  fin_account_type_credit: 'Tarjeta de crédito',
+  fin_account_type_brokerage: 'Inversión',
+  fin_account_type_other: 'Otra',
+  fin_account_limit: 'Cupo',
+  fin_account_used: 'Usado',
+  fin_account_available: 'Disponible',
+  fin_account_empty: 'Sin cuentas todavía',
+  fin_account_empty_hint:
+    'Declara efectivo, débito o una tarjeta. El cupo se cifra con tu cuenta.',
+  fin_account_all: 'Todas las cuentas',
+  fin_account_name_required: 'Ponle un nombre a la cuenta.',
+  fin_account_saved: 'Cuenta guardada.',
+  fin_field_account: 'Cuenta',
+  fin_card_payment: 'Este es un pago de tarjeta',
+  fin_card_payment_of: 'Tarjeta que pagas',
   fin_status_planned: 'Previsto',
   fin_status_confirmed: 'Hecho',
   fin_kpi_planned: 'Previsto',
@@ -2169,6 +2214,29 @@ const en_dict: TranslationDict = {
   fin_filter_all_kinds: 'All kinds',
   fin_empty_title: 'No entries this month',
   fin_tab_calendar: 'Calendar',
+  fin_tab_accounts: 'Accounts',
+  fin_account_add: 'Add account',
+  fin_account_edit: 'Edit account',
+  fin_account_name: 'Name',
+  fin_account_institution: 'Institution',
+  fin_account_type: 'Type',
+  fin_account_type_cash: 'Cash',
+  fin_account_type_debit: 'Debit',
+  fin_account_type_credit: 'Credit card',
+  fin_account_type_brokerage: 'Brokerage',
+  fin_account_type_other: 'Other',
+  fin_account_limit: 'Limit',
+  fin_account_used: 'Used',
+  fin_account_available: 'Available',
+  fin_account_empty: 'No accounts yet',
+  fin_account_empty_hint:
+    'Add cash, debit or a card. The limit is encrypted with your account.',
+  fin_account_all: 'All accounts',
+  fin_account_name_required: 'Give the account a name.',
+  fin_account_saved: 'Account saved.',
+  fin_field_account: 'Account',
+  fin_card_payment: 'This is a card payment',
+  fin_card_payment_of: 'Card you are paying',
   fin_status_planned: 'Planned',
   fin_status_confirmed: 'Done',
   fin_kpi_planned: 'Planned',

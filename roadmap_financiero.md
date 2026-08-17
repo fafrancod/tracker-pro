@@ -4,7 +4,7 @@
 **Producto:** Daily Tracker (Supabase + Express + React). Referencia: **Meteora** (`D:\DesarrollosFF\finanzas-pro`).  
 **Versión del repo al escribir:** v2.24.0.
 
-**Estado:** Fases 1–3 están en `main` (v2.24). El cifrado **no** es zero-knowledge duro: default = sobre de cuenta restablecible (como Meteora `server-envelope`).
+**Estado:** Fases 1–3 + cifrado de cuenta en `main` (v2.25). Siguiente: Fase 4 cuentas / TC.
 
 **Respuesta corta:** dos calendarios, un libro, cifrado **con la cuenta**. El tablero no es el mayor. Login = ves el dinero. Restablecer la contraseña **no** pierde importes. La bóveda privada (frase + 12 palabras) queda como legado opt-in, no como default.
 
@@ -361,11 +361,15 @@ El API de tareas **no** recibe `finance.amount`. El cliente: `POST movements` (c
 ### Fase 4 — Cuentas y tarjetas
 
 Tipos en claro: `cash | debit | credit | brokerage | other`.  
-Nombre, institución, cupo: cifrados.
+Nombre, institución, cupo: cifrados (`payload_enc`).
 
-Pago de tarjeta = movimiento en el débito con tag `card_payment` (no suma otra vez al usado de la TC). Salud ignora ese tag.
+Pago de tarjeta = movimiento en el débito con `tag=card_payment` + `card_account_id`. No entra en el KPI del mes. Usado de la TC = cargos − pagos.
 
-**Hecho:** dos cuentas, filtro, ficha Visa (cupo / usado / disponible), pago que no dobla el mes.
+**Hecho:**
+
+- [x] Dos cuentas, tab Cuentas, filtro en el calendario.
+- [x] Ficha Visa: cupo / usado / disponible.
+- [x] Pago que no dobla el mes (tests de `summarizeCardUsage` + KPI).
 
 ### Fase 5 — FX
 
