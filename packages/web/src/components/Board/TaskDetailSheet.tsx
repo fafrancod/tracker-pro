@@ -52,6 +52,7 @@ import { useTaskAttachmentFiles } from '@/hooks/useTaskAttachmentFiles';
 import { DateRangeField } from './DateRangeField';
 import { TaskKindPicker, defaultKindOptions } from './TaskKindPicker';
 import { kindSupportsSteps, stepsEqual } from '@core/lib/steps';
+import { kindSupportsProject } from '@core/lib/projectCategories';
 import { imagesEqual } from '@core/lib/taskImages';
 import {
   defaultFinanceColor,
@@ -382,7 +383,8 @@ function TaskDetailInner({
   const draftIsPossible = draftKind === 'possible_event';
   const draftIsEvent = draftKind === 'event';
   const draftIsEventLike = draftIsPossible || draftIsEvent;
-  const draftIsProjectKind = draftKind === 'task' || draftKind === 'reminder';
+  const draftIsProjectKind = kindSupportsProject(draftKind);
+  const draftIsClassicTask = draftKind === 'task' || draftKind === 'reminder';
   const draftIsHabit =
     draftKind === 'habit_good' || draftKind === 'habit_quit';  const draftIsFinance = isFinanceKind(draftKind);
   const draftSupportsSteps = kindSupportsSteps(draftKind);
@@ -660,16 +662,12 @@ function TaskDetailInner({
                       : saveIsFinance
                         ? defaultFinanceColor(saveKind)
                         : null),
-            projectId:
-              saveEventLike || saveIsHabit || saveIsFinance
-                ? null
-                : snap.projectId,
-            projectCategoryId:
-              saveEventLike || saveIsHabit || saveIsFinance
-                ? null
-                : snap.projectId
-                  ? snap.projectCategoryId
-                  : null,
+            projectId: kindSupportsProject(saveKind) ? snap.projectId : null,
+            projectCategoryId: kindSupportsProject(saveKind)
+              ? snap.projectId
+                ? snap.projectCategoryId
+                : null
+              : null,
             endDayId: nextEnd,
             involvedContactIds: saveEventLike
               ? snap.involvedContactIds
@@ -875,6 +873,55 @@ function TaskDetailInner({
               options={CONVERTIBLE_KINDS}
             />
           </Field>
+        )}
+
+        {!isRx && draftIsProjectKind && (
+          <>
+            <Field label={t('task_project_label')}>
+              <select
+                value={draft.projectId ?? ''}
+                onChange={e =>
+                  patchDraft({
+                    projectId: e.target.value || null,
+                    projectCategoryId: null,
+                  })
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">{t('task_no_project')}</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>
+                    {p.icon} {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {(() => {
+              const selected = projects.find(p => p.id === draft.projectId);
+              const cats = selected?.categories ?? [];
+              if (!draft.projectId || cats.length === 0) return null;
+              return (
+                <Field label={t('task_category_label')}>
+                  <select
+                    value={draft.projectCategoryId ?? ''}
+                    onChange={e =>
+                      patchDraft({
+                        projectCategoryId: e.target.value || null,
+                      })
+                    }
+                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="">{t('task_no_category')}</option>
+                    {cats.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              );
+            })()}
+          </>
         )}
 
         {/* Finanzas: importe / moneda / fijo vs potencial */}
@@ -1410,7 +1457,7 @@ function TaskDetailInner({
           </>
         )}
 
-        {!isRx && draftIsProjectKind && (
+        {!isRx && draftIsClassicTask && (
           <>
             <Field label={t('task_priority_label')}>
               <div className="inline-flex rounded-md border border-border bg-background p-0.5">
@@ -1513,55 +1560,6 @@ function TaskDetailInner({
             ))}
           </div>
         </Field>
-
-        {!isRx && draftIsProjectKind && (
-          <>
-            <Field label={t('task_project_label')}>
-              <select
-                value={draft.projectId ?? ''}
-                onChange={e =>
-                  patchDraft({
-                    projectId: e.target.value || null,
-                    projectCategoryId: null,
-                  })
-                }
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-              >
-                <option value="">{t('task_no_project')}</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.icon} {p.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            {(() => {
-              const selected = projects.find(p => p.id === draft.projectId);
-              const cats = selected?.categories ?? [];
-              if (!draft.projectId || cats.length === 0) return null;
-              return (
-                <Field label={t('task_category_label')}>
-                  <select
-                    value={draft.projectCategoryId ?? ''}
-                    onChange={e =>
-                      patchDraft({
-                        projectCategoryId: e.target.value || null,
-                      })
-                    }
-                    className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-                  >
-                    <option value="">{t('task_no_category')}</option>
-                    {cats.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              );
-            })()}
-          </>
-        )}
 
         <Field
           label={

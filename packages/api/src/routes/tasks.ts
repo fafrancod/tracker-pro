@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   MAX_TASK_IMAGES,
+  kindSupportsProject,
   normalizePomodoroCount,
   normalizeTaskImages,
   uniqueSortedDayIds,
@@ -595,10 +596,9 @@ tasksRouter.post('/', async (req, res, next) => {
 
     const taskKind = kind ?? 'task';
     const isFinance = isFinanceKind(taskKind);
-    const supportsProject =
-      taskKind === 'task' || taskKind === 'reminder';
+    const supportsProject = kindSupportsProject(taskKind);
 
-    // Subcategoría solo con proyecto de tarea/recordatorio.
+    // Subcategoría solo si el kind admite proyecto.
     let resolvedProjectCategoryId: string | null = null;
     if (supportsProject && projectId && rawProjectCategoryId) {
       const { data: projRow, error: projErr } = await getSupabaseAdmin()
@@ -863,12 +863,10 @@ tasksRouter.post('/', async (req, res, next) => {
           title,
           completed: false,
           completed_at: null,
-          project_id:
-            isEventLike || isHabit || isFinance ? null : (projectId ?? null),
-          project_category_id:
-            isEventLike || isHabit || isFinance
-              ? null
-              : resolvedProjectCategoryId,
+          project_id: supportsProject ? (projectId ?? null) : null,
+          project_category_id: supportsProject
+            ? resolvedProjectCategoryId
+            : null,
           priority: priority ?? (isHabit ? 'medium' : 'medium'),
           notes: notes ?? '',
           order,

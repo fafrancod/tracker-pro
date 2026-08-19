@@ -5,6 +5,7 @@ interface AddTaskFormLayoutProps {
   isModal: boolean;
   kind: ReactNode;
   title: ReactNode;
+  project: ReactNode;
   finance: ReactNode;
   rx: ReactNode;
   classify: ReactNode;
@@ -14,6 +15,7 @@ interface AddTaskFormLayoutProps {
   classifyTitle: string;
   whenTitle: string;
   moreTitle: string;
+  projectTitle: string;
 }
 
 function BoardCard({
@@ -54,6 +56,7 @@ export function AddTaskFormLayout({
   isModal,
   kind,
   title,
+  project,
   finance,
   rx,
   classify,
@@ -63,17 +66,19 @@ export function AddTaskFormLayout({
   classifyTitle,
   whenTitle,
   moreTitle,
+  projectTitle,
 }: AddTaskFormLayoutProps) {
   if (!isModal) {
     return (
       <div className="flex flex-col gap-2">
         {kind}
-        {finance}
         {title}
+        {project}
+        {finance}
         {rx}
         {classify}
-        {more}
         {when}
+        {more}
         {actions}
       </div>
     );
@@ -83,13 +88,14 @@ export function AddTaskFormLayout({
     <div className="flex flex-col gap-5">
       <div className="space-y-4">{kind}</div>
       <div className="space-y-1.5">{title}</div>
+      <BoardCard title={projectTitle}>{project}</BoardCard>
       {finance}
       {rx}
       <div className="grid grid-cols-1 items-start gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]">
-        <BoardCard title={classifyTitle}>{classify}</BoardCard>
         <BoardCard title={whenTitle} dataTour="create-when">
           {when}
         </BoardCard>
+        <BoardCard title={classifyTitle}>{classify}</BoardCard>
         <BoardCard title={moreTitle}>{more}</BoardCard>
       </div>
       {actions}

@@ -1,4 +1,4 @@
-import type { Project, ProjectCategory } from '../types';
+import type { Project, ProjectCategory, TaskKind } from '../types';
 
 export const MAX_PROJECT_CATEGORIES = 20;
 
@@ -54,8 +54,21 @@ export function findProjectCategory(
 }
 
 /**
- * Si la categoría no pertenece al proyecto (o no hay proyecto), devuelve null.
+ * Tarea, recordatorio, evento y evento posible pueden vivir en un proyecto
+ * (y por tanto en la carta Gantt). Hábitos, recetario y finanzas no.
  */
+export function kindSupportsProject(
+  kind: TaskKind | string | null | undefined
+): boolean {
+  return (
+    kind === 'task' ||
+    kind === 'reminder' ||
+    kind === 'event' ||
+    kind === 'possible_event'
+  );
+}
+
+/** Si la categoría no pertenece al proyecto (o no hay proyecto), devuelve null. */
 export function resolveProjectCategoryId(
   project: Project | null | undefined,
   categoryId: string | null | undefined

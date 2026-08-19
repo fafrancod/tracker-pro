@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  kindSupportsProject,
   buildGanttGroups,
   ganttBarLayout,
   ganttDayOffset,
@@ -68,6 +69,21 @@ const amsa: Project = {
   createdAt: '2026-01-01T00:00:00.000Z',
   categories: [{ id: 'mig', name: 'Migración reportes', order: 0 }],
 };
+
+describe('kindSupportsProject', () => {
+  it('admite tarea, recordatorio, evento y evento posible', () => {
+    expect(kindSupportsProject('task')).toBe(true);
+    expect(kindSupportsProject('reminder')).toBe(true);
+    expect(kindSupportsProject('event')).toBe(true);
+    expect(kindSupportsProject('possible_event')).toBe(true);
+  });
+
+  it('rechaza hábitos, recetario y finanzas', () => {
+    expect(kindSupportsProject('habit_good')).toBe(false);
+    expect(kindSupportsProject('rx_human')).toBe(false);
+    expect(kindSupportsProject('finance_expense')).toBe(false);
+  });
+});
 
 describe('gantt kinds', () => {
   it('incluye tarea, recordatorio, evento y evento posible', () => {

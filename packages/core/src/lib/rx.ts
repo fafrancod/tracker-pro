@@ -35,7 +35,7 @@ export function isEventKind(kind: TaskKind | string | null | undefined): boolean
   return kind === 'event';
 }
 
-/** Evento confirmado o posible (no son tareas de proyecto). */
+/** Evento confirmado o posible. Sí pueden asignarse a un proyecto (Gantt). */
 export function isAnyEventKind(kind: TaskKind | string | null | undefined): boolean {
   return kind === 'event' || kind === 'possible_event';
 }

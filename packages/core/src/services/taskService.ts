@@ -18,6 +18,7 @@ import type {
   Recurrence,
 } from '../types';
 import { isRxKind, materializeRxOccurrences, buildRxMetaForOccurrence, parseRxMeta } from '../lib/rx';
+import { kindSupportsProject } from '../lib/projectCategories';
 import {
   isHabitKind,
   isVirtualHabitId,
@@ -554,12 +555,10 @@ function expandCreateInstances(
       title: payload.title,
       completed: false,
       completedAt: null,
-      projectId:
-        isHabit || isEventLike || isFinance ? null : (payload.projectId ?? null),
-      projectCategoryId:
-        isHabit || isEventLike || isFinance
-          ? null
-          : (payload.projectCategoryId ?? null),
+      projectId: kindSupportsProject(kind) ? (payload.projectId ?? null) : null,
+      projectCategoryId: kindSupportsProject(kind)
+        ? (payload.projectCategoryId ?? null)
+        : null,
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: index,
@@ -787,9 +786,10 @@ function materializeDemoCreate(
       title: payload.title,
       completed: false,
       completedAt: null,
-      projectId: isHabit || isFinance ? null : (payload.projectId ?? null),
-      projectCategoryId:
-        isHabit || isFinance ? null : (payload.projectCategoryId ?? null),
+      projectId: kindSupportsProject(kind) ? (payload.projectId ?? null) : null,
+      projectCategoryId: kindSupportsProject(kind)
+        ? (payload.projectCategoryId ?? null)
+        : null,
       priority: payload.priority ?? 'medium',
       notes: payload.notes ?? '',
       order: 0,

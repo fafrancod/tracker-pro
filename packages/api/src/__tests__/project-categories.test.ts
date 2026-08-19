@@ -189,4 +189,40 @@ describe('project categories', () => {
     expect(res.status).toBe(201);
     expect(lastTaskInsert![0].project_category_id).toBeNull();
   });
+
+  it('create event conserva projectId y subcategoría (Gantt)', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        weekId: '2026-W11',
+        dayId: '2026-03-10',
+        title: 'Ensayo del curso',
+        kind: 'event',
+        projectId: 'proj-1',
+        projectCategoryId: 'cat-a',
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert![0].project_id).toBe('proj-1');
+    expect(lastTaskInsert![0].project_category_id).toBe('cat-a');
+  });
+
+  it('hábito no guarda proyecto', async () => {
+    const res = await request(app)
+      .post('/api/tasks')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        weekId: '2026-W11',
+        dayId: '2026-03-10',
+        title: 'Correr',
+        kind: 'habit_good',
+        projectId: 'proj-1',
+        projectCategoryId: 'cat-a',
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastTaskInsert![0].project_id).toBeNull();
+    expect(lastTaskInsert![0].project_category_id).toBeNull();
+  });
 });

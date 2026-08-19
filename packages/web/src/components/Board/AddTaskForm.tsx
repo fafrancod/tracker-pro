@@ -61,6 +61,7 @@ import {
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
 import { kindSupportsSteps } from '@core/lib/steps';
+import { kindSupportsProject } from '@core/lib/projectCategories';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
   contactHandles,
@@ -182,7 +183,12 @@ export function AddTaskForm({
     initialEndTime ?? (initialStartTime ? defaultEndFromStart(initialStartTime) : '');
   const [open, setOpen] = useState(startOpen);
   const [title, setTitle] = useState('');
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const defaultProjectId =
+    settings.defaultProjectId &&
+    projects.some(p => p.id === settings.defaultProjectId)
+      ? settings.defaultProjectId
+      : null;
+  const [projectId, setProjectId] = useState<string | null>(defaultProjectId);
   const [projectCategoryId, setProjectCategoryId] = useState<string | null>(null);
   const [priority, setPriority] = useState<Priority>('medium');
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('none');
@@ -233,6 +239,7 @@ export function AddTaskForm({
   const isEventLike = isPossible || isEvent;
   const isHabit = isHabitKind(kind);
   const isFinance = isFinanceKind(kind);
+  const supportsProject = kindSupportsProject(kind);
   const canEntailMoney = !isFinance && !isHabit && !isRx;
   const supportsSteps = kindSupportsSteps(kind);
   /** Lugar: tarea, recordatorio, evento y evento posible. */
@@ -345,9 +352,22 @@ export function AddTaskForm({
     }
   }, [useBusinessDays, monthlyAnchor]);
 
+  const projectInitRef = useRef(false);
+  useEffect(() => {
+    if (projectInitRef.current) return;
+    if (settings.defaultProjectId && projects.length === 0) return;
+    const next =
+      settings.defaultProjectId &&
+      projects.some(p => p.id === settings.defaultProjectId)
+        ? settings.defaultProjectId
+        : null;
+    if (next) setProjectId(next);
+    projectInitRef.current = true;
+  }, [projects, settings.defaultProjectId]);
+
   function resetForm() {
     setTitle('');
-    setProjectId(null);
+    setProjectId(defaultProjectId);
     setProjectCategoryId(null);
     setPriority('medium');
     setRecurrenceFrequency('none');
@@ -579,9 +599,8 @@ export function AddTaskForm({
 
     const payload = {
       title: trimmed,
-      projectId: isEventLike || isHabit || isFinance ? null : projectId,
-      projectCategoryId:
-        isEventLike || isHabit || isFinance ? null : projectCategoryId,
+      projectId: supportsProject ? projectId : null,
+      projectCategoryId: supportsProject ? projectCategoryId : null,
       priority,
       startDayId: startForCreate,
       endDayId: safeEnd,
@@ -747,6 +766,7 @@ export function AddTaskForm({
         classifyTitle={t('task_board_classify')}
         whenTitle={t('task_board_when')}
         moreTitle={t('task_board_more')}
+        projectTitle={t('task_project_label')}
         kind={
           <div
             data-tour={isModal ? 'create-kind' : undefined}
@@ -761,7 +781,6 @@ export function AddTaskForm({
           value={kind}
           onChange={setKind}
           compact={!isModal}
-          defaultOpen={isModal && !startOpen}
         />
           </div>
         }
@@ -894,6 +913,60 @@ export function AddTaskForm({
           <p className="text-[10px] text-text-muted">{t('circle_mention_hint')}</p>
         )}
       </div>
+        }
+        project={
+          supportsProject ? (
+            <div className="flex flex-col gap-2">
+              {!isModal && (
+                <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                  {t('task_project_label')}
+                </p>
+              )}
+              <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
+                <SimpleSelect
+                  value={projectId ?? ''}
+                  onChange={value => {
+                    const next = value || null;
+                    setProjectId(next);
+                    setProjectCategoryId(null);
+                  }}
+                  className={cn(
+                    'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+                    isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
+                  )}
+                  options={[
+                    { value: '', label: t('task_no_project') },
+                    ...projects.map(project => ({
+                      value: project.id,
+                      label: `${project.icon} ${project.name}`,
+                    })),
+                  ]}
+                />
+                {(() => {
+                  const selectedProject = projects.find(p => p.id === projectId);
+                  const cats = selectedProject?.categories ?? [];
+                  if (!projectId || cats.length === 0) return null;
+                  return (
+                    <SimpleSelect
+                      value={projectCategoryId ?? ''}
+                      onChange={value => setProjectCategoryId(value || null)}
+                      className={cn(
+                        'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+                        isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
+                      )}
+                      options={[
+                        { value: '', label: t('task_no_category') },
+                        ...cats.map(c => ({
+                          value: c.id,
+                          label: c.name,
+                        })),
+                      ]}
+                    />
+                  );
+                })()}
+              </div>
+            </div>
+          ) : null
         }
         rx={
       isRx ? (
@@ -1127,49 +1200,6 @@ export function AddTaskForm({
       !isRx && !isEventLike && !isHabit && !isFinance ? (
         <>
           <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
-            <SimpleSelect
-              value={projectId ?? ''}
-              onChange={value => {
-                const next = value || null;
-                setProjectId(next);
-                setProjectCategoryId(null);
-              }}
-              className={cn(
-                'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-                isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
-              )}
-              options={[
-                { value: '', label: t('task_no_project') },
-                ...projects.map(project => ({
-                  value: project.id,
-                  label: `${project.icon} ${project.name}`,
-                })),
-              ]}
-            />
-
-            {(() => {
-              const selectedProject = projects.find(p => p.id === projectId);
-              const cats = selectedProject?.categories ?? [];
-              if (!projectId || cats.length === 0) return null;
-              return (
-                <SimpleSelect
-                  value={projectCategoryId ?? ''}
-                  onChange={value => setProjectCategoryId(value || null)}
-                  className={cn(
-                    'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-                    isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
-                  )}
-                  options={[
-                    { value: '', label: t('task_no_category') },
-                    ...cats.map(c => ({
-                      value: c.id,
-                      label: c.name,
-                    })),
-                  ]}
-                />
-              );
-            })()}
-
             <div className="flex gap-1">
               {PRIORITY_OPTIONS.map(opt => (
                 <button
