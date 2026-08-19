@@ -44,10 +44,10 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', labelKey: 'nav_summary', icon: LayoutDashboard },
   { to: '/board', labelKey: 'nav_tasks', icon: CalendarDays },
+  { to: '/gantt', labelKey: 'nav_gantt', icon: GanttChart },
   { to: '/habits', labelKey: 'nav_habits', icon: Sprout },
   { to: '/notifications', labelKey: 'nav_notifications', icon: Bell },
   { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
-  { to: '/gantt', labelKey: 'nav_gantt', icon: GanttChart },
   { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass, skipMainList: true },
   { to: '/reflections', labelKey: 'nav_reflections', icon: BookHeart },
   { to: '/recetario', labelKey: 'nav_recetario', icon: Pill },
