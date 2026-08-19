@@ -10,3 +10,4 @@ export { TaskContextMenu } from './TaskContextMenu';
 export { DayContextMenu } from './DayContextMenu';
 export { ScheduleGrid } from './ScheduleGrid';
 export { DayView } from './DayView';
+export { BoardFilterBar } from './BoardFilterBar';

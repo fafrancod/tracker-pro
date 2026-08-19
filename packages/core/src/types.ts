@@ -1,3 +1,7 @@
+import type { BoardKindGroup } from './lib/boardFilters';
+
+export type { BoardKindGroup };
+
 export type Plan = 'free' | 'pro';
 export type Priority = 'low' | 'medium' | 'high';
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -639,79 +643,39 @@ export type SeriesSharedTaskFields = Pick<
 
 /** Filtros del tablero (week / month / continuous / day). */
 export interface BoardTaskFilters {
+  /** Legado: un solo proyecto. Preferir `projectIds`. */
   projectId?: string | null | 'all';
+  /**
+   * Multi-select de proyectos. `'all'` o ausente = todos.
+   * Incluye el sentinel `__none__` para ítems sin proyecto.
+   */
+  projectIds?: string[] | 'all';
   urgency?: Urgency | 'all';
   importance?: Importance | 'all';
   /**
-   * all = calendario sin recetario (vive en /recetario);
-   * projects = tareas/recordatorios (no recetario, eventos ni hábitos);
-   * rx = legacy: solo recetarios (el board ya no expone esta pestaña);
-   * possible = solo eventos posibles;
-   * events = eventos confirmados;
-   * habits = hábitos buenos y a dejar;
-   * finances = ingresos/gastos de calendario;
-   * holidays = feriados (capa aparte; no filtra tasks del store).
+   * Filtro exclusivo legado (una categoría). Si `kinds` está definido, manda `kinds`.
    */
   category?: BoardCategoryFilter;
+  /**
+   * Multi-toggle de tipos. `'all'` o ausente = todos (salvo recetario).
+   * Combinable: p. ej. `['tasks', 'possible']` + `projectIds: ['amsa']`.
+   */
+  kinds?: BoardKindGroup[] | 'all';
   /** Si true, oculta tareas completadas en la lista del tablero. */
   hideCompleted?: boolean;
 }
 
-export function taskMatchesFilters(
-  task: Pick<Task, 'projectId' | 'urgency' | 'importance' | 'kind' | 'completed'>,
-  filters: BoardTaskFilters
-): boolean {
-  const kind = task.kind ?? 'task';
-  const isRx = kind === 'rx_human' || kind === 'rx_pet';
-  const isFinance = kind === 'finance_income' || kind === 'finance_expense';
-
-  if (filters.hideCompleted && task.completed) {
-    return false;
-  }
-
-  // El calendario no muestra tomas de recetario salvo filtro legacy `rx`.
-  if (isRx && filters.category !== 'rx') {
-    return false;
-  }
-
-  if (filters.category && filters.category !== 'all') {
-    if (filters.category === 'projects') {
-      if (
-        isRx ||
-        isFinance ||
-        kind === 'possible_event' ||
-        kind === 'event' ||
-        kind === 'habit_good' ||
-        kind === 'habit_quit'
-      ) {
-        return false;
-      }
-    } else if (filters.category === 'rx') {
-      if (!isRx) return false;
-    } else if (filters.category === 'possible') {
-      if (kind !== 'possible_event') return false;
-    } else if (filters.category === 'events') {
-      if (kind !== 'event') return false;
-    } else if (filters.category === 'habits') {
-      if (kind !== 'habit_good' && kind !== 'habit_quit') return false;
-    } else if (filters.category === 'finances') {
-      if (!isFinance) return false;
-    } else if (filters.category === 'holidays') {
-      // Las tareas no son feriados; se ocultan en este filtro.
-      return false;
-    }
-  }
-  if (filters.projectId && filters.projectId !== 'all') {
-    if (task.projectId !== filters.projectId) return false;
-  }
-  if (filters.urgency && filters.urgency !== 'all') {
-    if (task.urgency !== filters.urgency) return false;
-  }
-  if (filters.importance && filters.importance !== 'all') {
-    if (task.importance !== filters.importance) return false;
-  }
-  return true;
-}
+export {
+  taskMatchesFilters,
+  BOARD_NO_PROJECT,
+  ALL_BOARD_KIND_GROUPS,
+  taskKindGroup,
+  resolvedKindGroups,
+  boardShowsHolidays,
+  boardShowsTasks,
+  toggleKindGroup,
+  toggleProjectKey,
+} from './lib/boardFilters';
 
 export interface CreateProjectPayload {
   name: string;

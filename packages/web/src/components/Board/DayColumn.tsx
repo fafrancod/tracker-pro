@@ -11,6 +11,7 @@ import {
   compareByStartTime,
 } from '@core/lib/taskPresence';
 import { taskMatchesFilters, type BoardTaskFilters } from '@core/types';
+import { boardShowsHolidays, boardShowsTasks } from '@core/lib/boardFilters';
 import { chileHolidayName } from '@core/lib/chileHolidays';
 import { useT } from '@/hooks/useT';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -62,8 +63,8 @@ export function DayColumn({ weekId, dayId, label, dateLabel, isToday, filter }: 
   });
   const setDetailTask = useStore(s => s.setDetailTask);
   const tasksByDay = useStore(s => s.tasksByDay);
-  const holidayName = chileHolidayName(dayId);
-  const holidaysOnly = filter?.category === 'holidays';
+  const holidayName = boardShowsHolidays(filter) ? chileHolidayName(dayId) : null;
+  const holidaysOnly = !boardShowsTasks(filter);
   const locatedById = new Map(
     collectTasksCovering(tasksByDay, dayId).map(loc => [loc.id, loc] as const)
   );

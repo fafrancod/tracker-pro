@@ -84,7 +84,7 @@ Agents must treat the following as **in-tree product**, not optional experiments
 - Schedule grid hours: `settings.dayStartHour` / `dayEndHour` (default 7–22).
 - Multi-day spans: `end_day_id`; complete-once for the whole span.
 - Continuous month bars + week mid-span presence.
-- Board filters: project, urgency, importance (with cycle-select ←/→).
+- Board filters: **multi-toggle kinds** (tareas/eventos/posibles/hábitos/finanzas/feriados) combinables; **Proyectos** abre lista multi-select; urgency/importance cycle-select.
 - Dense week columns (full width grid).
 - Context menu: right-click **and** long-press / ⋮ on mobile; double-click → detail sheet.
 

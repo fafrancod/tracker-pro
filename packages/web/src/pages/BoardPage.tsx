@@ -7,13 +7,6 @@ import {
   Redo2,
   Undo2,
   Sun,
-  LayoutGrid,
-  FolderKanban,
-  CalendarHeart,
-  MapPin,
-  Leaf,
-  Wallet,
-  Flag,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -25,6 +18,7 @@ import {
   ContinuousMonthsView,
   TaskDetailSheet,
   DayView,
+  BoardFilterBar,
 } from '@/components/Board';
 import {
   MobileSheet,
@@ -42,24 +36,15 @@ import { useWeek } from '@core/hooks/useWeek';
 import { getDayId, getWeekId } from '@core/services/taskService';
 import { todayCivilDate } from '@core/lib/civilDate';
 import type {
-  BoardCategoryFilter,
   BoardTaskFilters,
   BoardViewMode,
-  Importance,
   ScheduleLayout,
-  Urgency,
 } from '@core/types';
+import { resolvedKindGroups } from '@core/lib/boardFilters';
 
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
-import {
-  tintEvent,
-  tintHabit,
-  tintHoliday,
-  tintPossible,
-} from '@/lib/tintClasses';
 import { cn } from '@/lib/utils';
-import { CycleSelect } from '@/components/ui/cycle-select';
 import { useOnboardingTour } from '@/contexts/OnboardingTourContext';
 import { FOCUS_TODAY_EVENT } from '@/lib/calendarToday';
 
@@ -80,7 +65,8 @@ export function BoardPage() {
     () => settings.defaultScheduleLayout ?? 'list'
   );
   const [filters, setFilters] = useState<BoardTaskFilters>({
-    projectId: 'all',
+    projectIds: 'all',
+    kinds: 'all',
     urgency: 'all',
     importance: 'all',
     category: 'all',
@@ -187,70 +173,12 @@ export function BoardPage() {
     setView('day');
   }
 
-  const category = filters.category === 'rx' ? 'all' : (filters.category ?? 'all');
-  /** Filtros efectivos del board (sin pestaña recetario + hide completed). */
+  /** Filtros efectivos del board (hide completed). */
   const boardFilter: BoardTaskFilters = {
     ...filters,
-    category,
+    category: 'all',
     hideCompleted,
   };
-  const isProjectsCategory = category === 'projects';
-  const isPossibleCategory = category === 'possible';
-  const isEventsCategory = category === 'events';
-  const isHabitsCategory = category === 'habits';
-
-  const categoryTabs: Array<{
-    value: BoardCategoryFilter;
-    label: string;
-    icon: typeof LayoutGrid;
-  }> = [
-    { value: 'all', label: t('board_filter_category_all'), icon: LayoutGrid },
-    {
-      value: 'projects',
-      label: t('board_filter_category_projects'),
-      icon: FolderKanban,
-    },
-    {
-      value: 'events',
-      label: t('board_filter_category_events'),
-      icon: MapPin,
-    },
-    {
-      value: 'possible',
-      label: t('board_filter_category_possible'),
-      icon: CalendarHeart,
-    },
-    {
-      value: 'habits',
-      label: t('board_filter_category_habits'),
-      icon: Leaf,
-    },
-    {
-      value: 'finances',
-      label: t('board_filter_category_finances'),
-      icon: Wallet,
-    },
-    {
-      value: 'holidays',
-      label: t('board_filter_category_holidays'),
-      icon: Flag,
-    },
-  ];
-
-  const projectOptions = [
-    { value: 'all', label: t('board_filter_all') },
-    ...projects.map(p => ({ value: p.id, label: `${p.icon} ${p.name}` })),
-  ];
-  const urgencyOptions = [
-    { value: 'all', label: t('board_filter_all') },
-    { value: 'urgent', label: t('urgency_urgent') },
-    { value: 'not_urgent', label: t('urgency_not_urgent') },
-  ];
-  const importanceOptions = [
-    { value: 'all', label: t('board_filter_all') },
-    { value: 'important', label: t('importance_important') },
-    { value: 'not_important', label: t('importance_not_important') },
-  ];
 
   return (
     <Layout
@@ -396,134 +324,11 @@ export function BoardPage() {
         </button>
       </div>
 
-      {/* Fila 2: categorías (Todo / Proyectos / Eventos / …) — recetario vive en /recetario */}
-      <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-surface/60 px-2 py-2 md:flex-row md:items-center md:px-3">
-        <div
-          className="inline-flex w-full rounded-lg border border-border bg-background p-0.5 sm:w-auto"
-          role="tablist"
-          aria-label={t('board_filter_category')}
-        >
-          {categoryTabs.map(tab => {
-            const Icon = tab.icon;
-            const active = category === tab.value;
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() =>
-                  setFilters(f => ({
-                    ...f,
-                    category: tab.value,
-                    // Eventos / posibles / hábitos no usan proyecto ni Eisenhower
-                    ...(tab.value === 'possible' ||
-                    tab.value === 'events' ||
-                    tab.value === 'habits'
-                      ? { projectId: 'all', urgency: 'all', importance: 'all' }
-                      : {}),
-                  }))
-                }
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition-colors sm:flex-none sm:py-1.5',
-                  active
-                    ? tab.value === 'possible'
-                      ? tintPossible
-                      : tab.value === 'events'
-                        ? tintEvent
-                        : tab.value === 'habits'
-                          ? tintHabit
-                          : tab.value === 'holidays'
-                            ? tintHoliday
-                            : tab.value === 'projects'
-                              ? 'bg-accent-teal/15 text-accent-teal'
-                              : 'bg-accent-teal/15 text-accent-teal'
-                    : 'text-text-muted hover:bg-surface hover:text-text-primary'
-                )}
-              >
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {isPossibleCategory && (
-          <p className="text-[11px] text-text-muted md:ml-auto">
-            {t('board_category_possible_hint')}
-          </p>
-        )}
-        {isEventsCategory && (
-          <p className="text-[11px] text-text-muted md:ml-auto">
-            {t('board_category_events_hint')}
-          </p>
-        )}
-        {isHabitsCategory && (
-          <p className="text-[11px] text-text-muted md:ml-auto">
-            {t('board_category_habits_hint')}
-          </p>
-        )}
-
-        {/* Filtros secundarios: solo donde aplican */}
-        {!isPossibleCategory && !isEventsCategory && !isHabitsCategory && (
-          <div className="flex flex-wrap items-center gap-1.5 md:ml-auto">
-            {(isProjectsCategory || category === 'all') && (
-              <div className="flex items-center gap-1">
-                <span className="hidden text-[10px] text-text-muted sm:inline">
-                  {t('board_filter_project')}
-                </span>
-                <CycleSelect
-                  aria-label={t('board_filter_project')}
-                  value={
-                    filters.projectId === 'all' || !filters.projectId
-                      ? 'all'
-                      : filters.projectId
-                  }
-                  options={projectOptions}
-                  onChange={v =>
-                    setFilters(f => ({
-                      ...f,
-                      projectId: v === 'all' ? 'all' : v,
-                    }))
-                  }
-                />
-              </div>
-            )}
-            <div className="flex items-center gap-1">
-              <span className="hidden text-[10px] text-text-muted sm:inline">
-                {t('board_filter_urgency')}
-              </span>
-              <CycleSelect
-                aria-label={t('board_filter_urgency')}
-                value={filters.urgency ?? 'all'}
-                options={urgencyOptions}
-                onChange={v =>
-                  setFilters(f => ({
-                    ...f,
-                    urgency: v as Urgency | 'all',
-                  }))
-                }
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="hidden text-[10px] text-text-muted sm:inline">
-                {t('board_filter_importance')}
-              </span>
-              <CycleSelect
-                aria-label={t('board_filter_importance')}
-                value={filters.importance ?? 'all'}
-                options={importanceOptions}
-                onChange={v =>
-                  setFilters(f => ({
-                    ...f,
-                    importance: v as Importance | 'all',
-                  }))
-                }
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      <BoardFilterBar
+        filters={filters}
+        projects={projects}
+        onChange={setFilters}
+      />
 
       <div
         data-tour="calendar-canvas"
@@ -583,15 +388,15 @@ export function BoardPage() {
             startOpen
             variant="modal"
             startDayId={targetDayId}
-            initialKind={
-              isEventsCategory
-                ? 'event'
-                : isPossibleCategory
-                  ? 'possible_event'
-                  : isHabitsCategory
-                    ? 'habit_good'
-                    : 'task'
-            }
+            initialKind={(() => {
+              const groups = resolvedKindGroups(filters);
+              if (groups === 'all' || groups.length !== 1) return 'task';
+              if (groups[0] === 'events') return 'event';
+              if (groups[0] === 'possible') return 'possible_event';
+              if (groups[0] === 'habits') return 'habit_good';
+              if (groups[0] === 'finances') return 'finance_expense';
+              return 'task';
+            })()}
             onCancel={() => setFabOpen(false)}
             onAdd={async payload => {
               // Cerrar al instante; toast lo da AddTaskForm (Fase 4.1).

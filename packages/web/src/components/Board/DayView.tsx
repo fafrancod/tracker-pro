@@ -47,7 +47,7 @@ import { ScheduleGrid } from './ScheduleGrid';
 import { TaskCard } from './TaskCard';
 import { AddTaskForm } from './AddTaskForm';
 import { ProgressRing } from './ProgressRing';
-import { emptyMessageKeyForCategory } from '@/lib/boardEmpty';
+import { emptyMessageKeyForFilter } from '@/lib/boardEmpty';
 
 const SLOT_KIND_OPTIONS: Array<{
   kind: TaskKind;
@@ -435,7 +435,7 @@ export function DayView({
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2 md:p-3">
             {sortedLocated.length === 0 ? (
               <p className="py-8 text-center text-sm text-text-muted">
-                {t(emptyMessageKeyForCategory(filter?.category))}
+                {t(emptyMessageKeyForFilter(filter))}
               </p>
             ) : (
               sortedLocated.map(loc => (

@@ -1,4 +1,5 @@
-import type { BoardCategoryFilter } from '@core/types';
+import type { BoardCategoryFilter, BoardTaskFilters } from '@core/types';
+import { resolvedKindGroups } from '@core/lib/boardFilters';
 import type { TKey } from '@/lib/i18n';
 
 /** Mensaje vacío del calendario según el filtro de categoría activo. */
@@ -21,6 +22,29 @@ export function emptyMessageKeyForCategory(
     case 'holidays':
       return 'empty_no_holidays';
     case 'all':
+    default:
+      return 'empty_no_tasks';
+  }
+}
+
+export function emptyMessageKeyForFilter(filters?: BoardTaskFilters | null): TKey {
+  const groups = resolvedKindGroups(filters);
+  if (groups === 'all' || groups.length !== 1) {
+    return emptyMessageKeyForCategory(filters?.category);
+  }
+  switch (groups[0]) {
+    case 'tasks':
+      return 'empty_no_projects_cat';
+    case 'events':
+      return 'empty_no_events';
+    case 'possible':
+      return 'empty_no_possible';
+    case 'habits':
+      return 'empty_no_habits';
+    case 'finances':
+      return 'empty_no_finances';
+    case 'holidays':
+      return 'empty_no_holidays';
     default:
       return 'empty_no_tasks';
   }

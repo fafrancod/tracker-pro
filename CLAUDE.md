@@ -56,7 +56,7 @@ These features are **shipped product** on `main` and must exist on **both** remo
 - Views: **`day` | `week` | `month` | `continuous`** (`settings.defaultBoardView`).
 - Week/day modes: **`list` | `schedule`** (`settings.defaultScheduleLayout`).
 - Hour grid: `settings.dayStartHour` / `dayEndHour` (default 7–22); unscheduled strip = “Sin hora”.
-- Filters: project / urgency / importance with prev/next cycle controls.
+- Filters: multi-toggle kinds (combinable) + project multi-select list; urgency/importance cycle-select.
 - Dense full-width week columns; touch-friendly targets and safe-area insets.
 
 ### Tasks

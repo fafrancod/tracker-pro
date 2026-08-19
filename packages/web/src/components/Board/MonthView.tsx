@@ -26,6 +26,7 @@ import {
 } from '@core/lib/taskPresence';
 import { isDemoMode } from '@core/lib/demoMode';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
+import { boardShowsHolidays, boardShowsTasks } from '@core/lib/boardFilters';
 import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -254,11 +255,8 @@ export function MonthView({
 
   const tasksByDay = useStore(s => s.tasksByDay);
   const allProjects = useStore(s => s.projects);
-  const showHolidays =
-    !filter?.category ||
-    filter.category === 'all' ||
-    filter.category === 'holidays';
-  const holidaysOnly = filter?.category === 'holidays';
+  const showHolidays = boardShowsHolidays(filter);
+  const holidaysOnly = !boardShowsTasks(filter);
 
   const located = useMemo(() => {
     if (holidaysOnly) return [];
