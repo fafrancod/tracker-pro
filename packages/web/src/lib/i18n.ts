@@ -1050,6 +1050,12 @@ export interface TranslationDict {
   docs_download: string;
   docs_open_tab: string;
   docs_open_task: string;
+  docs_view_grid: string;
+  docs_view_rows: string;
+  docs_expand: string;
+  docs_preview_empty: string;
+  docs_kinds_n: string;
+  docs_close_preview: string;
 
   // Círculo (personas y mascotas)
   circle_title: string;
@@ -2336,6 +2342,12 @@ const es_dict: TranslationDict = {
   docs_download: 'Descargar',
   docs_open_tab: 'Abrir en pestaña',
   docs_open_task: 'Ver tarea',
+  docs_view_grid: 'Cuadrícula',
+  docs_view_rows: 'Filas',
+  docs_expand: 'Pantalla completa',
+  docs_preview_empty: 'Selecciona un adjunto para verlo aquí.',
+  docs_kinds_n: '{n} tipos',
+  docs_close_preview: 'Cerrar vista previa',
 
   circle_title: 'Círculo',
   circle_subtitle:
@@ -3631,6 +3643,12 @@ const en_dict: TranslationDict = {
   docs_download: 'Download',
   docs_open_tab: 'Open in tab',
   docs_open_task: 'View task',
+  docs_view_grid: 'Grid',
+  docs_view_rows: 'Rows',
+  docs_expand: 'Full screen',
+  docs_preview_empty: 'Select an attachment to preview it here.',
+  docs_kinds_n: '{n} types',
+  docs_close_preview: 'Close preview',
 
   circle_title: 'Circle',
   circle_subtitle:
