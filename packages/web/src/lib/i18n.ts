@@ -661,6 +661,8 @@ export interface TranslationDict {
   project_categories_max: string;
   project_unnamed: string;
   project_categories_count: string;
+  project_subprojects: string;
+  project_no_subprojects: string;
   action_create: string;
   task_move_to: string;
   task_move_next_week: string;
@@ -1912,6 +1914,8 @@ const es_dict: TranslationDict = {
   project_categories_max: 'Hasta {n} subcategorías por proyecto',
   project_unnamed: 'Sin nombre',
   project_categories_count: '{n} subcategorías',
+  project_subprojects: 'Subproyectos',
+  project_no_subprojects: 'Aún no hay subproyectos. Añade uno abajo.',
   action_create: 'Crear',
   task_move_to: 'Mover a',
   task_move_next_week: 'Semana siguiente →',
@@ -3205,6 +3209,8 @@ const en_dict: TranslationDict = {
   project_categories_max: 'Up to {n} subcategories per project',
   project_unnamed: 'Untitled',
   project_categories_count: '{n} subcategories',
+  project_subprojects: 'Subprojects',
+  project_no_subprojects: 'No subprojects yet. Add one below.',
   action_create: 'Create',
   task_move_to: 'Move to',
   task_move_next_week: 'Next week →',

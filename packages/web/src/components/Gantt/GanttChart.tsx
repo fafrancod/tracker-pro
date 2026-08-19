@@ -7,7 +7,6 @@ import {
   ChevronRight,
   CircleDashed,
   ListTodo,
-  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
@@ -48,29 +47,6 @@ function useLabelWidth(): number {
   return mobile ? LABEL_W_MOBILE : LABEL_W_DESKTOP;
 }
 
-function EditPencil({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={e => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-background hover:text-accent-teal"
-    >
-      <Pencil className="h-3 w-3" />
-    </button>
-  );
-}
-
 function KindIcon({ kind, className }: { kind: GanttItem['kind']; className?: string }) {
   const cls = cn('h-3 w-3 shrink-0', className);
   if (kind === 'event') return <CalendarCheck className={cls} />;
@@ -89,11 +65,6 @@ export interface GanttChartProps {
   collapsed: Set<string>;
   onToggle: (key: string) => void;
   onItemClick: (item: GanttItem) => void;
-  onRenameCategory?: (
-    projectId: string,
-    categoryId: string,
-    name: string
-  ) => void;
   onEditCategory?: (payload: {
     projectId: string;
     categoryId: string;
@@ -122,7 +93,6 @@ export function GanttChart({
   collapsed,
   onToggle,
   onItemClick,
-  onRenameCategory,
   onEditCategory,
   showProjectHeaders,
   todayLabel,
@@ -134,18 +104,6 @@ export function GanttChart({
 }: GanttChartProps) {
   const { t } = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
-  const longPressRef = useRef<number | null>(null);
-  const skipClickRef = useRef(false);
-  const [editingCatKey, setEditingCatKey] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
-
-  function clearLongPress() {
-    if (longPressRef.current !== null) {
-      window.clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-    }
-  }
   const px = ganttPxPerDay(scale);
   const labelW = useLabelWidth();
   const days = ganttInclusiveDays(rangeFrom, rangeTo);
@@ -187,12 +145,6 @@ export function GanttChart({
     const left = labelW + todayOffset * px - el.clientWidth * 0.28;
     el.scrollLeft = Math.max(0, left);
   }, [labelW, todayOffset, px, todayInRange, rangeFrom, rangeTo, scale, focusNonce]);
-
-  useEffect(() => {
-    if (!editingCatKey) return;
-    renameInputRef.current?.focus();
-    renameInputRef.current?.select();
-  }, [editingCatKey]);
 
   function SummaryBar({
     start,
@@ -346,85 +298,29 @@ export function GanttChart({
                   <ChevronDown className="h-3.5 w-3.5" />
                 )}
               </button>
-              {editingCatKey === cat.key && cat.categoryId && group.projectId ? (
-                <input
-                  ref={renameInputRef}
-                  value={editingName}
-                  onChange={e => setEditingName(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      onRenameCategory?.(group.projectId!, cat.categoryId!, editingName);
-                      setEditingCatKey(null);
-                    }
-                    if (e.key === 'Escape') {
-                      setEditingCatKey(null);
-                    }
-                  }}
-                  onBlur={() => {
-                    onRenameCategory?.(group.projectId!, cat.categoryId!, editingName);
-                    setEditingCatKey(null);
-                  }}
-                  className="min-w-0 flex-1 rounded border border-accent-teal/50 bg-field px-1 py-0.5 text-[13px] font-medium text-text-primary outline-none"
-                  maxLength={40}
-                />
-              ) : (
-                <button
-                  type="button"
-                  title={
-                    cat.categoryId ? t('gantt_category_context_hint') : undefined
+              <button
+                type="button"
+                title={
+                  cat.categoryId ? t('gantt_rename_subproject') : undefined
+                }
+                onClick={e => {
+                  e.stopPropagation();
+                  if (!cat.categoryId || !group.projectId || !onEditCategory) {
+                    onToggle(cat.key);
+                    return;
                   }
-                  onContextMenu={e => {
-                    if (!cat.categoryId || !group.projectId || !onEditCategory) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onEditCategory({
-                      projectId: group.projectId,
-                      categoryId: cat.categoryId,
-                      name: cat.categoryName,
-                      urgencyColor: cat.urgencyColor,
-                      importanceColor: cat.importanceColor,
-                    });
-                  }}
-                  onPointerDown={e => {
-                    if (e.pointerType === 'mouse' || e.button !== 0) return;
-                    if (!cat.categoryId || !group.projectId || !onEditCategory) return;
-                    clearLongPress();
-                    const payload = {
-                      projectId: group.projectId,
-                      categoryId: cat.categoryId,
-                      name: cat.categoryName,
-                      urgencyColor: cat.urgencyColor,
-                      importanceColor: cat.importanceColor,
-                    };
-                    longPressRef.current = window.setTimeout(() => {
-                      longPressRef.current = null;
-                      skipClickRef.current = true;
-                      onEditCategory(payload);
-                    }, 520);
-                  }}
-                  onPointerUp={clearLongPress}
-                  onPointerCancel={clearLongPress}
-                  onPointerLeave={clearLongPress}
-                  onClick={e => {
-                    e.stopPropagation();
-                    if (skipClickRef.current) {
-                      skipClickRef.current = false;
-                      return;
-                    }
-                    if (!cat.categoryId || !group.projectId || !onRenameCategory) {
-                      onToggle(cat.key);
-                      return;
-                    }
-                    setEditingCatKey(cat.key);
-                    setEditingName(cat.categoryName);
-                  }}
-                  className="min-w-0 flex-1 truncate text-left text-[13px] font-medium hover:text-accent-teal"
-                >
-                  {cat.categoryName}
-                </button>
-              )}
+                  onEditCategory({
+                    projectId: group.projectId,
+                    categoryId: cat.categoryId,
+                    name: cat.categoryName,
+                    urgencyColor: cat.urgencyColor,
+                    importanceColor: cat.importanceColor,
+                  });
+                }}
+                className="min-w-0 flex-1 truncate text-left text-[13px] font-medium hover:text-accent-teal"
+              >
+                {cat.categoryName}
+              </button>
               {(cat.urgencyColor || cat.importanceColor) && (
                 <span className="flex shrink-0 items-center gap-0.5" aria-hidden>
                   {cat.urgencyColor ? (
@@ -443,20 +339,6 @@ export function GanttChart({
                   ) : null}
                 </span>
               )}
-              {cat.categoryId && group.projectId && onEditCategory ? (
-                <EditPencil
-                  label={t('gantt_rename_subproject')}
-                  onClick={() =>
-                    onEditCategory({
-                      projectId: group.projectId!,
-                      categoryId: cat.categoryId!,
-                      name: cat.categoryName,
-                      urgencyColor: cat.urgencyColor,
-                      importanceColor: cat.importanceColor,
-                    })
-                  }
-                />
-              ) : null}
               <span className="shrink-0 text-[10px] text-text-muted">
                 {itemsCountLabel(cat.items.length)}
               </span>
@@ -502,24 +384,22 @@ export function GanttChart({
               className="text-text-muted"
             >
               <KindIcon kind={item.kind} />
-              <span
+              <button
+                type="button"
+                title={t('action_edit')}
+                onClick={() => onItemClick(item)}
                 className={cn(
-                  'min-w-0 truncate',
+                  'min-w-0 flex-1 truncate text-left hover:text-accent-teal',
                   item.completed && 'task-completed-title opacity-60'
                 )}
-                title={item.title}
               >
                 {item.title}
-              </span>
+              </button>
               {series && seriesCountLabel ? (
                 <span className="shrink-0 text-[10px] text-text-muted">
                   {seriesCountLabel(occs.length)}
                 </span>
               ) : null}
-              <EditPencil
-                label={t('action_edit')}
-                onClick={() => onItemClick(item)}
-              />
             </LabelCell>
             <Track>
               {occs.map(occ => {

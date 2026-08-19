@@ -25,10 +25,7 @@ import {
   type LocatedTaskRow,
 } from '@core/services/taskService';
 import type { Task } from '@core/types';
-import {
-  patchProjectCategory,
-  renameProjectCategory,
-} from '@core/lib/projectCategories';
+import { patchProjectCategory } from '@core/lib/projectCategories';
 import {
   buildGanttGroups,
   ganttDisplayRange,
@@ -222,18 +219,6 @@ export function GanttPage() {
     }
   }
 
-  async function renameCategory(projectId: string, categoryId: string, name: string) {
-    const project = projects.find(p => p.id === projectId);
-    if (!project) return;
-    const next = renameProjectCategory(project.categories, categoryId, name);
-    if (!next || next === project.categories) return;
-    try {
-      await editProject(projectId, { categories: next });
-    } catch {
-      showToast(t('gantt_rename_error'), 'error');
-    }
-  }
-
   const title = scopedProject
     ? t('gantt_project_title').replace('{name}', scopedProject.name)
     : projectIdParam
@@ -342,7 +327,6 @@ export function GanttPage() {
           collapsed={collapsed}
           onToggle={toggleCollapsed}
           onItemClick={openItem}
-          onRenameCategory={renameCategory}
           onEditCategory={setCategoryEdit}
           showProjectHeaders={!projectIdParam}
           todayLabel={t('gantt_today')}
