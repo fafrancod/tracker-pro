@@ -25,6 +25,7 @@ export interface TranslationDict {
   nav_recetario: string;
   nav_finances: string;
   nav_habits: string;
+  nav_gantt: string;
 
   // Finances
   fin_add: string;
@@ -1148,6 +1149,37 @@ export interface TranslationDict {
   habits_last_30: string;
   habits_heatmap: string;
   habits_sql_needed: string;
+
+  gantt_life_title: string;
+  gantt_project_title: string;
+  gantt_scope: string;
+  gantt_horizon: string;
+  gantt_horizon_3m: string;
+  gantt_horizon_6m: string;
+  gantt_horizon_1y: string;
+  gantt_horizon_2y: string;
+  gantt_horizon_all: string;
+  gantt_scale: string;
+  gantt_scale_day: string;
+  gantt_scale_week: string;
+  gantt_scale_month: string;
+  gantt_filter_kind: string;
+  gantt_filter_all: string;
+  gantt_filter_tasks: string;
+  gantt_filter_events: string;
+  gantt_filter_possible: string;
+  gantt_show_completed: string;
+  gantt_today: string;
+  gantt_no_project: string;
+  gantt_no_subproject: string;
+  gantt_life: string;
+  gantt_loading: string;
+  gantt_load_error: string;
+  gantt_empty: string;
+  gantt_empty_hint: string;
+  gantt_items_count: string;
+  gantt_open_project: string;
+  gantt_open_life: string;
 }
 
 const es_dict: TranslationDict = {
@@ -1168,6 +1200,7 @@ const es_dict: TranslationDict = {
   nav_recetario: 'Recetario',
   nav_finances: 'Finances',
   nav_habits: 'Hábitos',
+  nav_gantt: 'Gantt',
   fin_add: 'Añadir movimiento',
   fin_edit: 'Editar movimiento',
   fin_this_month: 'Este mes',
@@ -2389,6 +2422,37 @@ const es_dict: TranslationDict = {
   habits_heatmap: 'Últimos 30 días',
   habits_sql_needed:
     'Falta una columna en Supabase (recurrence_weekdays). Ejecuta el SQL de hábitos y vuelve a intentar.',
+  gantt_life_title: 'Gantt de la vida',
+  gantt_project_title: 'Gantt · {name}',
+  gantt_scope: 'Ámbito',
+  gantt_horizon: 'Horizonte',
+  gantt_horizon_3m: '3 meses',
+  gantt_horizon_6m: '6 meses',
+  gantt_horizon_1y: '1 año',
+  gantt_horizon_2y: '2 años',
+  gantt_horizon_all: 'Todo',
+  gantt_scale: 'Escala',
+  gantt_scale_day: 'Día',
+  gantt_scale_week: 'Semana',
+  gantt_scale_month: 'Mes',
+  gantt_filter_kind: 'Tipo',
+  gantt_filter_all: 'Todos',
+  gantt_filter_tasks: 'Tareas',
+  gantt_filter_events: 'Eventos',
+  gantt_filter_possible: 'Posibles',
+  gantt_show_completed: 'Completados',
+  gantt_today: 'Hoy',
+  gantt_no_project: 'Sin proyecto',
+  gantt_no_subproject: 'Sin subproyecto',
+  gantt_life: 'Vida',
+  gantt_loading: 'Cargando Gantt…',
+  gantt_load_error: 'No pude cargar el Gantt.',
+  gantt_empty: 'No hay ítems en este horizonte',
+  gantt_empty_hint:
+    'Las tareas, recordatorios, eventos y eventos posibles aparecen aquí, agrupados por proyecto y subproyecto.',
+  gantt_items_count: '{n}',
+  gantt_open_project: 'Ver Gantt',
+  gantt_open_life: 'Gantt de la vida',
 };
 
 const en_dict: TranslationDict = {
@@ -2408,6 +2472,7 @@ const en_dict: TranslationDict = {
   nav_reflections: 'Reflections',
   nav_recetario: 'Prescriptions',
   nav_habits: 'Habits',
+  nav_gantt: 'Gantt',
   nav_finances: 'Finances',
   fin_add: 'Add entry',
   fin_edit: 'Edit entry',
@@ -3628,6 +3693,37 @@ const en_dict: TranslationDict = {
   habits_heatmap: 'Last 30 days',
   habits_sql_needed:
     'A Supabase column is missing (recurrence_weekdays). Run the habits SQL and try again.',
+  gantt_life_title: 'Life Gantt',
+  gantt_project_title: 'Gantt · {name}',
+  gantt_scope: 'Scope',
+  gantt_horizon: 'Horizon',
+  gantt_horizon_3m: '3 months',
+  gantt_horizon_6m: '6 months',
+  gantt_horizon_1y: '1 year',
+  gantt_horizon_2y: '2 years',
+  gantt_horizon_all: 'All',
+  gantt_scale: 'Scale',
+  gantt_scale_day: 'Day',
+  gantt_scale_week: 'Week',
+  gantt_scale_month: 'Month',
+  gantt_filter_kind: 'Type',
+  gantt_filter_all: 'All',
+  gantt_filter_tasks: 'Tasks',
+  gantt_filter_events: 'Events',
+  gantt_filter_possible: 'Possible',
+  gantt_show_completed: 'Completed',
+  gantt_today: 'Today',
+  gantt_no_project: 'No project',
+  gantt_no_subproject: 'No subproject',
+  gantt_life: 'Life',
+  gantt_loading: 'Loading Gantt…',
+  gantt_load_error: 'Could not load the Gantt.',
+  gantt_empty: 'No items in this horizon',
+  gantt_empty_hint:
+    'Tasks, reminders, events and possible events show up here, grouped by project and subproject.',
+  gantt_items_count: '{n}',
+  gantt_open_project: 'View Gantt',
+  gantt_open_life: 'Life Gantt',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

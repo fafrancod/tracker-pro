@@ -24,6 +24,7 @@ import { FinancesPage } from '@/pages/FinancesPage';
 import { HabitsPage } from '@/pages/HabitsPage';
 import { DocumentsPage } from '@/pages/DocumentsPage';
 import { LoginPage } from '@/pages/Login';
+import { GanttPage } from '@/pages/GanttPage';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -170,6 +171,22 @@ function App() {
                         element={
                           <RouteErrorBoundary>
                             <FinancesPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="gantt"
+                        element={
+                          <RouteErrorBoundary>
+                            <GanttPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="gantt/:projectId"
+                        element={
+                          <RouteErrorBoundary>
+                            <GanttPage />
                           </RouteErrorBoundary>
                         }
                       />

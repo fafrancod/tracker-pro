@@ -18,6 +18,7 @@ import {
   Wallet,
   Files,
   Sprout,
+  GanttChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,6 +47,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/habits', labelKey: 'nav_habits', icon: Sprout },
   { to: '/notifications', labelKey: 'nav_notifications', icon: Bell },
   { to: '/eisenhower', labelKey: 'nav_eisenhower', icon: Grid2x2 },
+  { to: '/gantt', labelKey: 'nav_gantt', icon: GanttChart },
   { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass, skipMainList: true },
   { to: '/reflections', labelKey: 'nav_reflections', icon: BookHeart },
   { to: '/recetario', labelKey: 'nav_recetario', icon: Pill },

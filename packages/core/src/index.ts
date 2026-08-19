@@ -44,6 +44,7 @@ export * from './lib/habitPlan';
 export * from './lib/steps';
 export * from './lib/taskImages';
 export * from './lib/projectCategories';
+export * from './lib/gantt';
 export * from './lib/notifications';
 export * from './lib/tags';
 export * from './lib/time';

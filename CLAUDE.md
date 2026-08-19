@@ -91,6 +91,11 @@ These features are **shipped product** on `main` and must exist on **both** remo
 
 - Labels show **Urgente e importante** / combinations (not Hacer/Planificar/Delegar/Eliminar).
 
+### Gantt
+
+- `/gantt` (life) and `/gantt/:projectId` (project). Groups: project → subcategory (subproyecto).
+- Kinds on the chart: `task` | `reminder` | `event` | `possible_event`. Bars from `day_id`…`end_day_id`.
+
 ## Testing
 
 - Strict TDD for **API**: `npm run test --workspace=packages/api`

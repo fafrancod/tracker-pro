@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FolderKanban, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { FolderKanban, GanttChart, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -71,6 +72,15 @@ export function ProjectsPage() {
       showFab
     >
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div className="mb-3 flex justify-end">
+          <Link
+            to="/gantt"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-primary hover:border-accent-teal/40 hover:bg-accent-teal/10"
+          >
+            <GanttChart className="h-3.5 w-3.5 text-accent-teal" />
+            {t('gantt_open_life')}
+          </Link>
+        </div>
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border p-12 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface text-text-muted">
@@ -97,7 +107,7 @@ export function ProjectsPage() {
                 >
                   {p.icon}
                 </span>
-                <div className="min-w-0 flex-1">
+                <Link to={`/gantt/${p.id}`} className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-text-primary">{p.name}</p>
                   <p className="truncate text-[11px] text-text-muted">
                     {(p.categories?.length ?? 0) > 0
@@ -107,10 +117,17 @@ export function ProjectsPage() {
                         ) +
                         ': ' +
                         p.categories.map(c => c.name).join(' · ')
-                      : p.color}
+                      : t('gantt_open_project')}
                   </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                </Link>
+                <div className="flex shrink-0 items-center gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+                  <Link
+                    to={`/gantt/${p.id}`}
+                    className="rounded-md p-1.5 text-text-muted hover:bg-background hover:text-accent-teal"
+                    aria-label={t('gantt_open_project')}
+                  >
+                    <GanttChart className="h-3.5 w-3.5" />
+                  </Link>
                   <button
                     onClick={() => openEdit(p)}
                     className="rounded-md p-1.5 text-text-muted hover:bg-background hover:text-text-primary"

@@ -100,6 +100,12 @@ Agents must treat the following as **in-tree product**, not optional experiments
 ### Eisenhower
 
 - Matrix page `/eisenhower`; quadrant labels = urgency×importance (not do/schedule/delegate/eliminate).
+
+### Gantt
+
+- Life chart `/gantt`: all tasks, reminders, events and possible events grouped by project → subproject (`projects.categories`).
+- Project chart `/gantt/:projectId`: same bars, grouped by subproject.
+- Horizon (3m/6m/1y/2y/all) and scale (day/week/month). No extra SQL: uses `day_id`/`end_day_id` + existing categories.
 - Series share Eisenhower classification when assigned from the matrix.
 
 ### Appearance & settings
