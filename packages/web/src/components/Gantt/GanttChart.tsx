@@ -70,6 +70,7 @@ export interface GanttChartProps {
   itemsCountLabel: (n: number) => string;
   emptyTitle: string;
   emptyHint: string;
+  seriesCountLabel?: (n: number) => string;
   /** Incrementar para re-centrar en hoy. */
   focusNonce?: number;
 }
@@ -89,6 +90,7 @@ export function GanttChart({
   itemsCountLabel,
   emptyTitle,
   emptyHint,
+  seriesCountLabel,
   focusNonce = 0,
 }: GanttChartProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -303,12 +305,24 @@ export function GanttChart({
       if (catCollapsed) continue;
 
       for (const item of cat.items) {
-        const layout = ganttBarLayout(item, rangeFrom, rangeTo, px);
         const color = ganttItemColor(item, group.projectColor);
         const dashed = item.kind === 'possible_event';
+        const occs =
+          item.occurrences.length > 0
+            ? item.occurrences
+            : [
+                {
+                  id: item.id,
+                  weekId: item.weekId,
+                  startDayId: item.startDayId,
+                  endDayId: item.endDayId,
+                  completed: item.completed,
+                },
+              ];
+        const series = Boolean(item.seriesId) && occs.length > 1;
         rows.push(
           <div
-            key={`i-${item.id}`}
+            key={`i-${item.seriesId ?? item.id}`}
             className="flex border-b border-border/40"
             style={{ height: ROW_H }}
           >
@@ -326,34 +340,53 @@ export function GanttChart({
               >
                 {item.title}
               </span>
+              {series && seriesCountLabel ? (
+                <span className="shrink-0 text-[10px] text-text-muted">
+                  {seriesCountLabel(occs.length)}
+                </span>
+              ) : null}
             </LabelCell>
             <Track>
-              {layout && (
-                <button
-                  type="button"
-                  onClick={() => onItemClick(item)}
-                  className={cn(
-                    'absolute top-1/2 flex -translate-y-1/2 items-center overflow-hidden rounded-md px-1.5 text-left text-[10px] font-medium text-white shadow-sm transition-opacity hover:opacity-90',
-                    item.completed && 'opacity-45',
-                    dashed && 'border border-dashed border-white/70 bg-transparent'
-                  )}
-                  style={{
-                    left: layout.left,
-                    width: layout.width,
-                    height: 18,
-                    backgroundColor: dashed ? `${color}33` : color,
-                    color: dashed ? color : '#fff',
-                    borderRadius: layout.clippedStart || layout.clippedEnd ? 4 : 6,
-                  }}
-                  title={`${item.title} · ${item.startDayId}${
-                    item.endDayId !== item.startDayId ? ` → ${item.endDayId}` : ''
-                  }`}
-                >
-                  {layout.width > 48 ? (
-                    <span className="truncate">{item.title}</span>
-                  ) : null}
-                </button>
-              )}
+              {occs.map(occ => {
+                const layout = ganttBarLayout(occ, rangeFrom, rangeTo, px);
+                if (!layout) return null;
+                return (
+                  <button
+                    key={occ.id}
+                    type="button"
+                    onClick={() =>
+                      onItemClick({
+                        ...item,
+                        id: occ.id,
+                        weekId: occ.weekId,
+                        startDayId: occ.startDayId,
+                        endDayId: occ.endDayId,
+                        completed: occ.completed,
+                      })
+                    }
+                    className={cn(
+                      'absolute top-1/2 flex -translate-y-1/2 items-center overflow-hidden rounded-md px-1.5 text-left text-[10px] font-medium text-white shadow-sm transition-opacity hover:opacity-90',
+                      occ.completed && 'opacity-45',
+                      dashed && 'border border-dashed border-white/70 bg-transparent'
+                    )}
+                    style={{
+                      left: layout.left,
+                      width: layout.width,
+                      height: 18,
+                      backgroundColor: dashed ? `${color}33` : color,
+                      color: dashed ? color : '#fff',
+                      borderRadius: layout.clippedStart || layout.clippedEnd ? 4 : 6,
+                    }}
+                    title={`${item.title} · ${occ.startDayId}${
+                      occ.endDayId !== occ.startDayId ? ` → ${occ.endDayId}` : ''
+                    }`}
+                  >
+                    {layout.width > 48 && occs.length === 1 ? (
+                      <span className="truncate">{item.title}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </Track>
           </div>
         );

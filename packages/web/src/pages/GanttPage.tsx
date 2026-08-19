@@ -25,6 +25,7 @@ import {
   buildGanttGroups,
   ganttDisplayRange,
   ganttHorizonWindow,
+  collapseGanttSeries,
   toGanttItem,
   type GanttHorizon,
   type GanttItem,
@@ -155,7 +156,7 @@ export function GanttPage() {
       const item = toGanttItem(row);
       if (item) items.push(item);
     }
-    return items;
+    return collapseGanttSeries(items);
   }, [located]);
 
   const groups = useMemo(
@@ -306,6 +307,7 @@ export function GanttPage() {
           itemsCountLabel={n => t('gantt_items_count').replace('{n}', String(n))}
           emptyTitle={t('gantt_empty')}
           emptyHint={t('gantt_empty_hint')}
+          seriesCountLabel={n => t('gantt_series_count').replace('{n}', String(n))}
           focusNonce={focusNonce}
         />
       </div>

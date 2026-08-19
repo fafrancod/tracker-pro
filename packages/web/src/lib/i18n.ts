@@ -1183,6 +1183,7 @@ export interface TranslationDict {
   gantt_items_count: string;
   gantt_open_project: string;
   gantt_open_life: string;
+  gantt_series_count: string;
 }
 
 const es_dict: TranslationDict = {
@@ -2459,6 +2460,7 @@ const es_dict: TranslationDict = {
   gantt_items_count: '{n}',
   gantt_open_project: 'Ver Gantt',
   gantt_open_life: 'Gantt de la vida',
+  gantt_series_count: '×{n}',
 };
 
 const en_dict: TranslationDict = {
@@ -3733,6 +3735,7 @@ const en_dict: TranslationDict = {
   gantt_items_count: '{n}',
   gantt_open_project: 'View Gantt',
   gantt_open_life: 'Life Gantt',
+  gantt_series_count: '×{n}',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

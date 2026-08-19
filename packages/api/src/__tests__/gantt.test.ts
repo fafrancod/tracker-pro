@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   kindSupportsProject,
+  collapseGanttSeries,
   buildGanttGroups,
   ganttBarLayout,
   ganttDayOffset,
@@ -34,15 +35,26 @@ function row(partial: Partial<GanttSourceRow> & Pick<GanttSourceRow, 'id' | 'tit
 }
 
 function item(partial: Partial<GanttItem> & Pick<GanttItem, 'id' | 'title' | 'kind' | 'startDayId'>): GanttItem {
+  const endDayId = partial.endDayId ?? partial.startDayId;
   return {
     completed: false,
     projectId: null,
     projectCategoryId: null,
     color: null,
     weekId: '2026-W33',
-    endDayId: partial.endDayId ?? partial.startDayId,
+    endDayId,
     startTime: null,
     endTime: null,
+    seriesId: null,
+    occurrences: [
+      {
+        id: partial.id,
+        weekId: partial.weekId ?? '2026-W33',
+        startDayId: partial.startDayId,
+        endDayId,
+        completed: partial.completed ?? false,
+      },
+    ],
     ...partial,
   };
 }
@@ -285,6 +297,73 @@ describe('buildGanttGroups', () => {
       { unlabeledCategory: 'Sin subproyecto' }
     );
     expect(groups[0].categories[0].categoryName).toBe('Sin subproyecto');
+  });
+});
+
+describe('collapseGanttSeries', () => {
+  it('una serie semanal es una sola fila con N barras', () => {
+    const rows = [
+      item({
+        id: 'a',
+        title: 'Standup',
+        kind: 'event',
+        startDayId: '2026-08-03',
+        seriesId: 'ser-1',
+      }),
+      item({
+        id: 'b',
+        title: 'Standup',
+        kind: 'event',
+        startDayId: '2026-08-10',
+        seriesId: 'ser-1',
+      }),
+      item({
+        id: 'c',
+        title: 'Standup',
+        kind: 'event',
+        startDayId: '2026-08-17',
+        seriesId: 'ser-1',
+        completed: true,
+      }),
+      item({
+        id: 'solo',
+        title: 'Única',
+        kind: 'task',
+        startDayId: '2026-08-04',
+      }),
+    ];
+    const collapsed = collapseGanttSeries(rows);
+    expect(collapsed).toHaveLength(2);
+    const series = collapsed.find(i => i.seriesId === 'ser-1')!;
+    expect(series.occurrences).toHaveLength(3);
+    expect(series.startDayId).toBe('2026-08-03');
+    expect(series.endDayId).toBe('2026-08-17');
+    expect(series.completed).toBe(false);
+    expect(collapsed.find(i => i.id === 'solo')).toBeTruthy();
+  });
+
+  it('ocultar completados deja la serie si queda alguna abierta', () => {
+    const collapsed = collapseGanttSeries([
+      item({
+        id: 'a',
+        title: 'Pago',
+        kind: 'task',
+        startDayId: '2026-07-01',
+        seriesId: 'rent',
+        completed: true,
+      }),
+      item({
+        id: 'b',
+        title: 'Pago',
+        kind: 'task',
+        startDayId: '2026-08-01',
+        seriesId: 'rent',
+      }),
+    ]);
+    const groups = buildGanttGroups(collapsed, [], { includeCompleted: false });
+    expect(groups[0].categories[0].items).toHaveLength(1);
+    expect(groups[0].categories[0].items[0].occurrences).toHaveLength(1);
+    expect(groups[0].categories[0].items[0].occurrences[0].id).toBe('b');
   });
 });
 

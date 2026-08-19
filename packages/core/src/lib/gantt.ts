@@ -39,6 +39,15 @@ export interface GanttSourceRow {
   endDayId?: string | null;
   startTime?: string | null;
   endTime?: string | null;
+  seriesId?: string | null;
+}
+
+export interface GanttOccurrence {
+  id: string;
+  weekId: string;
+  startDayId: string;
+  endDayId: string;
+  completed: boolean;
 }
 
 export interface GanttItem {
@@ -54,6 +63,8 @@ export interface GanttItem {
   endDayId: string;
   startTime: string | null;
   endTime: string | null;
+  seriesId: string | null;
+  occurrences: GanttOccurrence[];
 }
 
 export interface GanttCategoryGroup {
@@ -119,6 +130,13 @@ export function toGanttItem(row: GanttSourceRow): GanttItem | null {
   const start = row.dayId;
   if (!start) return null;
   const end = row.endDayId && row.endDayId >= start ? row.endDayId : start;
+  const occ: GanttOccurrence = {
+    id: row.id,
+    weekId: row.weekId,
+    startDayId: start,
+    endDayId: end,
+    completed: row.completed,
+  };
   return {
     id: row.id,
     title: row.title,
@@ -132,7 +150,75 @@ export function toGanttItem(row: GanttSourceRow): GanttItem | null {
     endDayId: end,
     startTime: row.startTime ?? null,
     endTime: row.endTime ?? null,
+    seriesId: row.seriesId ?? null,
+    occurrences: [occ],
   };
+}
+
+function occurrenceOf(item: GanttItem): GanttOccurrence {
+  return (
+    item.occurrences[0] ?? {
+      id: item.id,
+      weekId: item.weekId,
+      startDayId: item.startDayId,
+      endDayId: item.endDayId,
+      completed: item.completed,
+    }
+  );
+}
+
+/**
+ * Una fila por serie recurrente. Las instancias sueltas (sin seriesId) no se fusionan.
+ * En la fila quedan N barras (`occurrences`), no N filas.
+ */
+export function collapseGanttSeries(items: GanttItem[]): GanttItem[] {
+  const singles: GanttItem[] = [];
+  const bySeries = new Map<string, GanttItem[]>();
+  for (const item of items) {
+    if (!item.seriesId) {
+      singles.push(item.occurrences.length ? item : { ...item, occurrences: [occurrenceOf(item)] });
+      continue;
+    }
+    const list = bySeries.get(item.seriesId) ?? [];
+    list.push(item);
+    bySeries.set(item.seriesId, list);
+  }
+
+  const collapsed: GanttItem[] = [];
+  for (const group of bySeries.values()) {
+    const occs = group
+      .flatMap(i => (i.occurrences.length ? i.occurrences : [occurrenceOf(i)]))
+      .sort(
+        (a, b) =>
+          a.startDayId.localeCompare(b.startDayId) ||
+          a.endDayId.localeCompare(b.endDayId) ||
+          a.id.localeCompare(b.id)
+      );
+    const seen = new Set<string>();
+    const unique: GanttOccurrence[] = [];
+    for (const occ of occs) {
+      if (seen.has(occ.id)) continue;
+      seen.add(occ.id);
+      unique.push(occ);
+    }
+    const first = unique[0];
+    const last = unique[unique.length - 1];
+    const open = unique.find(o => !o.completed);
+    const representative =
+      group.find(i => i.id === (open ?? first).id) ?? group[0];
+    collapsed.push({
+      ...representative,
+      id: representative.id,
+      weekId: (open ?? first).weekId,
+      startDayId: first.startDayId,
+      endDayId: last.endDayId,
+      completed: unique.every(o => o.completed),
+      seriesId: representative.seriesId,
+      occurrences: unique,
+    });
+  }
+
+  return [...singles, ...collapsed];
 }
 
 export function ganttDayOffset(fromDayId: string, dayId: string): number {
@@ -321,15 +407,33 @@ export function buildGanttGroups(
   const kindSet = opts?.kinds ? new Set(opts.kinds) : null;
   const scopedProjectId = opts?.projectId;
 
-  const filtered = items.filter(item => {
-    if (kindSet && !kindSet.has(item.kind)) return false;
-    if (!includeCompleted && item.completed) return false;
+  const filtered: GanttItem[] = [];
+  for (const raw of items) {
+    if (kindSet && !kindSet.has(raw.kind)) continue;
     if (scopedProjectId !== undefined) {
-      if (scopedProjectId === null) return item.projectId === null;
-      return item.projectId === scopedProjectId;
+      if (scopedProjectId === null && raw.projectId !== null) continue;
+      if (scopedProjectId !== null && raw.projectId !== scopedProjectId) continue;
     }
-    return true;
-  });
+    let item = raw;
+    if (!includeCompleted) {
+      const occs = (item.occurrences.length ? item.occurrences : [occurrenceOf(item)]).filter(
+        o => !o.completed
+      );
+      if (occs.length === 0) continue;
+      const first = occs[0];
+      const last = occs[occs.length - 1];
+      item = {
+        ...item,
+        occurrences: occs,
+        startDayId: first.startDayId,
+        endDayId: last.endDayId,
+        completed: false,
+        id: occs.find(o => o.id === item.id)?.id ?? first.id,
+        weekId: first.weekId,
+      };
+    }
+    filtered.push(item);
+  }
 
   const projectById = new Map(projects.map(p => [p.id, p]));
 
