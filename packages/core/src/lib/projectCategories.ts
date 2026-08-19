@@ -76,3 +76,45 @@ export function resolveProjectCategoryId(
   if (!project || !categoryId) return null;
   return project.categories?.some(c => c.id === categoryId) ? categoryId : null;
 }
+
+/**
+ * Renombra un subproyecto. `null` si el nombre está vacío, no existe el id
+ * o choca con otro nombre del mismo proyecto.
+ */
+export function renameProjectCategory(
+  categories: ProjectCategory[],
+  categoryId: string,
+  name: string
+): ProjectCategory[] | null {
+  const trimmed = name.trim().slice(0, 40);
+  if (!trimmed) return null;
+  const current = categories.find(c => c.id === categoryId);
+  if (!current) return null;
+  if (current.name === trimmed) return categories;
+  const clash = categories.some(
+    c => c.id !== categoryId && c.name.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (clash) return null;
+  return categories.map(c => (c.id === categoryId ? { ...c, name: trimmed } : c));
+}
+
+/** Añade un subproyecto. `null` si el nombre no vale o se llegó al tope. */
+export function appendProjectCategory(
+  categories: ProjectCategory[],
+  name: string
+): { categories: ProjectCategory[]; id: string } | null {
+  const trimmed = name.trim().slice(0, 40);
+  if (!trimmed) return null;
+  if (categories.length >= MAX_PROJECT_CATEGORIES) return null;
+  if (categories.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
+    return null;
+  }
+  const id = newProjectCategoryId();
+  return {
+    id,
+    categories: normalizeProjectCategories([
+      ...categories,
+      { id, name: trimmed, order: categories.length },
+    ]),
+  };
+}

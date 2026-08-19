@@ -61,7 +61,11 @@ import {
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
 import { kindSupportsSteps } from '@core/lib/steps';
-import { kindSupportsProject } from '@core/lib/projectCategories';
+import {
+  appendProjectCategory,
+  kindSupportsProject,
+} from '@core/lib/projectCategories';
+import { useProjects } from '@core/hooks/useProjects';
 import { useSettings } from '@/contexts/SettingsContext';
 import {
   contactHandles,
@@ -179,6 +183,7 @@ export function AddTaskForm({
   const { t } = useT();
   const { showToast } = useToast();
   const { settings } = useSettings();
+  const { editProject } = useProjects();
   const resolvedInitialEnd =
     initialEndTime ?? (initialStartTime ? defaultEndFromStart(initialStartTime) : '');
   const [open, setOpen] = useState(startOpen);
@@ -190,6 +195,7 @@ export function AddTaskForm({
       : null;
   const [projectId, setProjectId] = useState<string | null>(defaultProjectId);
   const [projectCategoryId, setProjectCategoryId] = useState<string | null>(null);
+  const [newSubprojectName, setNewSubprojectName] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [recurrenceFrequency, setRecurrenceFrequency] = useState<RecurrenceFrequency>('none');
   const [recurrenceInterval, setRecurrenceInterval] = useState(1);
@@ -365,10 +371,26 @@ export function AddTaskForm({
     projectInitRef.current = true;
   }, [projects, settings.defaultProjectId]);
 
+  async function addSubproject() {
+    if (!projectId) return;
+    const selected = projects.find(p => p.id === projectId);
+    if (!selected) return;
+    const added = appendProjectCategory(selected.categories, newSubprojectName);
+    if (!added) return;
+    try {
+      await editProject(projectId, { categories: added.categories });
+      setProjectCategoryId(added.id);
+      setNewSubprojectName('');
+    } catch {
+      showToast(t('gantt_rename_error'), 'error');
+    }
+  }
+
   function resetForm() {
     setTitle('');
     setProjectId(defaultProjectId);
     setProjectCategoryId(null);
+    setNewSubprojectName('');
     setPriority('medium');
     setRecurrenceFrequency('none');
     setRecurrenceInterval(1);
@@ -922,49 +944,89 @@ export function AddTaskForm({
                   {t('task_project_label')}
                 </p>
               )}
-              <div className={cn('flex flex-wrap items-center gap-2', isModal && 'gap-3')}>
-                <SimpleSelect
-                  value={projectId ?? ''}
-                  onChange={value => {
-                    const next = value || null;
-                    setProjectId(next);
-                    setProjectCategoryId(null);
-                  }}
-                  className={cn(
-                    'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-                    isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
-                  )}
-                  options={[
-                    { value: '', label: t('task_no_project') },
-                    ...projects.map(project => ({
-                      value: project.id,
-                      label: `${project.icon} ${project.name}`,
-                    })),
-                  ]}
-                />
-                {(() => {
-                  const selectedProject = projects.find(p => p.id === projectId);
-                  const cats = selectedProject?.categories ?? [];
-                  if (!projectId || cats.length === 0) return null;
-                  return (
-                    <SimpleSelect
-                      value={projectCategoryId ?? ''}
-                      onChange={value => setProjectCategoryId(value || null)}
-                      className={cn(
-                        'min-w-0 flex-1 rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
-                        isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
-                      )}
-                      options={[
-                        { value: '', label: t('task_no_category') },
-                        ...cats.map(c => ({
-                          value: c.id,
-                          label: c.name,
-                        })),
-                      ]}
-                    />
-                  );
-                })()}
-              </div>
+              <SimpleSelect
+                value={projectId ?? ''}
+                onChange={value => {
+                  const next = value || null;
+                  setProjectId(next);
+                  setProjectCategoryId(null);
+                  setNewSubprojectName('');
+                }}
+                className={cn(
+                  'min-w-0 w-full rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+                  isModal ? 'px-3 py-2.5 text-sm' : 'px-1.5 py-1 text-xs rounded border'
+                )}
+                options={[
+                  { value: '', label: t('task_no_project') },
+                  ...projects.map(project => ({
+                    value: project.id,
+                    label: `${project.icon} ${project.name}`,
+                  })),
+                ]}
+              />
+              {projectId
+                ? (() => {
+                    const selectedProject = projects.find(p => p.id === projectId);
+                    const cats = selectedProject?.categories ?? [];
+                    return (
+                      <div
+                        className={cn(
+                          'space-y-1.5 rounded-lg border border-accent-teal/25 bg-accent-teal/5',
+                          isModal ? 'p-3' : 'p-2'
+                        )}
+                      >
+                        <p className="text-[11px] font-medium text-text-primary">
+                          {t('task_subproject_optional')}
+                        </p>
+                        <p className="text-[10px] text-text-muted">
+                          {t('task_subproject_hint')}
+                        </p>
+                        {cats.length > 0 && (
+                          <SimpleSelect
+                            value={projectCategoryId ?? ''}
+                            onChange={value => setProjectCategoryId(value || null)}
+                            className={cn(
+                              'min-w-0 w-full rounded-lg border border-border bg-field text-text-primary focus:outline-none focus:ring-1 focus:ring-ring',
+                              isModal
+                                ? 'px-3 py-2.5 text-sm'
+                                : 'px-1.5 py-1 text-xs rounded border'
+                            )}
+                            options={[
+                              { value: '', label: t('task_no_category') },
+                              ...cats.map(c => ({
+                                value: c.id,
+                                label: c.name,
+                              })),
+                            ]}
+                          />
+                        )}
+                        <div className="flex gap-1.5">
+                          <Input
+                            value={newSubprojectName}
+                            onChange={e => setNewSubprojectName(e.target.value)}
+                            placeholder={t('task_subproject_add_ph')}
+                            maxLength={40}
+                            className={cn(isModal ? 'h-9 text-sm' : 'h-8 text-xs')}
+                            onKeyDown={e => {
+                              if (e.key !== 'Enter') return;
+                              e.preventDefault();
+                              void addSubproject();
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={!newSubprojectName.trim()}
+                            onClick={() => void addSubproject()}
+                          >
+                            {t('task_subproject_add')}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()
+                : null}
             </div>
           ) : null
         }

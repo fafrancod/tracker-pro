@@ -9,6 +9,7 @@ import {
   ListTodo,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/hooks/useT';
 import { civilDateFromDayId } from '@core/lib/civilDate';
 import {
   ganttBarLayout,
@@ -64,6 +65,11 @@ export interface GanttChartProps {
   collapsed: Set<string>;
   onToggle: (key: string) => void;
   onItemClick: (item: GanttItem) => void;
+  onRenameCategory?: (
+    projectId: string,
+    categoryId: string,
+    name: string
+  ) => void;
   /** En vista vida, mostrar cabecera de proyecto. En vista proyecto, solo subproyectos. */
   showProjectHeaders: boolean;
   todayLabel: string;
@@ -85,6 +91,7 @@ export function GanttChart({
   collapsed,
   onToggle,
   onItemClick,
+  onRenameCategory,
   showProjectHeaders,
   todayLabel,
   itemsCountLabel,
@@ -93,7 +100,11 @@ export function GanttChart({
   seriesCountLabel,
   focusNonce = 0,
 }: GanttChartProps) {
+  const { t } = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const [editingCatKey, setEditingCatKey] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
   const px = ganttPxPerDay(scale);
   const labelW = useLabelWidth();
   const days = ganttInclusiveDays(rangeFrom, rangeTo);
@@ -135,6 +146,12 @@ export function GanttChart({
     const left = labelW + todayOffset * px - el.clientWidth * 0.28;
     el.scrollLeft = Math.max(0, left);
   }, [labelW, todayOffset, px, todayInRange, rangeFrom, rangeTo, scale, focusNonce]);
+
+  useEffect(() => {
+    if (!editingCatKey) return;
+    renameInputRef.current?.focus();
+    renameInputRef.current?.select();
+  }, [editingCatKey]);
 
   function SummaryBar({
     start,
@@ -275,23 +292,64 @@ export function GanttChart({
             indent={showProjectHeaders ? 12 : 0}
             className="text-text-primary"
           >
-            <button
-              type="button"
-              onClick={() => onToggle(cat.key)}
-              className="flex min-w-0 flex-1 items-center gap-1 text-left"
-            >
-              {catCollapsed ? (
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onToggle(cat.key)}
+                className="flex shrink-0 items-center text-text-muted"
+                aria-label={catCollapsed ? t('gantt_expand') : t('gantt_collapse')}
+              >
+                {catCollapsed ? (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+              </button>
+              {editingCatKey === cat.key && cat.categoryId && group.projectId ? (
+                <input
+                  ref={renameInputRef}
+                  value={editingName}
+                  onChange={e => setEditingName(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      onRenameCategory?.(group.projectId!, cat.categoryId!, editingName);
+                      setEditingCatKey(null);
+                    }
+                    if (e.key === 'Escape') {
+                      setEditingCatKey(null);
+                    }
+                  }}
+                  onBlur={() => {
+                    onRenameCategory?.(group.projectId!, cat.categoryId!, editingName);
+                    setEditingCatKey(null);
+                  }}
+                  className="min-w-0 flex-1 rounded border border-accent-teal/50 bg-field px-1 py-0.5 text-[13px] font-medium text-text-primary outline-none"
+                  maxLength={40}
+                />
               ) : (
-                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                <button
+                  type="button"
+                  title={cat.categoryId ? t('gantt_rename_subproject') : undefined}
+                  onClick={e => {
+                    e.stopPropagation();
+                    if (!cat.categoryId || !group.projectId || !onRenameCategory) {
+                      onToggle(cat.key);
+                      return;
+                    }
+                    setEditingCatKey(cat.key);
+                    setEditingName(cat.categoryName);
+                  }}
+                  className="min-w-0 flex-1 truncate text-left text-[13px] font-medium hover:text-accent-teal"
+                >
+                  {cat.categoryName}
+                </button>
               )}
-              <span className="min-w-0 truncate text-[13px] font-medium">
-                {cat.categoryName}
-              </span>
               <span className="shrink-0 text-[10px] text-text-muted">
                 {itemsCountLabel(cat.items.length)}
               </span>
-            </button>
+            </div>
           </LabelCell>
           <Track>
             <SummaryBar

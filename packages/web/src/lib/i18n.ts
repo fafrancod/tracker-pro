@@ -1186,6 +1186,14 @@ export interface TranslationDict {
   gantt_open_project: string;
   gantt_open_life: string;
   gantt_series_count: string;
+  gantt_rename_subproject: string;
+  gantt_rename_error: string;
+  gantt_expand: string;
+  gantt_collapse: string;
+  task_subproject_optional: string;
+  task_subproject_hint: string;
+  task_subproject_add: string;
+  task_subproject_add_ph: string;
 }
 
 const es_dict: TranslationDict = {
@@ -2465,6 +2473,15 @@ const es_dict: TranslationDict = {
   gantt_open_project: 'Ver Gantt',
   gantt_open_life: 'Gantt de la vida',
   gantt_series_count: '×{n}',
+  gantt_rename_subproject: 'Cambiar nombre del subproyecto',
+  gantt_rename_error: 'No pude renombrar el subproyecto.',
+  gantt_expand: 'Expandir',
+  gantt_collapse: 'Contraer',
+  task_subproject_optional: 'Subproyecto (opcional)',
+  task_subproject_hint:
+    'Si encaja en un subproyecto, asígnalo ahora. Puedes dejarlo vacío.',
+  task_subproject_add: 'Añadir',
+  task_subproject_add_ph: 'Nuevo subproyecto…',
 };
 
 const en_dict: TranslationDict = {
@@ -3742,6 +3759,15 @@ const en_dict: TranslationDict = {
   gantt_open_project: 'View Gantt',
   gantt_open_life: 'Life Gantt',
   gantt_series_count: '×{n}',
+  gantt_rename_subproject: 'Rename subproject',
+  gantt_rename_error: 'Could not rename the subproject.',
+  gantt_expand: 'Expand',
+  gantt_collapse: 'Collapse',
+  task_subproject_optional: 'Subproject (optional)',
+  task_subproject_hint:
+    'If this belongs to a subproject, assign it now. You can leave it empty.',
+  task_subproject_add: 'Add',
+  task_subproject_add_ph: 'New subproject…',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

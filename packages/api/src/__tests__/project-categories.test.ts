@@ -2,6 +2,10 @@
  * Subcategorías de proyecto + enlace en tareas.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  appendProjectCategory,
+  renameProjectCategory,
+} from '@daily-tracker/core';
 import request from 'supertest';
 import { buildApp } from '../app.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
@@ -128,6 +132,30 @@ beforeEach(() => {
       return chainEqMaybeSingle({ data: null, error: null });
     }),
   } as unknown as ReturnType<typeof getSupabaseAdmin>);
+});
+
+describe('renameProjectCategory / appendProjectCategory', () => {
+  const cats = [
+    { id: 'curso', name: 'Curso', order: 0 },
+    { id: 'otro', name: 'Otro', order: 1 },
+  ];
+
+  it('renombra sin perder el id', () => {
+    const next = renameProjectCategory(cats, 'curso', '  Curso de producción  ');
+    expect(next?.find(c => c.id === 'curso')?.name).toBe('Curso de producción');
+    expect(next).toHaveLength(2);
+  });
+
+  it('rechaza nombre vacío o duplicado', () => {
+    expect(renameProjectCategory(cats, 'curso', '   ')).toBeNull();
+    expect(renameProjectCategory(cats, 'curso', 'Otro')).toBeNull();
+  });
+
+  it('añade un subproyecto nuevo', () => {
+    const added = appendProjectCategory(cats, 'Migración');
+    expect(added?.categories.map(c => c.name)).toContain('Migración');
+    expect(added?.id).toBeTruthy();
+  });
 });
 
 describe('project categories', () => {

@@ -21,6 +21,7 @@ import {
   type LocatedTaskRow,
 } from '@core/services/taskService';
 import type { Task } from '@core/types';
+import { renameProjectCategory } from '@core/lib/projectCategories';
 import {
   buildGanttGroups,
   ganttDisplayRange,
@@ -75,7 +76,7 @@ export function GanttPage() {
   const navigate = useNavigate();
   const { t, locale } = useT();
   const { settings } = useSettings();
-  const { projects } = useProjects();
+  const { projects, editProject } = useProjects();
   const { showToast } = useToast();
   const uid = useStore(s => s.uid);
   const tasksByDay = useStore(s => s.tasksByDay);
@@ -194,6 +195,18 @@ export function GanttPage() {
     setDetailTask({ weekId: item.weekId, dayId: item.startDayId, taskId: item.id });
   }
 
+  async function renameCategory(projectId: string, categoryId: string, name: string) {
+    const project = projects.find(p => p.id === projectId);
+    if (!project) return;
+    const next = renameProjectCategory(project.categories, categoryId, name);
+    if (!next || next === project.categories) return;
+    try {
+      await editProject(projectId, { categories: next });
+    } catch {
+      showToast(t('gantt_rename_error'), 'error');
+    }
+  }
+
   const title = scopedProject
     ? t('gantt_project_title').replace('{name}', scopedProject.name)
     : projectIdParam
@@ -302,6 +315,7 @@ export function GanttPage() {
           collapsed={collapsed}
           onToggle={toggleCollapsed}
           onItemClick={openItem}
+          onRenameCategory={renameCategory}
           showProjectHeaders={!projectIdParam}
           todayLabel={t('gantt_today')}
           itemsCountLabel={n => t('gantt_items_count').replace('{n}', String(n))}
