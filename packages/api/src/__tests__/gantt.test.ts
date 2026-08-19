@@ -270,6 +270,34 @@ describe('buildGanttGroups', () => {
     expect(groups[0].categories[0].items[0].title).toBe('Inventario reportes');
   });
 
+  it('projectIds: varios proyectos + sin proyecto', () => {
+    const groups = buildGanttGroups(items, [cerebro, amsa], {
+      projectIds: ['cs', '__none__'],
+    });
+    expect(groups.map(g => g.projectId)).toEqual(['cs', null]);
+    expect(groups[0].itemCount).toBe(4);
+    expect(groups[1].categories[0].items[0].id).toBe('loose');
+  });
+
+  it('projectIds all equivale a no filtrar', () => {
+    const all = buildGanttGroups(items, [cerebro, amsa], { projectIds: 'all' });
+    const none = buildGanttGroups(items, [cerebro, amsa]);
+    expect(all.map(g => g.projectId)).toEqual(none.map(g => g.projectId));
+  });
+
+  it('projectIds vacío no muestra nada', () => {
+    expect(buildGanttGroups(items, [cerebro, amsa], { projectIds: [] })).toEqual([]);
+  });
+
+  it('projectIds gana sobre projectId', () => {
+    const groups = buildGanttGroups(items, [cerebro, amsa], {
+      projectId: 'amsa',
+      projectIds: ['cs'],
+    });
+    expect(groups).toHaveLength(1);
+    expect(groups[0].projectId).toBe('cs');
+  });
+
   it('filtra tipos y completados', () => {
     const onlyEvents = buildGanttGroups(items, [cerebro, amsa], {
       kinds: ['event', 'possible_event'],

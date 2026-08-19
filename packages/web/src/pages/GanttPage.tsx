@@ -7,6 +7,7 @@ import {
   GanttCategoryDialog,
   type GanttCategoryEditValue,
 } from '@/components/Gantt/GanttCategoryDialog';
+import { GanttProjectPicker } from '@/components/Gantt/GanttProjectPicker';
 import { TaskDetailSheet } from '@/components/Board';
 import { CycleSelect } from '@/components/ui/cycle-select';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,7 @@ import {
   type LocatedTaskRow,
 } from '@core/services/taskService';
 import type { Task } from '@core/types';
+import { BOARD_NO_PROJECT } from '@core/lib/boardFilters';
 import { patchProjectCategory } from '@core/lib/projectCategories';
 import {
   buildGanttGroups,
@@ -38,8 +40,6 @@ import {
   type GanttKind,
   type GanttScale,
 } from '@core/lib/gantt';
-
-const LIFE_SCOPE = '__life__';
 
 type KindFilter = 'all' | 'tasks' | 'events' | 'possible';
 
@@ -98,16 +98,31 @@ export function GanttPage() {
   const [categoryEdit, setCategoryEdit] = useState<GanttCategoryEditValue | null>(
     null
   );
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[] | 'all'>(
+    () => (projectIdParam ? [projectIdParam] : 'all')
+  );
 
   const todayId = useMemo(
     () => todayDayId(settings.timezone),
     [settings.timezone]
   );
 
-  const scopedProject = projectIdParam
-    ? projects.find(p => p.id === projectIdParam) ?? null
-    : null;
-  const scopedProjectId = projectIdParam ?? undefined;
+  useEffect(() => {
+    if (!projectIdParam) return;
+    setSelectedProjectIds(prev => {
+      if (prev !== 'all' && prev.length === 1 && prev[0] === projectIdParam) {
+        return prev;
+      }
+      return [projectIdParam];
+    });
+  }, [projectIdParam]);
+
+  function onProjectFilterChange(next: string[] | 'all') {
+    setSelectedProjectIds(next);
+    if (next === 'all' && projectIdParam) {
+      navigate('/gantt', { replace: true });
+    }
+  }
 
   const fetchWindow = useMemo(
     () => ganttHorizonWindow(todayId, horizon),
@@ -123,7 +138,7 @@ export function GanttPage() {
     try {
       const rows = fetchWindow
         ? await fetchTasksInRange(uid, fetchWindow.from, fetchWindow.to)
-        : await fetchAllTasks(uid, scopedProjectId ? { projectId: scopedProjectId } : undefined);
+        : await fetchAllTasks(uid);
       setRemoteRows(rows);
       mergeLocatedRowsIntoStore(rows);
     } catch (err) {
@@ -132,7 +147,7 @@ export function GanttPage() {
     } finally {
       setLoading(false);
     }
-  }, [uid, fetchWindow, scopedProjectId, showToast, t]);
+  }, [uid, fetchWindow, showToast, t]);
 
   useEffect(() => {
     void load();
@@ -160,13 +175,13 @@ export function GanttPage() {
   const groups = useMemo(
     () =>
       buildGanttGroups(ganttItems, projects, {
-        projectId: scopedProjectId,
+        projectIds: selectedProjectIds,
         kinds: KIND_MAP[kindFilter],
         includeCompleted,
         unlabeledProject: t('gantt_no_project'),
         unlabeledCategory: t('gantt_no_subproject'),
       }),
-    [ganttItems, projects, scopedProjectId, kindFilter, includeCompleted, t]
+    [ganttItems, projects, selectedProjectIds, kindFilter, includeCompleted, t]
   );
 
   const visibleItems = useMemo(
@@ -209,17 +224,32 @@ export function GanttPage() {
     }
   }
 
-  const title = scopedProject
-    ? t('gantt_project_title').replace('{name}', scopedProject.name)
-    : projectIdParam
-      ? t('gantt_project_title').replace('{name}', t('gantt_no_project'))
-      : t('gantt_life_title');
+  const title = (() => {
+    if (selectedProjectIds === 'all' || selectedProjectIds.length === 0) {
+      return t('gantt_life_title');
+    }
+    if (selectedProjectIds.length === 1) {
+      const id = selectedProjectIds[0];
+      if (id === BOARD_NO_PROJECT) {
+        return t('gantt_project_title').replace('{name}', t('gantt_no_project'));
+      }
+      const named = projects.find(p => p.id === id);
+      return t('gantt_project_title').replace(
+        '{name}',
+        named?.name ?? t('gantt_no_project')
+      );
+    }
+    return t('gantt_project_title').replace(
+      '{name}',
+      t('board_filter_projects_n').replace(
+        '{n}',
+        String(selectedProjectIds.length)
+      )
+    );
+  })();
 
-  const scopeValue = projectIdParam ?? LIFE_SCOPE;
-  const scopeOptions = [
-    { value: LIFE_SCOPE, label: t('gantt_life') },
-    ...projects.map(p => ({ value: p.id, label: p.name })),
-  ];
+  const singleProjectScope =
+    selectedProjectIds !== 'all' && selectedProjectIds.length === 1;
 
   const kindOptions: Array<{ value: KindFilter; label: string }> = [
     { value: 'all', label: t('gantt_filter_all') },
@@ -232,16 +262,6 @@ export function GanttPage() {
     <Layout title={title} showFab={false}>
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2 md:px-4">
-          <CycleSelect
-            aria-label={t('gantt_scope')}
-            value={scopeValue}
-            options={scopeOptions}
-            onChange={v => {
-              if (v === LIFE_SCOPE) navigate('/gantt');
-              else navigate(`/gantt/${v}`);
-            }}
-            selectClassName="max-w-[180px]"
-          />
           <CycleSelect
             aria-label={t('gantt_horizon')}
             value={horizon}
@@ -295,7 +315,7 @@ export function GanttPage() {
             {t('gantt_show_completed')}
           </label>
           {loading && <Loader2 className="h-4 w-4 animate-spin text-text-muted" />}
-          <div className="ml-auto">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
@@ -304,6 +324,11 @@ export function GanttPage() {
             >
               {t('gantt_today')}
             </Button>
+            <GanttProjectPicker
+              projects={projects}
+              selected={selectedProjectIds}
+              onChange={onProjectFilterChange}
+            />
           </div>
         </div>
 
@@ -318,7 +343,7 @@ export function GanttPage() {
           onToggle={toggleCollapsed}
           onItemClick={openItem}
           onEditCategory={setCategoryEdit}
-          showProjectHeaders={!projectIdParam}
+          showProjectHeaders={!singleProjectScope}
           todayLabel={t('gantt_today')}
           itemsCountLabel={n => t('gantt_items_count').replace('{n}', String(n))}
           emptyTitle={t('gantt_empty')}

@@ -3,6 +3,7 @@ import { civilDateFromDayId } from './civilDate';
 import { isFinanceKind } from './financeKinds';
 import { isHabitKind } from './habits';
 import { isRxKind } from './rx';
+import { BOARD_NO_PROJECT } from './boardFilters';
 import type { Project, TaskKind } from '../types';
 
 /** Ítems que viven en la carta Gantt (planificación). */
@@ -403,11 +404,34 @@ function sortItems(items: GanttItem[]): GanttItem[] {
   );
 }
 
+function ganttProjectKey(projectId: string | null): string {
+  return projectId ?? BOARD_NO_PROJECT;
+}
+
+function itemMatchesProjectScope(
+  item: GanttItem,
+  opts?: {
+    projectId?: string | null;
+    projectIds?: string[] | 'all';
+  }
+): boolean {
+  if (opts?.projectIds !== undefined) {
+    if (opts.projectIds === 'all') return true;
+    return opts.projectIds.includes(ganttProjectKey(item.projectId));
+  }
+  const scopedProjectId = opts?.projectId;
+  if (scopedProjectId === undefined) return true;
+  if (scopedProjectId === null) return item.projectId === null;
+  return item.projectId === scopedProjectId;
+}
+
 export function buildGanttGroups(
   items: GanttItem[],
   projects: Project[],
   opts?: {
     projectId?: string | null;
+    /** Multi-select. `'all'` = sin filtro. `[]` = ninguno. Gana sobre `projectId`. */
+    projectIds?: string[] | 'all';
     kinds?: readonly GanttKind[];
     includeCompleted?: boolean;
     unlabeledProject?: string;
@@ -418,15 +442,11 @@ export function buildGanttGroups(
   const unlabeledCategory = opts?.unlabeledCategory ?? UNLABELED_CATEGORY;
   const includeCompleted = opts?.includeCompleted ?? true;
   const kindSet = opts?.kinds ? new Set(opts.kinds) : null;
-  const scopedProjectId = opts?.projectId;
 
   const filtered: GanttItem[] = [];
   for (const raw of items) {
     if (kindSet && !kindSet.has(raw.kind)) continue;
-    if (scopedProjectId !== undefined) {
-      if (scopedProjectId === null && raw.projectId !== null) continue;
-      if (scopedProjectId !== null && raw.projectId !== scopedProjectId) continue;
-    }
+    if (!itemMatchesProjectScope(raw, opts)) continue;
     let item = raw;
     if (!includeCompleted) {
       const occs = (item.occurrences.length ? item.occurrences : [occurrenceOf(item)]).filter(
@@ -458,7 +478,7 @@ export function buildGanttGroups(
   const projMap = new Map<string, ProjBucket>();
 
   for (const item of filtered) {
-    const pKey = item.projectId ?? '__none__';
+    const pKey = ganttProjectKey(item.projectId);
     let proj = projMap.get(pKey);
     if (!proj) {
       proj = { projectId: item.projectId, cats: new Map() };
