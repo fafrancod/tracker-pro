@@ -320,6 +320,10 @@ export interface ProjectCategory {
   id: string;
   name: string;
   order: number;
+  /** Color propio para urgencia en Gantt (#RRGGBB). null/omitido = sin asignar. */
+  urgencyColor?: string | null;
+  /** Color propio para importancia en Gantt (#RRGGBB). null/omitido = sin asignar. */
+  importanceColor?: string | null;
 }
 
 export interface Project {

@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   appendProjectCategory,
+  patchProjectCategory,
   renameProjectCategory,
 } from '@daily-tracker/core';
 import request from 'supertest';
@@ -156,6 +157,22 @@ describe('renameProjectCategory / appendProjectCategory', () => {
     expect(added?.categories.map(c => c.name)).toContain('Migración');
     expect(added?.id).toBeTruthy();
   });
+
+  it('guarda colores de urgencia e importancia', () => {
+    const next = patchProjectCategory(cats, 'curso', {
+      urgencyColor: '#f85149',
+      importanceColor: '#58a6ff',
+    });
+    const curso = next?.find(c => c.id === 'curso');
+    expect(curso?.urgencyColor).toBe('#f85149');
+    expect(curso?.importanceColor).toBe('#58a6ff');
+    expect(next?.find(c => c.id === 'otro')?.urgencyColor).toBeUndefined();
+  });
+
+  it('rechaza color que no es hex', () => {
+    const next = patchProjectCategory(cats, 'curso', { urgencyColor: 'rojo' });
+    expect(next?.find(c => c.id === 'curso')?.urgencyColor).toBeNull();
+  });
 });
 
 describe('project categories', () => {
@@ -176,8 +193,20 @@ describe('project categories', () => {
 
     expect(res.status).toBe(201);
     expect(lastProjectInsert?.categories).toEqual([
-      { id: 'c1', name: 'Backend', order: 0 },
-      { id: 'c2', name: 'Frontend', order: 1 },
+      {
+        id: 'c1',
+        name: 'Backend',
+        order: 0,
+        urgencyColor: null,
+        importanceColor: null,
+      },
+      {
+        id: 'c2',
+        name: 'Frontend',
+        order: 1,
+        urgencyColor: null,
+        importanceColor: null,
+      },
     ]);
     expect(res.body.categories).toHaveLength(2);
   });

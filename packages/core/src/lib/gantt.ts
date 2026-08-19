@@ -74,6 +74,8 @@ export interface GanttCategoryGroup {
   items: GanttItem[];
   spanStart: string;
   spanEnd: string;
+  urgencyColor: string | null;
+  importanceColor: string | null;
 }
 
 export interface GanttProjectGroup {
@@ -484,6 +486,8 @@ export function buildGanttGroups(
         items: sorted,
         spanStart,
         spanEnd,
+        urgencyColor: catMeta?.urgencyColor ?? null,
+        importanceColor: catMeta?.importanceColor ?? null,
       });
     }
     categories.sort((a, b) => {

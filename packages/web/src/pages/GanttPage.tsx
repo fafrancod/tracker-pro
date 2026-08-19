@@ -3,6 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { GanttChart } from '@/components/Gantt';
+import {
+  GanttCategoryDialog,
+  type GanttCategoryEditValue,
+} from '@/components/Gantt/GanttCategoryDialog';
 import { TaskDetailSheet } from '@/components/Board';
 import { CycleSelect } from '@/components/ui/cycle-select';
 import { Button } from '@/components/ui/button';
@@ -21,7 +25,10 @@ import {
   type LocatedTaskRow,
 } from '@core/services/taskService';
 import type { Task } from '@core/types';
-import { renameProjectCategory } from '@core/lib/projectCategories';
+import {
+  patchProjectCategory,
+  renameProjectCategory,
+} from '@core/lib/projectCategories';
 import {
   buildGanttGroups,
   ganttDisplayRange,
@@ -90,6 +97,9 @@ export function GanttPage() {
   const [remoteRows, setRemoteRows] = useState<LocatedTaskRow[] | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [focusNonce, setFocusNonce] = useState(0);
+  const [categoryEdit, setCategoryEdit] = useState<GanttCategoryEditValue | null>(
+    null
+  );
 
   const todayId = useMemo(
     () => todayDayId(settings.timezone),
@@ -193,6 +203,23 @@ export function GanttPage() {
 
   function openItem(item: GanttItem) {
     setDetailTask({ weekId: item.weekId, dayId: item.startDayId, taskId: item.id });
+  }
+
+  async function saveCategoryEdit(value: GanttCategoryEditValue) {
+    const project = projects.find(p => p.id === value.projectId);
+    if (!project) return;
+    const next = patchProjectCategory(project.categories, value.categoryId, {
+      name: value.name,
+      urgencyColor: value.urgencyColor,
+      importanceColor: value.importanceColor,
+    });
+    if (!next || next === project.categories) return;
+    try {
+      await editProject(value.projectId, { categories: next });
+    } catch (err) {
+      showToast(t('gantt_rename_error'), 'error');
+      throw err;
+    }
   }
 
   async function renameCategory(projectId: string, categoryId: string, name: string) {
@@ -316,6 +343,7 @@ export function GanttPage() {
           onToggle={toggleCollapsed}
           onItemClick={openItem}
           onRenameCategory={renameCategory}
+          onEditCategory={setCategoryEdit}
           showProjectHeaders={!projectIdParam}
           todayLabel={t('gantt_today')}
           itemsCountLabel={n => t('gantt_items_count').replace('{n}', String(n))}
@@ -325,6 +353,14 @@ export function GanttPage() {
           focusNonce={focusNonce}
         />
       </div>
+      <GanttCategoryDialog
+        open={categoryEdit !== null}
+        value={categoryEdit}
+        onOpenChange={open => {
+          if (!open) setCategoryEdit(null);
+        }}
+        onSave={saveCategoryEdit}
+      />
       <TaskDetailSheet />
     </Layout>
   );

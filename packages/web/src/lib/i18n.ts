@@ -1194,6 +1194,11 @@ export interface TranslationDict {
   task_subproject_hint: string;
   task_subproject_add: string;
   task_subproject_add_ph: string;
+  gantt_category_edit_title: string;
+  gantt_category_edit_desc: string;
+  gantt_category_urgency_color: string;
+  gantt_category_importance_color: string;
+  gantt_category_context_hint: string;
 }
 
 const es_dict: TranslationDict = {
@@ -2482,6 +2487,12 @@ const es_dict: TranslationDict = {
     'Si encaja en un subproyecto, asígnalo ahora. Puedes dejarlo vacío.',
   task_subproject_add: 'Añadir',
   task_subproject_add_ph: 'Nuevo subproyecto…',
+  gantt_category_edit_title: 'Subproyecto',
+  gantt_category_edit_desc:
+    'Cambia el nombre y los colores de urgencia e importancia de esta fila de la Gantt.',
+  gantt_category_urgency_color: 'Color de urgencia',
+  gantt_category_importance_color: 'Color de importancia',
+  gantt_category_context_hint: 'Clic para renombrar · clic derecho para colores',
 };
 
 const en_dict: TranslationDict = {
@@ -3768,6 +3779,12 @@ const en_dict: TranslationDict = {
     'If this belongs to a subproject, assign it now. You can leave it empty.',
   task_subproject_add: 'Add',
   task_subproject_add_ph: 'New subproject…',
+  gantt_category_edit_title: 'Subproject',
+  gantt_category_edit_desc:
+    'Change the name and the urgency and importance colors for this Gantt row.',
+  gantt_category_urgency_color: 'Urgency color',
+  gantt_category_importance_color: 'Importance color',
+  gantt_category_context_hint: 'Click to rename · right-click for colors',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

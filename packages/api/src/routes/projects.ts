@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { normalizeProjectCategories } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -15,37 +16,8 @@ projectsRouter.use(rateLimit({ windowMs: 60_000, max: 60 }));
 
 const MAX_PROJECT_CATEGORIES = 20;
 
-function normalizeCategories(
-  raw: unknown
-): Array<{ id: string; name: string; order: number }> {
-  if (!Array.isArray(raw)) return [];
-  const out: Array<{ id: string; name: string; order: number }> = [];
-  const seenIds = new Set<string>();
-  const seenNames = new Set<string>();
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') continue;
-    const o = item as Record<string, unknown>;
-    const name = typeof o.name === 'string' ? o.name.trim().slice(0, 40) : '';
-    if (!name) continue;
-    const nameKey = name.toLowerCase();
-    if (seenNames.has(nameKey)) continue;
-    seenNames.add(nameKey);
-    let id =
-      typeof o.id === 'string' && o.id.trim()
-        ? o.id.trim().slice(0, 80)
-        : generateId();
-    if (seenIds.has(id)) id = generateId();
-    seenIds.add(id);
-    out.push({
-      id,
-      name,
-      order: typeof o.order === 'number' ? o.order : out.length,
-    });
-    if (out.length >= MAX_PROJECT_CATEGORIES) break;
-  }
-  return out
-    .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name))
-    .map((c, i) => ({ ...c, order: i }));
+function normalizeCategories(raw: unknown) {
+  return normalizeProjectCategories(raw);
 }
 
 const createSchema = z.object({

@@ -2,6 +2,16 @@ import type { Project, ProjectCategory, TaskKind } from '../types';
 
 export const MAX_PROJECT_CATEGORIES = 20;
 
+const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+
+export function parseCategoryColor(raw: unknown): string | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'string') return null;
+  const s = raw.trim();
+  if (!s) return null;
+  return HEX_RE.test(s) ? s : null;
+}
+
 export function newProjectCategoryId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -33,6 +43,8 @@ export function normalizeProjectCategories(raw: unknown): ProjectCategory[] {
       id,
       name,
       order: typeof o.order === 'number' && Number.isFinite(o.order) ? o.order : out.length,
+      urgencyColor: parseCategoryColor(o.urgencyColor ?? o.urgency_color),
+      importanceColor: parseCategoryColor(o.importanceColor ?? o.importance_color),
     });
     if (out.length >= MAX_PROJECT_CATEGORIES) break;
   }
@@ -114,7 +126,57 @@ export function appendProjectCategory(
     id,
     categories: normalizeProjectCategories([
       ...categories,
-      { id, name: trimmed, order: categories.length },
+      {
+        id,
+        name: trimmed,
+        order: categories.length,
+        urgencyColor: null,
+        importanceColor: null,
+      },
     ]),
   };
+}
+
+export interface ProjectCategoryPatch {
+  name?: string;
+  urgencyColor?: string | null;
+  importanceColor?: string | null;
+}
+
+/** Actualiza nombre y/o colores de un subproyecto. `null` si el parche no vale. */
+export function patchProjectCategory(
+  categories: ProjectCategory[],
+  categoryId: string,
+  patch: ProjectCategoryPatch
+): ProjectCategory[] | null {
+  const current = categories.find(c => c.id === categoryId);
+  if (!current) return null;
+  let name = current.name;
+  if (patch.name !== undefined) {
+    const trimmed = patch.name.trim().slice(0, 40);
+    if (!trimmed) return null;
+    const clash = categories.some(
+      c => c.id !== categoryId && c.name.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (clash) return null;
+    name = trimmed;
+  }
+  const urgencyColor =
+    patch.urgencyColor !== undefined
+      ? parseCategoryColor(patch.urgencyColor)
+      : current.urgencyColor;
+  const importanceColor =
+    patch.importanceColor !== undefined
+      ? parseCategoryColor(patch.importanceColor)
+      : current.importanceColor;
+  if (
+    name === current.name &&
+    urgencyColor === current.urgencyColor &&
+    importanceColor === current.importanceColor
+  ) {
+    return categories;
+  }
+  return categories.map(c =>
+    c.id === categoryId ? { ...c, name, urgencyColor, importanceColor } : c
+  );
 }

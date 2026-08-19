@@ -70,6 +70,13 @@ export interface GanttChartProps {
     categoryId: string,
     name: string
   ) => void;
+  onEditCategory?: (payload: {
+    projectId: string;
+    categoryId: string;
+    name: string;
+    urgencyColor: string | null;
+    importanceColor: string | null;
+  }) => void;
   /** En vista vida, mostrar cabecera de proyecto. En vista proyecto, solo subproyectos. */
   showProjectHeaders: boolean;
   todayLabel: string;
@@ -92,6 +99,7 @@ export function GanttChart({
   onToggle,
   onItemClick,
   onRenameCategory,
+  onEditCategory,
   showProjectHeaders,
   todayLabel,
   itemsCountLabel,
@@ -103,8 +111,17 @@ export function GanttChart({
   const { t } = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
+  const longPressRef = useRef<number | null>(null);
+  const skipClickRef = useRef(false);
   const [editingCatKey, setEditingCatKey] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+
+  function clearLongPress() {
+    if (longPressRef.current !== null) {
+      window.clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  }
   const px = ganttPxPerDay(scale);
   const labelW = useLabelWidth();
   const days = ganttInclusiveDays(rangeFrom, rangeTo);
@@ -331,9 +348,47 @@ export function GanttChart({
               ) : (
                 <button
                   type="button"
-                  title={cat.categoryId ? t('gantt_rename_subproject') : undefined}
+                  title={
+                    cat.categoryId ? t('gantt_category_context_hint') : undefined
+                  }
+                  onContextMenu={e => {
+                    if (!cat.categoryId || !group.projectId || !onEditCategory) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEditCategory({
+                      projectId: group.projectId,
+                      categoryId: cat.categoryId,
+                      name: cat.categoryName,
+                      urgencyColor: cat.urgencyColor,
+                      importanceColor: cat.importanceColor,
+                    });
+                  }}
+                  onPointerDown={e => {
+                    if (e.pointerType === 'mouse' || e.button !== 0) return;
+                    if (!cat.categoryId || !group.projectId || !onEditCategory) return;
+                    clearLongPress();
+                    const payload = {
+                      projectId: group.projectId,
+                      categoryId: cat.categoryId,
+                      name: cat.categoryName,
+                      urgencyColor: cat.urgencyColor,
+                      importanceColor: cat.importanceColor,
+                    };
+                    longPressRef.current = window.setTimeout(() => {
+                      longPressRef.current = null;
+                      skipClickRef.current = true;
+                      onEditCategory(payload);
+                    }, 520);
+                  }}
+                  onPointerUp={clearLongPress}
+                  onPointerCancel={clearLongPress}
+                  onPointerLeave={clearLongPress}
                   onClick={e => {
                     e.stopPropagation();
+                    if (skipClickRef.current) {
+                      skipClickRef.current = false;
+                      return;
+                    }
                     if (!cat.categoryId || !group.projectId || !onRenameCategory) {
                       onToggle(cat.key);
                       return;
@@ -346,6 +401,24 @@ export function GanttChart({
                   {cat.categoryName}
                 </button>
               )}
+              {(cat.urgencyColor || cat.importanceColor) && (
+                <span className="flex shrink-0 items-center gap-0.5" aria-hidden>
+                  {cat.urgencyColor ? (
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: cat.urgencyColor }}
+                      title={t('gantt_category_urgency_color')}
+                    />
+                  ) : null}
+                  {cat.importanceColor ? (
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: cat.importanceColor }}
+                      title={t('gantt_category_importance_color')}
+                    />
+                  ) : null}
+                </span>
+              )}
               <span className="shrink-0 text-[10px] text-text-muted">
                 {itemsCountLabel(cat.items.length)}
               </span>
@@ -355,7 +428,9 @@ export function GanttChart({
             <SummaryBar
               start={cat.spanStart}
               end={cat.spanEnd}
-              color={group.projectColor}
+              color={
+                cat.urgencyColor ?? cat.importanceColor ?? group.projectColor
+              }
             />
           </Track>
         </div>
