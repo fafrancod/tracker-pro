@@ -501,6 +501,8 @@ export interface TranslationDict {
   board_filter_kinds: string;
   board_filter_kind_tasks: string;
   board_filter_projects_n: string;
+  board_filter_all_projects: string;
+  board_filter_show: string;
   board_filter_category: string;
   board_filter_category_all: string;
   board_filter_category_projects: string;
@@ -1719,6 +1721,8 @@ const es_dict: TranslationDict = {
   board_filter_kinds: 'Tipos',
   board_filter_kind_tasks: 'Tareas',
   board_filter_projects_n: '{n} proyectos',
+  board_filter_all_projects: 'Todos los proyectos',
+  board_filter_show: 'Ver',
   board_filter_category: 'Categoría',
   board_filter_category_all: 'Todo',
   board_filter_category_projects: 'Proyectos',
@@ -2995,6 +2999,8 @@ const en_dict: TranslationDict = {
   board_filter_kinds: 'Types',
   board_filter_kind_tasks: 'Tasks',
   board_filter_projects_n: '{n} projects',
+  board_filter_all_projects: 'All projects',
+  board_filter_show: 'Show',
   board_filter_category: 'Category',
   board_filter_category_all: 'All',
   board_filter_category_projects: 'Projects',

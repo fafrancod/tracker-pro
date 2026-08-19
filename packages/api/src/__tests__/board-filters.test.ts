@@ -39,6 +39,15 @@ describe('board kind groups', () => {
     expect(taskKindGroup('rx_human')).toBeNull();
   });
 
+  it('apagar hábitos desde all oculta habit_good', () => {
+    const kinds = toggleKindGroup('all', 'habits');
+    expect(
+      taskMatchesFilters(task({ kind: 'habit_good' }), { kinds })
+    ).toBe(false);
+    expect(taskMatchesFilters(task({ kind: 'task' }), { kinds })).toBe(true);
+    expect(taskMatchesFilters(task({ kind: 'event' }), { kinds })).toBe(true);
+  });
+
   it('toggle combina tipos (no son exclusivos)', () => {
     expect(toggleKindGroup('all', 'habits')).toEqual([
       'tasks',
