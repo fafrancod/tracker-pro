@@ -2492,7 +2492,7 @@ const es_dict: TranslationDict = {
     'Cambia el nombre y los colores de urgencia e importancia de esta fila de la Gantt.',
   gantt_category_urgency_color: 'Color de urgencia',
   gantt_category_importance_color: 'Color de importancia',
-  gantt_category_context_hint: 'Clic para renombrar · clic derecho para colores',
+  gantt_category_context_hint: 'Usa el lápiz para cambiar nombre y colores',
 };
 
 const en_dict: TranslationDict = {
@@ -3784,7 +3784,7 @@ const en_dict: TranslationDict = {
     'Change the name and the urgency and importance colors for this Gantt row.',
   gantt_category_urgency_color: 'Urgency color',
   gantt_category_importance_color: 'Importance color',
-  gantt_category_context_hint: 'Click to rename · right-click for colors',
+  gantt_category_context_hint: 'Use the pencil to change name and colors',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

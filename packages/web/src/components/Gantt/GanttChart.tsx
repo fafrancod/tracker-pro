@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleDashed,
   ListTodo,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
@@ -45,6 +46,29 @@ function useLabelWidth(): number {
     return () => mq.removeEventListener('change', onChange);
   }, []);
   return mobile ? LABEL_W_MOBILE : LABEL_W_DESKTOP;
+}
+
+function EditPencil({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={e => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-background hover:text-accent-teal"
+    >
+      <Pencil className="h-3 w-3" />
+    </button>
+  );
 }
 
 function KindIcon({ kind, className }: { kind: GanttItem['kind']; className?: string }) {
@@ -419,6 +443,20 @@ export function GanttChart({
                   ) : null}
                 </span>
               )}
+              {cat.categoryId && group.projectId && onEditCategory ? (
+                <EditPencil
+                  label={t('gantt_rename_subproject')}
+                  onClick={() =>
+                    onEditCategory({
+                      projectId: group.projectId!,
+                      categoryId: cat.categoryId!,
+                      name: cat.categoryName,
+                      urgencyColor: cat.urgencyColor,
+                      importanceColor: cat.importanceColor,
+                    })
+                  }
+                />
+              ) : null}
               <span className="shrink-0 text-[10px] text-text-muted">
                 {itemsCountLabel(cat.items.length)}
               </span>
@@ -478,6 +516,10 @@ export function GanttChart({
                   {seriesCountLabel(occs.length)}
                 </span>
               ) : null}
+              <EditPencil
+                label={t('action_edit')}
+                onClick={() => onItemClick(item)}
+              />
             </LabelCell>
             <Track>
               {occs.map(occ => {
