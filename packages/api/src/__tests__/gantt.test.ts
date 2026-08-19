@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   kindSupportsProject,
   collapseGanttSeries,
+  overlayRowsById,
   buildGanttGroups,
   ganttBarLayout,
   ganttDayOffset,
@@ -297,6 +298,34 @@ describe('buildGanttGroups', () => {
       { unlabeledCategory: 'Sin subproyecto' }
     );
     expect(groups[0].categories[0].categoryName).toBe('Sin subproyecto');
+  });
+});
+
+describe('overlayRowsById', () => {
+  it('refleja projectId y categoryId del store', () => {
+    const remote = [
+      item({
+        id: 't1',
+        title: 'Standup',
+        kind: 'task',
+        startDayId: '2026-08-03',
+        projectId: 'cs',
+        projectCategoryId: 'curso',
+      }),
+    ];
+    const fresh = [
+      item({
+        id: 't1',
+        title: 'Standup',
+        kind: 'task',
+        startDayId: '2026-08-03',
+        projectId: 'amsa',
+        projectCategoryId: 'mig',
+      }),
+    ];
+    const next = overlayRowsById(remote, fresh);
+    expect(next[0].projectId).toBe('amsa');
+    expect(next[0].projectCategoryId).toBe('mig');
   });
 });
 

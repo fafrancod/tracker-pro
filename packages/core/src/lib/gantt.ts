@@ -173,6 +173,17 @@ function occurrenceOf(item: GanttItem): GanttOccurrence {
  * Una fila por serie recurrente. Las instancias sueltas (sin seriesId) no se fusionan.
  * En la fila quedan N barras (`occurrences`), no N filas.
  */
+/** Sustituye filas remotas por la versión del store (mismo id). */
+export function overlayRowsById<T extends { id: string }>(
+  remote: T[],
+  fresh: Iterable<T>
+): T[] {
+  const byId = new Map<string, T>();
+  for (const row of fresh) byId.set(row.id, row);
+  if (byId.size === 0) return remote;
+  return remote.map(row => byId.get(row.id) ?? row);
+}
+
 export function collapseGanttSeries(items: GanttItem[]): GanttItem[] {
   const singles: GanttItem[] = [];
   const bySeries = new Map<string, GanttItem[]>();

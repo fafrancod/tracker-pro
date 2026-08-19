@@ -31,6 +31,7 @@ import {
   ganttDisplayRange,
   ganttHorizonWindow,
   collapseGanttSeries,
+  overlayRowsById,
   toGanttItem,
   type GanttHorizon,
   type GanttItem,
@@ -138,24 +139,13 @@ export function GanttPage() {
   }, [load]);
 
   const located = useMemo(() => {
+    const fromStore = fetchWindow
+      ? collectFromStore(tasksByDay, fetchWindow.from, fetchWindow.to)
+      : collectFromStore(tasksByDay, '0000-01-01', '9999-12-31');
     if (isDemoMode() || remoteRows === null) {
-      if (fetchWindow) {
-        return collectFromStore(tasksByDay, fetchWindow.from, fetchWindow.to);
-      }
-      const all: LocatedTaskRow[] = [];
-      const seen = new Set<string>();
-      for (const [weekId, days] of Object.entries(tasksByDay)) {
-        for (const [dayId, tasks] of Object.entries(days)) {
-          for (const task of tasks) {
-            if (seen.has(task.id)) continue;
-            seen.add(task.id);
-            all.push({ ...task, weekId, dayId });
-          }
-        }
-      }
-      return all;
+      return fromStore;
     }
-    return remoteRows;
+    return overlayRowsById(remoteRows, fromStore);
   }, [remoteRows, tasksByDay, fetchWindow]);
 
   const ganttItems = useMemo(() => {
