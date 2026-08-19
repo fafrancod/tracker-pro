@@ -9,21 +9,22 @@ import {
   toggleKindGroup,
   toggleProjectKey,
   type BoardTaskFilters,
+  type TaskKind,
 } from '@daily-tracker/core';
 
 function task(
   partial: Partial<{
-    kind: string;
+    kind: TaskKind;
     projectId: string | null;
     completed: boolean;
     urgency: 'urgent' | 'not_urgent' | null;
-  }>
+  }> = {}
 ) {
   return {
     projectId: null as string | null,
     urgency: null,
     importance: null,
-    kind: 'task',
+    kind: 'task' as TaskKind,
     completed: false,
     ...partial,
   };
