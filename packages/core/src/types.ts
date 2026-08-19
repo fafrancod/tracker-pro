@@ -146,6 +146,14 @@ export interface UserProfile {
 
 export type Language = 'es' | 'en';
 
+/** Recuerdo de la barra de filtros del calendario (perfil + localStorage). */
+export interface PersistedBoardFilters {
+  kinds: BoardKindGroup[] | 'all';
+  projectIds: string[] | 'all';
+  urgency: Urgency | 'all';
+  importance: Importance | 'all';
+}
+
 export interface UserSettings {
   autoRollIncomplete: boolean;
   defaultProjectId: string | null;
@@ -231,6 +239,11 @@ export interface UserSettings {
    * Default false (se muestran al final de cada lista del día).
    */
   hideCompletedTasks: boolean;
+  /**
+   * Filtros persistidos del calendario (tipos, proyectos, Eisenhower).
+   * Ausente = todos visibles.
+   */
+  boardFilters?: PersistedBoardFilters;
   /**
    * Apariencia de tareas terminadas: tachadas con ticket, o ticket sin tachar.
    * Default strikethrough.
@@ -679,6 +692,8 @@ export {
   boardShowsTasks,
   toggleKindGroup,
   toggleProjectKey,
+  normalizePersistedBoardFilters,
+  DEFAULT_PERSISTED_BOARD_FILTERS,
 } from './lib/boardFilters';
 
 export interface CreateProjectPayload {

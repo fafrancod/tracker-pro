@@ -8,6 +8,7 @@ import {
   taskMatchesFilters,
   toggleKindGroup,
   toggleProjectKey,
+  normalizePersistedBoardFilters,
   type BoardTaskFilters,
   type TaskKind,
 } from '@daily-tracker/core';
@@ -138,6 +139,26 @@ describe('holidays vs tasks', () => {
     expect(boardShowsHolidays(filters)).toBe(true);
     expect(boardShowsTasks(filters)).toBe(false);
     expect(taskMatchesFilters(task({ kind: 'task' }), filters)).toBe(false);
+  });
+});
+
+describe('normalizePersistedBoardFilters', () => {
+  it('recuerda tipos apagados y descarta valores basura', () => {
+    const stored = normalizePersistedBoardFilters({
+      kinds: ['tasks', 'events', 'habits', 'nope'],
+      projectIds: ['amsa', ''],
+      urgency: 'urgent',
+      importance: 'nope',
+    });
+    expect(stored.kinds).toEqual(['tasks', 'events', 'habits']);
+    expect(stored.projectIds).toEqual(['amsa']);
+    expect(stored.urgency).toBe('urgent');
+    expect(stored.importance).toBe('all');
+  });
+
+  it('all o ausente = todos visibles', () => {
+    expect(normalizePersistedBoardFilters(undefined).kinds).toBe('all');
+    expect(normalizePersistedBoardFilters({ kinds: 'all' }).kinds).toBe('all');
   });
 });
 

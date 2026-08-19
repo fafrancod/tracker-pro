@@ -60,6 +60,12 @@ const DEFAULTS: UserSettings = {
   ),
   hideCompletedTasks: false,
   completedTaskStyle: 'strikethrough',
+  boardFilters: {
+    kinds: 'all',
+    projectIds: 'all',
+    urgency: 'all',
+    importance: 'all',
+  },
 };
 
 function loadLocal(): Partial<UserSettings> | null {

@@ -1,4 +1,12 @@
-import type { BoardCategoryFilter, BoardTaskFilters, Task, TaskKind } from '../types';
+import type {
+  BoardCategoryFilter,
+  BoardTaskFilters,
+  Importance,
+  PersistedBoardFilters,
+  Task,
+  TaskKind,
+  Urgency,
+} from '../types';
 
 /** Sentinel: tareas sin proyecto en el multi-select. */
 export const BOARD_NO_PROJECT = '__none__';
@@ -71,6 +79,65 @@ export function boardShowsTasks(filters?: BoardTaskFilters | null): boolean {
   const groups = resolvedKindGroups(filters);
   if (groups === 'all') return true;
   return groups.some(g => g !== 'holidays');
+}
+
+export const DEFAULT_PERSISTED_BOARD_FILTERS: PersistedBoardFilters = {
+  kinds: 'all',
+  projectIds: 'all',
+  urgency: 'all',
+  importance: 'all',
+};
+
+const URGENCY_SET = new Set<string>(['all', 'urgent', 'not_urgent']);
+const IMPORTANCE_SET = new Set<string>(['all', 'important', 'not_important']);
+
+export function normalizePersistedBoardFilters(
+  raw: unknown
+): PersistedBoardFilters {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_PERSISTED_BOARD_FILTERS };
+  const o = raw as Record<string, unknown>;
+  let kinds: BoardKindGroup[] | 'all' = 'all';
+  if (o.kinds === 'all') {
+    kinds = 'all';
+  } else if (Array.isArray(o.kinds)) {
+    const rawKinds = o.kinds;
+    const next = ALL_BOARD_KIND_GROUPS.filter(g => rawKinds.includes(g));
+    kinds =
+      next.length === 0
+        ? []
+        : next.length === ALL_BOARD_KIND_GROUPS.length
+          ? 'all'
+          : next;
+  }
+  let projectIds: string[] | 'all' = 'all';
+  if (o.projectIds === 'all') {
+    projectIds = 'all';
+  } else if (Array.isArray(o.projectIds)) {
+    projectIds = o.projectIds.filter(
+      (id): id is string =>
+        typeof id === 'string' && (id === BOARD_NO_PROJECT || id.length > 0)
+    );
+  }
+  const urgency = (
+    typeof o.urgency === 'string' && URGENCY_SET.has(o.urgency) ? o.urgency : 'all'
+  ) as Urgency | 'all';
+  const importance = (
+    typeof o.importance === 'string' && IMPORTANCE_SET.has(o.importance)
+      ? o.importance
+      : 'all'
+  ) as Importance | 'all';
+  return { kinds, projectIds, urgency, importance };
+}
+
+export function toPersistedBoardFilters(
+  filters: BoardTaskFilters
+): PersistedBoardFilters {
+  return normalizePersistedBoardFilters({
+    kinds: filters.kinds ?? 'all',
+    projectIds: filters.projectIds ?? 'all',
+    urgency: filters.urgency ?? 'all',
+    importance: filters.importance ?? 'all',
+  });
 }
 
 export function toggleKindGroup(

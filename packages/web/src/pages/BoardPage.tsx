@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Calendar,
   CalendarDays,
@@ -40,7 +40,12 @@ import type {
   BoardViewMode,
   ScheduleLayout,
 } from '@core/types';
-import { resolvedKindGroups } from '@core/lib/boardFilters';
+import {
+  DEFAULT_PERSISTED_BOARD_FILTERS,
+  normalizePersistedBoardFilters,
+  resolvedKindGroups,
+  toPersistedBoardFilters,
+} from '@core/lib/boardFilters';
 
 import { useSettings } from '@/contexts/SettingsContext';
 import { useT } from '@/hooks/useT';
@@ -64,13 +69,27 @@ export function BoardPage() {
   const [scheduleLayout, setScheduleLayout] = useState<ScheduleLayout>(
     () => settings.defaultScheduleLayout ?? 'list'
   );
-  const [filters, setFilters] = useState<BoardTaskFilters>({
-    projectIds: 'all',
-    kinds: 'all',
-    urgency: 'all',
-    importance: 'all',
-    category: 'all',
-  });
+  const persistedFilters = useMemo(
+    () =>
+      normalizePersistedBoardFilters(
+        settings.boardFilters ?? DEFAULT_PERSISTED_BOARD_FILTERS
+      ),
+    [settings.boardFilters]
+  );
+  const filters: BoardTaskFilters = useMemo(
+    () => ({
+      projectIds: persistedFilters.projectIds,
+      kinds: persistedFilters.kinds,
+      urgency: persistedFilters.urgency,
+      importance: persistedFilters.importance,
+      category: 'all',
+    }),
+    [persistedFilters]
+  );
+
+  function setFilters(next: BoardTaskFilters) {
+    void updateSettings({ boardFilters: toPersistedBoardFilters(next) });
+  }
   /** Bumps so month/continuous re-center on the present period. */
   const [focusTodayNonce, setFocusTodayNonce] = useState(0);
 

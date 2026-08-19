@@ -69,6 +69,12 @@ const DEFAULT_SETTINGS = {
   hideCompletedTasks: false,
   completedTaskStyle: 'strikethrough',
   onboardingTourCompleted: false,
+  boardFilters: {
+    kinds: 'all',
+    projectIds: 'all',
+    urgency: 'all',
+    importance: 'all',
+  },
 };
 
 authRouter.post('/bootstrap', async (req, res, next) => {
