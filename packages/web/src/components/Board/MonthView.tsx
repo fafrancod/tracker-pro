@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   addMonths,
   startOfMonth,
@@ -330,10 +331,12 @@ export function MonthView({
   }
 
   type BarDragMode = 'start' | 'end' | 'move';
+  type BarDragSource = 'bar' | 'chip';
   /** Pixels of movement before a bar press becomes a drag (keeps double-click usable). */
   const BAR_DRAG_THRESHOLD_PX = 12;
   interface BarDragState {
     mode: BarDragMode;
+    source: BarDragSource;
     task: Task;
     startWeekId: string;
     startDayId: string;
@@ -343,10 +346,13 @@ export function MonthView({
     previewStart: string;
     previewEnd: string;
     pointerId: number;
+    pointerX: number;
+    pointerY: number;
   }
   /** Press that has not yet exceeded the movement threshold. */
   interface PendingBarPress {
     mode: BarDragMode;
+    source: BarDragSource;
     bar: BarSegment;
     pointerId: number;
     originX: number;
@@ -357,6 +363,21 @@ export function MonthView({
   barDragRef.current = barDrag;
   const pendingBarPressRef = useRef<PendingBarPress | null>(null);
   const calendarRootRef = useRef<HTMLDivElement>(null);
+  /** After a real drag, ignore the trailing click that would open “añadir”. */
+  const skipDayClickRef = useRef(false);
+
+  function chipAsBar(loc: LocatedTask, col: number): BarSegment {
+    return {
+      task: loc,
+      startDayId: loc.startDayId,
+      startWeekId: loc.weekId,
+      colStart: col,
+      colSpan: 1,
+      continuesLeft: false,
+      continuesRight: false,
+      lane: 0,
+    };
+  }
 
   /**
    * Resolve calendar day from screen point — works across week rows so you can
@@ -364,7 +385,10 @@ export function MonthView({
    */
   function dayIdFromPoint(clientX: number, clientY: number): string | null {
     const root = calendarRootRef.current;
-    if (!root) return null;
+    // Include sibling months in continuous view so a chip can land on another month.
+    const canvas =
+      root?.closest('[data-tour="calendar-canvas"]') ?? root ?? null;
+    if (!canvas) return null;
 
     // Prefer the week row under the pointer (may be a different row than start).
     const stack = document.elementsFromPoint(clientX, clientY);
@@ -372,7 +396,7 @@ export function MonthView({
     for (const node of stack) {
       if (!(node instanceof HTMLElement)) continue;
       const hit = node.closest('[data-month-week-row]') as HTMLElement | null;
-      if (hit && root.contains(hit)) {
+      if (hit && canvas.contains(hit)) {
         row = hit;
         break;
       }
@@ -381,7 +405,7 @@ export function MonthView({
     // Fallback: nearest week row by vertical center.
     if (!row) {
       const rows = Array.from(
-        root.querySelectorAll<HTMLElement>('[data-month-week-row]')
+        canvas.querySelectorAll<HTMLElement>('[data-month-week-row]')
       );
       if (rows.length === 0) return null;
       let best: HTMLElement | null = null;
@@ -414,7 +438,12 @@ export function MonthView({
     const cur = barDragRef.current;
     if (!cur) return;
     const pointerDay = dayIdFromPoint(clientX, clientY);
-    if (!pointerDay) return;
+    if (!pointerDay) {
+      const next = { ...cur, pointerX: clientX, pointerY: clientY };
+      barDragRef.current = next;
+      setBarDrag(next);
+      return;
+    }
 
     let previewStart = cur.startDayId;
     let previewEnd = cur.endDayId;
@@ -442,7 +471,13 @@ export function MonthView({
       );
     }
 
-    const next = { ...cur, previewStart, previewEnd };
+    const next = {
+      ...cur,
+      previewStart,
+      previewEnd,
+      pointerX: clientX,
+      pointerY: clientY,
+    };
     barDragRef.current = next;
     setBarDrag(next);
   }
@@ -452,13 +487,15 @@ export function MonthView({
     clientX: number,
     clientY: number
   ) {
-    const { mode, bar, pointerId, originX, originY } = pending;
+    const { mode, source, bar, pointerId, originX, originY } = pending;
     // Anchor move delta to the *press* day, not the threshold-crossing day.
     const originPointerDay =
       dayIdFromPoint(originX, originY) ?? bar.startDayId;
     const end = bar.task.endDayId || bar.startDayId;
+    skipDayClickRef.current = true;
     const state: BarDragState = {
       mode,
+      source,
       task: bar.task,
       startWeekId: bar.startWeekId,
       startDayId: bar.startDayId,
@@ -467,6 +504,8 @@ export function MonthView({
       previewStart: bar.startDayId,
       previewEnd: end,
       pointerId,
+      pointerX: clientX,
+      pointerY: clientY,
     };
     pendingBarPressRef.current = null;
     barDragRef.current = state;
@@ -482,13 +521,15 @@ export function MonthView({
   function onBarPointerDown(
     e: React.PointerEvent,
     mode: BarDragMode,
-    bar: BarSegment
+    bar: BarSegment,
+    source: BarDragSource = 'bar'
   ) {
     if (e.button !== 0) return;
     // Do not preventDefault here — that would cancel dblclick.
     e.stopPropagation();
     pendingBarPressRef.current = {
       mode,
+      source,
       bar,
       pointerId: e.pointerId,
       originX: e.clientX,
@@ -517,7 +558,7 @@ export function MonthView({
       pendingBarPressRef.current = null;
     }
 
-    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointermove', onMove, { passive: false });
     document.addEventListener('pointerup', onUp);
     document.addEventListener('pointercancel', onUp);
     return () => {
@@ -536,6 +577,7 @@ export function MonthView({
     function onMove(ev: PointerEvent) {
       const cur = barDragRef.current;
       if (!cur || ev.pointerId !== cur.pointerId) return;
+      ev.preventDefault();
       applyBarDragPoint(ev.clientX, ev.clientY);
     }
 
@@ -544,6 +586,9 @@ export function MonthView({
       if (!cur || ev.pointerId !== cur.pointerId) return;
       barDragRef.current = null;
       setBarDrag(null);
+      window.setTimeout(() => {
+        skipDayClickRef.current = false;
+      }, 0);
       if (
         cur.previewStart === cur.startDayId &&
         cur.previewEnd === cur.endDayId
@@ -563,13 +608,16 @@ export function MonthView({
       }
     }
 
-    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointermove', onMove, { passive: false });
     document.addEventListener('pointerup', onUp);
     document.addEventListener('pointercancel', onUp);
+    const prevCursor = document.body.style.cursor;
+    document.body.style.cursor = 'grabbing';
     return () => {
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', onUp);
+      document.body.style.cursor = prevCursor;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [barDrag?.pointerId]);
@@ -683,7 +731,7 @@ export function MonthView({
           className={cn(
             'flex flex-col gap-1',
             mode === 'single' ? 'flex-1 overflow-y-auto' : '',
-            barDrag && 'select-none'
+            barDrag && 'select-none cursor-grabbing'
           )}
         >
           {weekRows.map((weekDates, rowIdx) => {
@@ -701,7 +749,7 @@ export function MonthView({
               color: string;
               title: string;
             } | null = null;
-            if (barDrag) {
+            if (barDrag && barDrag.source !== 'chip') {
               const pStart = barDrag.previewStart;
               const pEnd = barDrag.previewEnd;
               if (pStart <= weekEndId && pEnd >= weekStartId) {
@@ -740,6 +788,10 @@ export function MonthView({
                   const inMonth = isSameMonth(date, cursor);
                   const isToday = getDayId(date) === todayDayId(settings.timezone);
                   const dayIdStr = getDayId(date);
+                  const isDropTarget =
+                    !!barDrag &&
+                    dayIdStr >= barDrag.previewStart &&
+                    dayIdStr <= barDrag.previewEnd;
                   const holidayName = holidaysByDay.get(dayIdStr) ?? null;
                   const chips = holidaysOnly ? [] : getSingleDayChips(date);
                   // Progreso del día ignora hideCompleted; chips/bars usan el filter completo.
@@ -764,7 +816,10 @@ export function MonthView({
                       key={date.toISOString()}
                       role="button"
                       tabIndex={0}
-                      onClick={() => onPickDay(date)}
+                      onClick={() => {
+                        if (skipDayClickRef.current) return;
+                        onPickDay(date);
+                      }}
                       onKeyDown={e => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault();
@@ -781,7 +836,8 @@ export function MonthView({
                         'group relative flex h-[132px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
                         inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
                         isToday && 'calendar-today-cell',
-                        !isToday && 'hover:border-accent-teal/40'
+                        isDropTarget && 'border-accent-teal bg-accent-teal/15',
+                        !isToday && !isDropTarget && 'hover:border-accent-teal/40'
                       )}
                     >
                       <div className="flex shrink-0 items-center justify-between gap-1">
@@ -858,6 +914,7 @@ export function MonthView({
                             : null;
                           const timeLabel = chipTimeLabel(task);
                           const habit = isHabitKind(task.kind);
+                          const draggingChip = barDrag?.task.id === task.id;
                           return (
                             <span
                               key={task.id}
@@ -875,6 +932,16 @@ export function MonthView({
                               onContextMenu={e =>
                                 openCtx(e, task, task.weekId, task.startDayId)
                               }
+                              onPointerDown={e => {
+                                const target = e.target as HTMLElement | null;
+                                if (target?.closest('button')) return;
+                                onBarPointerDown(
+                                  e,
+                                  'move',
+                                  chipAsBar(task, col),
+                                  'chip'
+                                );
+                              }}
                               onKeyDown={e => {
                                 if (e.key === 'Enter') {
                                   e.preventDefault();
@@ -885,7 +952,7 @@ export function MonthView({
                                 timeLabel ? `${task.title} · ${timeLabel}` : task.title
                               }
                               className={cn(
-                                'flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors',
+                                'flex cursor-grab items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors active:cursor-grabbing',
                                 task.completed
                                   ? isHabitQuit(task.kind)
                                     ? 'task-completed-title bg-red-500/10 text-text-muted line-through'
@@ -900,7 +967,8 @@ export function MonthView({
                                   'opacity-60',
                                 task.recurrence.frequency !== 'none' &&
                                   !habit &&
-                                  'ring-1 ring-accent-teal/20'
+                                  'ring-1 ring-accent-teal/20',
+                                draggingChip && 'opacity-30'
                               )}
                               style={
                                 !task.completed && (task.color || project)
@@ -962,6 +1030,25 @@ export function MonthView({
                             </span>
                           );
                         })}
+                        {barDrag?.source === 'chip' &&
+                          isDropTarget &&
+                          dayIdStr === barDrag.previewStart &&
+                          barDrag.startDayId !== barDrag.previewStart && (
+                            <span
+                              className="truncate rounded px-1 py-0.5 text-[10px] font-medium leading-tight text-text-primary ring-1 ring-accent-teal/50"
+                              style={{
+                                backgroundColor: `${
+                                  barDrag.task.color ??
+                                  allProjects.find(
+                                    p => p.id === barDrag.task.projectId
+                                  )?.color ??
+                                  '#58a6ff'
+                                }33`,
+                              }}
+                            >
+                              {barDrag.task.title}
+                            </span>
+                          )}
                         {barOverflow > 0 && (
                           <span className="px-1 text-[9px] text-text-muted">
                             +{barOverflow}
@@ -1153,6 +1240,26 @@ export function MonthView({
           onViewDay={onViewDay}
         />
       )}
+
+      {barDrag &&
+        createPortal(
+          <div
+            className="pointer-events-none fixed z-[80] max-w-[200px] truncate rounded px-1.5 py-0.5 text-[10px] font-medium shadow-lg ring-1 ring-white/60"
+            style={{
+              left: barDrag.pointerX + 10,
+              top: barDrag.pointerY + 10,
+              backgroundColor: `${
+                barDrag.task.color ??
+                allProjects.find(p => p.id === barDrag.task.projectId)?.color ??
+                '#58a6ff'
+              }ee`,
+              color: '#0d1117',
+            }}
+          >
+            {barDrag.task.title}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
