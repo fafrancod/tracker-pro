@@ -34,7 +34,7 @@ function BoardCard({
     <section
       data-tour={dataTour}
       className={cn(
-        'flex flex-col gap-4 rounded-[20px] border border-border bg-surface p-4',
+        'flex flex-col gap-4 overflow-visible rounded-[20px] border border-border bg-surface p-4',
         'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.45)]',
         'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]',
         className

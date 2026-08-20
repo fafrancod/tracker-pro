@@ -976,6 +976,20 @@ function TaskDetailInner({
           </Field>
         )}
 
+        {/* Descripción — encima de pasos asociados */}
+        {!isRx && (
+          <Field label={t('task_notes')}>
+            <textarea
+              value={draft.notes}
+              onChange={e => patchDraft({ notes: e.target.value })}
+              rows={4}
+              maxLength={4000}
+              placeholder={t('task_notes_placeholder')}
+              className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+          </Field>
+        )}
+
         {/* Pasos asociados */}
         {!isRx && draftSupportsSteps && (
           <TaskStepsEditor
@@ -1591,16 +1605,6 @@ function TaskDetailInner({
               className="min-w-[80px] flex-1 bg-transparent text-xs text-text-primary placeholder:text-text-muted focus:outline-none"
             />
           </div>
-        </Field>
-
-        <Field label={t('task_notes')}>
-          <textarea
-            value={draft.notes}
-            onChange={e => patchDraft({ notes: e.target.value })}
-            rows={5}
-            placeholder={t('task_notes_placeholder')}
-            className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-ring"
-          />
         </Field>
 
         {task.movedFrom && (

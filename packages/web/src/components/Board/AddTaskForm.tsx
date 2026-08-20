@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
 import type {
@@ -221,6 +222,7 @@ export function AddTaskForm({
   const [involvedContactIds, setInvolvedContactIds] = useState<string[]>([]);
   const [location, setLocation] = useState('');
   const [departureTime, setDepartureTime] = useState('');
+  const [notes, setNotes] = useState('');
   const [steps, setSteps] = useState<TaskStep[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [financeAmount, setFinanceAmount] = useState(0);
@@ -414,6 +416,7 @@ export function AddTaskForm({
     setInvolvedContactIds([]);
     setLocation('');
     setDepartureTime('');
+    setNotes('');
     setSteps([]);
     setImages([]);
     setFinanceAmount(0);
@@ -572,6 +575,8 @@ export function AddTaskForm({
       [],
       extractHashtags(trimmed),
       extractMentions(trimmed),
+      extractHashtags(notes),
+      extractMentions(notes),
       contactTagHandles
     );
     const startN =
@@ -646,6 +651,7 @@ export function AddTaskForm({
                 : null),
       startTime: startN,
       endTime: endN,
+      notes: notes.trim() || undefined,
       tags,
       involvedContactIds: isEventLike ? involvedContactIds : [],
       location: supportsLocation ? location.trim() || null : null,
@@ -1347,6 +1353,25 @@ export function AddTaskForm({
         }
         more={
           <>
+      {!isRx && (
+        <label className="flex flex-col gap-1 text-[11px] text-text-muted">
+          <span className="font-medium uppercase tracking-wide">
+            {t('task_notes')}
+          </span>
+          <Textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder={t('task_notes_placeholder')}
+            maxLength={4000}
+            rows={isModal ? 4 : 3}
+            className={cn(
+              'resize-y text-sm',
+              !isModal && 'min-h-[4.5rem] rounded-lg'
+            )}
+          />
+        </label>
+      )}
+
       {supportsSteps ? (
         <TaskStepsEditor steps={steps} onChange={setSteps} />
       ) : null}

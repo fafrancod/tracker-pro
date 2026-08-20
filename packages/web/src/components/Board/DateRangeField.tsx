@@ -81,11 +81,16 @@ export function DateRangeField({
     startOfMonth(parseISO(`${safeStart}T00:00:00`))
   );
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setMonthCursor(startOfMonth(parseISO(`${safeStart}T00:00:00`)));
     setSelectingStart(focusField === 'start');
+    // In-flow: el panel empuja horas/repetición; acercarlo si el sheet recorta.
+    requestAnimationFrame(() => {
+      panelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    });
   }, [open, focusField, safeStart]);
 
   useEffect(() => {
@@ -184,7 +189,7 @@ export function DateRangeField({
   const endCard = formatCardDate(safeEnd);
 
   return (
-    <div ref={rootRef} className={cn('relative', className)}>
+    <div ref={rootRef} className={cn('relative', open && 'z-30', className)}>
       {/* Tarjetas estilo aerolínea */}
       <div
         className={cn(
@@ -259,11 +264,13 @@ export function DateRangeField({
         )}
       </div>
 
-      {/* Panel calendario (popover) */}
+      {/* In-flow so later fields (hora, repetición) cannot paint over the grid. */}
       {open && (
         <div
+          ref={panelRef}
+          data-glass-float
           className={cn(
-            'absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-xl shadow-black/25',
+            'relative z-30 mt-2 overflow-hidden rounded-2xl border border-border bg-surface shadow-xl shadow-black/25',
             'animate-in fade-in-0 zoom-in-95'
           )}
         >
