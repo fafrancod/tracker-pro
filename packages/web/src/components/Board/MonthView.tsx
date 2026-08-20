@@ -73,6 +73,31 @@ export interface MonthViewProps {
 }
 
 const MAX_LANES = 3;
+/** Cell padding-top (p-1.5) + day number (h-6) + gap. Bars start below this. */
+const MONTH_DAY_HEAD_PX = 32;
+const MONTH_LANE_PX = 18;
+const MONTH_BAR_H_PX = 16;
+
+function inkOn(hex: string): '#0d1117' | '#f0f6fc' {
+  const raw = hex.replace('#', '').trim();
+  const full =
+    raw.length === 3 ? raw.split('').map(c => c + c).join('') : raw.slice(0, 6);
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return '#0d1117';
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 148 ? '#0d1117' : '#f0f6fc';
+}
+
+function spanBarBox(colStart: number, colSpan: number, lane: number) {
+  return {
+    top: `${lane * MONTH_LANE_PX}px`,
+    left: `calc(${(colStart / 7) * 100}% + 3px)`,
+    width: `calc(${(colSpan / 7) * 100}% - 6px)`,
+    height: MONTH_BAR_H_PX,
+  };
+}
 
 interface BarSegment {
   task: Task;
@@ -893,7 +918,7 @@ export function MonthView({
 
                       <div
                         className="shrink-0"
-                        style={{ height: `${laneCount * 18}px` }}
+                        style={{ height: `${laneCount * MONTH_LANE_PX}px` }}
                         aria-hidden
                       />
 
@@ -1077,7 +1102,8 @@ export function MonthView({
                 })}
 
                 <div
-                  className="pointer-events-none absolute inset-0 grid grid-cols-7 gap-1"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 gap-1"
+                  style={{ top: MONTH_DAY_HEAD_PX }}
                   aria-hidden={false}
                 >
                   {bars.map(bar => {
@@ -1097,8 +1123,8 @@ export function MonthView({
                             : bar.task.title
                         }
                         className={cn(
-                          'pointer-events-auto absolute z-10 flex items-center gap-0.5 rounded px-1 text-[10px] font-medium leading-[16px] shadow-sm transition-opacity hover:opacity-90',
-                          bar.task.completed && 'opacity-60',
+                          'pointer-events-auto absolute z-10 flex items-center gap-0.5 overflow-hidden rounded-md px-1 text-[10px] font-medium leading-none transition-opacity hover:opacity-90',
+                          bar.task.completed && 'opacity-55',
                           bar.task.kind === 'possible_event' &&
                             !bar.task.completed &&
                             'opacity-60',
@@ -1106,13 +1132,14 @@ export function MonthView({
                           bar.continuesRight && 'rounded-r-none'
                         )}
                         style={{
-                          top: `${22 + bar.lane * 18}px`,
-                          left: `calc(${(bar.colStart / 7) * 100}% + 2px)`,
-                          width: `calc(${(bar.colSpan / 7) * 100}% - 4px)`,
+                          ...spanBarBox(bar.colStart, bar.colSpan, bar.lane),
                           backgroundColor: bar.task.completed
-                            ? `${color}33`
-                            : `${color}cc`,
-                          color: bar.task.completed ? undefined : '#0d1117',
+                            ? `${color}3d`
+                            : `${color}a8`,
+                          color: bar.task.completed
+                            ? undefined
+                            : inkOn(color),
+                          boxShadow: `inset 0 0 0 1px ${color}66`,
                         }}
                       >
                         {/* Resize start */}
@@ -1201,13 +1228,11 @@ export function MonthView({
                   {/* Live ghost while dragging — visible on every week the preview covers */}
                   {ghost && (
                     <div
-                      className="pointer-events-none absolute z-30 flex items-center rounded px-1 text-[10px] font-medium leading-[16px] shadow-md ring-1 ring-white/60"
+                      className="pointer-events-none absolute z-30 flex items-center overflow-hidden rounded-md px-1 text-[10px] font-medium leading-none ring-1 ring-white/50"
                       style={{
-                        top: `${22 + ghost.lane * 18}px`,
-                        left: `calc(${(ghost.colStart / 7) * 100}% + 2px)`,
-                        width: `calc(${(ghost.colSpan / 7) * 100}% - 4px)`,
-                        backgroundColor: `${ghost.color}dd`,
-                        color: '#0d1117',
+                        ...spanBarBox(ghost.colStart, ghost.colSpan, ghost.lane),
+                        backgroundColor: `${ghost.color}b8`,
+                        color: inkOn(ghost.color),
                       }}
                     >
                       <span className="truncate">{ghost.title}</span>
