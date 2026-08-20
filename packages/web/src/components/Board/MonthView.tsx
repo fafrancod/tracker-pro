@@ -518,6 +518,17 @@ export function MonthView({
    * Start a *pending* press. Drag only activates after BAR_DRAG_THRESHOLD_PX
    * of movement so double-click can open the detail sheet.
    */
+  function lockTextSelect() {
+    document.documentElement.style.userSelect = 'none';
+    document.body.style.userSelect = 'none';
+    window.getSelection()?.removeAllRanges();
+  }
+
+  function unlockTextSelect() {
+    document.documentElement.style.userSelect = '';
+    document.body.style.userSelect = '';
+  }
+
   function onBarPointerDown(
     e: React.PointerEvent,
     mode: BarDragMode,
@@ -527,6 +538,7 @@ export function MonthView({
     if (e.button !== 0) return;
     // Do not preventDefault here — that would cancel dblclick.
     e.stopPropagation();
+    lockTextSelect();
     pendingBarPressRef.current = {
       mode,
       source,
@@ -543,11 +555,11 @@ export function MonthView({
       const pending = pendingBarPressRef.current;
       if (!pending || ev.pointerId !== pending.pointerId) return;
       if (barDragRef.current) return;
+      // Kill native text-selection from the first pixel, not only after threshold.
+      ev.preventDefault();
       const dx = ev.clientX - pending.originX;
       const dy = ev.clientY - pending.originY;
       if (Math.hypot(dx, dy) < BAR_DRAG_THRESHOLD_PX) return;
-      // Intentional drag: suppress text selection / synthetic clicks.
-      ev.preventDefault();
       activateBarDrag(pending, ev.clientX, ev.clientY);
     }
 
@@ -556,6 +568,7 @@ export function MonthView({
       if (!pending || ev.pointerId !== pending.pointerId) return;
       // Released without crossing threshold → treat as click/dblclick, no drag.
       pendingBarPressRef.current = null;
+      if (!barDragRef.current) unlockTextSelect();
     }
 
     document.addEventListener('pointermove', onMove, { passive: false });
@@ -586,6 +599,7 @@ export function MonthView({
       if (!cur || ev.pointerId !== cur.pointerId) return;
       barDragRef.current = null;
       setBarDrag(null);
+      unlockTextSelect();
       window.setTimeout(() => {
         skipDayClickRef.current = false;
       }, 0);
@@ -731,7 +745,8 @@ export function MonthView({
           className={cn(
             'flex flex-col gap-1',
             mode === 'single' ? 'flex-1 overflow-y-auto' : '',
-            barDrag && 'select-none cursor-grabbing'
+            'select-none',
+            barDrag && 'cursor-grabbing'
           )}
         >
           {weekRows.map((weekDates, rowIdx) => {
@@ -833,7 +848,7 @@ export function MonthView({
                       data-tour={isToday ? 'calendar-day' : undefined}
                       data-calendar-today={isToday ? 'true' : undefined}
                       className={cn(
-                        'group relative flex h-[132px] flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
+                        'group relative flex h-[132px] select-none flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
                         inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
                         isToday && 'calendar-today-cell',
                         isDropTarget && 'border-accent-teal bg-accent-teal/15',
@@ -932,6 +947,8 @@ export function MonthView({
                               onContextMenu={e =>
                                 openCtx(e, task, task.weekId, task.startDayId)
                               }
+                              draggable={false}
+                              onDragStart={e => e.preventDefault()}
                               onPointerDown={e => {
                                 const target = e.target as HTMLElement | null;
                                 if (target?.closest('button')) return;
@@ -952,7 +969,7 @@ export function MonthView({
                                 timeLabel ? `${task.title} · ${timeLabel}` : task.title
                               }
                               className={cn(
-                                'flex cursor-grab items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors active:cursor-grabbing',
+                                'flex cursor-grab select-none items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors active:cursor-grabbing',
                                 task.completed
                                   ? isHabitQuit(task.kind)
                                     ? 'task-completed-title bg-red-500/10 text-text-muted line-through'
@@ -1015,7 +1032,7 @@ export function MonthView({
                                   <Check className="h-2.5 w-2.5" strokeWidth={3} />
                                 )}
                               </button>
-                              <span className="min-w-0 flex-1 truncate">
+                              <span className="min-w-0 flex-1 select-none truncate">
                                 {!habit && task.kind === 'reminder' ? '🔔 ' : ''}
                                 {!habit && task.recurrence.frequency !== 'none' ? '↻ ' : ''}
                                 {habit && isHabitGood(task.kind) ? '🌱 ' : ''}
@@ -1135,7 +1152,7 @@ export function MonthView({
                         <button
                           type="button"
                           className={cn(
-                            'min-w-0 flex-1 cursor-grab truncate text-left active:cursor-grabbing',
+                            'min-w-0 flex-1 cursor-grab select-none truncate text-left active:cursor-grabbing',
                             bar.task.completed && 'task-completed-title line-through'
                           )}
                           onClick={e => e.stopPropagation()}
