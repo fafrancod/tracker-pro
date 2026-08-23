@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Wallet } from 'lucide-react';
+import { Pencil, Plus, Trash2, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DecimalInput } from '@/components/ui/decimal-input';
@@ -19,12 +19,21 @@ import {
   deleteFinanceAccount,
   updateFinanceAccount,
 } from '@core/services/financeAccountService';
-import { paymentMethodRequiresBank, summarizeCardUsage } from '@core/lib/finance';
+import {
+  createFinanceMovement,
+  type FinanceVaultCtx,
+} from '@core/services/financeMovementService';
+import {
+  movementsForAccount,
+  paymentMethodRequiresBank,
+  summarizeCardUsage,
+} from '@core/lib/finance';
 import type {
   FinanceAccount,
   FinanceAccountType,
   FinanceMovement,
 } from '@core/lib/finance';
+import { InstallmentScheduleChart } from '@/components/Finances/InstallmentScheduleChart';
 import { SUPPORTED_CURRENCIES } from '@core/lib/currencies';
 
 function money(n: number, currency: string): string {
@@ -51,11 +60,17 @@ export function AccountsPanel({
   accounts,
   movements,
   defaultCurrency,
+  todayDayId,
+  monthId,
+  vault,
   onChanged,
 }: {
   accounts: FinanceAccount[];
   movements: FinanceMovement[];
   defaultCurrency?: string;
+  todayDayId: string;
+  monthId: string;
+  vault?: FinanceVaultCtx | null;
   onChanged: () => Promise<void>;
 }) {
   const { t } = useT();
@@ -64,6 +79,12 @@ export function AccountsPanel({
   const [editing, setEditing] = useState<FinanceAccount | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FinanceAccount | null>(null);
   const [busy, setBusy] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<'all' | FinanceAccountType>('all');
+  const [payAmount, setPayAmount] = useState(0);
+  const [payDayId, setPayDayId] = useState(todayDayId);
+  const [billedTotal, setBilledTotal] = useState(0);
+  const [billingDate, setBillingDate] = useState(todayDayId);
   const [form, setForm] = useState({
     name: '',
     institution: '',
@@ -150,9 +171,85 @@ export function AccountsPanel({
     }
   }
 
+  function selectAccount(acc: FinanceAccount) {
+    setSelectedId(id => (id === acc.id ? null : acc.id));
+    setPayAmount(0);
+    setPayDayId(todayDayId);
+    setBilledTotal(acc.billedTotal ?? 0);
+    setBillingDate(acc.billingDate || todayDayId);
+  }
+
+  async function saveStatement(acc: FinanceAccount) {
+    setBusy(true);
+    try {
+      await updateFinanceAccount(acc.id, {
+        billedTotal,
+        billingDate,
+      });
+      showToast(t('fin_account_saved'), 'success');
+      await onChanged();
+    } catch {
+      showToast(t('fin_save_error'), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recordCardPayment(acc: FinanceAccount) {
+    if (!(payAmount > 0)) {
+      showToast(t('fin_amount_required'), 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      await createFinanceMovement(
+        {
+          dayId: payDayId || todayDayId,
+          flow: 'expense',
+          status: 'confirmed',
+          currency: acc.currency,
+          title: `${t('fin_pm_card_pay')}: ${acc.name}`,
+          amount: payAmount,
+          tag: 'card_payment',
+          cardAccountId: acc.id,
+        },
+        vault ?? undefined
+      );
+      showToast(t('fin_created'), 'success');
+      setPayAmount(0);
+      await onChanged();
+    } catch {
+      showToast(t('fin_save_error'), 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const visibleAccounts =
+    typeFilter === 'all'
+      ? accounts
+      : accounts.filter(acc => acc.type === typeFilter);
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1">
+          {(['all', 'cash', 'debit', 'credit'] as const).map(id => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setTypeFilter(id)}
+              className={cn(
+                'rounded-full border px-2.5 py-1 text-[11px]',
+                typeFilter === id
+                  ? 'border-accent-teal bg-accent-teal/10 text-accent-teal'
+                  : 'border-border text-text-muted'
+              )}
+            >
+              {id === 'all' ? t('fin_account_all') : typeLabel(id)}
+            </button>
+          ))}
+        </div>
         <Button size="sm" onClick={openCreate}>
           <Plus className="mr-1 h-3.5 w-3.5" />
           {t('fin_account_add')}
@@ -170,22 +267,39 @@ export function AccountsPanel({
         </div>
       ) : (
         <ul className="grid gap-2 md:grid-cols-2">
-          {accounts.map(acc => {
+          {visibleAccounts.map(acc => {
             const usage =
               acc.type === 'credit' ? summarizeCardUsage(acc, movements) : null;
+            const expanded = selectedId === acc.id;
+            const accMovs = expanded
+              ? movementsForAccount(movements, acc.id).slice(-12).reverse()
+              : [];
             return (
-              <li key={acc.id}>
+              <li key={acc.id} className="rounded-xl border border-border bg-surface">
                 <button
                   type="button"
-                  onClick={() => openEdit(acc)}
-                  className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left"
+                  onClick={() => selectAccount(acc)}
+                  className="flex w-full flex-col gap-1 p-3 text-left"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-semibold text-text-primary">
                       {acc.name || t('task_money_pill')}
                     </span>
-                    <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-text-muted">
-                      {typeLabel(acc.type)}
+                    <span className="flex items-center gap-1">
+                      <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-text-muted">
+                        {typeLabel(acc.type)}
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={e => {
+                          e.stopPropagation();
+                          openEdit(acc);
+                        }}
+                        className="rounded-md p-1 text-text-muted hover:bg-background hover:text-text-primary"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </span>
                     </span>
                   </div>
                   {acc.institution ? (
@@ -237,6 +351,125 @@ export function AccountsPanel({
                     <p className="text-[11px] text-text-muted">{acc.currency}</p>
                   )}
                 </button>
+                {expanded ? (
+                  <div className="space-y-3 border-t border-border p-3">
+                    {usage ? (
+                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <p className="text-text-muted">{t('fin_pm_spent')}</p>
+                          <p className="tabular-nums text-text-primary">
+                            {money(usage.spent, acc.currency)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-text-muted">{t('fin_pm_paid')}</p>
+                          <p className="tabular-nums text-text-primary">
+                            {money(usage.paid, acc.currency)}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+                    {acc.type === 'credit' ? (
+                      <>
+                        <div className="space-y-1.5">
+                          <p className="text-[11px] font-semibold text-text-primary">
+                            {t('fin_pm_statement')}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="block space-y-1 text-[11px] text-text-muted">
+                              <span>{t('fin_pm_statement_billed')}</span>
+                              <DecimalInput
+                                value={billedTotal}
+                                onChange={setBilledTotal}
+                                min={0}
+                                max={1_000_000_000}
+                                className="h-8 text-sm"
+                              />
+                            </label>
+                            <label className="block space-y-1 text-[11px] text-text-muted">
+                              <span>{t('fin_pm_statement_date')}</span>
+                              <Input
+                                type="date"
+                                value={billingDate}
+                                onChange={e => setBillingDate(e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                            </label>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => void saveStatement(acc)}
+                          >
+                            {t('action_save')}
+                          </Button>
+                        </div>
+                        <div className="space-y-1.5">
+                          <p className="text-[11px] font-semibold text-text-primary">
+                            {t('fin_pm_card_pay')}
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <DecimalInput
+                              value={payAmount}
+                              onChange={setPayAmount}
+                              min={0}
+                              max={1_000_000_000}
+                              className="h-8 text-sm"
+                            />
+                            <Input
+                              type="date"
+                              value={payDayId}
+                              onChange={e => setPayDayId(e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <Button
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => void recordCardPayment(acc)}
+                          >
+                            {t('fin_pm_card_pay_save')}
+                          </Button>
+                        </div>
+                        <InstallmentScheduleChart
+                          movements={movementsForAccount(movements, acc.id)}
+                          monthId={monthId}
+                          reportingCurrency={acc.currency}
+                        />
+                      </>
+                    ) : null}
+                    <ul className="space-y-1">
+                      {accMovs.length === 0 ? (
+                        <li className="text-[11px] text-text-muted">
+                          {t('fin_pm_tx_empty')}
+                        </li>
+                      ) : (
+                        accMovs.map(mov => (
+                          <li
+                            key={mov.id}
+                            className="flex justify-between gap-2 text-[11px]"
+                          >
+                            <span className="truncate text-text-primary">
+                              {mov.dayId} · {mov.title}
+                            </span>
+                            <span
+                              className={cn(
+                                'shrink-0 tabular-nums',
+                                mov.flow === 'income'
+                                  ? 'text-accent-green'
+                                  : 'text-text-primary'
+                              )}
+                            >
+                              {mov.flow === 'income' ? '+' : '−'}
+                              {money(mov.amount, mov.currency)}
+                            </span>
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
+                ) : null}
               </li>
             );
           })}

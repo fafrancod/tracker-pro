@@ -13,6 +13,7 @@ export interface MonthlyEvolutionRow {
   expenseInstallment: number;
   expenseRecurring: number;
   expenseCredit: number;
+  cumulative: number;
 }
 
 export function listMonthIds(endMonthId: string, count: number): string[] {
@@ -130,6 +131,7 @@ export function summarizeMonthlyEvolution(
       expenseInstallment: 0,
       expenseRecurring: 0,
       expenseCredit: 0,
+      cumulative: 0,
     });
   }
   for (const mov of all) {
@@ -153,6 +155,12 @@ export function summarizeMonthlyEvolution(
     else if (kind === 'recurring') bucket.expenseRecurring += amount;
     else if (kind === 'credit') bucket.expenseCredit += amount;
     else bucket.expenseUnit += amount;
+  }
+  let run = 0;
+  for (const monthId of monthIds) {
+    const bucket = byMonth.get(monthId)!;
+    run += bucket.income - bucket.expense;
+    bucket.cumulative = run;
   }
   return monthIds.map(id => byMonth.get(id)!);
 }

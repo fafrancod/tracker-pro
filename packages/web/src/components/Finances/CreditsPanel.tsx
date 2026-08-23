@@ -168,6 +168,8 @@ export function CreditsPanel({
     });
   }, [simTarget, simProgress, extra, simMode]);
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const consumer = credits.filter(c => c.kind === 'consumer');
   const mortgage = credits.filter(c => c.kind === 'mortgage');
   const other = credits.filter(
@@ -176,19 +178,41 @@ export function CreditsPanel({
 
   function renderCredit(credit: FinanceCredit) {
     const p = summarizeCreditProgress(credit, movements);
+    const history = movements
+      .filter(
+        m => m.creditId === credit.id && m.status !== 'skipped' && m.flow === 'expense'
+      )
+      .slice()
+      .sort((a, b) => b.dayId.localeCompare(a.dayId));
+    const expanded = expandedId === credit.id;
     return (
-      <li key={credit.id}>
+      <li key={credit.id} className="rounded-xl border border-border bg-surface">
         <button
           type="button"
-          onClick={() => openEdit(credit)}
-          className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left"
+          onClick={() => {
+            setExpandedId(expanded ? null : credit.id);
+          }}
+          className="flex w-full flex-col gap-1 p-3 text-left"
         >
           <div className="flex items-center justify-between gap-2">
             <span className="truncate text-sm font-semibold text-text-primary">
               {credit.name}
             </span>
-            <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-text-muted">
-              {kindLabel(credit.kind)}
+            <span className="flex items-center gap-1">
+              <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-text-muted">
+                {kindLabel(credit.kind)}
+              </span>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={e => {
+                  e.stopPropagation();
+                  openEdit(credit);
+                }}
+                className="rounded-md px-1.5 py-0.5 text-[10px] text-accent-teal"
+              >
+                {t('fin_credit_edit')}
+              </span>
             </span>
           </div>
           <p className="text-sm font-semibold tabular-nums text-text-primary">
@@ -196,6 +220,19 @@ export function CreditsPanel({
               '{amount}',
               money(p.remainingPrincipal, credit.currency)
             )}
+          </p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-border">
+            <div
+              className="h-full bg-accent-teal"
+              style={{ width: `${p.paidPercentage}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-text-muted">
+            {t('fin_credit_amortized')} {p.paidPercentage.toFixed(0)}%
+            {' · '}
+            {t('fin_credit_paid')} {money(p.actualPaid, credit.currency)}
+            {' · '}
+            {t('fin_credit_pending')} {money(p.remainingPrincipal, credit.currency)}
           </p>
           <p className="text-[11px] text-text-muted">
             {t('fin_credit_remaining_months').replace(
@@ -211,10 +248,27 @@ export function CreditsPanel({
             {money(credit.monthlyInstallment, credit.currency)}
             {t('fin_credit_per_month')}
           </p>
-          <p className="text-[10px] text-text-muted">
-            {t('fin_credit_due_day')} {credit.dueDay}
-          </p>
         </button>
+        {expanded && history.length > 0 ? (
+          <ul className="space-y-1 border-t border-border px-3 py-2">
+            <li className="text-[10px] font-semibold uppercase text-text-muted">
+              {t('fin_credit_history')}
+            </li>
+            {history.slice(0, 12).map(mov => (
+              <li
+                key={mov.id}
+                className="flex justify-between text-[11px] text-text-primary"
+              >
+                <span>
+                  {mov.dayId} · {mov.title}
+                </span>
+                <span className="tabular-nums">
+                  {money(mov.amount, mov.currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </li>
     );
   }
@@ -244,8 +298,69 @@ export function CreditsPanel({
     );
   }
 
+  const totals = credits.reduce(
+    (acc, credit) => {
+      const p = summarizeCreditProgress(credit, movements);
+      acc.committed += p.expectedTotal;
+      acc.paid += p.actualPaid;
+      acc.remaining += p.remainingPrincipal;
+      acc.monthly += credit.monthlyInstallment;
+      return acc;
+    },
+    { committed: 0, paid: 0, remaining: 0, monthly: 0 }
+  );
+  const incomeMonths = new Map<string, number>();
+  for (const mov of movements) {
+    if (mov.flow !== 'income' || mov.status === 'skipped') continue;
+    const key = mov.dayId.slice(0, 7);
+    incomeMonths.set(key, (incomeMonths.get(key) ?? 0) + (Number(mov.amount) || 0));
+  }
+  const avgIncome =
+    incomeMonths.size > 0
+      ? [...incomeMonths.values()].reduce((a, b) => a + b, 0) / incomeMonths.size
+      : 0;
+  const dti = avgIncome > 0 ? (totals.monthly / avgIncome) * 100 : 0;
+  const dtiCurrency = credits[0]?.currency ?? defaultCurrency;
+
   return (
     <div className="flex flex-col gap-5">
+      {credits.length > 0 ? (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <p className="text-[10px] uppercase text-text-muted">
+              {t('fin_credit_committed')}
+            </p>
+            <p className="text-sm font-semibold tabular-nums text-text-primary">
+              {money(totals.committed, dtiCurrency)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <p className="text-[10px] uppercase text-text-muted">
+              {t('fin_credit_monthly_load')}
+            </p>
+            <p className="text-sm font-semibold tabular-nums text-text-primary">
+              {money(totals.monthly, dtiCurrency)}
+              {t('fin_credit_per_month')}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <p className="text-[10px] uppercase text-text-muted">
+              {t('fin_credit_pending')}
+            </p>
+            <p className="text-sm font-semibold tabular-nums text-text-primary">
+              {money(totals.remaining, dtiCurrency)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <p className="text-[10px] uppercase text-text-muted">
+              {t('fin_credit_dti')}
+            </p>
+            <p className="text-sm font-semibold tabular-nums text-text-primary">
+              {avgIncome > 0 ? `${dti.toFixed(0)}%` : '—'}
+            </p>
+          </div>
+        </div>
+      ) : null}
       {credits.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-4 text-center">
           <Landmark className="h-5 w-5 text-text-muted" />

@@ -84,6 +84,8 @@ export interface FinanceAccountPayload {
   name: string;
   institution: string;
   creditLimit: number;
+  billedTotal: number;
+  billingDate: string;
 }
 
 export interface FinanceGoalPayload {
@@ -137,6 +139,8 @@ export interface FinanceAccount {
   name: string;
   institution: string;
   creditLimit: number;
+  billedTotal?: number;
+  billingDate?: string;
   archived: boolean;
   sealed?: boolean;
   createdAt: string;

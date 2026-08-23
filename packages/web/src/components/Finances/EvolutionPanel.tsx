@@ -1,15 +1,17 @@
 import { useMemo } from 'react';
 import {
   Bar,
-  BarChart,
   CartesianGrid,
+  ComposedChart,
   Legend,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import { BarChart3 } from 'lucide-react';
+import { InstallmentScheduleChart } from '@/components/Finances/InstallmentScheduleChart';
 import { format, parseISO } from 'date-fns';
 import { useT } from '@/hooks/useT';
 import {
@@ -95,7 +97,7 @@ export function EvolutionPanel({
       <p className="text-xs text-text-muted">{t('fin_evo_legend')}</p>
       <div className="h-80 w-full rounded-xl border border-border bg-surface p-3">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <CartesianGrid
               strokeDasharray="3 3"
               stroke={dark ? 'rgba(142,142,147,0.22)' : 'rgba(60,60,67,0.12)'}
@@ -157,8 +159,26 @@ export function EvolutionPanel({
               fill={macSystem.red}
               radius={[4, 4, 0, 0]}
             />
-          </BarChart>
+            <Line
+              type="monotone"
+              dataKey="cumulative"
+              name={t('fin_evo_cumulative')}
+              stroke={macSystem.teal}
+              strokeWidth={2}
+              dot={false}
+            />
+          </ComposedChart>
         </ResponsiveContainer>
+      </div>
+      <div className="rounded-xl border border-border bg-surface p-3">
+        <p className="mb-2 text-xs font-semibold text-text-primary">
+          {t('fin_evo_installment_chart')}
+        </p>
+        <InstallmentScheduleChart
+          movements={movements}
+          monthId={monthId}
+          reportingCurrency={reportingCurrency}
+        />
       </div>
     </div>
   );

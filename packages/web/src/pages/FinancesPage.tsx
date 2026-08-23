@@ -636,6 +636,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             accounts={accounts}
             movements={ledgerMovements.length ? ledgerMovements : movements}
             defaultCurrency={preferred}
+            todayDayId={todayId}
+            monthId={monthId}
+            vault={vault}
             onChanged={reload}
           />
         ) : null}

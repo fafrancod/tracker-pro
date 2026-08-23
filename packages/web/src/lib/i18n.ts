@@ -79,6 +79,24 @@ export interface TranslationDict {
   fin_evo_recurring: string;
   fin_evo_credits: string;
   fin_evo_legend: string;
+  fin_evo_cumulative: string;
+  fin_evo_installment_chart: string;
+  fin_evo_installment_empty: string;
+  fin_pm_spent: string;
+  fin_pm_paid: string;
+  fin_pm_statement: string;
+  fin_pm_statement_billed: string;
+  fin_pm_statement_date: string;
+  fin_pm_card_pay: string;
+  fin_pm_card_pay_save: string;
+  fin_pm_tx_empty: string;
+  fin_credit_paid: string;
+  fin_credit_pending: string;
+  fin_credit_committed: string;
+  fin_credit_monthly_load: string;
+  fin_credit_dti: string;
+  fin_credit_amortized: string;
+  fin_credit_history: string;
   fin_credit_remaining: string;
   fin_credit_remaining_months: string;
   fin_credit_section_consumer: string;
@@ -1307,6 +1325,24 @@ const es_dict: TranslationDict = {
   fin_evo_credits: 'Créditos',
   fin_evo_legend:
     'Los gastos apilan cuotas, mensuales, créditos y unitarios del mes.',
+  fin_evo_cumulative: 'Flujo acumulado',
+  fin_evo_installment_chart: 'Calendario de cuotas',
+  fin_evo_installment_empty: 'No hay compras en cuotas en estos 12 meses.',
+  fin_pm_spent: 'Cargos',
+  fin_pm_paid: 'Pagado a la tarjeta',
+  fin_pm_statement: 'Estado de cuenta',
+  fin_pm_statement_billed: 'Total facturado',
+  fin_pm_statement_date: 'Fecha de facturación',
+  fin_pm_card_pay: 'Registrar pago de tarjeta',
+  fin_pm_card_pay_save: 'Pagar',
+  fin_pm_tx_empty: 'Sin movimientos en este medio.',
+  fin_credit_paid: 'Pagado',
+  fin_credit_pending: 'Resta',
+  fin_credit_committed: 'Total comprometido',
+  fin_credit_monthly_load: 'Carga mensual',
+  fin_credit_dti: 'Deuda / ingresos',
+  fin_credit_amortized: 'Amortizado',
+  fin_credit_history: 'Historial de cuotas',
   fin_credit_remaining: 'Quedan {amount} por pagar',
   fin_credit_remaining_months: '{count} cuotas restantes',
   fin_credit_section_consumer: 'Créditos de consumo',
@@ -2638,6 +2674,24 @@ const en_dict: TranslationDict = {
   fin_evo_credits: 'Credits',
   fin_evo_legend:
     'Expenses stack installments, monthly bills, credits and one-off items.',
+  fin_evo_cumulative: 'Cumulative cash flow',
+  fin_evo_installment_chart: 'Installment schedule',
+  fin_evo_installment_empty: 'No installment purchases in these 12 months.',
+  fin_pm_spent: 'Charges',
+  fin_pm_paid: 'Paid to the card',
+  fin_pm_statement: 'Statement',
+  fin_pm_statement_billed: 'Billed total',
+  fin_pm_statement_date: 'Billing date',
+  fin_pm_card_pay: 'Record card payment',
+  fin_pm_card_pay_save: 'Pay',
+  fin_pm_tx_empty: 'No movements on this method.',
+  fin_credit_paid: 'Paid',
+  fin_credit_pending: 'Remaining',
+  fin_credit_committed: 'Total committed',
+  fin_credit_monthly_load: 'Monthly load',
+  fin_credit_dti: 'Debt / income',
+  fin_credit_amortized: 'Amortized',
+  fin_credit_history: 'Installment history',
   fin_credit_remaining: '{amount} left to pay',
   fin_credit_remaining_months: '{count} installments left',
   fin_credit_section_consumer: 'Consumer credit',

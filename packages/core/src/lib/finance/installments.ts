@@ -40,6 +40,9 @@ export interface FinanceCreditProgress {
   paidCount: number;
   remainingCount: number;
   remainingPrincipal: number;
+  actualPaid: number;
+  expectedTotal: number;
+  paidPercentage: number;
 }
 
 export function summarizeCreditProgress(
@@ -47,17 +50,29 @@ export function summarizeCreditProgress(
   movements: FinanceMovement[]
 ): FinanceCreditProgress {
   let paidCount = 0;
+  let actualPaid = 0;
   for (const mov of movements) {
     if (mov.status !== 'confirmed') continue;
     if (mov.creditId !== credit.id) continue;
     paidCount += 1;
+    actualPaid += Number(mov.amount) || 0;
   }
+  const expectedTotal =
+    credit.principal > 0
+      ? credit.principal
+      : credit.termMonths * credit.monthlyInstallment;
   const remainingCount = Math.max(0, credit.termMonths - paidCount);
+  const remainingPrincipal = Math.max(0, expectedTotal - actualPaid);
+  const paidPercentage =
+    expectedTotal > 0 ? Math.min(100, (actualPaid / expectedTotal) * 100) : 0;
   return {
     creditId: credit.id,
     paidCount,
     remainingCount,
-    remainingPrincipal: remainingCount * credit.monthlyInstallment,
+    remainingPrincipal,
+    actualPaid,
+    expectedTotal,
+    paidPercentage,
   };
 }
 

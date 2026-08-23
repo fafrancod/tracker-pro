@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildInstallmentSchedule,
   classifyExpenseKind,
   isValidPaymentInstitution,
   listMonthIds,
+  summarizeCreditProgress,
   summarizeMonthlyEvolution,
   type FinanceCredit,
   type FinanceMovement,
@@ -198,6 +200,102 @@ describe('evolución de pagos', () => {
     expect(rows[0].expense).toBe(550_000);
   });
 
+  it('acumula flujo mes a mes', () => {
+    const rows = summarizeMonthlyEvolution(
+      [
+        mov({
+          id: 'in1',
+          flow: 'income',
+          amount: 100,
+          dayId: '2026-07-01',
+        }),
+        mov({ id: 'e1', amount: 30, dayId: '2026-07-10' }),
+        mov({
+          id: 'in2',
+          flow: 'income',
+          amount: 100,
+          dayId: '2026-08-01',
+        }),
+        mov({ id: 'e2', amount: 50, dayId: '2026-08-10' }),
+      ],
+      { monthIds: ['2026-07', '2026-08'], reportingCurrency: 'CLP' }
+    );
+    expect(rows[0].cumulative).toBe(70);
+    expect(rows[1].cumulative).toBe(120);
+  });
+});
+
+describe('calendario de cuotas (Meteora)', () => {
+  it('apila por compra (groupId) y no cuenta pagos de tarjeta', () => {
+    const rows = [
+      mov({
+        id: 'c1',
+        title: 'Notebook (1/3)',
+        amount: 80_000,
+        dayId: '2026-07-05',
+        installmentGroupId: 'g-nb',
+        installmentIndex: 1,
+        installmentTotal: 3,
+      }),
+      mov({
+        id: 'c2',
+        title: 'Notebook (2/3)',
+        amount: 80_000,
+        dayId: '2026-08-05',
+        installmentGroupId: 'g-nb',
+        installmentIndex: 2,
+        installmentTotal: 3,
+      }),
+      mov({
+        id: 'pay',
+        title: 'Pago de Visa',
+        amount: 200_000,
+        dayId: '2026-08-15',
+        tag: 'card_payment',
+        cardAccountId: 'visa',
+      }),
+    ];
+    const model = buildInstallmentSchedule(rows, ['2026-07', '2026-08'], id => id);
+    expect(model.segments).toHaveLength(1);
+    expect(model.segments[0].label).toBe('Notebook');
+    expect(model.rows[0].total).toBe(80_000);
+    expect(model.rows[1].total).toBe(80_000);
+  });
+});
+
+describe('crédito: pagado vs resta', () => {
+  it('resta el capital con los pagos reales, no solo el conteo de cuotas', () => {
+    const progress = summarizeCreditProgress(
+      credit({
+        principal: 1_200_000,
+        monthlyInstallment: 100_000,
+        termMonths: 12,
+      }),
+      [
+        mov({
+          id: 'p1',
+          amount: 100_000,
+          creditId: 'c1',
+          tag: 'credit_payment',
+          dayId: '2026-01-05',
+        }),
+        mov({
+          id: 'p2',
+          amount: 150_000,
+          creditId: 'c1',
+          tag: 'credit_payment',
+          dayId: '2026-02-05',
+        }),
+      ]
+    );
+    expect(progress.paidCount).toBe(2);
+    expect(progress.actualPaid).toBe(250_000);
+    expect(progress.remainingPrincipal).toBe(950_000);
+    expect(progress.remainingCount).toBe(10);
+  });
+});
+
+describe('evolución: no duplicar crédito pagado', () => {
   it('no duplica el crédito si ya hay pago registrado en el mes', () => {
     const rows = summarizeMonthlyEvolution(
       [

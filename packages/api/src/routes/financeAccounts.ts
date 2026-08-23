@@ -28,6 +28,11 @@ financeAccountsRouter.use(rateLimit({ windowMs: 60_000, max: 60 }));
 
 const typeSchema = z.enum(['cash', 'debit', 'credit', 'brokerage', 'other']);
 
+const daySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .or(z.literal(''));
+
 const createSchema = z.object({
   id: z.string().min(8).max(80).optional(),
   type: typeSchema,
@@ -35,6 +40,8 @@ const createSchema = z.object({
   name: z.string().min(1).max(80).trim(),
   institution: z.string().max(80).trim().optional(),
   creditLimit: z.number().nonnegative().max(1_000_000_000).optional(),
+  billedTotal: z.number().nonnegative().max(1_000_000_000).optional(),
+  billingDate: daySchema.optional(),
 });
 
 const updateSchema = z.object({
@@ -43,6 +50,8 @@ const updateSchema = z.object({
   name: z.string().min(1).max(80).trim().optional(),
   institution: z.string().max(80).trim().optional(),
   creditLimit: z.number().nonnegative().max(1_000_000_000).optional(),
+  billedTotal: z.number().nonnegative().max(1_000_000_000).optional(),
+  billingDate: daySchema.optional(),
   archived: z.boolean().optional(),
 });
 
@@ -87,19 +96,14 @@ async function ensureAccountDek(uid: string): Promise<Buffer> {
   return dek;
 }
 
-function mapAccount(
-  row: Record<string, unknown>,
-  opened?: { name: string; institution: string; creditLimit: number } | null
-) {
+function mapAccount(row: Record<string, unknown>, opened?: unknown) {
   const clientSealed =
-    !opened &&
+    opened == null &&
     typeof row.payload_enc === 'string' &&
     row.payload_enc.length > 0;
-  const payload = opened
-    ? opened
-    : clientSealed
-      ? { name: '', institution: '', creditLimit: 0 }
-      : parseAccountPayload(row.payload);
+  const payload = parseAccountPayload(
+    opened ?? (clientSealed ? {} : row.payload)
+  );
   return {
     id: row.id as string,
     type: normalizeAccountType(row.type),
@@ -107,6 +111,8 @@ function mapAccount(
     name: payload.name,
     institution: payload.institution,
     creditLimit: payload.creditLimit,
+    billedTotal: payload.billedTotal,
+    billingDate: payload.billingDate,
     archived: Boolean(row.archived_at),
     sealed: clientSealed,
     createdAt: row.created_at as string,
@@ -121,11 +127,15 @@ function openAccount(
 ) {
   if (!dek || typeof row.payload_enc !== 'string' || !row.payload_enc) return null;
   try {
-    return decryptAccountPayload<{
-      name: string;
-      institution: string;
-      creditLimit: number;
-    }>(uid, dek, 'finance_accounts', String(row.id), row.payload_enc);
+    return parseAccountPayload(
+      decryptAccountPayload(
+        uid,
+        dek,
+        'finance_accounts',
+        String(row.id),
+        row.payload_enc
+      )
+    );
   } catch {
     return null;
   }
@@ -186,6 +196,8 @@ financeAccountsRouter.post('/accounts', async (req, res, next) => {
       name: body.name,
       institution,
       creditLimit: body.creditLimit ?? 0,
+      billedTotal: body.billedTotal ?? 0,
+      billingDate: body.billingDate ?? '',
     });
     if (!inner.name) throw ApiError.badRequest('El nombre de la cuenta es obligatorio');
     const row = {
@@ -236,6 +248,8 @@ financeAccountsRouter.patch('/accounts/:accountId', async (req, res, next) => {
       patch.name !== undefined ||
       patch.institution !== undefined ||
       patch.creditLimit !== undefined ||
+      patch.billedTotal !== undefined ||
+      patch.billingDate !== undefined ||
       patch.type !== undefined;
     let opened = parseAccountPayload(existing.payload);
     if (touchesSecret) {
@@ -255,6 +269,8 @@ financeAccountsRouter.patch('/accounts/:accountId', async (req, res, next) => {
         name: patch.name ?? prev.name,
         institution,
         creditLimit: patch.creditLimit ?? prev.creditLimit,
+        billedTotal: patch.billedTotal ?? prev.billedTotal,
+        billingDate: patch.billingDate ?? prev.billingDate,
       });
       update.payload = {};
       update.payload_enc = encryptAccountPayload(

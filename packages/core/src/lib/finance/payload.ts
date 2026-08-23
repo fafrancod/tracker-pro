@@ -248,11 +248,18 @@ export function parseGoalPayload(raw: unknown): import('./types').FinanceGoalPay
 export function parseAccountPayload(raw: unknown): FinanceAccountPayload {
   const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
   const limit = Number(o.creditLimit);
+  const billed = Number(o.billedTotal);
+  const billingDate =
+    typeof o.billingDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.billingDate)
+      ? o.billingDate
+      : '';
   return {
     name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
     institution:
       typeof o.institution === 'string' ? o.institution.trim().slice(0, 80) : '',
     creditLimit: Number.isFinite(limit) && limit >= 0 ? limit : 0,
+    billedTotal: Number.isFinite(billed) && billed >= 0 ? billed : 0,
+    billingDate,
   };
 }
 

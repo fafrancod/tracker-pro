@@ -50,6 +50,10 @@ function mapAccount(raw: Record<string, unknown>): FinanceAccount {
       typeof raw.institution === 'string' ? raw.institution : payload.institution,
     creditLimit:
       typeof raw.creditLimit === 'number' ? raw.creditLimit : payload.creditLimit,
+    billedTotal:
+      typeof raw.billedTotal === 'number' ? raw.billedTotal : payload.billedTotal,
+    billingDate:
+      typeof raw.billingDate === 'string' ? raw.billingDate : payload.billingDate,
     archived: Boolean(raw.archived ?? raw.archived_at),
     sealed: Boolean(raw.sealed),
     createdAt: String(raw.createdAt ?? raw.created_at ?? ''),
@@ -71,6 +75,8 @@ export async function createFinanceAccount(payload: {
   name: string;
   institution?: string;
   creditLimit?: number;
+  billedTotal?: number;
+  billingDate?: string;
 }): Promise<FinanceAccount> {
   if (isDemoMode()) {
     const now = new Date().toISOString();
@@ -81,6 +87,8 @@ export async function createFinanceAccount(payload: {
       name: payload.name,
       institution: payload.institution ?? '',
       creditLimit: payload.creditLimit ?? 0,
+      billedTotal: payload.billedTotal ?? 0,
+      billingDate: payload.billingDate ?? '',
       archived: false,
       createdAt: now,
       updatedAt: now,
@@ -103,6 +111,8 @@ export async function updateFinanceAccount(
     name?: string;
     institution?: string;
     creditLimit?: number;
+    billedTotal?: number;
+    billingDate?: string;
     archived?: boolean;
   }
 ): Promise<FinanceAccount> {
