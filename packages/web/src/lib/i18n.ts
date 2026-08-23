@@ -24,6 +24,10 @@ export interface TranslationDict {
   nav_reflections: string;
   nav_recetario: string;
   nav_finances: string;
+  nav_fin_categories: string;
+  nav_fin_payment_methods: string;
+  nav_fin_evolution: string;
+  nav_fin_credits: string;
   nav_habits: string;
   nav_gantt: string;
 
@@ -59,6 +63,28 @@ export interface TranslationDict {
   fin_tab_investments: string;
   fin_tab_health: string;
   fin_tab_categories: string;
+  fin_tab_evolution: string;
+  fin_field_payment_method: string;
+  fin_payment_none: string;
+  fin_payment_empty_hint: string;
+  fin_account_bank: string;
+  fin_account_bank_required: string;
+  fin_account_bank_hint: string;
+  fin_evo_empty: string;
+  fin_evo_empty_hint: string;
+  fin_evo_income: string;
+  fin_evo_expense: string;
+  fin_evo_unit: string;
+  fin_evo_installments: string;
+  fin_evo_recurring: string;
+  fin_evo_credits: string;
+  fin_evo_legend: string;
+  fin_credit_remaining: string;
+  fin_credit_remaining_months: string;
+  fin_credit_section_consumer: string;
+  fin_credit_section_mortgage: string;
+  fin_credit_section_other: string;
+  fin_credit_empty_section: string;
   fin_cat_add: string;
   fin_cat_edit: string;
   fin_cat_name: string;
@@ -1226,6 +1252,10 @@ const es_dict: TranslationDict = {
   nav_reflections: 'Reflexiones',
   nav_recetario: 'Recetario',
   nav_finances: 'Finances',
+  nav_fin_categories: 'Categorías',
+  nav_fin_payment_methods: 'Medios de pago',
+  nav_fin_evolution: 'Evolución de pagos',
+  nav_fin_credits: 'Créditos',
   nav_habits: 'Hábitos',
   nav_gantt: 'Carta Gantt',
   fin_add: 'Añadir movimiento',
@@ -1252,12 +1282,37 @@ const es_dict: TranslationDict = {
   fin_filter_all_kinds: 'Todos los tipos',
   fin_empty_title: 'Sin movimientos este mes',
   fin_tab_calendar: 'Calendario',
-  fin_tab_accounts: 'Cuentas',
+  fin_tab_accounts: 'Medios de pago',
   fin_tab_goals: 'Objetivos',
   fin_tab_credits: 'Créditos',
   fin_tab_investments: 'Inversiones',
   fin_tab_health: 'Salud',
   fin_tab_categories: 'Categorías',
+  fin_tab_evolution: 'Evolución de pagos',
+  fin_field_payment_method: 'Medio de pago',
+  fin_payment_none: 'Ninguno',
+  fin_payment_empty_hint:
+    'Define efectivo, débito o crédito en Finanzas → Medios de pago.',
+  fin_account_bank: 'Banco',
+  fin_account_bank_required: 'Indica el banco. En efectivo no hace falta.',
+  fin_account_bank_hint: 'Obligatorio en débito y crédito.',
+  fin_evo_empty: 'Aún no hay ingresos ni gastos para graficar.',
+  fin_evo_empty_hint:
+    'Las barras incluyen cuotas, gastos mensuales (luz, créditos) y gastos unitarios.',
+  fin_evo_income: 'Ingresos',
+  fin_evo_expense: 'Gastos',
+  fin_evo_unit: 'Unitarios',
+  fin_evo_installments: 'Cuotas',
+  fin_evo_recurring: 'Mensuales',
+  fin_evo_credits: 'Créditos',
+  fin_evo_legend:
+    'Los gastos apilan cuotas, mensuales, créditos y unitarios del mes.',
+  fin_credit_remaining: 'Quedan {amount} por pagar',
+  fin_credit_remaining_months: '{count} cuotas restantes',
+  fin_credit_section_consumer: 'Créditos de consumo',
+  fin_credit_section_mortgage: 'Créditos hipotecarios',
+  fin_credit_section_other: 'Otros créditos',
+  fin_credit_empty_section: 'Ninguno en esta sección.',
   fin_cat_add: 'Añadir categoría',
   fin_cat_edit: 'Editar categoría',
   fin_cat_name: 'Nombre',
@@ -1364,26 +1419,26 @@ const es_dict: TranslationDict = {
   fin_goal_remaining: 'Faltan {remaining}',
   fin_goal_contribution: 'Este es un aporte a un objetivo',
   fin_goal_contribution_of: 'Objetivo',
-  fin_account_add: 'Añadir cuenta',
-  fin_account_edit: 'Editar cuenta',
+  fin_account_add: 'Añadir medio de pago',
+  fin_account_edit: 'Editar medio de pago',
   fin_account_name: 'Nombre',
-  fin_account_institution: 'Institución',
+  fin_account_institution: 'Banco',
   fin_account_type: 'Tipo',
   fin_account_type_cash: 'Efectivo',
   fin_account_type_debit: 'Débito',
-  fin_account_type_credit: 'Tarjeta de crédito',
+  fin_account_type_credit: 'Crédito',
   fin_account_type_brokerage: 'Inversión',
   fin_account_type_other: 'Otra',
   fin_account_limit: 'Cupo',
   fin_account_used: 'Usado',
   fin_account_available: 'Disponible',
-  fin_account_empty: 'Sin cuentas todavía',
+  fin_account_empty: 'Sin medios de pago todavía',
   fin_account_empty_hint:
-    'Declara efectivo, débito o una tarjeta. El cupo se cifra con tu cuenta.',
-  fin_account_all: 'Todas las cuentas',
-  fin_account_name_required: 'Ponle un nombre a la cuenta.',
-  fin_account_saved: 'Cuenta guardada.',
-  fin_field_account: 'Cuenta',
+    'Define efectivo, débito o crédito. El banco es obligatorio salvo en efectivo.',
+  fin_account_all: 'Todos los medios',
+  fin_account_name_required: 'Ponle un nombre al medio de pago.',
+  fin_account_saved: 'Medio de pago guardado.',
+  fin_field_account: 'Medio de pago',
   fin_card_payment: 'Este es un pago de tarjeta',
   fin_card_payment_of: 'Tarjeta que pagas',
   fin_fx_pending:
@@ -2530,6 +2585,10 @@ const en_dict: TranslationDict = {
   nav_habits: 'Habits',
   nav_gantt: 'Gantt chart',
   nav_finances: 'Finances',
+  nav_fin_categories: 'Categories',
+  nav_fin_payment_methods: 'Payment methods',
+  nav_fin_evolution: 'Payment trends',
+  nav_fin_credits: 'Credits',
   fin_add: 'Add entry',
   fin_edit: 'Edit entry',
   fin_this_month: 'This month',
@@ -2554,12 +2613,37 @@ const en_dict: TranslationDict = {
   fin_filter_all_kinds: 'All kinds',
   fin_empty_title: 'No entries this month',
   fin_tab_calendar: 'Calendar',
-  fin_tab_accounts: 'Accounts',
+  fin_tab_accounts: 'Payment methods',
   fin_tab_goals: 'Goals',
   fin_tab_credits: 'Credits',
   fin_tab_investments: 'Investments',
   fin_tab_health: 'Health',
   fin_tab_categories: 'Categories',
+  fin_tab_evolution: 'Payment trends',
+  fin_field_payment_method: 'Payment method',
+  fin_payment_none: 'None',
+  fin_payment_empty_hint:
+    'Define cash, debit or credit under Finances → Payment methods.',
+  fin_account_bank: 'Bank',
+  fin_account_bank_required: 'Enter the bank. Cash does not need one.',
+  fin_account_bank_hint: 'Required for debit and credit.',
+  fin_evo_empty: 'No income or expenses to chart yet.',
+  fin_evo_empty_hint:
+    'Bars include installments, monthly bills (utilities, loans) and one-off expenses.',
+  fin_evo_income: 'Income',
+  fin_evo_expense: 'Expenses',
+  fin_evo_unit: 'One-off',
+  fin_evo_installments: 'Installments',
+  fin_evo_recurring: 'Monthly',
+  fin_evo_credits: 'Credits',
+  fin_evo_legend:
+    'Expenses stack installments, monthly bills, credits and one-off items.',
+  fin_credit_remaining: '{amount} left to pay',
+  fin_credit_remaining_months: '{count} installments left',
+  fin_credit_section_consumer: 'Consumer credit',
+  fin_credit_section_mortgage: 'Mortgage',
+  fin_credit_section_other: 'Other credit',
+  fin_credit_empty_section: 'None in this section.',
   fin_cat_add: 'Add category',
   fin_cat_edit: 'Edit category',
   fin_cat_name: 'Name',
@@ -2666,26 +2750,26 @@ const en_dict: TranslationDict = {
   fin_goal_remaining: '{remaining} left',
   fin_goal_contribution: 'This is a goal contribution',
   fin_goal_contribution_of: 'Goal',
-  fin_account_add: 'Add account',
-  fin_account_edit: 'Edit account',
+  fin_account_add: 'Add payment method',
+  fin_account_edit: 'Edit payment method',
   fin_account_name: 'Name',
-  fin_account_institution: 'Institution',
+  fin_account_institution: 'Bank',
   fin_account_type: 'Type',
   fin_account_type_cash: 'Cash',
   fin_account_type_debit: 'Debit',
-  fin_account_type_credit: 'Credit card',
+  fin_account_type_credit: 'Credit',
   fin_account_type_brokerage: 'Brokerage',
   fin_account_type_other: 'Other',
   fin_account_limit: 'Limit',
   fin_account_used: 'Used',
   fin_account_available: 'Available',
-  fin_account_empty: 'No accounts yet',
+  fin_account_empty: 'No payment methods yet',
   fin_account_empty_hint:
-    'Add cash, debit or a card. The limit is encrypted with your account.',
-  fin_account_all: 'All accounts',
-  fin_account_name_required: 'Give the account a name.',
-  fin_account_saved: 'Account saved.',
-  fin_field_account: 'Account',
+    'Define cash, debit or credit. The bank is required except for cash.',
+  fin_account_all: 'All methods',
+  fin_account_name_required: 'Give the payment method a name.',
+  fin_account_saved: 'Payment method saved.',
+  fin_field_account: 'Payment method',
   fin_card_payment: 'This is a card payment',
   fin_card_payment_of: 'Card you are paying',
   fin_fx_pending: 'Saved. The exchange rate will apply when you are back online.',

@@ -19,6 +19,9 @@ import {
   Files,
   Sprout,
   GanttChart,
+  Tags,
+  CreditCard,
+  Landmark,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,7 +54,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/memento-mori', labelKey: 'nav_memento', icon: Hourglass, skipMainList: true },
   { to: '/reflections', labelKey: 'nav_reflections', icon: BookHeart },
   { to: '/recetario', labelKey: 'nav_recetario', icon: Pill },
-  { to: '/finances', labelKey: 'nav_finances', icon: Wallet },
+  { to: '/finances', labelKey: 'nav_finances', icon: Wallet, skipMainList: true },
   { to: '/projects', labelKey: 'nav_projects', icon: FolderKanban },
   { to: '/documents', labelKey: 'nav_documents', icon: Files },
   { to: '/circle', labelKey: 'nav_circle', icon: Users },
@@ -88,9 +91,14 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
   const onMemento = location.pathname === '/memento-mori';
   const onGoalsTab = onMemento && new URLSearchParams(location.search).get('tab') === 'goals';
   const onMapTab = onMemento && !onGoalsTab;
+  const onFinances = location.pathname === '/finances';
+  const financesTab = onFinances
+    ? new URLSearchParams(location.search).get('tab') ?? 'calendar'
+    : '';
 
   // Insertar bloque Memento después de Eisenhower (índice de items filtrados)
   const eisenhowerIdx = items.findIndex(i => i.to === '/eisenhower');
+  const recetarioIdx = items.findIndex(i => i.to === '/recetario');
 
   function renderItem(item: NavItem) {
     const Icon = item.icon;
@@ -132,15 +140,66 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
     </div>
   );
 
+  const financesBlock = (
+    <div key="finances-block" className="mb-1">
+      <NavLink
+        to="/finances"
+        onClick={onNavigate}
+        className={navClass(onFinances && (!financesTab || financesTab === 'calendar'))}
+      >
+        <Wallet className="h-4 w-4" />
+        <span>{t('nav_finances')}</span>
+      </NavLink>
+      <NavLink
+        to="/finances?tab=categories"
+        onClick={onNavigate}
+        className={cn(navClass(financesTab === 'categories'), 'ml-3 pl-2 text-[13px]')}
+      >
+        <Tags className="h-3.5 w-3.5" />
+        <span>{t('nav_fin_categories')}</span>
+      </NavLink>
+      <NavLink
+        to="/finances?tab=accounts"
+        onClick={onNavigate}
+        className={cn(navClass(financesTab === 'accounts'), 'ml-3 pl-2 text-[13px]')}
+      >
+        <CreditCard className="h-3.5 w-3.5" />
+        <span>{t('nav_fin_payment_methods')}</span>
+      </NavLink>
+      <NavLink
+        to="/finances?tab=evolution"
+        onClick={onNavigate}
+        className={cn(navClass(financesTab === 'evolution'), 'ml-3 pl-2 text-[13px]')}
+      >
+        <BarChart3 className="h-3.5 w-3.5" />
+        <span>{t('nav_fin_evolution')}</span>
+      </NavLink>
+      <NavLink
+        to="/finances?tab=credits"
+        onClick={onNavigate}
+        className={cn(navClass(financesTab === 'credits'), 'ml-3 pl-2 text-[13px]')}
+      >
+        <Landmark className="h-3.5 w-3.5" />
+        <span>{t('nav_fin_credits')}</span>
+      </NavLink>
+    </div>
+  );
+
   const navNodes: ReactNode[] = [];
   items.forEach((item, idx) => {
     navNodes.push(renderItem(item));
     if (idx === eisenhowerIdx) {
       navNodes.push(mementoBlock);
     }
+    if (idx === recetarioIdx) {
+      navNodes.push(financesBlock);
+    }
   });
   if (eisenhowerIdx < 0) {
     navNodes.push(mementoBlock);
+  }
+  if (recetarioIdx < 0) {
+    navNodes.push(financesBlock);
   }
 
   return (

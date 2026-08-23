@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  isValidPaymentInstitution,
   normalizeAccountType,
   normalizeMovementCurrency,
+  normalizePaymentInstitution,
   parseAccountPayload,
 } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
@@ -171,9 +173,18 @@ financeAccountsRouter.post('/accounts', async (req, res, next) => {
     const dek = await ensureAccountDek(uid);
     const id = body.id ?? generateId();
     const now = new Date().toISOString();
+    const institution = normalizePaymentInstitution(
+      body.type,
+      body.institution
+    );
+    if (!isValidPaymentInstitution(body.type, institution)) {
+      throw ApiError.badRequest(
+        'El banco es obligatorio salvo en efectivo'
+      );
+    }
     const inner = parseAccountPayload({
       name: body.name,
-      institution: body.institution ?? '',
+      institution,
       creditLimit: body.creditLimit ?? 0,
     });
     if (!inner.name) throw ApiError.badRequest('El nombre de la cuenta es obligatorio');
@@ -213,6 +224,7 @@ financeAccountsRouter.patch('/accounts/:accountId', async (req, res, next) => {
 
     const now = new Date().toISOString();
     const update: Record<string, unknown> = { updated_at: now };
+    const nextType = patch.type ?? normalizeAccountType(existing.type);
     if (patch.type !== undefined) update.type = patch.type;
     if (patch.currency !== undefined) {
       update.currency = normalizeMovementCurrency(patch.currency);
@@ -223,15 +235,25 @@ financeAccountsRouter.patch('/accounts/:accountId', async (req, res, next) => {
     const touchesSecret =
       patch.name !== undefined ||
       patch.institution !== undefined ||
-      patch.creditLimit !== undefined;
+      patch.creditLimit !== undefined ||
+      patch.type !== undefined;
     let opened = parseAccountPayload(existing.payload);
     if (touchesSecret) {
       const dek = await ensureAccountDek(uid);
       const prev =
         openAccount(uid, dek, existing as Record<string, unknown>) ?? opened;
+      const institution = normalizePaymentInstitution(
+        nextType,
+        patch.institution ?? prev.institution
+      );
+      if (!isValidPaymentInstitution(nextType, institution)) {
+        throw ApiError.badRequest(
+          'El banco es obligatorio salvo en efectivo'
+        );
+      }
       opened = parseAccountPayload({
         name: patch.name ?? prev.name,
-        institution: patch.institution ?? prev.institution,
+        institution,
         creditLimit: patch.creditLimit ?? prev.creditLimit,
       });
       update.payload = {};

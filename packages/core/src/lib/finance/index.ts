@@ -9,6 +9,8 @@ export * from './installments';
 export * from './portfolio';
 export * from './engine';
 export * from './categoryBudget';
+export * from './paymentMethod';
+export * from './evolution';
 export * from './vault';
 export * from './recoveryWords';
 export * from './unseal';

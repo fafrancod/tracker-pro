@@ -83,7 +83,7 @@ export function CreditsPanel({
     return t('fin_credit_kind_other');
   }
 
-  function openCreate() {
+  function openCreate(kind: FinanceCreditKind = 'consumer') {
     setEditing(null);
     setForm({
       name: '',
@@ -91,9 +91,9 @@ export function CreditsPanel({
       monthlyInstallment: 0,
       dueDay: 5,
       startDayId: todayDayId,
-      termMonths: 12,
+      termMonths: kind === 'mortgage' ? 240 : 12,
       currency: defaultCurrency,
-      kind: 'consumer',
+      kind,
       notes: '',
     });
     setOpen(true);
@@ -168,59 +168,98 @@ export function CreditsPanel({
     });
   }, [simTarget, simProgress, extra, simMode]);
 
+  const consumer = credits.filter(c => c.kind === 'consumer');
+  const mortgage = credits.filter(c => c.kind === 'mortgage');
+  const other = credits.filter(
+    c => c.kind !== 'consumer' && c.kind !== 'mortgage'
+  );
+
+  function renderCredit(credit: FinanceCredit) {
+    const p = summarizeCreditProgress(credit, movements);
+    return (
+      <li key={credit.id}>
+        <button
+          type="button"
+          onClick={() => openEdit(credit)}
+          className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-sm font-semibold text-text-primary">
+              {credit.name}
+            </span>
+            <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-text-muted">
+              {kindLabel(credit.kind)}
+            </span>
+          </div>
+          <p className="text-sm font-semibold tabular-nums text-text-primary">
+            {t('fin_credit_remaining').replace(
+              '{amount}',
+              money(p.remainingPrincipal, credit.currency)
+            )}
+          </p>
+          <p className="text-[11px] text-text-muted">
+            {t('fin_credit_remaining_months').replace(
+              '{count}',
+              String(p.remainingCount)
+            )}
+            {' · '}
+            {t('fin_credit_progress')
+              .replace('{paid}', String(p.paidCount))
+              .replace('{total}', String(credit.termMonths))}
+          </p>
+          <p className="text-[11px] tabular-nums text-text-primary">
+            {money(credit.monthlyInstallment, credit.currency)}
+            {t('fin_credit_per_month')}
+          </p>
+          <p className="text-[10px] text-text-muted">
+            {t('fin_credit_due_day')} {credit.dueDay}
+          </p>
+        </button>
+      </li>
+    );
+  }
+
+  function section(
+    title: string,
+    list: FinanceCredit[],
+    kind: FinanceCreditKind
+  ) {
+    return (
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
+          <Button size="sm" variant="outline" onClick={() => openCreate(kind)}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            {t('fin_credit_add')}
+          </Button>
+        </div>
+        {list.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-text-muted">
+            {t('fin_credit_empty_section')}
+          </p>
+        ) : (
+          <ul className="grid gap-2 md:grid-cols-2">{list.map(renderCredit)}</ul>
+        )}
+      </section>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          {t('fin_credit_add')}
-        </Button>
-      </div>
+    <div className="flex flex-col gap-5">
       {credits.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-8 text-center">
+        <div className="flex flex-col items-center gap-2 py-4 text-center">
           <Landmark className="h-5 w-5 text-text-muted" />
           <p className="text-sm font-medium text-text-primary">
             {t('fin_credit_empty')}
           </p>
           <p className="max-w-sm text-xs text-text-muted">{t('fin_credit_empty_hint')}</p>
         </div>
-      ) : (
-        <ul className="grid gap-2 md:grid-cols-2">
-          {credits.map(credit => {
-            const p = summarizeCreditProgress(credit, movements);
-            return (
-              <li key={credit.id}>
-                <button
-                  type="button"
-                  onClick={() => openEdit(credit)}
-                  className="flex w-full flex-col gap-1 rounded-xl border border-border bg-surface p-3 text-left"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-semibold text-text-primary">
-                      {credit.name}
-                    </span>
-                    <span className="rounded-full bg-background px-2 py-0.5 text-[10px] text-text-muted">
-                      {kindLabel(credit.kind)}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-text-muted">
-                    {t('fin_credit_progress')
-                      .replace('{paid}', String(p.paidCount))
-                      .replace('{total}', String(credit.termMonths))}
-                  </p>
-                  <p className="text-[11px] tabular-nums text-text-primary">
-                    {money(credit.monthlyInstallment, credit.currency)}
-                    {t('fin_credit_per_month')}
-                  </p>
-                  <p className="text-[10px] text-text-muted">
-                    {t('fin_credit_due_day')} {credit.dueDay}
-                  </p>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      ) : null}
+      {section(t('fin_credit_section_consumer'), consumer, 'consumer')}
+      {section(t('fin_credit_section_mortgage'), mortgage, 'mortgage')}
+      {other.length > 0
+        ? section(t('fin_credit_section_other'), other, 'other')
+        : null}
 
       {simTarget && simProgress && simProgress.remainingCount > 0 && (
         <div className="rounded-xl border border-border bg-surface p-3 space-y-2">

@@ -19,7 +19,7 @@ import {
   deleteFinanceAccount,
   updateFinanceAccount,
 } from '@core/services/financeAccountService';
-import { summarizeCardUsage } from '@core/lib/finance';
+import { paymentMethodRequiresBank, summarizeCardUsage } from '@core/lib/finance';
 import type {
   FinanceAccount,
   FinanceAccountType,
@@ -50,10 +50,12 @@ const TYPES: FinanceAccountType[] = [
 export function AccountsPanel({
   accounts,
   movements,
+  defaultCurrency,
   onChanged,
 }: {
   accounts: FinanceAccount[];
   movements: FinanceMovement[];
+  defaultCurrency?: string;
   onChanged: () => Promise<void>;
 }) {
   const { t } = useT();
@@ -84,7 +86,7 @@ export function AccountsPanel({
       name: '',
       institution: '',
       type: 'debit',
-      currency: accounts[0]?.currency ?? 'EUR',
+      currency: accounts[0]?.currency ?? defaultCurrency ?? 'CLP',
       creditLimit: 0,
     });
     setOpen(true);
@@ -107,12 +109,19 @@ export function AccountsPanel({
       showToast(t('fin_account_name_required'), 'error');
       return;
     }
+    if (paymentMethodRequiresBank(form.type) && !form.institution.trim()) {
+      showToast(t('fin_account_bank_required'), 'error');
+      return;
+    }
+    const institution = paymentMethodRequiresBank(form.type)
+      ? form.institution.trim()
+      : '';
     setBusy(true);
     try {
       if (editing) {
         await updateFinanceAccount(editing.id, {
           name: form.name.trim(),
-          institution: form.institution.trim(),
+          institution,
           type: form.type,
           currency: form.currency,
           creditLimit: form.type === 'credit' ? form.creditLimit : 0,
@@ -120,7 +129,7 @@ export function AccountsPanel({
       } else {
         await createFinanceAccount({
           name: form.name.trim(),
-          institution: form.institution.trim(),
+          institution,
           type: form.type,
           currency: form.currency,
           creditLimit: form.type === 'credit' ? form.creditLimit : 0,
@@ -250,27 +259,21 @@ export function AccountsPanel({
                 className="h-9 text-sm"
               />
             </label>
-            <label className="block space-y-1 text-xs text-text-muted">
-              <span>{t('fin_account_institution')}</span>
-              <Input
-                value={form.institution}
-                onChange={e =>
-                  setForm(f => ({ ...f, institution: e.target.value }))
-                }
-                className="h-9 text-sm"
-              />
-            </label>
             <div className="grid grid-cols-2 gap-2">
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_account_type')}</span>
                 <select
                   value={form.type}
-                  onChange={e =>
+                  onChange={e => {
+                    const type = e.target.value as FinanceAccountType;
                     setForm(f => ({
                       ...f,
-                      type: e.target.value as FinanceAccountType,
-                    }))
-                  }
+                      type,
+                      institution: paymentMethodRequiresBank(type)
+                        ? f.institution
+                        : '',
+                    }));
+                  }}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
                   {TYPES.map(type => (
@@ -297,6 +300,19 @@ export function AccountsPanel({
                 </select>
               </label>
             </div>
+            {paymentMethodRequiresBank(form.type) ? (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_account_bank')}</span>
+                <Input
+                  value={form.institution}
+                  onChange={e =>
+                    setForm(f => ({ ...f, institution: e.target.value }))
+                  }
+                  className="h-9 text-sm"
+                  placeholder={t('fin_account_bank_hint')}
+                />
+              </label>
+            ) : null}
             {form.type === 'credit' && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_account_limit')}</span>

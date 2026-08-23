@@ -73,6 +73,41 @@ beforeEach(() => {
 });
 
 describe('POST /api/finances/accounts', () => {
+  it('rechaza débito o crédito sin banco', async () => {
+    const debit = await request(app)
+      .post('/api/finances/accounts')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ type: 'debit', name: 'Cuenta vista', currency: 'CLP' });
+    expect(debit.status).toBe(400);
+    expect(String(debit.body.error?.message ?? '')).toMatch(/banco/i);
+
+    const credit = await request(app)
+      .post('/api/finances/accounts')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        type: 'credit',
+        name: 'Visa',
+        currency: 'CLP',
+        creditLimit: 1_000_000,
+      });
+    expect(credit.status).toBe(400);
+  });
+
+  it('acepta efectivo sin banco y deja institution vacío', async () => {
+    const res = await request(app)
+      .post('/api/finances/accounts')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        type: 'cash',
+        name: 'Efectivo',
+        institution: 'No debería guardarse',
+        currency: 'CLP',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.type).toBe('cash');
+    expect(res.body.institution).toBe('');
+  });
+
   it('cifra nombre y cupo; el insert no lleva el nombre en claro', async () => {
     const res = await request(app)
       .post('/api/finances/accounts')

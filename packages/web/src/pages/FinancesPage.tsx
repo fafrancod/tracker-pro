@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   addDays,
   addMonths,
@@ -36,6 +37,7 @@ import { CreditsPanel } from '@/components/Finances/CreditsPanel';
 import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
 import { HealthPanel } from '@/components/Finances/HealthPanel';
 import { CategoriesPanel } from '@/components/Finances/CategoriesPanel';
+import { EvolutionPanel } from '@/components/Finances/EvolutionPanel';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -64,6 +66,7 @@ import type {
   FinanceMovement,
   FinanceMovementFlow,
   FinanceMovementStatus,
+  FinanceRule,
   FinanceRuleFrequency,
 } from '@core/lib/finance/types';
 import { FINANCE_CATEGORIES } from '@core/lib/finance/types';
@@ -94,6 +97,26 @@ function currencySymbol(code: string): string {
 }
 
 type CalView = 'month' | 'week';
+
+const FINANCE_HUBS = [
+  'calendar',
+  'categories',
+  'accounts',
+  'evolution',
+  'credits',
+  'goals',
+  'investments',
+  'health',
+] as const;
+
+type FinanceHub = (typeof FINANCE_HUBS)[number];
+
+function parseFinanceHub(raw: string | null): FinanceHub {
+  if (raw && (FINANCE_HUBS as readonly string[]).includes(raw)) {
+    return raw as FinanceHub;
+  }
+  return 'calendar';
+}
 
 interface MovementForm {
   dayId: string;
@@ -159,6 +182,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const { t, locale, language } = useT();
   const { showToast } = useToast();
   const { settings } = useSettings();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const hub = parseFinanceHub(searchParams.get('tab'));
+
+  function setHub(id: FinanceHub) {
+    if (id === 'calendar') setSearchParams({}, { replace: true });
+    else setSearchParams({ tab: id }, { replace: true });
+  }
   const preferred = normalizeCurrencyCode(
     settings.preferredCurrency,
     defaultCurrencyFromLocale(language === 'en' ? 'en-US' : 'es-CL')
@@ -183,15 +213,6 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const [filterFlow, setFilterFlow] = useState<
     'all' | 'income' | 'expense' | 'investment'
   >('all');
-  const [hub, setHub] = useState<
-    | 'calendar'
-    | 'accounts'
-    | 'goals'
-    | 'credits'
-    | 'investments'
-    | 'health'
-    | 'categories'
-  >('calendar');
   const [accounts, setAccounts] = useState<FinanceAccount[]>([]);
   const [goals, setGoals] = useState<FinanceGoal[]>([]);
   const [credits, setCredits] = useState<FinanceCredit[]>([]);
@@ -199,6 +220,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     []
   );
   const [ledgerMovements, setLedgerMovements] = useState<FinanceMovement[]>([]);
+  const [ledgerRules, setLedgerRules] = useState<FinanceRule[]>([]);
   const [filterAccountId, setFilterAccountId] = useState('all');
 
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
@@ -246,6 +268,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       setCredits(crs);
       setUserCategories(cats);
       setLedgerMovements(ledger.movements);
+      setLedgerRules(ledger.rules);
       const pending = rows.filter(m => m.fxPending && !m.virtual);
       let next = rows;
       if (pending.length > 0) {
@@ -449,7 +472,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           : form.category,
       categoryId: isInvest ? null : form.categoryId || null,
       installmentTotal:
-        form.installmentTotal > 1 ? form.installmentTotal : undefined,
+        accounts.find(a => a.id === form.accountId)?.type === 'credit' &&
+        form.installmentTotal > 1
+          ? form.installmentTotal
+          : undefined,
       ...fx,
       recurrence:
         !editing && form.repeat !== 'none'
@@ -544,26 +570,37 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     format(c.date, 'EEE', { locale })
   );
 
+  const hubTitle =
+    hub === 'categories'
+      ? t('fin_tab_categories')
+      : hub === 'accounts'
+        ? t('fin_tab_accounts')
+        : hub === 'evolution'
+          ? t('fin_tab_evolution')
+          : hub === 'credits'
+            ? t('fin_tab_credits')
+            : hub === 'goals'
+              ? t('fin_tab_goals')
+              : hub === 'investments'
+                ? t('fin_tab_investments')
+                : hub === 'health'
+                  ? t('fin_tab_health')
+                  : t('nav_finances');
+
   return (
     <Layout
-      title={t('nav_finances')}
-      primaryAction={{ label: t('fin_add'), onClick: () => openCreate(todayId) }}
+      title={hubTitle}
+      primaryAction={
+        hub === 'calendar'
+          ? { label: t('fin_add'), onClick: () => openCreate(todayId) }
+          : undefined
+      }
       onFabClick={() => openCreate(todayId)}
-      showFab
+      showFab={hub === 'calendar'}
     >
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
-        <div className="flex gap-1">
-          {(
-            [
-              'calendar',
-              'accounts',
-              'goals',
-              'credits',
-              'investments',
-              'health',
-              'categories',
-            ] as const
-          ).map(id => (
+        <div className="flex flex-wrap gap-1">
+          {FINANCE_HUBS.map(id => (
             <button
               key={id}
               type="button"
@@ -587,7 +624,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                         ? t('fin_tab_investments')
                         : id === 'health'
                           ? t('fin_tab_health')
-                          : t('fin_tab_categories')}
+                          : id === 'evolution'
+                            ? t('fin_tab_evolution')
+                            : t('fin_tab_categories')}
             </button>
           ))}
         </div>
@@ -596,7 +635,18 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           <AccountsPanel
             accounts={accounts}
             movements={ledgerMovements.length ? ledgerMovements : movements}
+            defaultCurrency={preferred}
             onChanged={reload}
+          />
+        ) : null}
+
+        {hub === 'evolution' ? (
+          <EvolutionPanel
+            movements={ledgerMovements.length ? ledgerMovements : movements}
+            rules={ledgerRules}
+            credits={credits}
+            monthId={monthId}
+            reportingCurrency={preferred}
           />
         ) : null}
 
@@ -965,6 +1015,65 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </select>
               </label>
             </div>
+            <label className="block space-y-1 text-xs text-text-muted">
+              <span>{t('fin_field_payment_method')}</span>
+              <select
+                value={form.accountId}
+                onChange={e => {
+                  const accountId = e.target.value;
+                  const acc = accounts.find(a => a.id === accountId);
+                  setForm(f => ({
+                    ...f,
+                    accountId,
+                    installmentTotal:
+                      acc?.type === 'credit' ? f.installmentTotal : 1,
+                  }));
+                }}
+                className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+              >
+                <option value="">{t('fin_payment_none')}</option>
+                {accounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>
+                    {[
+                      acc.name ||
+                        t(`fin_account_type_${acc.type}` as 'fin_account_type_other'),
+                      acc.type !== 'cash' ? acc.institution : '',
+                      t(`fin_account_type_${acc.type}` as 'fin_account_type_other'),
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </option>
+                ))}
+              </select>
+              {accounts.length === 0 ? (
+                <span className="block text-[11px] text-text-muted">
+                  {t('fin_payment_empty_hint')}
+                </span>
+              ) : null}
+            </label>
+            {!editing &&
+              form.flow === 'expense' &&
+              accounts.find(a => a.id === form.accountId)?.type === 'credit' && (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_installments')}</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={48}
+                  value={form.installmentTotal}
+                  onChange={e =>
+                    setForm(f => ({
+                      ...f,
+                      installmentTotal: Math.max(
+                        1,
+                        Math.min(48, Number(e.target.value) || 1)
+                      ),
+                    }))
+                  }
+                  className="h-9 text-sm"
+                />
+              </label>
+            )}
             {form.flow === 'expense' && !form.creditPayment && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_category')}</span>
@@ -1037,25 +1146,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </label>
               </>
             )}
-            {accounts.length > 0 && (
-              <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_field_account')}</span>
-                <select
-                  value={form.accountId}
-                  onChange={e =>
-                    setForm(f => ({ ...f, accountId: e.target.value }))
-                  }
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  <option value="">{t('fin_account_all')}</option>
-                  {accounts.map(acc => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name || acc.type}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+
             {goals.length > 0 && form.flow === 'expense' && (
               <>
                 <label className="flex items-center gap-2 text-xs text-text-primary">
@@ -1093,27 +1184,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 )}
               </>
             )}
-            {!editing && form.flow === 'expense' && (
-              <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_installments')}</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={48}
-                  value={form.installmentTotal}
-                  onChange={e =>
-                    setForm(f => ({
-                      ...f,
-                      installmentTotal: Math.max(
-                        1,
-                        Math.min(48, Number(e.target.value) || 1)
-                      ),
-                    }))
-                  }
-                  className="h-9 text-sm"
-                />
-              </label>
-            )}
+
             {credits.length > 0 && form.flow === 'expense' && (
               <>
                 <label className="flex items-center gap-2 text-xs text-text-primary">
