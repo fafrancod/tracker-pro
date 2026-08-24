@@ -853,15 +853,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     }
   }
 
-  async function confirmPlannedMovement(mov: FinanceMovement) {
-    if (mov.virtual || mov.status !== 'planned') return;
+  async function toggleMovementStatus(mov: FinanceMovement) {
+    if (mov.virtual || !['planned', 'confirmed'].includes(mov.status)) return;
+    const status = mov.status === 'planned' ? 'confirmed' : 'planned';
     try {
       await updateFinanceMovement(
         mov.id,
-        { status: 'confirmed', updatedAt: mov.updatedAt },
+        { status, updatedAt: mov.updatedAt },
         vault ?? undefined
       );
-      showToast(t('fin_status_confirmed'), 'success');
+      showToast(t(status === 'confirmed' ? 'fin_status_confirmed' : 'fin_status_planned'), 'success');
       await reload();
     } catch {
       showToast(t('fin_save_error'), 'error');
@@ -1338,23 +1339,38 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                                 tabIndex={0}
                                 onClick={e => {
                                   e.stopPropagation();
-                                  void confirmPlannedMovement(mov);
+                                  void toggleMovementStatus(mov);
                                 }}
                                 onKeyDown={e => {
                                   if (e.key !== 'Enter' && e.key !== ' ') return;
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  void confirmPlannedMovement(mov);
+                                  void toggleMovementStatus(mov);
                                 }}
                                 className="ml-1 inline-flex align-middle text-current hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-current"
                               >
                                 <Circle className="h-3 w-3" />
                               </span>
                             ) : !mov.virtual && mov.flow !== 'investment' && mov.status === 'confirmed' ? (
-                              <CircleCheck
-                                aria-label={t('fin_status_confirmed')}
-                                className="ml-1 inline h-3 w-3 align-middle text-current"
-                              />
+                              <span
+                                role="checkbox"
+                                aria-checked="true"
+                                aria-label={t('fin_mark_planned')}
+                                tabIndex={0}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  void toggleMovementStatus(mov);
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void toggleMovementStatus(mov);
+                                }}
+                                className="ml-1 inline-flex align-middle text-current hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-current"
+                              >
+                                <CircleCheck className="h-3 w-3" />
+                              </span>
                             ) : null}
                             {(mov.images?.length ?? 0) > 0 ? ' 📎' : ''}
                             {mov.fxPending ? ' · FX' : ''}
