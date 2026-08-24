@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   addDays,
@@ -92,6 +92,7 @@ import {
   addMonthsToDayId,
   summarizeInstallmentPurchases,
 } from '@core/lib/finance/installments';
+import { reportingAmountOf } from '@core/lib/finance/fx';
 import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import {
@@ -511,6 +512,49 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     plannedExpense: 0,
     balance: 0,
   };
+  const monthlyBreakdown = useMemo(() => {
+    const income: FinanceMovement[] = [];
+    const expenses: FinanceMovement[] = [];
+    const cardExpenses: FinanceMovement[] = [];
+    let incomeTotal = 0;
+    let expenseTotal = 0;
+    let cardExpenseTotal = 0;
+    for (const mov of movements) {
+      if (!mov.dayId.startsWith(monthId)) continue;
+      if (
+        mov.status !== 'confirmed' ||
+        mov.flow === 'investment' ||
+        mov.tag === 'card_payment' ||
+        mov.tag === 'goal_contribution'
+      ) {
+        continue;
+      }
+      const amount = reportingAmountOf(mov, summary.currency);
+      if (amount == null) continue;
+      if (mov.flow === 'income') {
+        income.push(mov);
+        incomeTotal += amount;
+        continue;
+      }
+      if (accounts.find(account => account.id === mov.accountId)?.type === 'credit') {
+        cardExpenses.push(mov);
+        cardExpenseTotal += amount;
+      } else {
+        expenses.push(mov);
+        expenseTotal += amount;
+      }
+    }
+    return {
+      income,
+      expenses,
+      cardExpenses,
+      incomeTotal,
+      expenseTotal,
+      cardExpenseTotal,
+      availableBalance: incomeTotal - expenseTotal,
+      balanceIncludingCard: incomeTotal - expenseTotal - cardExpenseTotal,
+    };
+  }, [movements, monthId, summary.currency, accounts]);
   useEffect(() => {
     if (dialogOpen && !editing) setNewMovementDraft(form);
   }, [dialogOpen, editing, form]);
@@ -979,18 +1023,62 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Kpi
             label={t('fin_total_income')}
-            value={money(summary.confirmedIncome, summary.currency)}
+            value={money(monthlyBreakdown.incomeTotal, summary.currency)}
             tone="green"
+            detail={
+              <MonthlyBreakdownTooltip
+                sections={[
+                  {
+                    label: t('fin_total_income'),
+                    tone: 'green',
+                    movements: monthlyBreakdown.income,
+                    total: monthlyBreakdown.incomeTotal,
+                  },
+                ]}
+                currency={summary.currency}
+                emptyLabel={t('fin_breakdown_empty')}
+              />
+            }
           />
           <Kpi
             label={t('fin_total_expense')}
-            value={money(summary.confirmedExpense, summary.currency)}
+            value={money(monthlyBreakdown.expenseTotal, summary.currency)}
             tone="red"
+            secondary={{
+              label: t('fin_credit_card_expenses'),
+              value: money(monthlyBreakdown.cardExpenseTotal, summary.currency),
+              tone: 'violet',
+            }}
+            detail={
+              <MonthlyBreakdownTooltip
+                sections={[
+                  {
+                    label: t('fin_total_expense'),
+                    tone: 'red',
+                    movements: monthlyBreakdown.expenses,
+                    total: monthlyBreakdown.expenseTotal,
+                  },
+                  {
+                    label: t('fin_credit_card_expenses'),
+                    tone: 'violet',
+                    movements: monthlyBreakdown.cardExpenses,
+                    total: monthlyBreakdown.cardExpenseTotal,
+                  },
+                ]}
+                currency={summary.currency}
+                emptyLabel={t('fin_breakdown_empty')}
+              />
+            }
           />
           <Kpi
-            label={t('fin_balance')}
-            value={money(summary.balance, summary.currency)}
-            tone={summary.balance >= 0 ? 'teal' : 'red'}
+            label={t('fin_balance_available')}
+            value={money(monthlyBreakdown.availableBalance, summary.currency)}
+            tone={monthlyBreakdown.availableBalance >= 0 ? 'teal' : 'red'}
+            secondary={{
+              label: t('fin_balance_including_card'),
+              value: money(monthlyBreakdown.balanceIncludingCard, summary.currency),
+              tone: monthlyBreakdown.balanceIncludingCard >= 0 ? 'teal' : 'red',
+            }}
           />
           <Kpi
             label={t('fin_kpi_planned')}
@@ -1776,23 +1864,133 @@ function Kpi({
   label,
   value,
   tone,
+  secondary,
+  detail,
 }: {
   label: string;
   value: string;
-  tone: 'green' | 'red' | 'teal' | 'muted';
+  tone: KpiTone;
+  secondary?: { label: string; value: string; tone: KpiTone };
+  detail?: ReactNode;
 }) {
-  const color =
-    tone === 'green'
-      ? 'text-accent-green'
-      : tone === 'red'
-        ? 'text-accent-red'
-        : tone === 'teal'
-          ? 'text-accent-teal'
-          : 'text-text-primary';
-  return (
+  const card = (
     <div className="rounded-2xl border border-border bg-surface px-3 py-3">
-      <p className="text-[11px] text-text-muted">{label}</p>
-      <p className={cn('text-lg font-semibold tabular-nums', color)}>{value}</p>
+      <div className={cn('grid gap-3', secondary && 'grid-cols-2')}>
+        <div className="min-w-0">
+          <p className="text-[11px] text-text-muted">{label}</p>
+          <p className={cn('text-lg font-semibold tabular-nums', kpiToneClass(tone))}>
+            {value}
+          </p>
+        </div>
+        {secondary ? (
+          <div className="min-w-0 border-l border-border pl-3 text-right">
+            <p className="truncate text-[10px] text-text-muted">{secondary.label}</p>
+            <p
+              className={cn(
+                'text-sm font-semibold tabular-nums',
+                kpiToneClass(secondary.tone)
+              )}
+            >
+              {secondary.value}
+            </p>
+          </div>
+        ) : null}
+      </div>
     </div>
+  );
+  return detail ? (
+    <Tooltip delayDuration={180}>
+      <TooltipTrigger asChild>{card}</TooltipTrigger>
+      <TooltipContent
+        side="bottom"
+        align="start"
+        className="max-h-80 w-80 overflow-y-auto border-border !bg-[var(--color-background-solid)] p-3 text-text-primary shadow-xl"
+      >
+        {detail}
+      </TooltipContent>
+    </Tooltip>
+  ) : (
+    card
+  );
+}
+
+type KpiTone = 'green' | 'red' | 'teal' | 'violet' | 'muted';
+
+function kpiToneClass(tone: KpiTone): string {
+  if (tone === 'green') return 'text-accent-green';
+  if (tone === 'red') return 'text-accent-red';
+  if (tone === 'teal') return 'text-accent-teal';
+  if (tone === 'violet') return 'text-violet-600 dark:text-violet-300';
+  return 'text-text-primary';
+}
+
+function MonthlyBreakdownTooltip({
+  sections,
+  currency,
+  emptyLabel,
+}: {
+  sections: Array<{
+    label: string;
+    tone: KpiTone;
+    movements: FinanceMovement[];
+    total: number;
+  }>;
+  currency: string;
+  emptyLabel: string;
+}) {
+  const movementCount = sections.reduce((count, section) => count + section.movements.length, 0);
+  if (movementCount === 0) {
+    return <p className="text-xs text-text-muted">{emptyLabel}</p>;
+  }
+  return (
+    <div className="space-y-3">
+      {sections.map(section => (
+        <section key={section.label}>
+          <div className="mb-1.5 flex items-baseline justify-between gap-3 border-b border-border pb-1.5">
+            <span className="text-[11px] font-semibold text-text-muted">{section.label}</span>
+            <strong className={cn('text-xs tabular-nums', kpiToneClass(section.tone))}>
+              {section.tone === 'green' ? '' : '−'}{money(section.total, currency)}
+            </strong>
+          </div>
+          {section.movements.length > 0 ? (
+            <ul className="space-y-1">
+              {section.movements.map(movement => (
+                <MonthlyBreakdownRow
+                  key={movement.id}
+                  movement={movement}
+                  currency={currency}
+                  tone={section.tone}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[11px] text-text-muted">{emptyLabel}</p>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function MonthlyBreakdownRow({
+  movement,
+  currency,
+  tone,
+}: {
+  movement: FinanceMovement;
+  currency: string;
+  tone: KpiTone;
+}) {
+  const amount = reportingAmountOf(movement, currency) ?? 0;
+  return (
+    <li className="flex items-center justify-between gap-3 rounded bg-field px-2 py-1 text-[10px]">
+      <span className="min-w-0 truncate text-text-primary">
+        <span className="mr-1 text-text-muted">{movement.dayId}</span>
+        {stripInstallmentSuffix(movement.title)}
+      </span>
+      <strong className={cn('shrink-0 tabular-nums', kpiToneClass(tone))}>
+        {tone === 'green' ? '+' : '−'}{money(amount, currency)}
+      </strong>
+    </li>
   );
 }

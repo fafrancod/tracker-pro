@@ -38,7 +38,11 @@ export interface TranslationDict {
   fin_this_month: string;
   fin_total_income: string;
   fin_total_expense: string;
+  fin_credit_card_expenses: string;
   fin_balance: string;
+  fin_balance_available: string;
+  fin_balance_including_card: string;
+  fin_breakdown_empty: string;
   fin_income_recurring: string;
   fin_income_expected: string;
   fin_income_specific: string;
@@ -1306,7 +1310,11 @@ const es_dict: TranslationDict = {
   fin_this_month: 'Este mes',
   fin_total_income: 'Ingresos',
   fin_total_expense: 'Gastos',
+  fin_credit_card_expenses: 'Tarjeta de crédito',
   fin_balance: 'Balance',
+  fin_balance_available: 'Saldo disponible',
+  fin_balance_including_card: 'Saldo considerando tarjeta',
+  fin_breakdown_empty: 'Sin movimientos confirmados este mes.',
   fin_income_recurring: 'Ingresos recurrentes',
   fin_income_expected: 'Ingresos esperados',
   fin_income_specific: 'Ingresos puntuales',
@@ -2679,7 +2687,11 @@ const en_dict: TranslationDict = {
   fin_this_month: 'This month',
   fin_total_income: 'Income',
   fin_total_expense: 'Expenses',
+  fin_credit_card_expenses: 'Credit card',
   fin_balance: 'Balance',
+  fin_balance_available: 'Available balance',
+  fin_balance_including_card: 'Balance including card',
+  fin_breakdown_empty: 'No confirmed movements this month.',
   fin_income_recurring: 'Recurring income',
   fin_income_expected: 'Expected income',
   fin_income_specific: 'One-off income',
