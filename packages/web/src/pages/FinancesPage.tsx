@@ -536,13 +536,48 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         incomeTotal += amount;
         continue;
       }
-      if (accounts.find(account => account.id === mov.accountId)?.type === 'credit') {
+      const isCreditCard =
+        accounts.find(account => account.id === mov.accountId)?.type === 'credit';
+      // Las cuotas se contabilizan como gasto de tarjeta en el mes de compra,
+      // no de nuevo en cada mes de vencimiento.
+      if (isCreditCard && (mov.installmentTotal ?? 0) > 1) continue;
+      if (isCreditCard) {
         cardExpenses.push(mov);
         cardExpenseTotal += amount;
       } else {
         expenses.push(mov);
         expenseTotal += amount;
       }
+    }
+    for (const [groupId, rows] of installmentRowsByGroup) {
+      const first = rows.find(row => row.installmentIndex === 1);
+      if (
+        !first ||
+        first.status !== 'confirmed' ||
+        accounts.find(account => account.id === first.accountId)?.type !== 'credit'
+      ) {
+        continue;
+      }
+      const purchaseDayId = first.purchaseDayId ?? first.dayId;
+      if (!purchaseDayId.startsWith(monthId)) continue;
+      const amounts = rows
+        .filter(row => row.status !== 'skipped')
+        .map(row => reportingAmountOf(row, summary.currency));
+      if (!amounts.every((amount): amount is number => amount !== null)) continue;
+      const purchaseTotal = amounts.reduce((sum, amount) => sum + amount, 0);
+      cardExpenseTotal += purchaseTotal;
+      cardExpenses.push({
+        ...first,
+        id: `card-purchase-${groupId}`,
+        dayId: purchaseDayId,
+        title: stripInstallmentSuffix(first.title),
+        amount: purchaseTotal,
+        currency: summary.currency,
+        originalCurrency: summary.currency,
+        exchangeRate: 1,
+        fxPending: false,
+        virtual: true,
+      });
     }
     return {
       income,
@@ -554,7 +589,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       availableBalance: incomeTotal - expenseTotal,
       balanceIncludingCard: incomeTotal - expenseTotal - cardExpenseTotal,
     };
-  }, [movements, monthId, summary.currency, accounts]);
+  }, [
+    movements,
+    installmentRowsByGroup,
+    monthId,
+    summary.currency,
+    accounts,
+  ]);
   useEffect(() => {
     if (dialogOpen && !editing) setNewMovementDraft(form);
   }, [dialogOpen, editing, form]);
