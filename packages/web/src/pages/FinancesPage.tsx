@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   addDays,
@@ -21,6 +21,11 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { DecimalInput } from '@/components/ui/decimal-input';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -83,7 +88,10 @@ import {
   splitMatchTolerance,
 } from '@core/lib/finance/categorySplits';
 import { stripInstallmentSuffix } from '@core/lib/finance/installmentSchedule';
-import { summarizeInstallmentPurchases } from '@core/lib/finance/installments';
+import {
+  addMonthsToDayId,
+  summarizeInstallmentPurchases,
+} from '@core/lib/finance/installments';
 import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import {
@@ -244,6 +252,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   );
   const [ledgerMovements, setLedgerMovements] = useState<FinanceMovement[]>([]);
   const [ledgerRules, setLedgerRules] = useState<FinanceRule[]>([]);
+  const migratedInstallmentGroups = useRef(new Set<string>());
   const [filterAccountId, setFilterAccountId] = useState('all');
 
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
@@ -333,6 +342,68 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    const groups = new Map<string, FinanceMovement[]>();
+    for (const mov of ledgerMovements) {
+      if (!mov.installmentGroupId || (mov.installmentTotal ?? 0) < 2) continue;
+      const rows = groups.get(mov.installmentGroupId) ?? [];
+      rows.push(mov);
+      groups.set(mov.installmentGroupId, rows);
+    }
+    const legacyPurchases = [...groups.entries()].filter(([groupId, rows]) => {
+      const first = rows.find(row => row.installmentIndex === 1);
+      return Boolean(
+        first &&
+          rows.some(row => !row.purchaseDayId) &&
+          !migratedInstallmentGroups.current.has(groupId) &&
+          accounts.find(account => account.id === first.accountId)?.type === 'credit'
+      );
+    });
+    if (legacyPurchases.length === 0) return;
+
+    let cancelled = false;
+    void (async () => {
+      for (const [groupId, rows] of legacyPurchases) {
+        const first = rows.find(row => row.installmentIndex === 1);
+        if (!first) continue;
+        const purchaseDayId =
+          rows.find(row => row.purchaseDayId)?.purchaseDayId ?? first.dayId;
+        migratedInstallmentGroups.current.add(groupId);
+        try {
+          await Promise.all(
+            rows.filter(row => !row.purchaseDayId).map(row => {
+              const {
+                payloadEnc: _payloadEnc,
+                sealed: _sealed,
+                virtual: _virtual,
+                createdAt: _createdAt,
+                ...movementPatch
+              } = row;
+              return updateFinanceMovement(
+                row.id,
+                {
+                  ...movementPatch,
+                  dayId: addMonthsToDayId(row.dayId, 1),
+                  purchaseDayId,
+                  updatedAt: row.updatedAt,
+                },
+                vault ?? undefined
+              );
+            })
+          );
+        } catch {
+          migratedInstallmentGroups.current.delete(groupId);
+          if (!cancelled) showToast(t('fin_load_error'), 'error');
+          return;
+        }
+      }
+      if (!cancelled) await reload();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accounts, ledgerMovements, reload, showToast, t, vault]);
 
   const paymentLedger = useMemo(
     () => (ledgerMovements.length > 0 ? ledgerMovements : movements),
@@ -1054,30 +1125,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             )
                             .replace('{total}', String(installment.totalInstallments))
                         : '';
-                      const installmentBreakdown = installment
-                        ? (installmentRowsByGroup.get(mov.installmentGroupId ?? '') ?? [])
-                            .map(row =>
-                              t('fin_installment_of')
-                                .replace('{current}', String(row.installmentIndex ?? 1))
-                                .replace('{total}', String(installment.totalInstallments)) +
-                              ` · ${row.dayId}: ${money(row.amount, row.currency)}`
-                            )
+                      const installmentRows = installment
+                        ? installmentRowsByGroup.get(mov.installmentGroupId ?? '') ?? []
                         : [];
-                      const installmentHover = installment
-                        ? [
-                            `${t('fin_installment_total_cost')}: ${money(installment.totalAmount, mov.currency)}`,
-                            ...installmentBreakdown,
-                          ].join('\n')
-                        : undefined;
-                      return (
-                        <li key={mov.id}>
-                          <span
+                      const movementChip = (
+                        <span
                             role="presentation"
                             onClick={e => {
                               e.stopPropagation();
                               openEdit(mov);
                             }}
-                            title={installmentHover}
                             className={cn(
                               'block truncate rounded px-1.5 py-0.5 text-[10px] leading-tight',
                               creditPurchase
@@ -1124,7 +1181,58 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             ) : null}
                             {(mov.images?.length ?? 0) > 0 ? ' 📎' : ''}
                             {mov.fxPending ? ' · FX' : ''}
-                          </span>
+                        </span>
+                      );
+                      return (
+                        <li key={mov.id}>
+                          {creditInstallment && installment ? (
+                            <Tooltip delayDuration={180}>
+                              <TooltipTrigger asChild>{movementChip}</TooltipTrigger>
+                              <TooltipContent
+                                side="top"
+                                align="start"
+                                className="w-64 border-border !bg-[var(--color-background-solid)] p-3 text-text-primary shadow-xl"
+                              >
+                                <div className="mb-2 flex items-baseline justify-between gap-3 border-b border-border pb-2">
+                                  <span className="text-[11px] font-medium text-text-muted">
+                                    {t('fin_installment_total_cost')}
+                                  </span>
+                                  <strong className="text-sm tabular-nums text-text-primary">
+                                    −{money(installment.totalAmount, mov.currency)}
+                                  </strong>
+                                </div>
+                                <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                                  {t('fin_installments')}
+                                </p>
+                                <ul className="space-y-1">
+                                  {installmentRows.map(row => (
+                                    <li
+                                      key={row.id}
+                                      className="flex items-center justify-between gap-3 rounded bg-field px-2 py-1 text-[10px]"
+                                    >
+                                      <span className="text-text-muted">
+                                        {t('fin_installment_of')
+                                          .replace(
+                                            '{current}',
+                                            String(row.installmentIndex ?? 1)
+                                          )
+                                          .replace(
+                                            '{total}',
+                                            String(installment.totalInstallments)
+                                          )}
+                                        <span className="ml-1 text-text-primary">{row.dayId}</span>
+                                      </span>
+                                      <strong className="shrink-0 tabular-nums text-accent-red">
+                                        −{money(row.amount, row.currency)}
+                                      </strong>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            movementChip
+                          )}
                         </li>
                       );
                     })}

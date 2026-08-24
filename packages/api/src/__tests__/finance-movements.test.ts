@@ -497,4 +497,31 @@ describe('bridge vida ↔ dinero', () => {
     expect(res.body.status).toBe('confirmed');
     expect(res.body.sourceTaskId).toBe('task_1');
   });
+
+  it('PATCH conserva la fecha de compra al corregir la fecha de una cuota', async () => {
+    movementRows = [
+      {
+        id: 'fm_installment',
+        user_id: 'test-uid',
+        day_id: '2026-08-23',
+        flow: 'expense',
+        status: 'confirmed',
+        currency: 'CLP',
+        payload: { title: 'Guitarra · Cuota 1 de 6', amount: 4000, notes: '' },
+        installment_group_id: 'group-guitar',
+        installment_index: 1,
+        installment_total: 6,
+        rule_id: null,
+        created_at: '2026-08-17T10:00:00.000Z',
+        updated_at: '2026-08-17T10:00:00.000Z',
+      },
+    ];
+    const res = await request(app)
+      .patch('/api/finances/movements/fm_installment')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ dayId: '2026-09-23', purchaseDayId: '2026-08-23' });
+    expect(res.status).toBe(200);
+    expect(res.body.dayId).toBe('2026-09-23');
+    expect(res.body.purchaseDayId).toBe('2026-08-23');
+  });
 });

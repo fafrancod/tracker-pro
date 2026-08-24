@@ -146,6 +146,7 @@ const createSchema = z
 const updateSchema = z
   .object({
     dayId: dayIdSchema.optional(),
+    purchaseDayId: dayIdSchema.optional(),
     flow: flowSchema.optional(),
     status: statusSchema.optional(),
     currency: z.string().min(1).max(8).optional(),
@@ -1023,6 +1024,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
         patch.amount !== undefined ||
         patch.notes !== undefined ||
         patch.certainty !== undefined ||
+        patch.purchaseDayId !== undefined ||
         patch.investmentStatus !== undefined ||
         patch.ticker !== undefined ||
         patch.investmentSide !== undefined ||
@@ -1039,6 +1041,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             amount: patch.amount,
             notes: patch.notes,
             certainty: patch.certainty,
+            purchaseDayId: patch.purchaseDayId,
             tag: patch.tag,
             originalAmount: patch.originalAmount,
             originalCurrency: patch.originalCurrency,
