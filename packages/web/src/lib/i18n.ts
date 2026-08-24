@@ -205,6 +205,7 @@ export interface TranslationDict {
   fin_credit_sim_cuota_result: string;
   fin_installments: string;
   fin_installment_of: string;
+  fin_installment_purchase: string;
   fin_installment_total_cost: string;
   fin_installment_paid: string;
   fin_installment_remaining: string;
@@ -1482,6 +1483,7 @@ const es_dict: TranslationDict = {
   fin_credit_sim_cuota_result: 'La cuota pasaría a {amount}.',
   fin_installments: 'Cuotas (compra)',
   fin_installment_of: 'Cuota {current} de {total}',
+  fin_installment_purchase: 'Compra · {total} cuotas',
   fin_installment_total_cost: 'Costo total',
   fin_installment_paid: 'Pagado',
   fin_installment_remaining: 'Por pagar',
@@ -2854,6 +2856,7 @@ const en_dict: TranslationDict = {
   fin_credit_sim_cuota_result: 'The installment would become {amount}.',
   fin_installments: 'Installments (purchase)',
   fin_installment_of: 'Installment {current} of {total}',
+  fin_installment_purchase: 'Purchase · {total} installments',
   fin_installment_total_cost: 'Total cost',
   fin_installment_paid: 'Paid',
   fin_installment_remaining: 'Remaining',

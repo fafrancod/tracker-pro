@@ -342,6 +342,7 @@ function mapMovement(
   return {
     id: row.id as string,
     dayId: row.day_id as string,
+    purchaseDayId: payload.purchaseDayId ?? null,
     flow: normalizeFinanceFlow(row.flow),
     status: normalizeFinanceStatus(row.status),
     currency: normalizeMovementCurrency(row.currency as string),
@@ -796,6 +797,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           amount: body.amount,
           notes: body.notes,
           certainty: body.certainty,
+          purchaseDayId: body.dayId,
           tag: body.tag,
           originalAmount: body.originalAmount,
           originalCurrency: body.originalCurrency,
@@ -863,8 +865,9 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
     for (let index = 1; index <= installmentTotal; index += 1) {
       const id =
         index === 1 ? (body.id ?? generateId()) : generateId();
+      // Las compras con tarjeta se pagan a partir del mes siguiente a la compra.
       const dayId =
-        index === 1 ? body.dayId : addMonthsToDayId(body.dayId, index - 1);
+        installmentTotal > 1 ? addMonthsToDayId(body.dayId, index) : body.dayId;
       const amount = installmentAmountAt(
         movementAmount,
         index,
@@ -875,6 +878,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         ? buildFinancePayload({
             ...inner,
             title: installmentTitle(movementTitle, index, installmentTotal),
+            purchaseDayId: body.dayId,
             amount,
             originalAmount:
               body.originalAmount == null

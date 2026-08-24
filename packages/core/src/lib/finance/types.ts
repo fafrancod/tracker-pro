@@ -70,6 +70,8 @@ export interface FinanceMovementPayload {
   amount: number;
   notes: string;
   certainty: FinanceCertainty;
+  /** Fecha de compra original cuando la fila corresponde a una cuota posterior. */
+  purchaseDayId?: string | null;
   tag?: FinanceMovementTag | null;
   originalAmount?: number | null;
   originalCurrency?: string | null;
@@ -159,6 +161,8 @@ export interface FinanceAccount {
 export interface FinanceMovement {
   id: string;
   dayId: string;
+  /** Fecha en que se realizó la compra; las cuotas vencen desde el mes siguiente. */
+  purchaseDayId?: string | null;
   flow: FinanceMovementFlow;
   status: FinanceMovementStatus;
   currency: string;
@@ -221,6 +225,7 @@ export interface FinanceRule {
 
 export interface CreateFinanceMovementPayload {
   dayId: string;
+  purchaseDayId?: string | null;
   flow: FinanceMovementFlow;
   status?: FinanceMovementStatus;
   currency?: string;
@@ -269,6 +274,7 @@ export interface CreateFinanceMovementPayload {
 
 export interface UpdateFinanceMovementPayload {
   dayId?: string;
+  purchaseDayId?: string | null;
   flow?: FinanceMovementFlow;
   status?: FinanceMovementStatus;
   currency?: string;

@@ -59,6 +59,7 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
   return {
     id: String(raw.id ?? ''),
     dayId: String(raw.dayId ?? raw.day_id ?? ''),
+    purchaseDayId: payload.purchaseDayId ?? null,
     flow:
       raw.flow === 'income' || raw.flow === 'investment' ? raw.flow : 'expense',
     status:
@@ -234,6 +235,7 @@ export async function createFinanceMovement(
     const mov: FinanceMovement = {
       id,
       dayId: payload.dayId,
+      purchaseDayId: payload.purchaseDayId ?? payload.dayId,
       flow: payload.flow,
       status: payload.status ?? 'confirmed',
       currency: payload.currency ?? 'EUR',
@@ -284,6 +286,7 @@ export async function createFinanceMovement(
       amount: payload.amount ?? 0,
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
+      purchaseDayId: payload.purchaseDayId ?? payload.dayId,
       tag: payload.tag ?? null,
       originalAmount: payload.originalAmount ?? payload.amount ?? 0,
       originalCurrency: payload.originalCurrency ?? payload.currency ?? null,
@@ -317,6 +320,7 @@ export async function createFinanceMovement(
       id,
       replaceMovementId: payload.replaceMovementId,
       dayId: payload.dayId,
+      purchaseDayId: payload.purchaseDayId,
       flow: payload.flow,
       status: payload.status,
       currency: payload.currency,

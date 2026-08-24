@@ -100,6 +100,10 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
     amount: Number.isFinite(amount) && amount >= 0 ? amount : 0,
     notes: typeof o.notes === 'string' ? o.notes.slice(0, 2000) : '',
     certainty: normalizeMovementCertainty(o.certainty),
+    purchaseDayId:
+      typeof o.purchaseDayId === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.purchaseDayId)
+        ? o.purchaseDayId
+        : null,
     tag: normalizeFinanceTag(o.tag),
     originalAmount: Number.isFinite(Number(o.originalAmount))
       ? Number(o.originalAmount)
@@ -146,6 +150,7 @@ export function buildFinancePayload(input: {
   amount?: number;
   notes?: string;
   certainty?: FinanceCertainty;
+  purchaseDayId?: string | null;
   tag?: FinanceMovementTag | null;
   originalAmount?: number | null;
   originalCurrency?: string | null;
@@ -171,6 +176,10 @@ export function buildFinancePayload(input: {
     amount: input.amount ?? existing?.amount ?? 0,
     notes: input.notes ?? existing?.notes ?? '',
     certainty: input.certainty ?? existing?.certainty ?? 'fixed',
+    purchaseDayId:
+      input.purchaseDayId !== undefined
+        ? input.purchaseDayId
+        : existing?.purchaseDayId,
     tag: input.tag !== undefined ? input.tag : existing?.tag,
     originalAmount:
       input.originalAmount !== undefined

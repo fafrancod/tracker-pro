@@ -334,23 +334,85 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     void reload();
   }, [reload]);
 
+  const paymentLedger = useMemo(
+    () => (ledgerMovements.length > 0 ? ledgerMovements : movements),
+    [ledgerMovements, movements]
+  );
+  const installmentPurchases = useMemo(
+    () => summarizeInstallmentPurchases(paymentLedger, todayId),
+    [paymentLedger, todayId]
+  );
+  const installmentRowsByGroup = useMemo(() => {
+    const rows = new Map<string, FinanceMovement[]>();
+    for (const mov of paymentLedger) {
+      if (!mov.installmentGroupId) continue;
+      const group = rows.get(mov.installmentGroupId) ?? [];
+      group.push(mov);
+      rows.set(mov.installmentGroupId, group);
+    }
+    for (const group of rows.values()) {
+      group.sort(
+        (a, b) =>
+          (a.installmentIndex ?? 0) - (b.installmentIndex ?? 0) ||
+          a.dayId.localeCompare(b.dayId)
+      );
+    }
+    return rows;
+  }, [paymentLedger]);
+
   const byDay = useMemo(() => {
     const map = new Map<string, FinanceMovement[]>();
-    for (const mov of movements) {
-      if (filterFlow !== 'all' && mov.flow !== filterFlow) continue;
-      if (
+    const matchesFilters = (mov: FinanceMovement) => {
+      if (filterFlow !== 'all' && mov.flow !== filterFlow) return false;
+      return !(
         filterAccountId !== 'all' &&
         mov.accountId !== filterAccountId &&
         mov.cardAccountId !== filterAccountId
-      ) {
-        continue;
-      }
+      );
+    };
+    for (const mov of movements) {
+      if (!matchesFilters(mov)) continue;
       const list = map.get(mov.dayId) ?? [];
       list.push(mov);
       map.set(mov.dayId, list);
     }
+    for (const mov of paymentLedger) {
+      const purchaseDayId = mov.purchaseDayId;
+      const purchase = mov.installmentGroupId
+        ? installmentPurchases.get(mov.installmentGroupId)
+        : undefined;
+      const creditAccount = accounts.find(account => account.id === mov.accountId);
+      if (
+        !purchaseDayId ||
+        mov.installmentIndex !== 1 ||
+        !purchase ||
+        creditAccount?.type !== 'credit' ||
+        purchaseDayId < range.from ||
+        purchaseDayId > range.to ||
+        !matchesFilters(mov)
+      ) {
+        continue;
+      }
+      const list = map.get(purchaseDayId) ?? [];
+      list.unshift({
+        ...mov,
+        dayId: purchaseDayId,
+        amount: purchase.totalAmount,
+        virtual: true,
+      });
+      map.set(purchaseDayId, list);
+    }
     return map;
-  }, [movements, filterFlow, filterAccountId]);
+  }, [
+    movements,
+    paymentLedger,
+    installmentPurchases,
+    accounts,
+    range.from,
+    range.to,
+    filterFlow,
+    filterAccountId,
+  ]);
 
   const summaries = useMemo(
     () => summarizeMovementsByCurrency(movements, monthId, preferred),
@@ -378,15 +440,6 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     plannedExpense: 0,
     balance: 0,
   };
-  const installmentPurchases = useMemo(
-    () =>
-      summarizeInstallmentPurchases(
-        ledgerMovements.length > 0 ? ledgerMovements : movements,
-        todayId
-      ),
-    [ledgerMovements, movements, todayId]
-  );
-
   useEffect(() => {
     if (dialogOpen && !editing) setNewMovementDraft(form);
   }, [dialogOpen, editing, form]);
@@ -405,6 +458,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }
 
   function openEdit(mov: FinanceMovement) {
+    if (mov.virtual && mov.purchaseDayId === mov.dayId && mov.installmentGroupId) {
+      const source = paymentLedger.find(item => item.id === mov.id);
+      if (source) {
+        openEdit(source);
+        return;
+      }
+    }
     if (mov.virtual) {
       setEditing(null);
       setForm({
@@ -449,7 +509,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       purchaseRows.some(row => (row.images?.length ?? 0) > 0)
     );
     setForm({
-      dayId: firstPurchaseRow.dayId,
+      dayId: firstPurchaseRow.purchaseDayId ?? firstPurchaseRow.dayId,
       flow: firstPurchaseRow.flow,
       status: firstPurchaseRow.status,
       currency: firstPurchaseRow.currency,
@@ -483,7 +543,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       repeat: recurringRule?.frequency ?? 'none',
       recurrenceDay:
         recurringRule?.recurrenceDay ??
-        (Number(firstPurchaseRow.dayId.slice(8, 10)) || 1),
+        (Number((firstPurchaseRow.purchaseDayId ?? firstPurchaseRow.dayId).slice(8, 10)) ||
+          1),
     });
     setDialogOpen(true);
   }
@@ -975,6 +1036,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                           accounts.find(account => account.id === mov.accountId)
                             ?.type === 'credit'
                       );
+                      const creditPurchase = Boolean(
+                        creditInstallment &&
+                          mov.virtual &&
+                          mov.purchaseDayId === mov.dayId
+                      );
                       const installmentLabel = installment
                         ? t('fin_installment_of')
                             .replace(
@@ -983,12 +1049,19 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             )
                             .replace('{total}', String(installment.totalInstallments))
                         : '';
+                      const installmentBreakdown = installment
+                        ? (installmentRowsByGroup.get(mov.installmentGroupId ?? '') ?? [])
+                            .map(row =>
+                              t('fin_installment_of')
+                                .replace('{current}', String(row.installmentIndex ?? 1))
+                                .replace('{total}', String(installment.totalInstallments)) +
+                              ` · ${row.dayId}: ${money(row.amount, row.currency)}`
+                            )
+                        : [];
                       const installmentHover = installment
                         ? [
                             `${t('fin_installment_total_cost')}: ${money(installment.totalAmount, mov.currency)}`,
-                            installmentLabel,
-                            `${t('fin_installment_paid')}: ${installment.paidInstallments}/${installment.totalInstallments} (${money(installment.paidAmount, mov.currency)})`,
-                            `${t('fin_installment_remaining')}: ${money(installment.remainingAmount, mov.currency)}`,
+                            ...installmentBreakdown,
                           ].join('\n')
                         : undefined;
                       return (
@@ -1003,14 +1076,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             className={cn(
                               'block truncate rounded px-1.5 py-0.5 text-[10px] leading-tight',
                               creditInstallment
-                                ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                                ? creditPurchase
+                                  ? 'bg-violet-500/20 font-semibold text-violet-800 dark:text-violet-200'
+                                  : 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
                                 : mov.flow === 'income'
                                   ? 'bg-accent-green/15 text-accent-green'
                                   : mov.flow === 'investment'
                                     ? 'bg-accent-teal/15 text-accent-teal'
                                     : 'bg-accent-red/15 text-accent-red',
                               mov.status === 'planned' && 'opacity-70',
-                              mov.virtual && 'border border-dashed border-current'
+                              mov.virtual && !creditPurchase && 'border border-dashed border-current'
                             )}
                           >
                             {creditInstallment ? '💳 ' : mov.flow === 'income' ? '+' : mov.flow === 'investment' ? '◆' : '−'}
@@ -1018,7 +1093,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             {creditInstallment ? stripInstallmentSuffix(mov.title) : mov.title}
                             {creditInstallment ? (
                               <span className="ml-1 rounded bg-violet-500/15 px-1 text-[9px] font-semibold tabular-nums">
-                                {installmentLabel}
+                                {creditPurchase
+                                  ? t('fin_installment_purchase').replace(
+                                      '{total}',
+                                      String(installment?.totalInstallments ?? 1)
+                                    )
+                                  : installmentLabel}
                               </span>
                             ) : null}
                             {creditInstallment && installment ? (

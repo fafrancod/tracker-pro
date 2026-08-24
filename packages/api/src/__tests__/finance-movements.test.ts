@@ -282,9 +282,9 @@ describe('POST /api/finances/movements', () => {
     expect(res.status).toBe(201);
     expect(lastMovementInsertRows).toHaveLength(3);
     expect(lastMovementInsertRows.map(row => row.day_id)).toEqual([
-      '2026-08-31',
       '2026-09-30',
       '2026-10-31',
+      '2026-11-30',
     ]);
     expect(res.body.instances.map((row: { amount: number }) => row.amount)).toEqual([
       34,
@@ -295,6 +295,11 @@ describe('POST /api/finances/movements', () => {
       'Notebook · Cuota 1 de 3',
       'Notebook · Cuota 2 de 3',
       'Notebook · Cuota 3 de 3',
+    ]);
+    expect(res.body.instances.map((row: { purchaseDayId: string }) => row.purchaseDayId)).toEqual([
+      '2026-08-31',
+      '2026-08-31',
+      '2026-08-31',
     ]);
     const splitTotal = (res.body.instances[1].categorySplits as Array<{ amount: number }>)
       .reduce((sum, split) => sum + split.amount, 0);

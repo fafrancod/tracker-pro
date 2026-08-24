@@ -233,8 +233,8 @@ describe('POST /api/finances/movements — cuotas', () => {
     expect(movementInserts).toHaveLength(6);
     const groups = new Set(movementInserts.map(r => r.installment_group_id));
     expect(groups.size).toBe(1);
-    expect(movementInserts[0].day_id).toBe('2026-08-17');
-    expect(movementInserts[5].day_id).toBe('2027-01-17');
+    expect(movementInserts[0].day_id).toBe('2026-09-17');
+    expect(movementInserts[5].day_id).toBe('2027-02-17');
     expect(res.body.instances).toHaveLength(6);
   });
 });
