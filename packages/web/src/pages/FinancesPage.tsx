@@ -11,6 +11,8 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  Circle,
+  CircleCheck,
   Paperclip,
   Plus,
   Trash2,
@@ -707,6 +709,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
 
   async function handleSave() {
     const isInvest = form.flow === 'investment';
+    const isExpense = form.flow === 'expense';
     const ticker = form.ticker.trim().toUpperCase();
     const title =
       form.title.trim() ||
@@ -763,21 +766,22 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       title,
       amount: form.amount,
       notes: form.notes,
-      accountId: form.accountId || null,
+      accountId: isExpense ? form.accountId || null : null,
       cardAccountId:
-        !isInvest && form.cardPayment ? form.cardAccountId || null : null,
+        isExpense && form.cardPayment ? form.cardAccountId || null : null,
       goalId:
-        !isInvest && form.goalContribution ? form.goalId || null : null,
-      creditId: !isInvest && form.creditPayment ? form.creditId || null : null,
-      tag: isInvest
-        ? null
-        : form.creditPayment
+        isExpense && form.goalContribution ? form.goalId || null : null,
+      creditId:
+        isExpense && form.creditPayment ? form.creditId || null : null,
+      tag: isExpense
+        ? form.creditPayment
           ? 'credit_payment'
           : form.goalContribution
             ? 'goal_contribution'
             : form.cardPayment
               ? 'card_payment'
-              : null,
+              : null
+        : null,
       investmentSide: isInvest ? editing?.investmentSide ?? 'buy' : null,
       ticker: isInvest ? ticker : null,
       assetName: isInvest ? form.assetName.trim() || ticker : null,
@@ -787,7 +791,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       closesLotId: isInvest ? editing?.closesLotId ?? null : null,
       category: isInvest
         ? 'invest'
-        : form.creditPayment
+        : isExpense && form.creditPayment
           ? 'debt'
           : categorySplits
             ? categorySplits[0].groupKey
@@ -800,6 +804,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       categorySplits,
       images: form.images,
       installmentTotal:
+        isExpense &&
         accounts.find(a => a.id === form.accountId)?.type === 'credit' &&
         form.installmentTotal > 1
           ? form.installmentTotal
@@ -845,6 +850,21 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             ? err.message
             : t('fin_save_error');
       showToast(msg, 'error');
+    }
+  }
+
+  async function confirmPlannedMovement(mov: FinanceMovement) {
+    if (mov.virtual || mov.status !== 'planned') return;
+    try {
+      await updateFinanceMovement(
+        mov.id,
+        { status: 'confirmed', updatedAt: mov.updatedAt },
+        vault ?? undefined
+      );
+      showToast(t('fin_status_confirmed'), 'success');
+      await reload();
+    } catch {
+      showToast(t('fin_save_error'), 'error');
     }
   }
 
@@ -1308,6 +1328,32 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                                 · {t('fin_installment_total_cost')}: {money(installment.totalAmount, mov.currency)}
                               </span>
                             ) : null}
+                            {!mov.virtual && mov.flow !== 'investment' && mov.status === 'planned' ? (
+                              <span
+                                role="checkbox"
+                                aria-checked="false"
+                                aria-label={t('fin_mark_confirmed')}
+                                tabIndex={0}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  void confirmPlannedMovement(mov);
+                                }}
+                                onKeyDown={e => {
+                                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  void confirmPlannedMovement(mov);
+                                }}
+                                className="ml-1 inline-flex align-middle text-current hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-current"
+                              >
+                                <Circle className="h-3 w-3" />
+                              </span>
+                            ) : !mov.virtual && mov.flow !== 'investment' && mov.status === 'confirmed' ? (
+                              <CircleCheck
+                                aria-label={t('fin_status_confirmed')}
+                                className="ml-1 inline h-3 w-3 align-middle text-current"
+                              />
+                            ) : null}
                             {(mov.images?.length ?? 0) > 0 ? ' 📎' : ''}
                             {mov.fxPending ? ' · FX' : ''}
                         </span>
@@ -1410,12 +1456,25 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 <span>{t('fin_field_flow')}</span>
                 <select
                   value={form.flow}
-                  onChange={e =>
-                    setForm(f => ({
-                      ...f,
-                      flow: e.target.value as FinanceMovementFlow,
-                    }))
-                  }
+                  onChange={e => {
+                    const flow = e.target.value as FinanceMovementFlow;
+                    setForm(f =>
+                      flow === 'income'
+                        ? {
+                            ...f,
+                            flow,
+                            accountId: '',
+                            installmentTotal: 1,
+                            cardPayment: false,
+                            cardAccountId: '',
+                            goalContribution: false,
+                            goalId: '',
+                            creditPayment: false,
+                            creditId: '',
+                          }
+                        : { ...f, flow }
+                    );
+                  }}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
                 >
                   <option value="expense">{t('fin_flow_expense')}</option>
@@ -1469,42 +1528,44 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </select>
               </label>
             </div>
-            <label className="block space-y-1 text-xs text-text-muted">
-              <span>{t('fin_field_payment_method')}</span>
-              <select
-                value={form.accountId}
-                onChange={e => {
-                  const accountId = e.target.value;
-                  const acc = accounts.find(a => a.id === accountId);
-                  setForm(f => ({
-                    ...f,
-                    accountId,
-                    installmentTotal:
-                      acc?.type === 'credit' ? f.installmentTotal : 1,
-                  }));
-                }}
-                className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-              >
-                <option value="">{t('fin_payment_none')}</option>
-                {accounts.map(acc => (
-                  <option key={acc.id} value={acc.id}>
-                    {[
-                      acc.name ||
+            {form.flow !== 'income' ? (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_field_payment_method')}</span>
+                <select
+                  value={form.accountId}
+                  onChange={e => {
+                    const accountId = e.target.value;
+                    const acc = accounts.find(a => a.id === accountId);
+                    setForm(f => ({
+                      ...f,
+                      accountId,
+                      installmentTotal:
+                        acc?.type === 'credit' ? f.installmentTotal : 1,
+                    }));
+                  }}
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                >
+                  <option value="">{t('fin_payment_none')}</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>
+                      {[
+                        acc.name ||
+                          t(`fin_account_type_${acc.type}` as 'fin_account_type_other'),
+                        acc.type !== 'cash' ? acc.institution : '',
                         t(`fin_account_type_${acc.type}` as 'fin_account_type_other'),
-                      acc.type !== 'cash' ? acc.institution : '',
-                      t(`fin_account_type_${acc.type}` as 'fin_account_type_other'),
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </option>
-                ))}
-              </select>
-              {accounts.length === 0 ? (
-                <span className="block text-[11px] text-text-muted">
-                  {t('fin_payment_empty_hint')}
-                </span>
-              ) : null}
-            </label>
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </option>
+                  ))}
+                </select>
+                {accounts.length === 0 ? (
+                  <span className="block text-[11px] text-text-muted">
+                    {t('fin_payment_empty_hint')}
+                  </span>
+                ) : null}
+              </label>
+            ) : null}
             {form.flow === 'expense' &&
               accounts.find(a => a.id === form.accountId)?.type === 'credit' && (
               <label className="block space-y-1 text-xs text-text-muted">

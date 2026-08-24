@@ -252,6 +252,7 @@ export interface TranslationDict {
   fin_fx_pending: string;
   fin_status_planned: string;
   fin_status_confirmed: string;
+  fin_mark_confirmed: string;
   fin_kpi_planned: string;
   fin_view_month: string;
   fin_view_week: string;
@@ -1537,6 +1538,7 @@ const es_dict: TranslationDict = {
     'Guardado. El tipo de cambio se aplicará cuando haya red.',
   fin_status_planned: 'Previsto',
   fin_status_confirmed: 'Concretado',
+  fin_mark_confirmed: 'Marcar como concretado',
   fin_kpi_planned: 'Previsto',
   fin_view_month: 'Mes',
   fin_view_week: 'Semana',
@@ -2913,6 +2915,7 @@ const en_dict: TranslationDict = {
   fin_fx_pending: 'Saved. The exchange rate will apply when you are back online.',
   fin_status_planned: 'Planned',
   fin_status_confirmed: 'Confirmed',
+  fin_mark_confirmed: 'Mark as completed',
   fin_kpi_planned: 'Planned',
   fin_view_month: 'Month',
   fin_view_week: 'Week',
