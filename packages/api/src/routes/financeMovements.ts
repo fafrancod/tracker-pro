@@ -2,12 +2,15 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   FINANCE_RANGE_MAX_DAYS,
+  MAX_TASK_IMAGES,
+  MAX_TASK_PDF_DATA_URL_LENGTH,
   addMonthsToDayId,
   buildFinancePayload,
   inclusiveDaySpan,
   normalizeFinanceFlow,
   normalizeFinanceStatus,
   normalizeMovementCurrency,
+  normalizeTaskImages,
   parseFinancePayload,
 } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
@@ -55,7 +58,7 @@ const createSchema = z
     notes: z.string().max(2000).optional(),
     certainty: certaintySchema.optional(),
     clientMutationId: z.string().min(1).max(80).optional(),
-    payloadEnc: z.string().min(16).max(24_000).optional(),
+    payloadEnc: z.string().min(16).max(4_500_000).optional(),
     ruleId: z.string().min(8).max(80).optional(),
     rulePayloadEnc: z.string().min(16).max(24_000).optional(),
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
@@ -96,6 +99,10 @@ const createSchema = z
       .nullable()
       .optional(),
     categoryId: z.string().min(1).max(80).nullable().optional(),
+    images: z
+      .array(z.string().min(24).max(MAX_TASK_PDF_DATA_URL_LENGTH))
+      .max(MAX_TASK_IMAGES)
+      .optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -119,7 +126,7 @@ const updateSchema = z
     notes: z.string().max(2000).optional(),
     certainty: certaintySchema.optional(),
     updatedAt: z.string().min(1).max(40).optional(),
-    payloadEnc: z.string().min(16).max(24_000).optional(),
+    payloadEnc: z.string().min(16).max(4_500_000).optional(),
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
@@ -158,6 +165,10 @@ const updateSchema = z
       .nullable()
       .optional(),
     categoryId: z.string().min(1).max(80).nullable().optional(),
+    images: z
+      .array(z.string().min(24).max(MAX_TASK_PDF_DATA_URL_LENGTH))
+      .max(MAX_TASK_IMAGES)
+      .optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
     message: 'patch vacio',
@@ -312,6 +323,7 @@ function mapMovement(
     closesLotId: payload.closesLotId ?? null,
     category: payload.category ?? null,
     categoryId: payload.categoryId ?? null,
+    images: payload.images ?? [],
     ruleId: (row.rule_id as string | null) ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
@@ -703,6 +715,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
     const now = new Date().toISOString();
     const currency = normalizeMovementCurrency(body.currency);
     const clientSealed = Boolean(body.payloadEnc);
+    const images = normalizeTaskImages(body.images);
     const inner = clientSealed
       ? null
       : buildFinancePayload({
@@ -725,7 +738,12 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           closesLotId: body.closesLotId,
           category: body.category,
           categoryId: body.categoryId,
+          images,
         });
+    const innerWithoutImages =
+      inner && images.length > 0
+        ? buildFinancePayload({ ...inner, images: [] })
+        : inner;
     let accountDek: Buffer | null = null;
     if (!clientSealed) {
       accountDek = await ensureAccountDek(uid);
@@ -788,7 +806,13 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         payload_enc: clientSealed
           ? (body.payloadEnc ?? null)
           : accountDek && inner
-            ? encryptAccountPayload(uid, accountDek, 'finance_movements', id, inner)
+            ? encryptAccountPayload(
+                uid,
+                accountDek,
+                'finance_movements',
+                id,
+                index === 1 ? inner : (innerWithoutImages ?? inner)
+              )
             : null,
         enc_v: clientSealed ? '1' : accountDek ? '2' : null,
         rule_id: ruleId,
@@ -821,7 +845,9 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
     const first = rows[0];
     res.status(201).json({
       ...mapMovement(first, inner),
-      instances: rows.map(r => mapMovement(r, inner)),
+      instances: rows.map((r, i) =>
+        mapMovement(r, i === 0 ? inner : (innerWithoutImages ?? inner))
+      ),
     });
   } catch (err) {
     next(err);
@@ -875,7 +901,8 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
         patch.closesLotId !== undefined ||
         patch.assetName !== undefined ||
         patch.category !== undefined ||
-        patch.categoryId !== undefined)
+        patch.categoryId !== undefined ||
+        patch.images !== undefined)
         ? buildFinancePayload({
             title: patch.title,
             amount: patch.amount,
@@ -896,6 +923,10 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             closesLotId: patch.closesLotId,
             category: patch.category,
             categoryId: patch.categoryId,
+            images:
+              patch.images !== undefined
+                ? normalizeTaskImages(patch.images)
+                : undefined,
             existing: prevPayload,
           })
         : null;

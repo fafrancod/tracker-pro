@@ -12,6 +12,7 @@ import type {
   FinanceMovementTag,
 } from './types';
 import { FINANCE_CATEGORIES } from './types';
+import { normalizeTaskImages } from '../taskImages';
 
 export const FINANCE_RANGE_MAX_DAYS = 93;
 
@@ -132,6 +133,7 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
       typeof o.categoryId === 'string' && o.categoryId.trim()
         ? o.categoryId.trim().slice(0, 80)
         : null,
+    images: normalizeTaskImages(o.images),
   };
 }
 
@@ -155,6 +157,7 @@ export function buildFinancePayload(input: {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  images?: string[];
   existing?: FinanceMovementPayload;
 }): FinanceMovementPayload {
   const existing = input.existing;
@@ -201,6 +204,7 @@ export function buildFinancePayload(input: {
     category: input.category !== undefined ? input.category : existing?.category,
     categoryId:
       input.categoryId !== undefined ? input.categoryId : existing?.categoryId,
+    images: input.images !== undefined ? input.images : existing?.images,
   });
 }
 

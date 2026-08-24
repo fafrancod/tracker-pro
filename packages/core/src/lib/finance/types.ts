@@ -78,6 +78,7 @@ export interface FinanceMovementPayload {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  images?: string[];
 }
 
 export interface FinanceAccountPayload {
@@ -179,6 +180,7 @@ export interface FinanceMovement {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  images?: string[];
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
@@ -246,6 +248,7 @@ export interface CreateFinanceMovementPayload {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  images?: string[];
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -286,6 +289,7 @@ export interface UpdateFinanceMovementPayload {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  images?: string[];
 }
 
 export interface FinanceMovementMonthSummary {

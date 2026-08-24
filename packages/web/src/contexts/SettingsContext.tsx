@@ -58,6 +58,7 @@ const DEFAULTS: UserSettings = {
   preferredCurrency: defaultCurrencyFromLocale(
     typeof navigator !== 'undefined' ? navigator.language : 'es'
   ),
+  financeBanks: [],
   hideCompletedTasks: false,
   completedTaskStyle: 'strikethrough',
   boardFilters: {

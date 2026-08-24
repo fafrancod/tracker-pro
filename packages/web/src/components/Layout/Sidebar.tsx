@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -22,6 +22,7 @@ import {
   Tags,
   CreditCard,
   Landmark,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,6 +70,8 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
+const NAV_EXPANDED_KEY = 'daily-tracker:nav-expanded';
+
 function navClass(active: boolean): string {
   return cn(
     'sidebar-nav-item mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200',
@@ -76,6 +79,17 @@ function navClass(active: boolean): string {
       ? 'sidebar-nav-item-active bg-accent-teal/10 text-accent-teal'
       : 'text-text-muted'
   );
+}
+
+function loadNavExpanded(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(NAV_EXPANDED_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
@@ -95,6 +109,39 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
   const financesTab = onFinances
     ? new URLSearchParams(location.search).get('tab') ?? 'calendar'
     : '';
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(loadNavExpanded);
+
+  function persistExpanded(next: Record<string, boolean>) {
+    try {
+      localStorage.setItem(NAV_EXPANDED_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function toggleSection(id: string) {
+    setExpanded(prev => {
+      const currently =
+        prev[id] === false ? false : prev[id] === true ? true : id === 'finances' ? onFinances : onMemento;
+      const next = { ...prev, [id]: !currently };
+      persistExpanded(next);
+      return next;
+    });
+  }
+
+  function expandSection(id: string) {
+    setExpanded(prev => {
+      if (prev[id] === true) return prev;
+      const next = { ...prev, [id]: true };
+      persistExpanded(next);
+      return next;
+    });
+  }
+
+  const mementoOpen =
+    expanded.memento === false ? false : expanded.memento === true || onMemento;
+  const financesOpen =
+    expanded.finances === false ? false : expanded.finances === true || onFinances;
 
   // Insertar bloque Memento después de Eisenhower (índice de items filtrados)
   const eisenhowerIdx = items.findIndex(i => i.to === '/eisenhower');
@@ -120,68 +167,115 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
 
   const mementoBlock = (
     <div key="memento-block" className="mb-1">
-      <NavLink
-        to="/memento-mori"
-        onClick={onNavigate}
-        className={navClass(onMapTab)}
-        end
-      >
-        <Hourglass className="h-4 w-4" />
-        <span>{t('nav_memento')}</span>
-      </NavLink>
-      <NavLink
-        to="/memento-mori?tab=goals"
-        onClick={onNavigate}
-        className={cn(navClass(onGoalsTab), 'ml-3 pl-2 text-[13px]')}
-      >
-        <Sparkles className="h-3.5 w-3.5" />
-        <span>{t('nav_life_goals')}</span>
-      </NavLink>
+      <div className="flex items-center gap-0.5">
+        <NavLink
+          to="/memento-mori"
+          onClick={() => {
+            expandSection('memento');
+            onNavigate?.();
+          }}
+          className={cn(navClass(onMapTab), 'min-w-0 flex-1')}
+          end
+        >
+          <Hourglass className="h-4 w-4" />
+          <span>{t('nav_memento')}</span>
+        </NavLink>
+        <button
+          type="button"
+          aria-expanded={mementoOpen}
+          aria-label={t('nav_toggle_section')}
+          onClick={() => toggleSection('memento')}
+          className="mb-0.5 rounded-lg p-1.5 text-text-muted hover:bg-accent-teal/10 hover:text-text-primary"
+        >
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 transition-transform',
+              mementoOpen ? 'rotate-0' : '-rotate-90'
+            )}
+          />
+        </button>
+      </div>
+      {mementoOpen ? (
+        <NavLink
+          to="/memento-mori?tab=goals"
+          onClick={onNavigate}
+          className={cn(navClass(onGoalsTab), 'ml-3 pl-2 text-[13px]')}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          <span>{t('nav_life_goals')}</span>
+        </NavLink>
+      ) : null}
     </div>
   );
 
   const financesBlock = (
     <div key="finances-block" className="mb-1">
-      <NavLink
-        to="/finances"
-        onClick={onNavigate}
-        className={navClass(onFinances && (!financesTab || financesTab === 'calendar'))}
-      >
-        <Wallet className="h-4 w-4" />
-        <span>{t('nav_finances')}</span>
-      </NavLink>
-      <NavLink
-        to="/finances?tab=categories"
-        onClick={onNavigate}
-        className={cn(navClass(financesTab === 'categories'), 'ml-3 pl-2 text-[13px]')}
-      >
-        <Tags className="h-3.5 w-3.5" />
-        <span>{t('nav_fin_categories')}</span>
-      </NavLink>
-      <NavLink
-        to="/finances?tab=accounts"
-        onClick={onNavigate}
-        className={cn(navClass(financesTab === 'accounts'), 'ml-3 pl-2 text-[13px]')}
-      >
-        <CreditCard className="h-3.5 w-3.5" />
-        <span>{t('nav_fin_payment_methods')}</span>
-      </NavLink>
-      <NavLink
-        to="/finances?tab=evolution"
-        onClick={onNavigate}
-        className={cn(navClass(financesTab === 'evolution'), 'ml-3 pl-2 text-[13px]')}
-      >
-        <BarChart3 className="h-3.5 w-3.5" />
-        <span>{t('nav_fin_evolution')}</span>
-      </NavLink>
-      <NavLink
-        to="/finances?tab=credits"
-        onClick={onNavigate}
-        className={cn(navClass(financesTab === 'credits'), 'ml-3 pl-2 text-[13px]')}
-      >
-        <Landmark className="h-3.5 w-3.5" />
-        <span>{t('nav_fin_credits')}</span>
-      </NavLink>
+      <div className="flex items-center gap-0.5">
+        <NavLink
+          to="/finances"
+          onClick={() => {
+            expandSection('finances');
+            onNavigate?.();
+          }}
+          className={cn(
+            navClass(onFinances && (!financesTab || financesTab === 'calendar')),
+            'min-w-0 flex-1'
+          )}
+        >
+          <Wallet className="h-4 w-4" />
+          <span>{t('nav_finances')}</span>
+        </NavLink>
+        <button
+          type="button"
+          aria-expanded={financesOpen}
+          aria-label={t('nav_toggle_section')}
+          onClick={() => toggleSection('finances')}
+          className="mb-0.5 rounded-lg p-1.5 text-text-muted hover:bg-accent-teal/10 hover:text-text-primary"
+        >
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 transition-transform',
+              financesOpen ? 'rotate-0' : '-rotate-90'
+            )}
+          />
+        </button>
+      </div>
+      {financesOpen ? (
+        <>
+          <NavLink
+            to="/finances?tab=categories"
+            onClick={onNavigate}
+            className={cn(navClass(financesTab === 'categories'), 'ml-3 pl-2 text-[13px]')}
+          >
+            <Tags className="h-3.5 w-3.5" />
+            <span>{t('nav_fin_categories')}</span>
+          </NavLink>
+          <NavLink
+            to="/finances?tab=accounts"
+            onClick={onNavigate}
+            className={cn(navClass(financesTab === 'accounts'), 'ml-3 pl-2 text-[13px]')}
+          >
+            <CreditCard className="h-3.5 w-3.5" />
+            <span>{t('nav_fin_payment_methods')}</span>
+          </NavLink>
+          <NavLink
+            to="/finances?tab=evolution"
+            onClick={onNavigate}
+            className={cn(navClass(financesTab === 'evolution'), 'ml-3 pl-2 text-[13px]')}
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span>{t('nav_fin_evolution')}</span>
+          </NavLink>
+          <NavLink
+            to="/finances?tab=credits"
+            onClick={onNavigate}
+            className={cn(navClass(financesTab === 'credits'), 'ml-3 pl-2 text-[13px]')}
+          >
+            <Landmark className="h-3.5 w-3.5" />
+            <span>{t('nav_fin_credits')}</span>
+          </NavLink>
+        </>
+      ) : null}
     </div>
   );
 

@@ -12,6 +12,7 @@ import {
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
 import { ApiClientError } from '@core/lib/api';
 import {
@@ -24,6 +25,7 @@ import {
   type FinanceVaultCtx,
 } from '@core/services/financeMovementService';
 import {
+  collectFinanceBanks,
   movementsForAccount,
   paymentMethodRequiresBank,
   summarizeCardUsage,
@@ -75,6 +77,8 @@ export function AccountsPanel({
 }) {
   const { t } = useT();
   const { showToast } = useToast();
+  const { settings, updateSettings } = useSettings();
+  const [customBank, setCustomBank] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<FinanceAccount | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FinanceAccount | null>(null);
@@ -103,6 +107,7 @@ export function AccountsPanel({
 
   function openCreate() {
     setEditing(null);
+    setCustomBank(false);
     setForm({
       name: '',
       institution: '',
@@ -115,6 +120,10 @@ export function AccountsPanel({
 
   function openEdit(acc: FinanceAccount) {
     setEditing(acc);
+    const known = collectFinanceBanks(accounts, settings.financeBanks ?? []);
+    setCustomBank(
+      Boolean(acc.institution) && !known.includes(acc.institution)
+    );
     setForm({
       name: acc.name,
       institution: acc.institution,
@@ -139,6 +148,18 @@ export function AccountsPanel({
       : '';
     setBusy(true);
     try {
+      if (institution) {
+        const nextBanks = collectFinanceBanks(accounts, [
+          ...(settings.financeBanks ?? []),
+          institution,
+        ]);
+        if (
+          nextBanks.join('|') !==
+          collectFinanceBanks(accounts, settings.financeBanks).join('|')
+        ) {
+          void updateSettings({ financeBanks: nextBanks });
+        }
+      }
       if (editing) {
         await updateFinanceAccount(editing.id, {
           name: form.name.trim(),
@@ -534,17 +555,50 @@ export function AccountsPanel({
               </label>
             </div>
             {paymentMethodRequiresBank(form.type) ? (
-              <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_account_bank')}</span>
-                <Input
-                  value={form.institution}
-                  onChange={e =>
-                    setForm(f => ({ ...f, institution: e.target.value }))
-                  }
-                  className="h-9 text-sm"
-                  placeholder={t('fin_account_bank_hint')}
-                />
-              </label>
+              <div className="space-y-1.5">
+                <label className="block space-y-1 text-xs text-text-muted">
+                  <span>{t('fin_account_bank')}</span>
+                  <select
+                    value={
+                      customBank
+                        ? '__custom__'
+                        : form.institution
+                    }
+                    onChange={e => {
+                      const value = e.target.value;
+                      if (value === '__custom__') {
+                        setCustomBank(true);
+                        setForm(f => ({ ...f, institution: '' }));
+                        return;
+                      }
+                      setCustomBank(false);
+                      setForm(f => ({ ...f, institution: value }));
+                    }}
+                    className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                  >
+                    <option value="">{t('fin_bank_select')}</option>
+                    {collectFinanceBanks(accounts, settings.financeBanks ?? []).map(
+                      bank => (
+                        <option key={bank} value={bank}>
+                          {bank}
+                        </option>
+                      )
+                    )}
+                    <option value="__custom__">{t('fin_bank_new')}</option>
+                  </select>
+                </label>
+                {customBank ? (
+                  <Input
+                    value={form.institution}
+                    onChange={e =>
+                      setForm(f => ({ ...f, institution: e.target.value }))
+                    }
+                    className="h-9 text-sm"
+                    placeholder={t('fin_account_bank_hint')}
+                    autoFocus
+                  />
+                ) : null}
+              </div>
             ) : null}
             {form.type === 'credit' && (
               <label className="block space-y-1 text-xs text-text-muted">

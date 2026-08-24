@@ -235,6 +235,11 @@ export interface UserSettings {
    */
   preferredCurrency: string;
   /**
+   * Bancos guardados para reutilizar en medios de pago (débito/crédito).
+   * Se combina con los `institution` de las cuentas existentes.
+   */
+  financeBanks?: string[];
+  /**
    * Ocultar tareas completadas en el tablero (día/semana/mes/continuo).
    * Default false (se muestran al final de cada lista del día).
    */

@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           lifeGoals: [],
           dailyJournal: [],
           preferredCurrency: 'EUR',
+          financeBanks: [],
           hideCompletedTasks: false,
           completedTaskStyle: 'strikethrough',
           boardFilters: {

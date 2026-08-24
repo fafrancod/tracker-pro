@@ -11,6 +11,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  Paperclip,
   Plus,
   Trash2,
   Wallet,
@@ -38,6 +39,7 @@ import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
 import { HealthPanel } from '@/components/Finances/HealthPanel';
 import { CategoriesPanel } from '@/components/Finances/CategoriesPanel';
 import { EvolutionPanel } from '@/components/Finances/EvolutionPanel';
+import { TaskImagesField } from '@/components/Board/TaskImagesField';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -141,6 +143,7 @@ interface MovementForm {
   quantity: number;
   category: FinanceCategory;
   categoryId: string;
+  images: string[];
 }
 
 function emptyForm(dayId: string, currency: string): MovementForm {
@@ -167,6 +170,7 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     quantity: 1,
     category: 'other',
     categoryId: '',
+    images: [],
   };
 }
 
@@ -204,6 +208,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const [movements, setMovements] = useState<FinanceMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showAttach, setShowAttach] = useState(false);
   const [editing, setEditing] = useState<FinanceMovement | null>(null);
   const [form, setForm] = useState<MovementForm>(() =>
     emptyForm(todayId, preferred)
@@ -359,6 +364,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   function openCreate(dayId = todayId) {
     setEditing(null);
     const d = Number(dayId.slice(8, 10));
+    setShowAttach(false);
     setForm({
       ...emptyForm(dayId, preferred),
       recurrenceDay: d || 1,
@@ -378,10 +384,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         notes: mov.notes,
         repeat: 'none',
       });
+      setShowAttach(false);
       setDialogOpen(true);
       return;
     }
     setEditing(mov);
+    setShowAttach((mov.images?.length ?? 0) > 0);
     setForm({
       dayId: mov.dayId,
       flow: mov.flow,
@@ -408,6 +416,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             ? 'debt'
             : 'other'),
       categoryId: mov.categoryId ?? '',
+      images: mov.images ?? [],
       notes: mov.notes,
       repeat: 'none',
       recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
@@ -471,6 +480,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           ? 'debt'
           : form.category,
       categoryId: isInvest ? null : form.categoryId || null,
+      images: form.images,
       installmentTotal:
         accounts.find(a => a.id === form.accountId)?.type === 'credit' &&
         form.installmentTotal > 1
@@ -519,6 +529,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             closesLotId: payload.closesLotId,
             category: payload.category,
             categoryId: payload.categoryId,
+            images: payload.images,
             updatedAt: editing.updatedAt,
           },
           vault ?? undefined
@@ -910,6 +921,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                               : '−'}
                           {money(mov.amount, mov.currency)}{' '}
                           {mov.title}
+                          {(mov.images?.length ?? 0) > 0 ? ' 📎' : ''}
                           {mov.fxPending ? ' · FX' : ''}
                         </span>
                       </li>
@@ -1324,6 +1336,30 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 className="w-full rounded-md border border-border bg-field px-3 py-2 text-sm"
               />
             </label>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowAttach(v => !v)}
+                className="flex items-center gap-1.5 text-xs text-accent-teal"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                {showAttach
+                  ? t('fin_attach_hide')
+                  : form.images.length > 0
+                    ? t('fin_attach_show_n').replace(
+                        '{n}',
+                        String(form.images.length)
+                      )
+                    : t('fin_attach_show')}
+              </button>
+              {showAttach ? (
+                <TaskImagesField
+                  images={form.images}
+                  onChange={images => setForm(f => ({ ...f, images }))}
+                  compact
+                />
+              ) : null}
+            </div>
             <div className="flex justify-between pt-1">
               {editing && !editing.virtual ? (
                 <Button

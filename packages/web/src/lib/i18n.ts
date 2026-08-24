@@ -24,6 +24,7 @@ export interface TranslationDict {
   nav_reflections: string;
   nav_recetario: string;
   nav_finances: string;
+  nav_toggle_section: string;
   nav_fin_categories: string;
   nav_fin_payment_methods: string;
   nav_fin_evolution: string;
@@ -70,6 +71,11 @@ export interface TranslationDict {
   fin_account_bank: string;
   fin_account_bank_required: string;
   fin_account_bank_hint: string;
+  fin_bank_select: string;
+  fin_bank_new: string;
+  fin_attach_show: string;
+  fin_attach_show_n: string;
+  fin_attach_hide: string;
   fin_evo_empty: string;
   fin_evo_empty_hint: string;
   fin_evo_income: string;
@@ -1270,6 +1276,7 @@ const es_dict: TranslationDict = {
   nav_reflections: 'Reflexiones',
   nav_recetario: 'Recetario',
   nav_finances: 'Finances',
+  nav_toggle_section: 'Mostrar u ocultar submenús',
   nav_fin_categories: 'Categorías',
   nav_fin_payment_methods: 'Medios de pago',
   nav_fin_evolution: 'Evolución de pagos',
@@ -1314,6 +1321,11 @@ const es_dict: TranslationDict = {
   fin_account_bank: 'Banco',
   fin_account_bank_required: 'Indica el banco. En efectivo no hace falta.',
   fin_account_bank_hint: 'Obligatorio en débito y crédito.',
+  fin_bank_select: 'Selecciona un banco',
+  fin_bank_new: 'Otro banco…',
+  fin_attach_show: 'Adjuntar imagen o documento',
+  fin_attach_show_n: 'Adjuntos ({n})',
+  fin_attach_hide: 'Ocultar adjuntos',
   fin_evo_empty: 'Aún no hay ingresos ni gastos para graficar.',
   fin_evo_empty_hint:
     'Las barras incluyen cuotas, gastos mensuales (luz, créditos) y gastos unitarios.',
@@ -2621,6 +2633,7 @@ const en_dict: TranslationDict = {
   nav_habits: 'Habits',
   nav_gantt: 'Gantt chart',
   nav_finances: 'Finances',
+  nav_toggle_section: 'Show or hide submenus',
   nav_fin_categories: 'Categories',
   nav_fin_payment_methods: 'Payment methods',
   nav_fin_evolution: 'Payment trends',
@@ -2663,6 +2676,11 @@ const en_dict: TranslationDict = {
   fin_account_bank: 'Bank',
   fin_account_bank_required: 'Enter the bank. Cash does not need one.',
   fin_account_bank_hint: 'Required for debit and credit.',
+  fin_bank_select: 'Select a bank',
+  fin_bank_new: 'Another bank…',
+  fin_attach_show: 'Attach image or document',
+  fin_attach_show_n: 'Attachments ({n})',
+  fin_attach_hide: 'Hide attachments',
   fin_evo_empty: 'No income or expenses to chart yet.',
   fin_evo_empty_hint:
     'Bars include installments, monthly bills (utilities, loans) and one-off expenses.',

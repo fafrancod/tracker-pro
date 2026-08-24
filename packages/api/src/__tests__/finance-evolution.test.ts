@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   buildInstallmentSchedule,
   classifyExpenseKind,
+  collectFinanceBanks,
   isValidPaymentInstitution,
   listMonthIds,
+  parseFinancePayload,
   summarizeCreditProgress,
   summarizeMonthlyEvolution,
   type FinanceCredit,
@@ -63,6 +65,20 @@ function credit(partial: Partial<FinanceCredit> = {}): FinanceCredit {
 }
 
 describe('medios de pago: banco', () => {
+  it('reutiliza bancos ya guardados en otros medios', () => {
+    expect(
+      collectFinanceBanks(
+        [
+          { institution: 'Santander' },
+          { institution: 'BCI' },
+          { institution: 'Santander' },
+          { institution: '' },
+        ],
+        ['BCI', 'Estado']
+      )
+    ).toEqual(['BCI', 'Estado', 'Santander']);
+  });
+
   it('efectivo no exige banco; débito y crédito sí', () => {
     expect(isValidPaymentInstitution('cash', '')).toBe(true);
     expect(isValidPaymentInstitution('cash', 'Banco Estado')).toBe(true);
@@ -322,5 +338,19 @@ describe('evolución: no duplicar crédito pagado', () => {
       }
     );
     expect(rows[0].expenseCredit).toBe(550_000);
+  });
+});
+
+describe('adjuntos de movimiento', () => {
+  it('conserva data URLs de imagen y descarta URLs externas', () => {
+    const jpeg =
+      'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z';
+    const parsed = parseFinancePayload({
+      title: 'Ticket',
+      amount: 1200,
+      images: [jpeg, 'http://evil.example/x.png'],
+    });
+    expect(parsed.images).toHaveLength(1);
+    expect(parsed.images?.[0]).toContain('data:image/jpeg');
   });
 });

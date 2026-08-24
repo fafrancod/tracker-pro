@@ -66,6 +66,7 @@ const DEFAULT_SETTINGS = {
   notifyRx: true,
   timezone: 'UTC',
   preferredCurrency: 'EUR',
+  financeBanks: [],
   hideCompletedTasks: false,
   completedTaskStyle: 'strikethrough',
   onboardingTourCompleted: false,
