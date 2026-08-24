@@ -1,4 +1,53 @@
-import type { FinanceCredit, FinanceMovement } from './types';
+import type {
+  FinanceCategorySplit,
+  FinanceCredit,
+  FinanceMovement,
+} from './types';
+import { normalizeCategorySplits } from './categorySplits';
+
+const ZERO_DECIMAL_CURRENCIES = new Set(['CLP', 'JPY', 'KRW', 'VND']);
+
+/**
+ * Divide a purchase in the smallest unit of its currency. The first installments
+ * receive any remainder so every generated row adds up exactly to the purchase.
+ */
+export function installmentAmountAt(
+  totalAmount: number,
+  installmentIndex: number,
+  installmentTotal: number,
+  currency: string
+): number {
+  const total = Math.max(1, Math.floor(installmentTotal || 1));
+  const index = Math.min(total, Math.max(1, Math.floor(installmentIndex || 1)));
+  const precision = ZERO_DECIMAL_CURRENCIES.has(currency.toUpperCase()) ? 0 : 2;
+  const factor = 10 ** precision;
+  const totalMinor = Math.round(Math.max(0, Number(totalAmount) || 0) * factor);
+  const base = Math.floor(totalMinor / total);
+  const remainder = totalMinor % total;
+  return (base + (index <= remainder ? 1 : 0)) / factor;
+}
+
+/** Keep a category allocation proportional when its purchase is materialized in installments. */
+export function scaleCategorySplitsForInstallment(
+  splits: FinanceCategorySplit[] | undefined,
+  purchaseAmount: number,
+  installmentAmount: number
+): FinanceCategorySplit[] {
+  const normalized = normalizeCategorySplits(splits);
+  const total = Number(purchaseAmount) || 0;
+  if (normalized.length === 0 || total <= 0) return normalized;
+  const ratio = installmentAmount / total;
+  return normalized.map(split => ({ ...split, amount: split.amount * ratio }));
+}
+
+export function installmentTitle(
+  title: string,
+  installmentIndex: number,
+  installmentTotal: number
+): string {
+  if (installmentTotal <= 1) return title;
+  return `${title} · Cuota ${installmentIndex} de ${installmentTotal}`;
+}
 
 export function addMonthsToDayId(dayId: string, months: number): string {
   const [y, m, d] = dayId.split('-').map(Number);

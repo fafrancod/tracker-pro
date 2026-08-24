@@ -13,6 +13,7 @@ import type {
 } from './types';
 import { FINANCE_CATEGORIES } from './types';
 import { normalizeTaskImages } from '../taskImages';
+import { normalizeCategorySplits } from './categorySplits';
 
 export const FINANCE_RANGE_MAX_DAYS = 93;
 
@@ -134,6 +135,9 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
         ? o.categoryId.trim().slice(0, 80)
         : null,
     images: normalizeTaskImages(o.images),
+    categorySplits: normalizeCategorySplits(
+      Array.isArray(o.categorySplits) ? o.categorySplits : undefined
+    ),
   };
 }
 
@@ -158,6 +162,7 @@ export function buildFinancePayload(input: {
   category?: FinanceCategory | null;
   categoryId?: string | null;
   images?: string[];
+  categorySplits?: import('./types').FinanceCategorySplit[];
   existing?: FinanceMovementPayload;
 }): FinanceMovementPayload {
   const existing = input.existing;
@@ -205,6 +210,10 @@ export function buildFinancePayload(input: {
     categoryId:
       input.categoryId !== undefined ? input.categoryId : existing?.categoryId,
     images: input.images !== undefined ? input.images : existing?.images,
+    categorySplits:
+      input.categorySplits !== undefined
+        ? input.categorySplits
+        : existing?.categorySplits,
   });
 }
 

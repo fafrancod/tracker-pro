@@ -40,6 +40,12 @@ import { HealthPanel } from '@/components/Finances/HealthPanel';
 import { CategoriesPanel } from '@/components/Finances/CategoriesPanel';
 import { EvolutionPanel } from '@/components/Finances/EvolutionPanel';
 import { TaskImagesField } from '@/components/Board/TaskImagesField';
+import {
+  CategorySplitEditor,
+  initialSplitRows,
+  resolveSplitGroupKey,
+  type CategorySplitRow,
+} from '@/components/Finances/CategorySplitEditor';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
 import { getDayId } from '@core/services/taskService';
@@ -72,6 +78,10 @@ import type {
   FinanceRuleFrequency,
 } from '@core/lib/finance/types';
 import { FINANCE_CATEGORIES } from '@core/lib/finance/types';
+import {
+  categorySplitsRemaining,
+  splitMatchTolerance,
+} from '@core/lib/finance/categorySplits';
 import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import {
@@ -144,6 +154,7 @@ interface MovementForm {
   category: FinanceCategory;
   categoryId: string;
   images: string[];
+  categorySplits: CategorySplitRow[];
 }
 
 function emptyForm(dayId: string, currency: string): MovementForm {
@@ -171,6 +182,7 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     category: 'other',
     categoryId: '',
     images: [],
+    categorySplits: [],
   };
 }
 
@@ -213,6 +225,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const [form, setForm] = useState<MovementForm>(() =>
     emptyForm(todayId, preferred)
   );
+  // Keep unsaved creation input while the dialog/attachment picker is opened and closed.
+  // This is intentionally in-memory: finance data must not be copied to browser storage.
+  const [newMovementDraft, setNewMovementDraft] =
+    useState<MovementForm | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FinanceMovement | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [filterFlow, setFilterFlow] = useState<
@@ -361,14 +377,20 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     balance: 0,
   };
 
+  useEffect(() => {
+    if (dialogOpen && !editing) setNewMovementDraft(form);
+  }, [dialogOpen, editing, form]);
+
   function openCreate(dayId = todayId) {
     setEditing(null);
     const d = Number(dayId.slice(8, 10));
-    setShowAttach(false);
-    setForm({
-      ...emptyForm(dayId, preferred),
-      recurrenceDay: d || 1,
-    });
+    const nextForm =
+      newMovementDraft ?? {
+        ...emptyForm(dayId, preferred),
+        recurrenceDay: d || 1,
+      };
+    setShowAttach(nextForm.images.length > 0);
+    setForm(nextForm);
     setDialogOpen(true);
   }
 
@@ -417,6 +439,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             : 'other'),
       categoryId: mov.categoryId ?? '',
       images: mov.images ?? [],
+      categorySplits:
+        (mov.categorySplits?.length ?? 0) > 1
+          ? mov.categorySplits!.map(s => ({
+              id: s.id,
+              categoryId: s.categoryId,
+              amount: s.amount,
+            }))
+          : [],
       notes: mov.notes,
       repeat: 'none',
       recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
@@ -437,6 +467,36 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     if (isInvest && !ticker) {
       showToast(t('fin_invest_ticker_required'), 'error');
       return;
+    }
+    const splitRows = form.categorySplits.filter(
+      r => r.categoryId && r.amount > 0
+    );
+    let categorySplits:
+      | Array<{
+          id: string;
+          categoryId: string;
+          groupKey: FinanceCategory;
+          amount: number;
+        }>
+      | undefined;
+    if (!isInvest && splitRows.length >= 2) {
+      const leftover = categorySplitsRemaining(splitRows, form.amount);
+      if (Math.abs(leftover) > splitMatchTolerance(form.amount)) {
+        showToast(
+          t('fin_split_mismatch').replace(
+            '{amount}',
+            money(Math.abs(leftover), form.currency)
+          ),
+          'error'
+        );
+        return;
+      }
+      categorySplits = splitRows.map(row => ({
+        id: row.id,
+        categoryId: row.categoryId,
+        groupKey: resolveSplitGroupKey(row.categoryId, userCategories),
+        amount: row.amount,
+      }));
     }
     const fx = await resolveFinanceFx({
       amount: form.amount,
@@ -478,8 +538,15 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         ? 'invest'
         : form.creditPayment
           ? 'debt'
-          : form.category,
-      categoryId: isInvest ? null : form.categoryId || null,
+          : categorySplits
+            ? categorySplits[0].groupKey
+            : form.category,
+      categoryId: isInvest
+        ? null
+        : categorySplits
+          ? categorySplits[0].categoryId
+          : form.categoryId || null,
+      categorySplits,
       images: form.images,
       installmentTotal:
         accounts.find(a => a.id === form.accountId)?.type === 'credit' &&
@@ -529,6 +596,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             closesLotId: payload.closesLotId,
             category: payload.category,
             categoryId: payload.categoryId,
+            categorySplits: payload.categorySplits,
             images: payload.images,
             updatedAt: editing.updatedAt,
           },
@@ -540,6 +608,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         );
       } else {
         await createFinanceMovement(payload, vault ?? undefined);
+        setNewMovementDraft(null);
         showToast(
           fx.fxPending ? t('fin_fx_pending') : t('fin_created'),
           fx.fxPending ? 'info' : 'success'
@@ -659,6 +728,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             movements={ledgerMovements.length ? ledgerMovements : movements}
             rules={ledgerRules}
             credits={credits}
+            userCategories={userCategories}
             monthId={monthId}
             reportingCurrency={preferred}
           />
@@ -1089,37 +1159,90 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 />
               </label>
             )}
-            {form.flow === 'expense' && !form.creditPayment && (
-              <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_field_category')}</span>
-                <select
-                  value={form.categoryId || form.category}
-                  onChange={e => {
-                    const value = e.target.value;
-                    const custom = userCategories.find(c => c.id === value);
-                    setForm(f => ({
-                      ...f,
-                      categoryId: custom ? custom.id : '',
-                      category: custom
-                        ? custom.groupKey
-                        : (value as FinanceCategory),
-                    }));
-                  }}
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  {userCategories.length > 0
-                    ? userCategories.map(cat => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.name || t(`fin_cat_${cat.groupKey}` as 'fin_cat_other')}
-                        </option>
-                      ))
-                    : FINANCE_CATEGORIES.filter(c => c !== 'invest').map(cat => (
-                        <option key={cat} value={cat}>
-                          {t(`fin_cat_${cat}` as 'fin_cat_other')}
-                        </option>
-                      ))}
-                </select>
-              </label>
+            {form.flow !== 'investment' && !form.creditPayment && (
+              <div className="space-y-2">
+                {form.categorySplits.length >= 2 ? (
+                  <>
+                    <CategorySplitEditor
+                      total={form.amount}
+                      currency={form.currency}
+                      rows={form.categorySplits}
+                      userCategories={userCategories}
+                      onChange={categorySplits =>
+                        setForm(f => ({
+                          ...f,
+                          categorySplits,
+                          categoryId: categorySplits[0]?.categoryId || f.categoryId,
+                          category: resolveSplitGroupKey(
+                            categorySplits[0]?.categoryId || f.categoryId,
+                            userCategories
+                          ),
+                        }))
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm(f => ({ ...f, categorySplits: [] }))
+                      }
+                      className="text-xs text-text-muted underline"
+                    >
+                      {t('fin_split_off')}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <label className="block space-y-1 text-xs text-text-muted">
+                      <span>{t('fin_field_category')}</span>
+                      <select
+                        value={form.categoryId || form.category}
+                        onChange={e => {
+                          const value = e.target.value;
+                          const custom = userCategories.find(c => c.id === value);
+                          setForm(f => ({
+                            ...f,
+                            categoryId: custom ? custom.id : '',
+                            category: custom
+                              ? custom.groupKey
+                              : (value as FinanceCategory),
+                          }));
+                        }}
+                        className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                      >
+                        {userCategories.length > 0
+                          ? userCategories.map(cat => (
+                              <option key={cat.id} value={cat.id}>
+                                {cat.name ||
+                                  t(`fin_cat_${cat.groupKey}` as 'fin_cat_other')}
+                              </option>
+                            ))
+                          : FINANCE_CATEGORIES.filter(c => c !== 'invest').map(
+                              cat => (
+                                <option key={cat} value={cat}>
+                                  {t(`fin_cat_${cat}` as 'fin_cat_other')}
+                                </option>
+                              )
+                            )}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm(f => ({
+                          ...f,
+                          categorySplits: initialSplitRows(
+                            f.categoryId || f.category,
+                            f.amount
+                          ),
+                        }))
+                      }
+                      className="text-xs text-accent-teal"
+                    >
+                      {t('fin_split_on')}
+                    </button>
+                  </>
+                )}
+              </div>
             )}
             {form.flow === 'investment' && (
               <>

@@ -38,6 +38,13 @@ export const FINANCE_CATEGORIES = [
 
 export type FinanceCategory = (typeof FINANCE_CATEGORIES)[number];
 
+export interface FinanceCategorySplit {
+  id: string;
+  categoryId: string;
+  groupKey?: FinanceCategory;
+  amount: number;
+}
+
 export interface FinanceCategoryPayload {
   name: string;
   monthlyBudget: number;
@@ -79,6 +86,7 @@ export interface FinanceMovementPayload {
   category?: FinanceCategory | null;
   categoryId?: string | null;
   images?: string[];
+  categorySplits?: FinanceCategorySplit[];
 }
 
 export interface FinanceAccountPayload {
@@ -181,6 +189,7 @@ export interface FinanceMovement {
   category?: FinanceCategory | null;
   categoryId?: string | null;
   images?: string[];
+  categorySplits?: FinanceCategorySplit[];
   ruleId: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
@@ -249,6 +258,7 @@ export interface CreateFinanceMovementPayload {
   category?: FinanceCategory | null;
   categoryId?: string | null;
   images?: string[];
+  categorySplits?: FinanceCategorySplit[];
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
@@ -290,6 +300,7 @@ export interface UpdateFinanceMovementPayload {
   category?: FinanceCategory | null;
   categoryId?: string | null;
   images?: string[];
+  categorySplits?: FinanceCategorySplit[];
 }
 
 export interface FinanceMovementMonthSummary {

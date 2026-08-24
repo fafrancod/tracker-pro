@@ -6,12 +6,17 @@ import {
   MAX_TASK_PDF_DATA_URL_LENGTH,
   addMonthsToDayId,
   buildFinancePayload,
+  categorySplitsMatchTotal,
   inclusiveDaySpan,
+  installmentAmountAt,
+  installmentTitle,
   normalizeFinanceFlow,
   normalizeFinanceStatus,
   normalizeMovementCurrency,
+  normalizeCategorySplits,
   normalizeTaskImages,
   parseFinancePayload,
+  scaleCategorySplitsForInstallment,
 } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -103,6 +108,28 @@ const createSchema = z
       .array(z.string().min(24).max(MAX_TASK_PDF_DATA_URL_LENGTH))
       .max(MAX_TASK_IMAGES)
       .optional(),
+    categorySplits: z
+      .array(
+        z.object({
+          id: z.string().max(80).optional(),
+          categoryId: z.string().min(1).max(80),
+          groupKey: z
+            .enum([
+              'housing',
+              'food',
+              'transport',
+              'health',
+              'leisure',
+              'debt',
+              'invest',
+              'other',
+            ])
+            .optional(),
+          amount: z.number().positive().max(1_000_000_000),
+        })
+      )
+      .max(12)
+      .optional(),
     recurrence: recurrenceSchema.nullable().optional(),
   })
   .superRefine((v, ctx) => {
@@ -168,6 +195,28 @@ const updateSchema = z
     images: z
       .array(z.string().min(24).max(MAX_TASK_PDF_DATA_URL_LENGTH))
       .max(MAX_TASK_IMAGES)
+      .optional(),
+    categorySplits: z
+      .array(
+        z.object({
+          id: z.string().max(80).optional(),
+          categoryId: z.string().min(1).max(80),
+          groupKey: z
+            .enum([
+              'housing',
+              'food',
+              'transport',
+              'health',
+              'leisure',
+              'debt',
+              'invest',
+              'other',
+            ])
+            .optional(),
+          amount: z.number().positive().max(1_000_000_000),
+        })
+      )
+      .max(12)
       .optional(),
   })
   .refine(p => Object.keys(p).some(k => k !== 'updatedAt'), {
@@ -324,6 +373,7 @@ function mapMovement(
     category: payload.category ?? null,
     categoryId: payload.categoryId ?? null,
     images: payload.images ?? [],
+    categorySplits: payload.categorySplits ?? [],
     ruleId: (row.rule_id as string | null) ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
@@ -714,8 +764,17 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
     }
     const now = new Date().toISOString();
     const currency = normalizeMovementCurrency(body.currency);
+    const movementAmount = body.amount ?? 0;
+    const movementTitle = body.title ?? '';
     const clientSealed = Boolean(body.payloadEnc);
     const images = normalizeTaskImages(body.images);
+    const categorySplits = normalizeCategorySplits(body.categorySplits);
+    if (
+      categorySplits.length > 1 &&
+      !categorySplitsMatchTotal(categorySplits, movementAmount)
+    ) {
+      throw ApiError.badRequest('El desglose por categorías debe cuadrar con el total');
+    }
     const inner = clientSealed
       ? null
       : buildFinancePayload({
@@ -739,16 +798,12 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           category: body.category,
           categoryId: body.categoryId,
           images,
+          categorySplits,
         });
-    const innerWithoutImages =
-      inner && images.length > 0
-        ? buildFinancePayload({ ...inner, images: [] })
-        : inner;
     let accountDek: Buffer | null = null;
     if (!clientSealed) {
       accountDek = await ensureAccountDek(uid);
     }
-    const payload = inner && !accountDek ? inner : {};
     let ruleId: string | null = null;
 
     if (body.recurrence) {
@@ -761,7 +816,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         frequency: body.recurrence.frequency,
         recurrence_day: body.recurrence.recurrenceDay,
         start_day_id: body.dayId,
-        payload,
+        payload: inner && !accountDek ? inner : {},
         payload_enc: clientSealed
           ? (body.rulePayloadEnc ?? null)
           : accountDek && inner
@@ -790,11 +845,41 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         ? (body.installmentGroupId ?? generateId())
         : (body.installmentGroupId ?? null);
     const rows: Record<string, unknown>[] = [];
+    const instancePayloads: Array<typeof inner> = [];
     for (let index = 1; index <= installmentTotal; index += 1) {
       const id =
         index === 1 ? (body.id ?? generateId()) : generateId();
       const dayId =
         index === 1 ? body.dayId : addMonthsToDayId(body.dayId, index - 1);
+      const amount = installmentAmountAt(
+        movementAmount,
+        index,
+        installmentTotal,
+        currency
+      );
+      const installmentPayload = inner
+        ? buildFinancePayload({
+            ...inner,
+            title: installmentTitle(movementTitle, index, installmentTotal),
+            amount,
+            originalAmount:
+              body.originalAmount == null
+                ? undefined
+                : installmentAmountAt(
+                    body.originalAmount,
+                    index,
+                    installmentTotal,
+                    body.originalCurrency ?? currency
+                  ),
+            categorySplits: scaleCategorySplitsForInstallment(
+              categorySplits,
+              movementAmount,
+              amount
+            ),
+            images: index === 1 ? images : [],
+          })
+        : null;
+      instancePayloads.push(installmentPayload);
       rows.push({
         id,
         user_id: uid,
@@ -802,16 +887,16 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         flow: body.flow,
         status: body.status ?? 'confirmed',
         currency,
-        payload,
+        payload: installmentPayload && !accountDek ? installmentPayload : {},
         payload_enc: clientSealed
           ? (body.payloadEnc ?? null)
-          : accountDek && inner
+          : accountDek && installmentPayload
             ? encryptAccountPayload(
                 uid,
                 accountDek,
                 'finance_movements',
                 id,
-                index === 1 ? inner : (innerWithoutImages ?? inner)
+                installmentPayload
               )
             : null,
         enc_v: clientSealed ? '1' : accountDek ? '2' : null,
@@ -844,9 +929,9 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
     }
     const first = rows[0];
     res.status(201).json({
-      ...mapMovement(first, inner),
+      ...mapMovement(first, instancePayloads[0] ?? null),
       instances: rows.map((r, i) =>
-        mapMovement(r, i === 0 ? inner : (innerWithoutImages ?? inner))
+        mapMovement(r, instancePayloads[i] ?? null)
       ),
     });
   } catch (err) {
@@ -902,7 +987,8 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
         patch.assetName !== undefined ||
         patch.category !== undefined ||
         patch.categoryId !== undefined ||
-        patch.images !== undefined)
+        patch.images !== undefined ||
+        patch.categorySplits !== undefined)
         ? buildFinancePayload({
             title: patch.title,
             amount: patch.amount,
@@ -926,6 +1012,10 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             images:
               patch.images !== undefined
                 ? normalizeTaskImages(patch.images)
+                : undefined,
+            categorySplits:
+              patch.categorySplits !== undefined
+                ? normalizeCategorySplits(patch.categorySplits)
                 : undefined,
             existing: prevPayload,
           })

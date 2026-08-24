@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildInstallmentSchedule,
+  buildCategoryInstallmentSchedule,
   classifyExpenseKind,
   collectFinanceBanks,
   isValidPaymentInstitution,
@@ -276,6 +277,36 @@ describe('calendario de cuotas (Meteora)', () => {
     expect(model.segments[0].label).toBe('Notebook');
     expect(model.rows[0].total).toBe(80_000);
     expect(model.rows[1].total).toBe(80_000);
+  });
+
+  it('primero agrupa las cuotas por categoría y conserva los importes de un desglose', () => {
+    const model = buildCategoryInstallmentSchedule(
+      [
+        mov({
+          id: 'cuota-1',
+          title: 'Notebook · Cuota 1 de 3',
+          amount: 100,
+          dayId: '2026-08-05',
+          installmentGroupId: 'g-notebook',
+          installmentIndex: 1,
+          installmentTotal: 3,
+          categorySplits: [
+            { id: 'food', categoryId: 'food', groupKey: 'food', amount: 40 },
+            { id: 'home', categoryId: 'housing', groupKey: 'housing', amount: 60 },
+          ],
+        }),
+      ],
+      ['2026-08'],
+      id => id,
+      id => ({ label: id, color: '#000000' })
+    );
+    expect(model.segments.map(segment => segment.categoryId).sort()).toEqual([
+      'food',
+      'housing',
+    ]);
+    expect(model.rows[0].cat_food).toBe(40);
+    expect(model.rows[0].cat_housing).toBe(60);
+    expect(model.rows[0].total).toBe(100);
   });
 });
 

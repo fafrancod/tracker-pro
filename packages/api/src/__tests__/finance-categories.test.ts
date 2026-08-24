@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
-import { summarizeCategoryBudget, type FinanceUserCategory } from '@daily-tracker/core';
+import {
+  categorySplitsRemaining,
+  getAmountForCategory,
+  summarizeCategoryBudget,
+  type FinanceUserCategory,
+} from '@daily-tracker/core';
 import { buildApp } from '../app.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 
@@ -175,5 +180,64 @@ describe('presupuesto de categoría', () => {
     expect(p.spent).toBe(120_000);
     expect(p.limit).toBe(200_000);
     expect(p.pct).toBe(60);
+  });
+
+  it('reparte un ticket entre categorías y muestra lo que falta', () => {
+    const leftover = categorySplitsRemaining(
+      [
+        { amount: 8_000 },
+        { amount: 0 },
+      ],
+      12_000
+    );
+    expect(leftover).toBe(4_000);
+    const food: FinanceUserCategory = {
+      id: 'cat-food',
+      groupKey: 'food',
+      color: '#f59e0b',
+      currency: 'CLP',
+      name: 'Comida',
+      monthlyBudget: 50_000,
+      necessary: true,
+      archived: false,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const mixed = {
+      id: 'm-split',
+      dayId: '2026-08-12',
+      flow: 'expense' as const,
+      status: 'confirmed' as const,
+      currency: 'CLP',
+      title: 'Supermercado',
+      amount: 12_000,
+      notes: '',
+      certainty: 'fixed' as const,
+      accountId: null,
+      cardAccountId: null,
+      goalId: null,
+      creditId: null,
+      installmentGroupId: null,
+      installmentIndex: null,
+      installmentTotal: null,
+      tag: null,
+      originalAmount: 12_000,
+      originalCurrency: 'CLP',
+      exchangeRate: null,
+      fxPending: false,
+      reportingCurrency: 'CLP',
+      category: 'food' as const,
+      categoryId: 'cat-food',
+      categorySplits: [
+        { id: 's1', categoryId: 'cat-food', groupKey: 'food' as const, amount: 8_000 },
+        { id: 's2', categoryId: 'cat-home', groupKey: 'housing' as const, amount: 4_000 },
+      ],
+      ruleId: null,
+      sourceTaskId: null,
+      createdAt: '',
+      updatedAt: '',
+    };
+    expect(getAmountForCategory(mixed, 'cat-food')).toBe(8_000);
+    expect(summarizeCategoryBudget(food, [mixed], '2026-08').spent).toBe(8_000);
   });
 });

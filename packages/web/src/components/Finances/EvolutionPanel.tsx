@@ -28,6 +28,7 @@ import type {
   FinanceCredit,
   FinanceMovement,
   FinanceRule,
+  FinanceUserCategory,
 } from '@core/lib/finance/types';
 
 function money(n: number, currency: string): string {
@@ -46,12 +47,14 @@ export function EvolutionPanel({
   movements,
   rules,
   credits,
+  userCategories,
   monthId,
   reportingCurrency,
 }: {
   movements: FinanceMovement[];
   rules: FinanceRule[];
   credits: FinanceCredit[];
+  userCategories: FinanceUserCategory[];
   monthId: string;
   reportingCurrency: string;
 }) {
@@ -178,6 +181,7 @@ export function EvolutionPanel({
           movements={movements}
           monthId={monthId}
           reportingCurrency={reportingCurrency}
+          userCategories={userCategories}
         />
       </div>
     </div>

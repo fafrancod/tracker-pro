@@ -88,6 +88,10 @@ export interface TranslationDict {
   fin_evo_cumulative: string;
   fin_evo_installment_chart: string;
   fin_evo_installment_empty: string;
+  fin_evo_categories: string;
+  fin_evo_category_hint: string;
+  fin_evo_category_open: string;
+  fin_evo_category_detail: string;
   fin_pm_spent: string;
   fin_pm_paid: string;
   fin_pm_statement: string;
@@ -122,6 +126,15 @@ export interface TranslationDict {
   fin_cat_saved: string;
   fin_cat_no_budget: string;
   fin_field_category: string;
+  fin_split_on: string;
+  fin_split_off: string;
+  fin_split_title: string;
+  fin_split_add: string;
+  fin_split_pick: string;
+  fin_split_ok: string;
+  fin_split_left: string;
+  fin_split_over: string;
+  fin_split_mismatch: string;
   fin_cat_housing: string;
   fin_cat_food: string;
   fin_cat_transport: string;
@@ -1340,6 +1353,10 @@ const es_dict: TranslationDict = {
   fin_evo_cumulative: 'Flujo acumulado',
   fin_evo_installment_chart: 'Calendario de cuotas',
   fin_evo_installment_empty: 'No hay compras en cuotas en estos 12 meses.',
+  fin_evo_categories: 'Categorías',
+  fin_evo_category_hint: 'Cada color es una categoría. Pulsa una para ver sus cuotas.',
+  fin_evo_category_open: 'Ver detalle de {category}',
+  fin_evo_category_detail: 'Cuotas de esta categoría',
   fin_pm_spent: 'Cargos',
   fin_pm_paid: 'Pagado a la tarjeta',
   fin_pm_statement: 'Estado de cuenta',
@@ -1375,6 +1392,15 @@ const es_dict: TranslationDict = {
   fin_cat_saved: 'Categoría guardada.',
   fin_cat_no_budget: 'Sin presupuesto',
   fin_field_category: 'Categoría',
+  fin_split_on: 'Desglosar en varias categorías',
+  fin_split_off: 'Usar una sola categoría',
+  fin_split_title: 'Desglose',
+  fin_split_add: 'Añadir categoría',
+  fin_split_pick: 'Elige categoría',
+  fin_split_ok: 'Cuadra con el total',
+  fin_split_left: 'Falta {amount}',
+  fin_split_over: 'Sobra {amount}',
+  fin_split_mismatch: 'El desglose no cuadra: {amount}',
   fin_cat_housing: 'Vivienda',
   fin_cat_food: 'Alimentación',
   fin_cat_transport: 'Transporte',
@@ -2695,6 +2721,10 @@ const en_dict: TranslationDict = {
   fin_evo_cumulative: 'Cumulative cash flow',
   fin_evo_installment_chart: 'Installment schedule',
   fin_evo_installment_empty: 'No installment purchases in these 12 months.',
+  fin_evo_categories: 'Categories',
+  fin_evo_category_hint: 'Each color is a category. Select one to see its installments.',
+  fin_evo_category_open: 'View {category} details',
+  fin_evo_category_detail: 'Installments in this category',
   fin_pm_spent: 'Charges',
   fin_pm_paid: 'Paid to the card',
   fin_pm_statement: 'Statement',
@@ -2730,6 +2760,15 @@ const en_dict: TranslationDict = {
   fin_cat_saved: 'Category saved.',
   fin_cat_no_budget: 'No budget',
   fin_field_category: 'Category',
+  fin_split_on: 'Split across categories',
+  fin_split_off: 'Use a single category',
+  fin_split_title: 'Breakdown',
+  fin_split_add: 'Add category',
+  fin_split_pick: 'Pick a category',
+  fin_split_ok: 'Matches the total',
+  fin_split_left: '{amount} left',
+  fin_split_over: '{amount} over',
+  fin_split_mismatch: 'Breakdown does not match: {amount}',
   fin_cat_housing: 'Housing',
   fin_cat_food: 'Food',
   fin_cat_transport: 'Transport',

@@ -6,6 +6,7 @@ import type {
 } from '../types';
 import { FINANCE_CATEGORIES } from '../types';
 import { inferFinanceCategory } from '../payload';
+import { getCategoryAllocations } from '../categorySplits';
 import type { HealthSnapshot } from './types';
 
 function emptyByCategory(): Record<FinanceCategory, number> {
@@ -68,9 +69,20 @@ export function buildHealthSnapshot(opts: {
     }
     if (mov.flow !== 'expense') continue;
     totalExpense += amount;
-    const category = resolveMovementCategory(mov);
-    byCategory[category] += amount;
-    if (category === 'leisure') unnecessaryExpense += amount;
+    const allocations = getCategoryAllocations(mov);
+    const splitSum = allocations.reduce((s, a) => s + a.amount, 0);
+    if (allocations.length > 0 && splitSum > 0) {
+      for (const alloc of allocations) {
+        const share = amount * (alloc.amount / splitSum);
+        const key = alloc.groupKey ?? resolveMovementCategory(mov);
+        byCategory[key] += share;
+        if (key === 'leisure') unnecessaryExpense += share;
+      }
+    } else {
+      const category = resolveMovementCategory(mov);
+      byCategory[category] += amount;
+      if (category === 'leisure') unnecessaryExpense += amount;
+    }
   }
 
   const monthlyDebt = opts.credits

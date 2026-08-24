@@ -114,6 +114,7 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
     category: payload.category ?? null,
     categoryId: payload.categoryId ?? null,
     images: payload.images ?? [],
+    categorySplits: payload.categorySplits ?? [],
     ruleId: (raw.ruleId as string | null) ?? (raw.rule_id as string | null) ?? null,
     sourceTaskId:
       (raw.sourceTaskId as string | null) ??
@@ -263,6 +264,7 @@ export async function createFinanceMovement(
       category: payload.category ?? (payload.flow === 'investment' ? 'invest' : null),
       categoryId: payload.categoryId ?? null,
       images: payload.images ?? [],
+      categorySplits: payload.categorySplits ?? [],
       ruleId,
       sourceTaskId: payload.sourceTaskId ?? null,
       createdAt: now,
@@ -298,6 +300,7 @@ export async function createFinanceMovement(
       category: payload.category,
       categoryId: payload.categoryId,
       images: payload.images,
+      categorySplits: payload.categorySplits,
     });
     const payloadEnc = await encryptFinancePayload(vault.dek, inner, aad);
     let ruleId: string | undefined;
@@ -417,6 +420,7 @@ export async function updateFinanceMovement(
         category: payload.category,
         categoryId: payload.categoryId,
         images: payload.images,
+        categorySplits: payload.categorySplits,
       }),
       financePayloadAad(vault.uid, 'finance_movements', id)
     );

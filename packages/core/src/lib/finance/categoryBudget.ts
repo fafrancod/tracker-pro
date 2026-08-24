@@ -1,5 +1,6 @@
 import type { FinanceUserCategory, FinanceMovement } from './types';
 import { resolveMovementCategory } from './engine/snapshot';
+import { getAmountForCategory, getCategoryAllocations } from './categorySplits';
 
 export function summarizeCategoryBudget(
   category: FinanceUserCategory,
@@ -12,11 +13,25 @@ export function summarizeCategoryBudget(
     if (mov.status === 'skipped') continue;
     if (mov.flow !== 'expense') continue;
     if (mov.tag === 'card_payment' || mov.tag === 'goal_contribution') continue;
-    const matchesId = Boolean(category.id && mov.categoryId === category.id);
-    const matchesGroup =
-      !mov.categoryId && resolveMovementCategory(mov) === category.groupKey;
-    if (!matchesId && !matchesGroup) continue;
-    spent += Number(mov.amount) || 0;
+    const allocations = getCategoryAllocations(mov);
+    const byId = category.id ? getAmountForCategory(mov, category.id) : 0;
+    if (byId > 0) {
+      spent += byId;
+      continue;
+    }
+    const byGroup = allocations
+      .filter(a => a.groupKey === category.groupKey)
+      .reduce((s, a) => s + a.amount, 0);
+    if (byGroup > 0 && !allocations.some(a => a.categoryId === category.id)) {
+      spent += byGroup;
+      continue;
+    }
+    if (
+      allocations.length === 0 &&
+      resolveMovementCategory(mov) === category.groupKey
+    ) {
+      spent += Number(mov.amount) || 0;
+    }
   }
   const limit = category.monthlyBudget;
   const pct = limit > 0 ? Math.min(100, (spent / limit) * 100) : 0;

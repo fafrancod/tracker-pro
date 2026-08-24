@@ -14,6 +14,7 @@ const app = buildApp();
 let movementRows: Record<string, unknown>[] = [];
 let ruleRows: Record<string, unknown>[] = [];
 let lastMovementInsert: Record<string, unknown> | null = null;
+let lastMovementInsertRows: Record<string, unknown>[] = [];
 let lastRuleInsert: Record<string, unknown> | null = null;
 
 function chainEqMaybeSingle(result: { data: unknown; error: null }) {
@@ -55,6 +56,7 @@ function buildFromMock() {
         insert: vi.fn(async (row: Record<string, unknown> | Record<string, unknown>[]) => {
           const list = Array.isArray(row) ? row : [row];
           lastMovementInsert = list[0] ?? null;
+          lastMovementInsertRows = list;
           movementRows = [...movementRows, ...list];
           return { data: null, error: null };
         }),
@@ -118,6 +120,7 @@ beforeEach(() => {
   movementRows = [];
   ruleRows = [];
   lastMovementInsert = null;
+  lastMovementInsertRows = [];
   lastRuleInsert = null;
   vi.mocked(getSupabaseAdmin).mockReturnValue({
     auth: {
@@ -250,6 +253,45 @@ describe('POST /api/finances/movements', () => {
     expect(lastRuleInsert?.recurrence_day).toBe(5);
     expect(lastMovementInsert?.rule_id).toBe(lastRuleInsert?.id);
     expect(res.body.ruleId).toBeTruthy();
+  });
+
+  it('materializa una compra con tarjeta en cuotas, divide el total y rotula cada mes', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-08-31',
+        flow: 'expense',
+        title: 'Notebook',
+        amount: 100,
+        currency: 'CLP',
+        installmentTotal: 3,
+        categorySplits: [
+          { id: 'food', categoryId: 'food', groupKey: 'food', amount: 40 },
+          { id: 'home', categoryId: 'housing', groupKey: 'housing', amount: 60 },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastMovementInsertRows).toHaveLength(3);
+    expect(lastMovementInsertRows.map(row => row.day_id)).toEqual([
+      '2026-08-31',
+      '2026-09-30',
+      '2026-10-31',
+    ]);
+    expect(res.body.instances.map((row: { amount: number }) => row.amount)).toEqual([
+      34,
+      33,
+      33,
+    ]);
+    expect(res.body.instances.map((row: { title: string }) => row.title)).toEqual([
+      'Notebook · Cuota 1 de 3',
+      'Notebook · Cuota 2 de 3',
+      'Notebook · Cuota 3 de 3',
+    ]);
+    const splitTotal = (res.body.instances[1].categorySplits as Array<{ amount: number }>)
+      .reduce((sum, split) => sum + split.amount, 0);
+    expect(splitTotal).toBeCloseTo(33, 8);
   });
 
   it('dayId inválido → 400', async () => {
