@@ -315,6 +315,7 @@ export async function createFinanceMovement(
     }
     body = {
       id,
+      replaceMovementId: payload.replaceMovementId,
       dayId: payload.dayId,
       flow: payload.flow,
       status: payload.status,

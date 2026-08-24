@@ -82,6 +82,7 @@ import {
   categorySplitsRemaining,
   splitMatchTolerance,
 } from '@core/lib/finance/categorySplits';
+import { stripInstallmentSuffix } from '@core/lib/finance/installmentSchedule';
 import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import {
@@ -410,46 +411,70 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       setDialogOpen(true);
       return;
     }
+    const installmentSiblings = mov.installmentGroupId
+      ? ledgerMovements
+          .filter(item => item.installmentGroupId === mov.installmentGroupId)
+          .sort((a, b) => a.dayId.localeCompare(b.dayId))
+      : [mov];
+    const purchaseRows = installmentSiblings.length > 0 ? installmentSiblings : [mov];
+    const firstPurchaseRow = purchaseRows[0];
+    const categorySplitMap = new Map<
+      string,
+      { id: string; categoryId: string; amount: number }
+    >();
+    for (const row of purchaseRows) {
+      for (const split of row.categorySplits ?? []) {
+        const previous = categorySplitMap.get(split.categoryId);
+        categorySplitMap.set(split.categoryId, {
+          id: previous?.id ?? split.id,
+          categoryId: split.categoryId,
+          amount: (previous?.amount ?? 0) + split.amount,
+        });
+      }
+    }
+    const recurringRule = firstPurchaseRow.ruleId
+      ? ledgerRules.find(rule => rule.id === firstPurchaseRow.ruleId)
+      : undefined;
     setEditing(mov);
-    setShowAttach((mov.images?.length ?? 0) > 0);
+    setShowAttach(
+      purchaseRows.some(row => (row.images?.length ?? 0) > 0)
+    );
     setForm({
-      dayId: mov.dayId,
-      flow: mov.flow,
-      status: mov.status,
-      currency: mov.currency,
-      title: mov.title,
-      amount: mov.amount,
-      accountId: mov.accountId ?? '',
-      cardPayment: mov.tag === 'card_payment',
-      cardAccountId: mov.cardAccountId ?? '',
-      goalContribution: mov.tag === 'goal_contribution',
-      goalId: mov.goalId ?? '',
-      installmentTotal: mov.installmentTotal ?? 1,
-      creditPayment: mov.tag === 'credit_payment',
-      creditId: mov.creditId ?? '',
-      ticker: mov.ticker ?? '',
-      assetName: mov.assetName ?? '',
-      quantity: mov.quantity ?? 1,
+      dayId: firstPurchaseRow.dayId,
+      flow: firstPurchaseRow.flow,
+      status: firstPurchaseRow.status,
+      currency: firstPurchaseRow.currency,
+      title: stripInstallmentSuffix(firstPurchaseRow.title),
+      amount: purchaseRows.reduce((sum, row) => sum + row.amount, 0),
+      accountId: firstPurchaseRow.accountId ?? '',
+      cardPayment: firstPurchaseRow.tag === 'card_payment',
+      cardAccountId: firstPurchaseRow.cardAccountId ?? '',
+      goalContribution: firstPurchaseRow.tag === 'goal_contribution',
+      goalId: firstPurchaseRow.goalId ?? '',
+      installmentTotal: firstPurchaseRow.installmentTotal ?? 1,
+      creditPayment: firstPurchaseRow.tag === 'credit_payment',
+      creditId: firstPurchaseRow.creditId ?? '',
+      ticker: firstPurchaseRow.ticker ?? '',
+      assetName: firstPurchaseRow.assetName ?? '',
+      quantity: firstPurchaseRow.quantity ?? 1,
       category:
-        mov.category ??
-        (mov.flow === 'investment'
+        firstPurchaseRow.category ??
+        (firstPurchaseRow.flow === 'investment'
           ? 'invest'
-          : mov.tag === 'credit_payment'
+          : firstPurchaseRow.tag === 'credit_payment'
             ? 'debt'
             : 'other'),
-      categoryId: mov.categoryId ?? '',
-      images: mov.images ?? [],
+      categoryId: firstPurchaseRow.categoryId ?? '',
+      images: purchaseRows.find(row => (row.images?.length ?? 0) > 0)?.images ?? [],
       categorySplits:
-        (mov.categorySplits?.length ?? 0) > 1
-          ? mov.categorySplits!.map(s => ({
-              id: s.id,
-              categoryId: s.categoryId,
-              amount: s.amount,
-            }))
+        categorySplitMap.size > 1
+          ? [...categorySplitMap.values()]
           : [],
-      notes: mov.notes,
-      repeat: 'none',
-      recurrenceDay: Number(mov.dayId.slice(8, 10)) || 1,
+      notes: firstPurchaseRow.notes,
+      repeat: recurringRule?.frequency ?? 'none',
+      recurrenceDay:
+        recurringRule?.recurrenceDay ??
+        (Number(firstPurchaseRow.dayId.slice(8, 10)) || 1),
     });
     setDialogOpen(true);
   }
@@ -553,9 +578,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         form.installmentTotal > 1
           ? form.installmentTotal
           : undefined,
+      replaceMovementId: editing?.id,
       ...fx,
       recurrence:
-        !editing && form.repeat !== 'none'
+        form.repeat !== 'none'
           ? {
               frequency: form.repeat,
               recurrenceDay:
@@ -567,41 +593,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     };
     try {
       if (editing) {
-        await updateFinanceMovement(
-          editing.id,
-          {
-            dayId: payload.dayId,
-            flow: payload.flow,
-            status: payload.status,
-            currency: payload.currency,
-            title: payload.title,
-            amount: payload.amount,
-            notes: payload.notes,
-            accountId: payload.accountId,
-            tag: payload.tag,
-            cardAccountId: payload.cardAccountId,
-            goalId: payload.goalId,
-            creditId: payload.creditId,
-            originalAmount: payload.originalAmount,
-            originalCurrency: payload.originalCurrency,
-            exchangeRate: payload.exchangeRate,
-            fxPending: payload.fxPending,
-            reportingCurrency: payload.reportingCurrency,
-            investmentSide: payload.investmentSide,
-            ticker: payload.ticker,
-            assetName: payload.assetName,
-            quantity: payload.quantity,
-            investedAmount: payload.investedAmount,
-            investmentStatus: payload.investmentStatus,
-            closesLotId: payload.closesLotId,
-            category: payload.category,
-            categoryId: payload.categoryId,
-            categorySplits: payload.categorySplits,
-            images: payload.images,
-            updatedAt: editing.updatedAt,
-          },
-          vault ?? undefined
-        );
+        await createFinanceMovement(payload, vault ?? undefined);
         showToast(
           fx.fxPending ? t('fin_fx_pending') : t('fin_saved'),
           fx.fxPending ? 'info' : 'success'
@@ -1136,8 +1128,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </span>
               ) : null}
             </label>
-            {!editing &&
-              form.flow === 'expense' &&
+            {form.flow === 'expense' &&
               accounts.find(a => a.id === form.accountId)?.type === 'credit' && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_installments')}</span>
@@ -1413,7 +1404,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 className="h-9 text-sm"
               />
             </label>
-            {!editing && form.flow !== 'investment' && (
+            {form.flow !== 'investment' && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_repeat')}</span>
                 <select
@@ -1432,7 +1423,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 </select>
               </label>
             )}
-            {form.repeat === 'monthly' && !editing && (
+            {form.repeat === 'monthly' && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_monthday')}</span>
                 <Input

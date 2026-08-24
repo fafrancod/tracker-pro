@@ -231,6 +231,8 @@ export interface CreateFinanceMovementPayload {
   clientMutationId?: string;
   /** Id generado en cliente (obligatorio si se manda payloadEnc). */
   id?: string;
+  /** Replaces this movement (and its installment/recurrence group) after creation succeeds. */
+  replaceMovementId?: string;
   payloadEnc?: string;
   ruleId?: string;
   rulePayloadEnc?: string;

@@ -54,6 +54,7 @@ const recurrenceSchema = z.object({
 const createSchema = z
   .object({
     id: z.string().min(8).max(80).optional(),
+    replaceMovementId: z.string().min(8).max(80).optional(),
     dayId: dayIdSchema,
     flow: flowSchema,
     status: statusSchema.optional(),
@@ -753,6 +754,19 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
     const body = createSchema.parse(req.body);
+    const replacement = body.replaceMovementId
+      ? await getSupabaseAdmin()
+          .from('finance_movements')
+          .select('*')
+          .eq('id', body.replaceMovementId)
+          .eq('user_id', uid)
+          .is('deleted_at', null)
+          .maybeSingle()
+      : null;
+    if (replacement?.error) throw replacement.error;
+    if (body.replaceMovementId && !replacement?.data) {
+      throw ApiError.notFound('Movimiento a reemplazar no encontrado');
+    }
     const privateVault = await userHasPrivateVault(uid);
     if (privateVault && !body.payloadEnc) {
       throw ApiError.badRequest(
@@ -926,6 +940,33 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         );
       }
       throw error;
+    }
+    if (replacement?.data) {
+      const previous = replacement.data as Record<string, unknown>;
+      const retire: Record<string, unknown> = {
+        deleted_at: now,
+        updated_at: now,
+      };
+      let retirement = getSupabaseAdmin()
+        .from('finance_movements')
+        .update(retire)
+        .eq('user_id', uid);
+      const oldGroupId = previous.installment_group_id as string | null;
+      retirement = oldGroupId
+        ? retirement.eq('installment_group_id', oldGroupId)
+        : retirement.eq('id', body.replaceMovementId);
+      const { error: retirementError } = await retirement;
+      if (retirementError) throw retirementError;
+
+      const oldRuleId = previous.rule_id as string | null;
+      if (oldRuleId) {
+        const { error: ruleError } = await getSupabaseAdmin()
+          .from('finance_rules')
+          .update({ active: false, updated_at: now })
+          .eq('id', oldRuleId)
+          .eq('user_id', uid);
+        if (ruleError) throw ruleError;
+      }
     }
     const first = rows[0];
     res.status(201).json({

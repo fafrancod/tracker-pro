@@ -110,6 +110,13 @@ function buildFromMock() {
           ruleRows = [...ruleRows, row];
           return { data: null, error: null };
         }),
+        update: vi.fn(() => {
+          const c: Record<string, unknown> = {};
+          c.eq = vi.fn(() => c);
+          c.then = (resolve: (v: unknown) => void) =>
+            resolve({ data: null, error: null });
+          return c;
+        }),
       };
     }
     return chainEqMaybeSingle({ data: null, error: null });
@@ -292,6 +299,46 @@ describe('POST /api/finances/movements', () => {
     const splitTotal = (res.body.instances[1].categorySplits as Array<{ amount: number }>)
       .reduce((sum, split) => sum + split.amount, 0);
     expect(splitTotal).toBeCloseTo(33, 8);
+  });
+
+  it('reemplaza toda una compra existente al editarla y cambiar sus cuotas', async () => {
+    movementRows = [
+      {
+        id: 'movement-old-001',
+        user_id: 'test-uid',
+        day_id: '2026-08-05',
+        flow: 'expense',
+        status: 'confirmed',
+        currency: 'CLP',
+        payload: { title: 'Notebook · Cuota 1 de 2', amount: 50, notes: '' },
+        installment_group_id: 'group-old-001',
+        installment_index: 1,
+        installment_total: 2,
+        rule_id: null,
+        created_at: '2026-08-01T00:00:00.000Z',
+        updated_at: '2026-08-01T00:00:00.000Z',
+      },
+    ];
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        replaceMovementId: 'movement-old-001',
+        dayId: '2026-08-05',
+        flow: 'expense',
+        title: 'Notebook mejorado',
+        amount: 120,
+        currency: 'CLP',
+        installmentTotal: 3,
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.instances).toHaveLength(3);
+    expect(res.body.instances.map((row: { amount: number }) => row.amount)).toEqual([
+      40,
+      40,
+      40,
+    ]);
   });
 
   it('dayId inválido → 400', async () => {
