@@ -1038,9 +1038,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                       );
                       const creditPurchase = Boolean(
                         creditInstallment &&
-                          mov.virtual &&
-                          mov.purchaseDayId === mov.dayId
+                          ((mov.virtual && mov.purchaseDayId === mov.dayId) ||
+                            // Compras creadas antes de guardar purchaseDayId: su primera
+                            // cuota está en la fecha de compra y se representa como total.
+                            (!mov.purchaseDayId && mov.installmentIndex === 1))
                       );
+                      const calendarAmount = creditPurchase
+                        ? installment?.totalAmount ?? mov.amount
+                        : mov.amount;
                       const installmentLabel = installment
                         ? t('fin_installment_of')
                             .replace(
@@ -1075,10 +1080,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             title={installmentHover}
                             className={cn(
                               'block truncate rounded px-1.5 py-0.5 text-[10px] leading-tight',
-                              creditInstallment
-                                ? creditPurchase
-                                  ? 'bg-violet-500/20 font-semibold text-violet-800 dark:text-violet-200'
-                                  : 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                              creditPurchase
+                                ? 'bg-violet-500/20 font-semibold text-violet-800 dark:text-violet-200'
                                 : mov.flow === 'income'
                                   ? 'bg-accent-green/15 text-accent-green'
                                   : mov.flow === 'investment'
@@ -1088,11 +1091,24 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                               mov.virtual && !creditPurchase && 'border border-dashed border-current'
                             )}
                           >
-                            {creditInstallment ? '💳 ' : mov.flow === 'income' ? '+' : mov.flow === 'investment' ? '◆' : '−'}
-                            {money(mov.amount, mov.currency)}{' '}
+                            {creditPurchase
+                              ? '💳 −'
+                              : mov.flow === 'income'
+                                ? '+'
+                                : mov.flow === 'investment'
+                                  ? '◆'
+                                  : '−'}
+                            {money(calendarAmount, mov.currency)}{' '}
                             {creditInstallment ? stripInstallmentSuffix(mov.title) : mov.title}
                             {creditInstallment ? (
-                              <span className="ml-1 rounded bg-violet-500/15 px-1 text-[9px] font-semibold tabular-nums">
+                              <span
+                                className={cn(
+                                  'ml-1 rounded px-1 text-[9px] font-semibold tabular-nums',
+                                  creditPurchase
+                                    ? 'bg-violet-500/15'
+                                    : 'bg-accent-red/15 text-accent-red'
+                                )}
+                              >
                                 {creditPurchase
                                   ? t('fin_installment_purchase').replace(
                                       '{total}',
@@ -1101,7 +1117,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                                   : installmentLabel}
                               </span>
                             ) : null}
-                            {creditInstallment && installment ? (
+                            {creditPurchase && installment ? (
                               <span className="ml-1 hidden text-[9px] font-medium opacity-80 md:inline">
                                 · {t('fin_installment_total_cost')}: {money(installment.totalAmount, mov.currency)}
                               </span>
