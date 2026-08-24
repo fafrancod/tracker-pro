@@ -1086,6 +1086,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             label={t('fin_total_income')}
             value={money(monthlyBreakdown.incomeTotal, summary.currency)}
             tone="green"
+            secondary={{
+              label: t('fin_kpi_planned'),
+              value: money(summary.plannedIncome, summary.currency),
+              tone: 'green',
+            }}
             detail={
               <MonthlyBreakdownTooltip
                 sections={[
@@ -1142,12 +1147,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             }}
           />
           <Kpi
-            label={t('fin_kpi_planned')}
-            value={money(
-              summary.plannedIncome + summary.plannedExpense,
-              summary.currency
-            )}
-            tone="muted"
+            label={t('fin_balance')}
+            value={money(summary.balance, summary.currency)}
+            tone={summary.balance >= 0 ? 'teal' : 'red'}
           />
         </div>
 
