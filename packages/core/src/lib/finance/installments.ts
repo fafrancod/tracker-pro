@@ -84,6 +84,60 @@ export function countPurchases(movements: FinanceMovement[]): number {
   return count;
 }
 
+export interface FinanceInstallmentPurchaseSummary {
+  groupId: string;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  totalInstallments: number;
+  paidInstallments: number;
+}
+
+/**
+ * A materialized installment row can be confirmed before its due month. Payment
+ * progress therefore only counts confirmed rows due on or before the supplied day.
+ */
+export function summarizeInstallmentPurchases(
+  movements: FinanceMovement[],
+  throughDayId: string
+): Map<string, FinanceInstallmentPurchaseSummary> {
+  const accumulators = new Map<
+    string,
+    Omit<FinanceInstallmentPurchaseSummary, 'remainingAmount'>
+  >();
+  for (const movement of movements) {
+    const groupId = installmentGroupKey(movement);
+    if (!groupId || movement.status === 'skipped') continue;
+    const current = accumulators.get(groupId) ?? {
+      groupId,
+      totalAmount: 0,
+      paidAmount: 0,
+      totalInstallments: 0,
+      paidInstallments: 0,
+    };
+    const amount = Number(movement.amount) || 0;
+    current.totalAmount += amount;
+    current.totalInstallments = Math.max(
+      current.totalInstallments,
+      movement.installmentTotal ?? 0
+    );
+    if (movement.status === 'confirmed' && movement.dayId <= throughDayId) {
+      current.paidAmount += amount;
+      current.paidInstallments += 1;
+    }
+    accumulators.set(groupId, current);
+  }
+  return new Map(
+    [...accumulators.entries()].map(([groupId, current]) => [
+      groupId,
+      {
+        ...current,
+        remainingAmount: Math.max(0, current.totalAmount - current.paidAmount),
+      },
+    ])
+  );
+}
+
 export interface FinanceCreditProgress {
   creditId: string;
   paidCount: number;

@@ -8,6 +8,7 @@ import {
   listMonthIds,
   parseFinancePayload,
   summarizeCreditProgress,
+  summarizeInstallmentPurchases,
   summarizeMonthlyEvolution,
   type FinanceCredit,
   type FinanceMovement,
@@ -307,6 +308,46 @@ describe('calendario de cuotas (Meteora)', () => {
     expect(model.rows[0].cat_food).toBe(40);
     expect(model.rows[0].cat_housing).toBe(60);
     expect(model.rows[0].total).toBe(100);
+  });
+
+  it('muestra progreso pagado solo para cuotas que ya vencieron', () => {
+    const summary = summarizeInstallmentPurchases(
+      [
+        mov({
+          id: 'q1',
+          amount: 40_000,
+          dayId: '2026-06-05',
+          installmentGroupId: 'notebook',
+          installmentIndex: 1,
+          installmentTotal: 3,
+        }),
+        mov({
+          id: 'q2',
+          amount: 40_000,
+          dayId: '2026-07-05',
+          installmentGroupId: 'notebook',
+          installmentIndex: 2,
+          installmentTotal: 3,
+        }),
+        mov({
+          id: 'q3',
+          amount: 40_000,
+          dayId: '2026-08-05',
+          status: 'planned',
+          installmentGroupId: 'notebook',
+          installmentIndex: 3,
+          installmentTotal: 3,
+        }),
+      ],
+      '2026-08-01'
+    ).get('notebook');
+    expect(summary).toMatchObject({
+      totalAmount: 120_000,
+      paidAmount: 80_000,
+      remainingAmount: 40_000,
+      totalInstallments: 3,
+      paidInstallments: 2,
+    });
   });
 });
 

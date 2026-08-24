@@ -204,6 +204,10 @@ export interface TranslationDict {
   fin_credit_sim_term_result: string;
   fin_credit_sim_cuota_result: string;
   fin_installments: string;
+  fin_installment_of: string;
+  fin_installment_total_cost: string;
+  fin_installment_paid: string;
+  fin_installment_remaining: string;
   fin_goal_add: string;
   fin_goal_edit: string;
   fin_goal_name: string;
@@ -1477,6 +1481,10 @@ const es_dict: TranslationDict = {
   fin_credit_sim_term_result: 'Te ahorras {months} cuotas de plazo.',
   fin_credit_sim_cuota_result: 'La cuota pasaría a {amount}.',
   fin_installments: 'Cuotas (compra)',
+  fin_installment_of: 'Cuota {current} de {total}',
+  fin_installment_total_cost: 'Costo total',
+  fin_installment_paid: 'Pagado',
+  fin_installment_remaining: 'Por pagar',
   fin_goal_add: 'Añadir objetivo',
   fin_goal_edit: 'Editar objetivo',
   fin_goal_name: 'Nombre',
@@ -2845,6 +2853,10 @@ const en_dict: TranslationDict = {
   fin_credit_sim_term_result: 'You save {months} installments.',
   fin_credit_sim_cuota_result: 'The installment would become {amount}.',
   fin_installments: 'Installments (purchase)',
+  fin_installment_of: 'Installment {current} of {total}',
+  fin_installment_total_cost: 'Total cost',
+  fin_installment_paid: 'Paid',
+  fin_installment_remaining: 'Remaining',
   fin_goal_add: 'Add goal',
   fin_goal_edit: 'Edit goal',
   fin_goal_name: 'Name',

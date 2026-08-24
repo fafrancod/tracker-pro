@@ -83,6 +83,7 @@ import {
   splitMatchTolerance,
 } from '@core/lib/finance/categorySplits';
 import { stripInstallmentSuffix } from '@core/lib/finance/installmentSchedule';
+import { summarizeInstallmentPurchases } from '@core/lib/finance/installments';
 import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import {
@@ -377,6 +378,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     plannedExpense: 0,
     balance: 0,
   };
+  const installmentPurchases = useMemo(
+    () =>
+      summarizeInstallmentPurchases(
+        ledgerMovements.length > 0 ? ledgerMovements : movements,
+        todayId
+      ),
+    [ledgerMovements, movements, todayId]
+  );
 
   useEffect(() => {
     if (dialogOpen && !editing) setNewMovementDraft(form);
@@ -957,37 +966,72 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                     {format(cell.date, 'd')}
                   </span>
                   <ul className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
-                    {list.slice(0, view === 'week' ? 8 : 3).map(mov => (
-                      <li key={mov.id}>
-                        <span
-                          role="presentation"
-                          onClick={e => {
-                            e.stopPropagation();
-                            openEdit(mov);
-                          }}
-                          className={cn(
-                            'block truncate rounded px-1.5 py-0.5 text-[10px] leading-tight',
-                            mov.flow === 'income'
-                              ? 'bg-accent-green/15 text-accent-green'
-                              : mov.flow === 'investment'
-                                ? 'bg-accent-teal/15 text-accent-teal'
-                                : 'bg-accent-red/15 text-accent-red',
-                            mov.status === 'planned' && 'opacity-70',
-                            mov.virtual && 'border border-dashed border-current'
-                          )}
-                        >
-                          {mov.flow === 'income'
-                            ? '+'
-                            : mov.flow === 'investment'
-                              ? '◆'
-                              : '−'}
-                          {money(mov.amount, mov.currency)}{' '}
-                          {mov.title}
-                          {(mov.images?.length ?? 0) > 0 ? ' 📎' : ''}
-                          {mov.fxPending ? ' · FX' : ''}
-                        </span>
-                      </li>
-                    ))}
+                    {list.slice(0, view === 'week' ? 8 : 3).map(mov => {
+                      const installment = mov.installmentGroupId
+                        ? installmentPurchases.get(mov.installmentGroupId)
+                        : undefined;
+                      const creditInstallment = Boolean(
+                        installment &&
+                          accounts.find(account => account.id === mov.accountId)
+                            ?.type === 'credit'
+                      );
+                      const installmentLabel = installment
+                        ? t('fin_installment_of')
+                            .replace(
+                              '{current}',
+                              String(mov.installmentIndex ?? 1)
+                            )
+                            .replace('{total}', String(installment.totalInstallments))
+                        : '';
+                      const installmentHover = installment
+                        ? [
+                            `${t('fin_installment_total_cost')}: ${money(installment.totalAmount, mov.currency)}`,
+                            installmentLabel,
+                            `${t('fin_installment_paid')}: ${installment.paidInstallments}/${installment.totalInstallments} (${money(installment.paidAmount, mov.currency)})`,
+                            `${t('fin_installment_remaining')}: ${money(installment.remainingAmount, mov.currency)}`,
+                          ].join('\n')
+                        : undefined;
+                      return (
+                        <li key={mov.id}>
+                          <span
+                            role="presentation"
+                            onClick={e => {
+                              e.stopPropagation();
+                              openEdit(mov);
+                            }}
+                            title={installmentHover}
+                            className={cn(
+                              'block truncate rounded px-1.5 py-0.5 text-[10px] leading-tight',
+                              creditInstallment
+                                ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                                : mov.flow === 'income'
+                                  ? 'bg-accent-green/15 text-accent-green'
+                                  : mov.flow === 'investment'
+                                    ? 'bg-accent-teal/15 text-accent-teal'
+                                    : 'bg-accent-red/15 text-accent-red',
+                              mov.status === 'planned' && 'opacity-70',
+                              mov.virtual && 'border border-dashed border-current'
+                            )}
+                          >
+                            {creditInstallment ? '💳 ' : mov.flow === 'income' ? '+' : mov.flow === 'investment' ? '◆' : '−'}
+                            {money(mov.amount, mov.currency)}{' '}
+                            {creditInstallment ? stripInstallmentSuffix(mov.title) : mov.title}
+                            {creditInstallment ? (
+                              <span className="ml-1 rounded bg-violet-500/15 px-1 text-[9px] font-semibold tabular-nums">
+                                {installmentLabel}
+                              </span>
+                            ) : null}
+                            {creditInstallment && installment ? (
+                              <span className="ml-1 hidden text-[9px] font-medium opacity-80 md:inline">
+                                · {t('fin_installment_total_cost')}: {money(installment.totalAmount, mov.currency)}
+                              </span>
+                            ) : null}
+                            {(mov.images?.length ?? 0) > 0 ? ' 📎' : ''}
+                            {mov.fxPending ? ' · FX' : ''}
+                          </span>
+                        </li>
+                      );
+                    })}
                     {list.length > (view === 'week' ? 8 : 3) && (
                       <li className="px-1 text-[10px] text-text-muted">
                         +{list.length - (view === 'week' ? 8 : 3)}
