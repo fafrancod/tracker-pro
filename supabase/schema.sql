@@ -359,6 +359,15 @@ alter table public.projects enable row level security;
 alter table public.tasks enable row level security;
 alter table public.analytics enable row level security;
 alter table public.notification_deliveries enable row level security;
+-- Estas tablas se usan exclusivamente desde la API con service_role.
+-- Sin RLS quedarían expuestas por los grants por defecto de PostgREST.
+alter table public.usage_counters enable row level security;
+alter table public.usage_events enable row level security;
+alter table public.error_logs enable row level security;
+
+revoke all privileges on table public.usage_counters from anon, authenticated;
+revoke all privileges on table public.usage_events from anon, authenticated;
+revoke all privileges on table public.error_logs from anon, authenticated;
 
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);
@@ -441,6 +450,9 @@ create table if not exists public.finance_entries (
 );
 create index if not exists finance_entries_user_idx on public.finance_entries (user_id, flow, kind);
 create index if not exists finance_entries_user_date_idx on public.finance_entries (user_id, entry_date);
+-- Datos financieros legacy: solo la API puede acceder usando service_role.
+alter table public.finance_entries enable row level security;
+revoke all privileges on table public.finance_entries from anon, authenticated;
 
 -- Libro de movimientos (calendario de dinero). payload en claro hasta la bóveda.
 create table if not exists public.finance_rules (
