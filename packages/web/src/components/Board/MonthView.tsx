@@ -822,7 +822,7 @@ export function MonthView({
                 key={rowIdx}
                 data-month-week-row
                 data-week-start={weekStartId}
-                className="relative grid min-h-[132px] grid-cols-7 gap-1"
+                className="relative grid min-h-[144px] grid-cols-7 gap-1"
               >
                 {weekDates.map((date, col) => {
                   const inMonth = isSameMonth(date, cursor);
@@ -873,7 +873,7 @@ export function MonthView({
                       data-tour={isToday ? 'calendar-day' : undefined}
                       data-calendar-today={isToday ? 'true' : undefined}
                       className={cn(
-                        'group relative flex h-[132px] select-none flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
+                        'group relative flex h-[144px] select-none flex-col items-stretch gap-0.5 rounded-md border p-1.5 text-left transition-colors',
                         inMonth ? 'border-border bg-surface' : 'border-transparent bg-background opacity-50',
                         isToday && 'calendar-today-cell',
                         isDropTarget && 'border-accent-teal bg-accent-teal/15',
@@ -994,7 +994,7 @@ export function MonthView({
                                 timeLabel ? `${task.title} · ${timeLabel}` : task.title
                               }
                               className={cn(
-                                'flex cursor-grab select-none items-center gap-0.5 rounded px-1 py-0.5 text-[10px] leading-tight transition-colors active:cursor-grabbing',
+                                'flex cursor-grab select-none items-center gap-1 rounded px-1.5 py-0.5 text-[11px] leading-tight transition-colors active:cursor-grabbing',
                                 task.completed
                                   ? isHabitQuit(task.kind)
                                     ? 'task-completed-title bg-red-500/10 text-text-muted line-through'
@@ -1023,7 +1023,7 @@ export function MonthView({
                               <button
                                 type="button"
                                 className={cn(
-                                  'flex h-3.5 w-3.5 shrink-0 items-center justify-center border transition-colors',
+                                  'flex h-4 w-4 shrink-0 items-center justify-center border transition-colors',
                                   habit ? 'rounded' : 'rounded-full',
                                   task.completed
                                     ? isHabitQuit(task.kind)
@@ -1054,7 +1054,7 @@ export function MonthView({
                                 }}
                               >
                                 {task.completed && (
-                                  <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                                  <Check className="h-3 w-3" strokeWidth={3} />
                                 )}
                               </button>
                               <span className="min-w-0 flex-1 select-none truncate">
@@ -1065,7 +1065,7 @@ export function MonthView({
                                 {task.title}
                               </span>
                               {timeLabel && !habit && (
-                                <span className="shrink-0 tabular-nums text-[9px] font-medium text-text-muted">
+                                <span className="shrink-0 tabular-nums text-[10px] font-medium text-text-muted">
                                   {timeLabel}
                                 </span>
                               )}

@@ -156,48 +156,57 @@ export function ContinuousMonthsView({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-background">
+    <div className="min-h-0 flex-1 overflow-x-auto bg-background">
       {/*
-        Franja fija de días de la semana: queda SIEMPRE bajo los combobox del board
-        y por encima del scroll de meses (no se tapa al desplazar).
+        Seven calendar columns stop being useful once a task title has only a
+        few pixels left. The calendar canvas therefore preserves a readable
+        column width and scrolls horizontally as a whole on compact desktops.
+        The weekday header and month rows live in the same canvas, so they
+        always remain aligned.
       */}
-      <div className="z-10 shrink-0 border-b border-border bg-background px-2 pb-1.5 pt-2 md:px-4">
-        <div className="grid grid-cols-7 gap-1">
-          {dayHeaders.map(h => (
+      <div className="flex h-full min-h-0 min-w-[67rem] flex-col">
+        {/*
+          Franja fija de días de la semana: queda SIEMPRE bajo los combobox del board
+          y por encima del scroll de meses (no se tapa al desplazar).
+        */}
+        <div className="z-10 shrink-0 border-b border-border bg-background px-2 pb-1.5 pt-2 md:px-4">
+          <div className="grid grid-cols-7 gap-1">
+            {dayHeaders.map(h => (
+              <div
+                key={h}
+                className="text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted"
+              >
+                {h}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div
+          ref={scrollRef}
+          data-calendar-scroll
+          onScroll={handleScroll}
+          className="min-h-0 flex-1 overflow-y-auto"
+        >
+          {months.map(m => (
             <div
-              key={h}
-              className="text-center text-[11px] font-semibold uppercase tracking-wide text-text-muted"
+              key={monthKey(m)}
+              data-month-key={monthKey(m)}
+              className="border-b border-border last:border-b-0"
             >
-              {h}
+              <MonthView
+                onPickDay={onPickDay}
+                onViewDay={onViewDay}
+                mode="continuous"
+                monthDate={m}
+                hideChrome
+                hideDayHeaders
+                filter={filter}
+                skipFetch
+              />
             </div>
           ))}
         </div>
-      </div>
-
-      <div
-        ref={scrollRef}
-        data-calendar-scroll
-        onScroll={handleScroll}
-        className="min-h-0 flex-1 overflow-y-auto"
-      >
-        {months.map(m => (
-          <div
-            key={monthKey(m)}
-            data-month-key={monthKey(m)}
-            className="border-b border-border last:border-b-0"
-          >
-            <MonthView
-              onPickDay={onPickDay}
-              onViewDay={onViewDay}
-              mode="continuous"
-              monthDate={m}
-              hideChrome
-              hideDayHeaders
-              filter={filter}
-              skipFetch
-            />
-          </div>
-        ))}
       </div>
     </div>
   );

@@ -141,6 +141,13 @@ export function BoardFilterBar({ filters, projects, onChange }: BoardFilterBarPr
 
   return (
     <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-surface/40 px-2 py-2 md:px-3">
+      {/*
+        The project and priority controls have a predictable width, while the
+        six kind filters do not. Keeping all of them in one wrapping row made
+        the kind filters collapse into a tall, narrow column in desktop widths
+        where the sidebar is still open. Give filters their own horizontal row
+        so the calendar keeps the vertical room it needs.
+      */}
       <div className="flex flex-wrap items-center gap-2">
         <DropdownMenu open={projectsOpen} onOpenChange={setProjectsOpen}>
           <DropdownMenuTrigger asChild>
@@ -220,55 +227,6 @@ export function BoardFilterBar({ filters, projects, onChange }: BoardFilterBarPr
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
-
-        <span className="hidden text-[10px] font-semibold uppercase tracking-wide text-text-muted sm:inline">
-          {t('board_filter_show')}
-        </span>
-
-        <div
-          className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
-          role="group"
-          aria-label={t('board_filter_kinds')}
-        >
-          {KIND_TABS.map(tab => {
-            const Icon = tab.icon;
-            const on = isKindOn(tab.value);
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                aria-pressed={on}
-                title={
-                  on
-                    ? `${t(tab.labelKey)} · on`
-                    : `${t(tab.labelKey)} · off`
-                }
-                onClick={() => onToggleKind(tab.value)}
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all',
-                  on
-                    ? tab.onClass
-                    : 'border-border/80 bg-transparent text-text-muted/70 hover:border-border hover:text-text-muted'
-                )}
-              >
-                <span
-                  className={cn(
-                    'flex h-3.5 w-3.5 items-center justify-center rounded-full border',
-                    on
-                      ? 'border-current bg-current/20'
-                      : 'border-current/40 bg-transparent'
-                  )}
-                >
-                  {on ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
-                </span>
-                <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span>{t(tab.labelKey)}</span>
-              </button>
-            );
-          })}
-        </div>
-
         <div className="ml-auto flex flex-wrap items-center gap-1.5">
           <CycleSelect
             aria-label={t('board_filter_urgency')}
@@ -294,6 +252,54 @@ export function BoardFilterBar({ filters, projects, onChange }: BoardFilterBarPr
               onChange({ ...filters, importance: v as Importance | 'all' })
             }
           />
+        </div>
+      </div>
+
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+          {t('board_filter_show')}
+        </span>
+        <div
+          className="-mx-1 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]"
+          role="group"
+          aria-label={t('board_filter_kinds')}
+        >
+          {KIND_TABS.map(tab => {
+            const Icon = tab.icon;
+            const on = isKindOn(tab.value);
+            return (
+              <button
+                key={tab.value}
+                type="button"
+                aria-pressed={on}
+                title={
+                  on
+                    ? `${t(tab.labelKey)} · on`
+                    : `${t(tab.labelKey)} · off`
+                }
+                onClick={() => onToggleKind(tab.value)}
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-all',
+                  on
+                    ? tab.onClass
+                    : 'border-border/80 bg-transparent text-text-muted/70 hover:border-border hover:text-text-muted'
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex h-3.5 w-3.5 items-center justify-center rounded-full border',
+                    on
+                      ? 'border-current bg-current/20'
+                      : 'border-current/40 bg-transparent'
+                  )}
+                >
+                  {on ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                </span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span>{t(tab.labelKey)}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
