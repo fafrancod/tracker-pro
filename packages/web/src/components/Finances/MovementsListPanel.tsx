@@ -51,6 +51,7 @@ export function MovementsListPanel({
   rules,
   seriesHints = [],
   credits = [],
+  todayDayId,
   money,
   onEdit,
   onUpdateRule,
@@ -59,6 +60,7 @@ export function MovementsListPanel({
   rules: FinanceRule[];
   seriesHints?: FinanceListSeriesHint[];
   credits?: FinanceCredit[];
+  todayDayId: string;
   money: (n: number, currency: string) => string;
   onEdit: (mov: FinanceMovement) => void;
   onUpdateRule: (
@@ -87,7 +89,13 @@ export function MovementsListPanel({
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return collapseFinanceListRows(movements, rules, seriesHints, credits).filter(row => {
+    return collapseFinanceListRows(
+      movements,
+      rules,
+      seriesHints,
+      credits,
+      todayDayId
+    ).filter(row => {
       const sample = rowSample(row);
       if (flow !== 'all' && sample.flow !== flow) return false;
       if (
@@ -119,7 +127,7 @@ export function MovementsListPanel({
           row.endsOn.includes(q))
       );
     });
-  }, [movements, rules, seriesHints, credits, query, recurrence, flow]);
+  }, [movements, rules, seriesHints, credits, todayDayId, query, recurrence, flow]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">

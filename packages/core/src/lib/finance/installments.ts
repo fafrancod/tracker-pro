@@ -60,6 +60,45 @@ export function addMonthsToDayId(dayId: string, months: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+/**
+ * Compra con tarjeta en el mes 1 → la cuota N vence el mismo día, N meses después.
+ * Cuota 1 = fecha de compra + 1 mes.
+ */
+export function installmentDueDayId(
+  purchaseDayId: string,
+  installmentIndex: number
+): string {
+  const index = Math.max(1, Math.floor(installmentIndex) || 1);
+  return addMonthsToDayId(purchaseDayId, index);
+}
+
+export function resolveInstallmentPurchaseDayId(
+  instances: Array<
+    Pick<FinanceMovement, 'purchaseDayId' | 'dayId' | 'installmentIndex'>
+  >
+): string | null {
+  const fromPayload = instances.find(item => item.purchaseDayId)?.purchaseDayId;
+  if (fromPayload) return fromPayload;
+  const first = instances.find(item => (item.installmentIndex ?? 0) === 1);
+  if (first) return addMonthsToDayId(first.dayId, -1);
+  const earliest = [...instances].sort((a, b) => a.dayId.localeCompare(b.dayId))[0];
+  return earliest ? addMonthsToDayId(earliest.dayId, -1) : null;
+}
+
+/** Cuántas cuotas ya vencieron (fecha de cuota <= hoy), da igual el estado confirmed. */
+export function countElapsedInstallments(
+  purchaseDayId: string,
+  totalInstallments: number,
+  throughDayId: string
+): number {
+  const total = Math.max(0, Math.floor(totalInstallments) || 0);
+  let paid = 0;
+  for (let i = 1; i <= total; i += 1) {
+    if (installmentDueDayId(purchaseDayId, i) <= throughDayId) paid += 1;
+  }
+  return paid;
+}
+
 export function installmentGroupKey(mov: FinanceMovement): string | null {
   if (mov.installmentGroupId && (mov.installmentTotal ?? 0) > 1) {
     return mov.installmentGroupId;
@@ -94,48 +133,55 @@ export interface FinanceInstallmentPurchaseSummary {
 }
 
 /**
- * A materialized installment row can be confirmed before its due month. Payment
- * progress therefore only counts confirmed rows due on or before the supplied day.
+ * Pagado = cuotas cuya fecha de vencimiento (compra + N meses) ya llegó.
+ * Confirmar la compra no adelanta el conteo: la cuota 1 vence al mes siguiente.
  */
 export function summarizeInstallmentPurchases(
   movements: FinanceMovement[],
   throughDayId: string
 ): Map<string, FinanceInstallmentPurchaseSummary> {
-  const accumulators = new Map<
-    string,
-    Omit<FinanceInstallmentPurchaseSummary, 'remainingAmount'>
-  >();
+  const groups = new Map<string, FinanceMovement[]>();
   for (const movement of movements) {
     const groupId = installmentGroupKey(movement);
     if (!groupId || movement.status === 'skipped') continue;
-    const current = accumulators.get(groupId) ?? {
-      groupId,
-      totalAmount: 0,
-      paidAmount: 0,
-      totalInstallments: 0,
-      paidInstallments: 0,
-    };
-    const amount = Number(movement.amount) || 0;
-    current.totalAmount += amount;
-    current.totalInstallments = Math.max(
-      current.totalInstallments,
-      movement.installmentTotal ?? 0
-    );
-    if (movement.status === 'confirmed' && movement.dayId <= throughDayId) {
-      current.paidAmount += amount;
-      current.paidInstallments += 1;
-    }
-    accumulators.set(groupId, current);
+    const list = groups.get(groupId) ?? [];
+    list.push(movement);
+    groups.set(groupId, list);
   }
-  return new Map(
-    [...accumulators.entries()].map(([groupId, current]) => [
+  const out = new Map<string, FinanceInstallmentPurchaseSummary>();
+  for (const [groupId, rows] of groups) {
+    const purchaseDayId = resolveInstallmentPurchaseDayId(rows);
+    const totalInstallments = Math.max(
+      ...rows.map(row => row.installmentTotal ?? 0),
+      rows.length
+    );
+    const totalAmount = rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    let paidAmount = 0;
+    let paidInstallments = 0;
+    if (purchaseDayId) {
+      paidInstallments = countElapsedInstallments(
+        purchaseDayId,
+        totalInstallments,
+        throughDayId
+      );
+      for (const row of rows) {
+        const index = row.installmentIndex ?? 0;
+        if (index < 1) continue;
+        if (installmentDueDayId(purchaseDayId, index) <= throughDayId) {
+          paidAmount += Number(row.amount) || 0;
+        }
+      }
+    }
+    out.set(groupId, {
       groupId,
-      {
-        ...current,
-        remainingAmount: Math.max(0, current.totalAmount - current.paidAmount),
-      },
-    ])
-  );
+      totalAmount,
+      paidAmount,
+      remainingAmount: Math.max(0, totalAmount - paidAmount),
+      totalInstallments,
+      paidInstallments,
+    });
+  }
+  return out;
 }
 
 export interface FinanceCreditProgress {

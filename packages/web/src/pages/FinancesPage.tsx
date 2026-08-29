@@ -1082,6 +1082,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             rules={ledgerRules}
             seriesHints={seriesHints}
             credits={credits}
+            todayDayId={todayId}
             money={money}
             onEdit={openEdit}
             onUpdateRule={(rule, patch, sample) => {

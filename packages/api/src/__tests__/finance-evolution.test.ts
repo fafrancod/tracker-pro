@@ -10,6 +10,7 @@ import {
   listMonthIds,
   parseFinancePayload,
   summarizeCreditProgress,
+  installmentDueDayId,
   summarizeInstallmentPurchases,
   summarizeMonthlyEvolution,
   type FinanceCredit,
@@ -391,6 +392,32 @@ describe('calendario de cuotas (Meteora)', () => {
       remainingAmount: 40_000,
       totalInstallments: 3,
       paidInstallments: 2,
+    });
+  });
+
+  it('una compra el 23/08 a 6 cuotas no está pagada el 29/08', () => {
+    expect(installmentDueDayId('2026-08-23', 1)).toBe('2026-09-23');
+    expect(installmentDueDayId('2026-08-23', 6)).toBe('2027-02-23');
+    const summary = summarizeInstallmentPurchases(
+      [1, 2, 3, 4, 5, 6].map(index =>
+        mov({
+          id: `g${index}`,
+          amount: 40_000,
+          dayId: installmentDueDayId('2026-08-23', index),
+          purchaseDayId: '2026-08-23',
+          installmentGroupId: 'guitar',
+          installmentIndex: index,
+          installmentTotal: 6,
+          status: 'confirmed',
+        })
+      ),
+      '2026-08-29'
+    ).get('guitar');
+    expect(summary).toMatchObject({
+      paidInstallments: 0,
+      paidAmount: 0,
+      remainingAmount: 240_000,
+      totalInstallments: 6,
     });
   });
 });

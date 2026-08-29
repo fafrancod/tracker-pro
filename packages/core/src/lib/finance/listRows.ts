@@ -1,4 +1,9 @@
-import { addMonthsToDayId } from './installments';
+import {
+  addMonthsToDayId,
+  countElapsedInstallments,
+  installmentDueDayId,
+  resolveInstallmentPurchaseDayId,
+} from './installments';
 import {
   isInstallmentMovement,
   stripInstallmentSuffix,
@@ -288,7 +293,8 @@ export function collapseFinanceListRows(
   movements: FinanceMovement[],
   rules: FinanceRule[],
   hints: FinanceListSeriesHint[] = [],
-  credits: FinanceCredit[] = []
+  credits: FinanceCredit[] = [],
+  throughDayId = ''
 ): FinanceListRow[] {
   const activeRules = rules.filter(rule => rule.active);
   const byRule = new Map<string, FinanceMovement[]>();
@@ -348,7 +354,10 @@ export function collapseFinanceListRows(
       ...instances.map(item => item.installmentTotal ?? 0),
       instances.length
     );
-    const paidCount = instances.filter(item => item.status === 'confirmed').length;
+    const purchaseDayId = resolveInstallmentPurchaseDayId(instances);
+    const paidCount = purchaseDayId
+      ? countElapsedInstallments(purchaseDayId, totalCount, throughDayId)
+      : 0;
     rows.push({
       key: `inst:${groupKey}`,
       kind: 'installment',
@@ -357,7 +366,9 @@ export function collapseFinanceListRows(
       paidCount,
       remainingCount: Math.max(0, totalCount - paidCount),
       totalCount,
-      endsOn: installmentEndsOn(instances, totalCount),
+      endsOn: purchaseDayId
+        ? installmentDueDayId(purchaseDayId, totalCount)
+        : installmentEndsOn(instances, totalCount),
       totalAmount: instances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
     });
   }

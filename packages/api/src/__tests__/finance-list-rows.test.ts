@@ -241,16 +241,48 @@ describe('collapseFinanceListRows', () => {
         }),
         mov({ id: 'cafe', dayId: '2026-08-17', title: 'Café', amount: 3500 }),
       ],
-      []
+      [],
+      [],
+      [],
+      '2026-08-29'
     );
     expect(rows).toHaveLength(2);
     const purchase = rows.find(row => row.kind === 'installment');
     expect(purchase?.kind === 'installment' && purchase.title).toBe('Guitarra');
-    expect(purchase?.kind === 'installment' && purchase.paidCount).toBe(2);
-    expect(purchase?.kind === 'installment' && purchase.remainingCount).toBe(4);
+    expect(purchase?.kind === 'installment' && purchase.paidCount).toBe(0);
+    expect(purchase?.kind === 'installment' && purchase.remainingCount).toBe(6);
     expect(purchase?.kind === 'installment' && purchase.totalCount).toBe(6);
     expect(purchase?.kind === 'installment' && purchase.endsOn).toBe('2027-02-23');
     expect(purchase?.kind === 'installment' && purchase.totalAmount).toBe(240000);
+  });
+
+  it('cuenta cuotas pagadas por vencimiento (compra + N meses), no por confirmed', () => {
+    const guitar = (index: number, dayId: string) =>
+      mov({
+        id: `g${index}`,
+        dayId,
+        title: `Guitarra · Cuota ${index} de 6`,
+        flow: 'expense',
+        status: 'confirmed',
+        amount: 40000,
+        installmentGroupId: 'group-guitar',
+        installmentIndex: index,
+        installmentTotal: 6,
+        purchaseDayId: '2026-08-23',
+      });
+    const instances = [
+      guitar(1, '2026-09-23'),
+      guitar(2, '2026-10-23'),
+      guitar(3, '2026-11-23'),
+      guitar(4, '2026-12-23'),
+      guitar(5, '2027-01-23'),
+      guitar(6, '2027-02-23'),
+    ];
+    const august = collapseFinanceListRows(instances, [], [], [], '2026-08-29');
+    expect(august[0]?.kind === 'installment' && august[0].paidCount).toBe(0);
+    const october = collapseFinanceListRows(instances, [], [], [], '2026-10-23');
+    expect(october[0]?.kind === 'installment' && october[0].paidCount).toBe(2);
+    expect(october[0]?.kind === 'installment' && october[0].remainingCount).toBe(4);
   });
 
   it('marca como serie un ingreso del tablero aunque solo haya una fila en el mayor', () => {
