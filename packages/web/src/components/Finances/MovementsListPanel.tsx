@@ -1,12 +1,29 @@
 import { useMemo, useState } from 'react';
-import { Pencil, Repeat, Search } from 'lucide-react';
+import { CreditCard, Pencil, Repeat, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SimpleSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
-import { collapseFinanceListRows } from '@core/lib/finance/listRows';
+import {
+  collapseFinanceListRows,
+  type FinanceListRow,
+} from '@core/lib/finance/listRows';
 import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from '@core/lib/finance/types';
 import type { TKey } from '@/lib/i18n';
+
+function rowSample(row: FinanceListRow): FinanceMovement {
+  return row.kind === 'one_off' ? row.movement : row.sample;
+}
+
+function rowTitle(row: FinanceListRow): string {
+  if (row.kind === 'one_off') return row.movement.title;
+  if (row.kind === 'installment') return row.title;
+  return row.rule.title;
+}
+
+function rowAmount(row: FinanceListRow): number {
+  return row.kind === 'installment' ? row.totalAmount : rowSample(row).amount;
+}
 
 type RecurrenceFilter = 'all' | 'recurring' | 'one_off';
 type FlowFilter = 'all' | 'income' | 'expense' | 'investment';
@@ -59,17 +76,23 @@ export function MovementsListPanel({
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return collapseFinanceListRows(movements, rules).filter(row => {
-      const sample = row.kind === 'one_off' ? row.movement : row.sample;
+      const sample = rowSample(row);
       if (flow !== 'all' && sample.flow !== flow) return false;
       if (recurrence === 'recurring' && row.kind !== 'series') return false;
-      if (recurrence === 'one_off' && row.kind !== 'one_off') return false;
+      if (recurrence === 'one_off' && row.kind === 'series') return false;
       if (!q) return true;
-      const title = row.kind === 'one_off' ? row.movement.title : row.rule.title;
-      const notes = row.kind === 'one_off' ? row.movement.notes : row.rule.notes;
+      const title = rowTitle(row);
+      const notes =
+        row.kind === 'one_off'
+          ? row.movement.notes
+          : row.kind === 'series'
+            ? row.rule.notes
+            : row.sample.notes;
       return (
         title.toLowerCase().includes(q) ||
         notes.toLowerCase().includes(q) ||
-        sample.dayId.includes(q)
+        sample.dayId.includes(q) ||
+        (row.kind === 'installment' && row.endsOn.includes(q))
       );
     });
   }, [movements, rules, query, recurrence, flow]);
@@ -139,8 +162,13 @@ export function MovementsListPanel({
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
           {rows.map(row => {
-            const sample = row.kind === 'one_off' ? row.movement : row.sample;
-            const title = row.kind === 'one_off' ? row.movement.title : row.rule.title;
+            const sample = rowSample(row);
+            const title = rowTitle(row);
+            const amount = rowAmount(row);
+            const paidRatio =
+              row.kind === 'installment' && row.totalCount > 0
+                ? Math.min(1, row.paidCount / row.totalCount)
+                : 0;
             return (
               <li key={row.key} className="flex items-center gap-2 px-3 py-2.5">
                 <button
@@ -152,13 +180,18 @@ export function MovementsListPanel({
                     {title || t('fin_list_untitled')}
                   </span>
                   <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-text-muted">
-                    {row.kind === 'one_off' ? (
-                      <span>{sample.dayId}</span>
-                    ) : (
+                    {row.kind === 'series' ? (
                       <span className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/15 px-1.5 py-0.5 font-medium text-accent-teal">
                         <Repeat className="h-3 w-3" />
                         {t('fin_kind_recurring')}
                       </span>
+                    ) : row.kind === 'installment' ? (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-violet-500/15 px-1.5 py-0.5 font-medium text-violet-700 dark:text-violet-200">
+                        <CreditCard className="h-3 w-3" />
+                        {t('fin_list_installments')}
+                      </span>
+                    ) : (
+                      <span>{sample.dayId}</span>
                     )}
                     <span>·</span>
                     <span>
@@ -178,7 +211,30 @@ export function MovementsListPanel({
                         </span>
                       </>
                     ) : null}
+                    {row.kind === 'installment' ? (
+                      <>
+                        <span>·</span>
+                        <span>
+                          {t('fin_list_installment_meta')
+                            .replace('{paid}', String(row.paidCount))
+                            .replace('{total}', String(row.totalCount))
+                            .replace('{remaining}', String(row.remainingCount))
+                            .replace('{date}', row.endsOn)}
+                        </span>
+                      </>
+                    ) : null}
                   </span>
+                  {row.kind === 'installment' ? (
+                    <span
+                      className="mt-1 block h-1 max-w-[9rem] overflow-hidden rounded-full bg-border"
+                      aria-hidden
+                    >
+                      <span
+                        className="block h-full rounded-full bg-violet-500"
+                        style={{ width: `${Math.round(paidRatio * 100)}%` }}
+                      />
+                    </span>
+                  ) : null}
                 </button>
                 {row.kind === 'series' ? (
                   <div
@@ -245,7 +301,7 @@ export function MovementsListPanel({
                   )}
                 >
                   {sample.flow === 'income' ? '+' : sample.flow === 'expense' ? '−' : ''}
-                  {money(sample.amount, sample.currency)}
+                  {money(amount, sample.currency)}
                 </span>
                 <button
                   type="button"

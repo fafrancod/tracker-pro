@@ -162,4 +162,93 @@ describe('collapseFinanceListRows', () => {
     expect(rows).toHaveLength(2);
     expect(rows.every(row => row.kind === 'one_off')).toBe(true);
   });
+
+  it('colapsa las cuotas de una compra con tarjeta en una sola fila', () => {
+    const rows = collapseFinanceListRows(
+      [
+        mov({
+          id: 'g1',
+          dayId: '2026-09-23',
+          title: 'Guitarra · Cuota 1 de 6',
+          flow: 'expense',
+          status: 'confirmed',
+          amount: 40000,
+          installmentGroupId: 'group-guitar',
+          installmentIndex: 1,
+          installmentTotal: 6,
+          purchaseDayId: '2026-08-23',
+        }),
+        mov({
+          id: 'g2',
+          dayId: '2026-10-23',
+          title: 'Guitarra · Cuota 2 de 6',
+          flow: 'expense',
+          status: 'confirmed',
+          amount: 40000,
+          installmentGroupId: 'group-guitar',
+          installmentIndex: 2,
+          installmentTotal: 6,
+          purchaseDayId: '2026-08-23',
+        }),
+        mov({
+          id: 'g3',
+          dayId: '2026-11-23',
+          title: 'Guitarra · Cuota 3 de 6',
+          flow: 'expense',
+          status: 'planned',
+          amount: 40000,
+          installmentGroupId: 'group-guitar',
+          installmentIndex: 3,
+          installmentTotal: 6,
+          purchaseDayId: '2026-08-23',
+        }),
+        mov({
+          id: 'g4',
+          dayId: '2026-12-23',
+          title: 'Guitarra · Cuota 4 de 6',
+          flow: 'expense',
+          status: 'planned',
+          amount: 40000,
+          installmentGroupId: 'group-guitar',
+          installmentIndex: 4,
+          installmentTotal: 6,
+          purchaseDayId: '2026-08-23',
+        }),
+        mov({
+          id: 'g5',
+          dayId: '2027-01-23',
+          title: 'Guitarra · Cuota 5 de 6',
+          flow: 'expense',
+          status: 'planned',
+          amount: 40000,
+          installmentGroupId: 'group-guitar',
+          installmentIndex: 5,
+          installmentTotal: 6,
+          purchaseDayId: '2026-08-23',
+        }),
+        mov({
+          id: 'g6',
+          dayId: '2027-02-23',
+          title: 'Guitarra · Cuota 6 de 6',
+          flow: 'expense',
+          status: 'planned',
+          amount: 40000,
+          installmentGroupId: 'group-guitar',
+          installmentIndex: 6,
+          installmentTotal: 6,
+          purchaseDayId: '2026-08-23',
+        }),
+        mov({ id: 'cafe', dayId: '2026-08-17', title: 'Café', amount: 3500 }),
+      ],
+      []
+    );
+    expect(rows).toHaveLength(2);
+    const purchase = rows.find(row => row.kind === 'installment');
+    expect(purchase?.kind === 'installment' && purchase.title).toBe('Guitarra');
+    expect(purchase?.kind === 'installment' && purchase.paidCount).toBe(2);
+    expect(purchase?.kind === 'installment' && purchase.remainingCount).toBe(4);
+    expect(purchase?.kind === 'installment' && purchase.totalCount).toBe(6);
+    expect(purchase?.kind === 'installment' && purchase.endsOn).toBe('2027-02-23');
+    expect(purchase?.kind === 'installment' && purchase.totalAmount).toBe(240000);
+  });
 });

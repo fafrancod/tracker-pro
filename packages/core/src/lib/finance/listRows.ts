@@ -1,3 +1,8 @@
+import { addMonthsToDayId } from './installments';
+import {
+  isInstallmentMovement,
+  stripInstallmentSuffix,
+} from './installmentSchedule';
 import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from './types';
 
 export const INFERRED_RULE_PREFIX = 'inferred:';
@@ -10,6 +15,17 @@ export type FinanceListRow =
       rule: FinanceRule;
       sample: FinanceMovement;
       instanceCount: number;
+    }
+  | {
+      key: string;
+      kind: 'installment';
+      sample: FinanceMovement;
+      title: string;
+      paidCount: number;
+      remainingCount: number;
+      totalCount: number;
+      endsOn: string;
+      totalAmount: number;
     };
 
 function normTitle(title: string): string {
@@ -34,8 +50,39 @@ function dayGap(a: string, b: string): number {
   return Math.round(ms / 86_400_000);
 }
 
-function isInstallment(mov: FinanceMovement): boolean {
-  return Boolean(mov.installmentGroupId && (mov.installmentTotal ?? 0) > 1);
+function installmentListKey(mov: FinanceMovement): string | null {
+  if (!isInstallmentMovement(mov)) return null;
+  if (mov.installmentGroupId) return `g:${mov.installmentGroupId}`;
+  if ((mov.installmentTotal ?? 0) > 1) {
+    return `t:${stripInstallmentSuffix(mov.title) || mov.id}`;
+  }
+  return null;
+}
+
+function installmentEndsOn(instances: FinanceMovement[], totalCount: number): string {
+  const sorted = [...instances].sort(
+    (a, b) =>
+      (a.installmentIndex ?? 0) - (b.installmentIndex ?? 0) ||
+      a.dayId.localeCompare(b.dayId)
+  );
+  const last = sorted[sorted.length - 1]!;
+  const lastIndex = last.installmentIndex ?? sorted.length;
+  const missing = Math.max(0, totalCount - lastIndex);
+  return missing > 0 ? addMonthsToDayId(last.dayId, missing) : last.dayId;
+}
+
+function rowSortDay(row: FinanceListRow): string {
+  if (row.kind === 'one_off') return row.movement.dayId;
+  if (row.kind === 'installment') {
+    return row.sample.purchaseDayId ?? row.sample.dayId;
+  }
+  return row.sample.dayId;
+}
+
+function rowSortTitle(row: FinanceListRow): string {
+  if (row.kind === 'one_off') return row.movement.title;
+  if (row.kind === 'installment') return row.title;
+  return row.rule.title;
 }
 
 export function matchFinanceRuleForMovement(
@@ -147,11 +194,15 @@ export function collapseFinanceListRows(
   const byRule = new Map<string, FinanceMovement[]>();
   const unmatched: FinanceMovement[] = [];
   const oneOff: FinanceMovement[] = [];
+  const installmentGroups = new Map<string, FinanceMovement[]>();
 
   for (const mov of movements) {
     if (mov.virtual) continue;
-    if (isInstallment(mov)) {
-      oneOff.push(mov);
+    const installmentKey = installmentListKey(mov);
+    if (installmentKey) {
+      const list = installmentGroups.get(installmentKey) ?? [];
+      list.push(mov);
+      installmentGroups.set(installmentKey, list);
       continue;
     }
     const matched = matchFinanceRuleForMovement(activeRules, mov);
@@ -167,6 +218,30 @@ export function collapseFinanceListRows(
   const rows: FinanceListRow[] = [];
   for (const mov of oneOff) {
     rows.push({ key: `one:${mov.id}`, kind: 'one_off', movement: mov });
+  }
+  for (const [groupKey, instances] of installmentGroups) {
+    instances.sort(
+      (a, b) =>
+        (a.installmentIndex ?? 0) - (b.installmentIndex ?? 0) ||
+        a.dayId.localeCompare(b.dayId)
+    );
+    const sample = instances[0]!;
+    const totalCount = Math.max(
+      ...instances.map(item => item.installmentTotal ?? 0),
+      instances.length
+    );
+    const paidCount = instances.filter(item => item.status === 'confirmed').length;
+    rows.push({
+      key: `inst:${groupKey}`,
+      kind: 'installment',
+      sample,
+      title: stripInstallmentSuffix(sample.title) || sample.title,
+      paidCount,
+      remainingCount: Math.max(0, totalCount - paidCount),
+      totalCount,
+      endsOn: installmentEndsOn(instances, totalCount),
+      totalAmount: instances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+    });
   }
 
   const used = new Set<string>();
@@ -234,13 +309,11 @@ export function collapseFinanceListRows(
   }
 
   rows.sort((a, b) => {
-    const da = a.kind === 'one_off' ? a.movement.dayId : a.sample.dayId;
-    const db = b.kind === 'one_off' ? b.movement.dayId : b.sample.dayId;
-    const byDay = db.localeCompare(da);
+    const byDay = rowSortDay(b).localeCompare(rowSortDay(a));
     if (byDay !== 0) return byDay;
-    const ta = a.kind === 'one_off' ? a.movement.title : a.rule.title;
-    const tb = b.kind === 'one_off' ? b.movement.title : b.rule.title;
-    return ta.localeCompare(tb, undefined, { sensitivity: 'base' });
+    return rowSortTitle(a).localeCompare(rowSortTitle(b), undefined, {
+      sensitivity: 'base',
+    });
   });
   return rows;
 }
