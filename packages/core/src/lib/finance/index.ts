@@ -18,3 +18,4 @@ export * from './recoveryWords';
 export * from './unseal';
 export * from './session';
 export * from './bridge';
+export * from './fromTasks';

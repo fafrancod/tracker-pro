@@ -55,7 +55,13 @@ import {
 } from '@/components/Finances/CategorySplitEditor';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
-import { getDayId } from '@core/services/taskService';
+import { getDayId, fetchTasksInRange } from '@core/services/taskService';
+import { useStore } from '@core/store';
+import { isFinanceKind } from '@core/lib/financeKinds';
+import {
+  mergeBoardFinanceIntoMovements,
+  syncBoardFinanceToLedger,
+} from '@core/lib/finance';
 import {
   createFinanceMovement,
   deleteFinanceMovement,
@@ -211,6 +217,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const { t, locale, language } = useT();
   const { showToast } = useToast();
   const { settings } = useSettings();
+  const uid = useStore(s => s.uid);
   const [searchParams, setSearchParams] = useSearchParams();
   const hub = parseFinanceHub(searchParams.get('tab'));
 
@@ -290,13 +297,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [rows, accs, gls, crs, ledger, cats] = await Promise.all([
+      const [rows, accs, gls, crs, ledger, cats, taskRows] = await Promise.all([
         fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
         fetchFinanceAccounts(),
         fetchFinanceGoals(),
         fetchFinanceCredits(),
         fetchFinanceLedger(),
         fetchFinanceCategories().catch(() => [] as FinanceUserCategory[]),
+        uid
+          ? fetchTasksInRange(uid, range.from, range.to).catch(() => [])
+          : Promise.resolve([]),
       ]);
       setAccounts(accs);
       setGoals(gls);
@@ -327,7 +337,23 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           ? await fetchFinanceCalendar(range.from, range.to, vault ?? undefined)
           : rows;
       }
-      setMovements(next);
+      const financeTasks = taskRows.filter(row => isFinanceKind(row.kind));
+      setMovements(mergeBoardFinanceIntoMovements(next, financeTasks));
+      if (financeTasks.length > 0) {
+        const persisted = await syncBoardFinanceToLedger({
+          movements: next,
+          tasks: financeTasks,
+          vault: vault ?? undefined,
+        }).catch(() => false);
+        if (persisted) {
+          const refreshed = await fetchFinanceCalendar(
+            range.from,
+            range.to,
+            vault ?? undefined
+          );
+          setMovements(mergeBoardFinanceIntoMovements(refreshed, financeTasks));
+        }
+      }
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
@@ -340,7 +366,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     } finally {
       setLoading(false);
     }
-  }, [range.from, range.to, showToast, t, vault, preferred]);
+  }, [range.from, range.to, showToast, t, vault, preferred, uid]);
 
   useEffect(() => {
     void reload();

@@ -595,7 +595,7 @@ export function AddTaskForm({
 
     let financeMovementId: string | undefined;
     let linkedFinance: CreateTaskPayload['linkedFinance'];
-    if (canEntailMoney && entailsMoney) {
+    if (isFinance || (canEntailMoney && entailsMoney)) {
       const vault = getFinanceVaultSession() ?? undefined;
       if (!startForCreate) {
         showToast(t('task_time_range_error'), 'error');
@@ -606,15 +606,33 @@ export function AddTaskForm({
         return;
       }
       try {
+        const flow =
+          kind === 'finance_income'
+            ? 'income'
+            : kind === 'finance_expense'
+              ? 'expense'
+              : financeFlow;
+        const dayNum = Number(startForCreate.slice(8, 10)) || 1;
+        const [ys, ms, ds] = startForCreate.split('-').map(Number);
+        const weekday =
+          Number.isFinite(ys) && Number.isFinite(ms) && Number.isFinite(ds)
+            ? new Date(ys, ms - 1, ds).getDay()
+            : 1;
         const created = await createBridgeMovement({
           dayId: startForCreate,
           title: trimmed,
           amount: financeAmount,
           currency: financeCurrency,
           certainty: financeCertainty,
-          flow: financeFlow,
+          flow,
           vault: vault ?? undefined,
           reportingCurrency: settings.preferredCurrency,
+          recurrence:
+            isFinance && frequency === 'monthly'
+              ? { frequency: 'monthly', recurrenceDay: dayNum }
+              : isFinance && frequency === 'weekly'
+                ? { frequency: 'weekly', recurrenceDay: weekday }
+                : undefined,
         });
         financeMovementId = created.id;
         linkedFinance = created.linked;

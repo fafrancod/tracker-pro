@@ -475,6 +475,7 @@ export const taskHistory = {
           kind: before.kind,
           finance: before.finance,
           financeMovementId: before.financeMovementId,
+          taskId,
           vault: getFinanceVaultSession() ?? undefined,
         })
           .then(async movementId => {

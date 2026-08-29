@@ -1,5 +1,5 @@
 import { addDaysToDayId } from '../recurrence';
-import { getDayId } from '../../services/taskService';
+import { getDayId, updateTask } from '../../services/taskService';
 import { useStore } from '../../store';
 import {
   createFinanceMovement,
@@ -9,9 +9,10 @@ import {
   resolveFinanceFx,
   updateFinanceMovement,
 } from '../../services/financeMovementService';
-import type { FinanceMovement, FinanceVaultCtx } from './types';
+import type { FinanceMovement, FinanceRuleFrequency, FinanceVaultCtx } from './types';
 import type { CreateTaskPayload, Task } from '../../types';
 import { getFinanceVaultSession } from './session';
+import { planBoardFinanceSync, type LocatedFinanceTask } from './fromTasks';
 
 export function linkedFinanceFromMovement(
   mov: Pick<FinanceMovement, 'flow' | 'amount' | 'currency' | 'status'>
@@ -33,6 +34,8 @@ export async function createBridgeMovement(opts: {
   flow: FinanceMovement['flow'];
   vault?: FinanceVaultCtx;
   reportingCurrency?: string;
+  sourceTaskId?: string;
+  recurrence?: { frequency: FinanceRuleFrequency; recurrenceDay: number };
 }): Promise<{ id: string; linked: NonNullable<Task['linkedFinance']> }> {
   const fx = opts.reportingCurrency
     ? await resolveFinanceFx({
@@ -51,11 +54,52 @@ export async function createBridgeMovement(opts: {
       amount: opts.amount,
       currency: opts.currency,
       certainty: opts.certainty,
+      sourceTaskId: opts.sourceTaskId,
+      recurrence: opts.recurrence,
       ...(fx ?? {}),
     },
     opts.vault
   );
   return { id: mov.id, linked: linkedFinanceFromMovement(mov) };
+}
+
+/** Persiste ingresos/gastos del tablero que Finances aún no tiene en el mayor. */
+export async function syncBoardFinanceToLedger(opts: {
+  movements: FinanceMovement[];
+  tasks: LocatedFinanceTask[];
+  vault?: FinanceVaultCtx;
+}): Promise<boolean> {
+  const actions = planBoardFinanceSync(opts.movements, opts.tasks);
+  if (actions.length === 0) return false;
+  for (const action of actions) {
+    if (action.type === 'confirm') {
+      await confirmBridgeMovement(action.movementId);
+      continue;
+    }
+    const task = action.task;
+    const amount = task.finance?.amount ?? task.linkedFinance?.amount ?? 0;
+    if (!(amount > 0)) continue;
+    const created = await createFinanceMovement(
+      {
+        dayId: task.dayId,
+        flow: task.kind === 'finance_income' ? 'income' : 'expense',
+        status: task.completed ? 'confirmed' : 'planned',
+        title: task.title,
+        amount,
+        currency: task.finance?.currency ?? task.linkedFinance?.currency,
+        certainty: task.finance?.certainty ?? 'fixed',
+        sourceTaskId: task.id,
+        ruleId: action.type === 'materialize' ? action.ruleId : undefined,
+      },
+      opts.vault
+    );
+    if (created.id && !task.financeMovementId) {
+      await updateTask(task.weekId, task.dayId, task.id, {
+        financeMovementId: created.id,
+      }).catch(() => undefined);
+    }
+  }
+  return true;
 }
 
 export async function claimBridgeMovement(
@@ -79,6 +123,7 @@ export async function confirmFinanceForCompletedTask(opts: {
   kind: Task['kind'];
   finance: Task['finance'];
   financeMovementId: string | null;
+  taskId?: string;
   vault?: FinanceVaultCtx;
   reportingCurrency?: string;
 }): Promise<string | null> {
@@ -100,6 +145,7 @@ export async function confirmFinanceForCompletedTask(opts: {
     flow: opts.kind === 'finance_income' ? 'income' : 'expense',
     vault: opts.vault,
     reportingCurrency: opts.reportingCurrency,
+    sourceTaskId: opts.taskId,
   });
   await confirmBridgeMovement(created.id);
   return created.id;
