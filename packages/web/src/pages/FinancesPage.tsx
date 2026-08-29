@@ -46,6 +46,7 @@ import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
 import { HealthPanel } from '@/components/Finances/HealthPanel';
 import { CategoriesPanel } from '@/components/Finances/CategoriesPanel';
 import { EvolutionPanel } from '@/components/Finances/EvolutionPanel';
+import { MovementsListPanel } from '@/components/Finances/MovementsListPanel';
 import { TaskImagesField } from '@/components/Board/TaskImagesField';
 import {
   CategorySplitEditor,
@@ -101,6 +102,7 @@ import {
   summarizeInstallmentPurchases,
 } from '@core/lib/finance/installments';
 import { reportingAmountOf } from '@core/lib/finance/fx';
+import { unsealFinanceLedger } from '@core/lib/finance/unseal';
 import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import {
@@ -131,6 +133,7 @@ type CalView = 'month' | 'week';
 
 const FINANCE_HUBS = [
   'calendar',
+  'list',
   'categories',
   'accounts',
   'evolution',
@@ -312,8 +315,17 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       setGoals(gls);
       setCredits(crs);
       setUserCategories(cats);
-      setLedgerMovements(ledger.movements);
-      setLedgerRules(ledger.rules);
+      const opened =
+        vault
+          ? await unsealFinanceLedger(
+              vault.uid,
+              vault.dek,
+              ledger.movements,
+              ledger.rules
+            )
+          : ledger;
+      setLedgerMovements(opened.movements);
+      setLedgerRules(opened.rules);
       const pending = rows.filter(m => m.fxPending && !m.virtual);
       let next = rows;
       if (pending.length > 0) {
@@ -642,6 +654,15 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }
 
   function openEdit(mov: FinanceMovement) {
+    if (mov.virtual && mov.ruleId) {
+      const sibling = paymentLedger.find(
+        item => item.ruleId === mov.ruleId && !item.virtual
+      );
+      if (sibling) {
+        openEdit(sibling);
+        return;
+      }
+    }
     if (mov.virtual && mov.purchaseDayId === mov.dayId && mov.installmentGroupId) {
       const source = paymentLedger.find(item => item.id === mov.id);
       if (source) {
@@ -951,18 +972,20 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 ? t('fin_tab_investments')
                 : hub === 'health'
                   ? t('fin_tab_health')
-                  : t('nav_finances');
+                  : hub === 'list'
+                    ? t('fin_tab_list')
+                    : t('nav_finances');
 
   return (
     <Layout
       title={hubTitle}
       primaryAction={
-        hub === 'calendar'
+        hub === 'calendar' || hub === 'list'
           ? { label: t('fin_add'), onClick: () => openCreate(todayId) }
           : undefined
       }
       onFabClick={() => openCreate(todayId)}
-      showFab={hub === 'calendar'}
+      showFab={hub === 'calendar' || hub === 'list'}
     >
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
         <div className="flex flex-wrap gap-1">
@@ -980,6 +1003,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             >
               {id === 'calendar'
                 ? t('fin_tab_calendar')
+                : id === 'list'
+                  ? t('fin_tab_list')
                 : id === 'accounts'
                   ? t('fin_tab_accounts')
                   : id === 'goals'
@@ -996,6 +1021,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             </button>
           ))}
         </div>
+
+        {hub === 'list' ? (
+          <MovementsListPanel
+            movements={paymentLedger}
+            rules={ledgerRules}
+            todayDayId={todayId}
+            money={money}
+            onEdit={openEdit}
+          />
+        ) : null}
 
         {hub === 'accounts' ? (
           <AccountsPanel

@@ -30,6 +30,7 @@ export interface TranslationDict {
   nav_fin_payment_methods: string;
   nav_fin_evolution: string;
   nav_fin_credits: string;
+  nav_fin_list: string;
   nav_habits: string;
   nav_gantt: string;
 
@@ -63,6 +64,14 @@ export interface TranslationDict {
   fin_empty_title: string;
   fin_empty_hint: string;
   fin_tab_calendar: string;
+  fin_tab_list: string;
+  fin_list_search: string;
+  fin_list_filter_all: string;
+  fin_list_filter_recurring: string;
+  fin_list_filter_one_off: string;
+  fin_list_empty: string;
+  fin_list_empty_hint: string;
+  fin_list_untitled: string;
   fin_tab_accounts: string;
   fin_tab_goals: string;
   fin_tab_credits: string;
@@ -1352,6 +1361,7 @@ const es_dict: TranslationDict = {
   nav_fin_payment_methods: 'Medios de pago',
   nav_fin_evolution: 'Evolución de pagos',
   nav_fin_credits: 'Créditos',
+  nav_fin_list: 'Lista',
   nav_habits: 'Hábitos',
   nav_gantt: 'Carta Gantt',
   fin_add: 'Añadir movimiento',
@@ -1382,6 +1392,14 @@ const es_dict: TranslationDict = {
   fin_filter_all_kinds: 'Todos los tipos',
   fin_empty_title: 'Sin movimientos este mes',
   fin_tab_calendar: 'Calendario',
+  fin_tab_list: 'Lista',
+  fin_list_search: 'Buscar movimientos…',
+  fin_list_filter_all: 'Todos',
+  fin_list_filter_recurring: 'Recurrentes',
+  fin_list_filter_one_off: 'Puntuales',
+  fin_list_empty: 'No hay movimientos con ese filtro',
+  fin_list_empty_hint: 'Cambia el filtro o crea un movimiento con el botón Añadir.',
+  fin_list_untitled: 'Sin título',
   fin_tab_accounts: 'Medios de pago',
   fin_tab_goals: 'Objetivos',
   fin_tab_credits: 'Créditos',
@@ -2780,6 +2798,7 @@ const en_dict: TranslationDict = {
   nav_fin_payment_methods: 'Payment methods',
   nav_fin_evolution: 'Payment trends',
   nav_fin_credits: 'Credits',
+  nav_fin_list: 'List',
   fin_add: 'Add entry',
   fin_edit: 'Edit entry',
   fin_this_month: 'This month',
@@ -2808,6 +2827,14 @@ const en_dict: TranslationDict = {
   fin_filter_all_kinds: 'All kinds',
   fin_empty_title: 'No entries this month',
   fin_tab_calendar: 'Calendar',
+  fin_tab_list: 'List',
+  fin_list_search: 'Search movements…',
+  fin_list_filter_all: 'All',
+  fin_list_filter_recurring: 'Recurring',
+  fin_list_filter_one_off: 'One-off',
+  fin_list_empty: 'No movements match this filter',
+  fin_list_empty_hint: 'Change the filter or add a movement.',
+  fin_list_untitled: 'Untitled',
   fin_tab_accounts: 'Payment methods',
   fin_tab_goals: 'Goals',
   fin_tab_credits: 'Credits',

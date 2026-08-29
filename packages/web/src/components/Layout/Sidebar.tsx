@@ -23,6 +23,7 @@ import {
   Tags,
   CreditCard,
   Landmark,
+  List,
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
@@ -275,6 +276,14 @@ export function Sidebar({
       </div>
       {financesOpen ? (
         <>
+          <NavLink
+            to="/finances?tab=list"
+            onClick={onNavigate}
+            className={cn(navClass(financesTab === 'list'), 'ml-3 pl-2 text-[13px]')}
+          >
+            <List className="h-3.5 w-3.5" />
+            <span>{t('nav_fin_list')}</span>
+          </NavLink>
           <NavLink
             to="/finances?tab=categories"
             onClick={onNavigate}
