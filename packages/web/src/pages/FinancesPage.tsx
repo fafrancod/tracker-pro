@@ -854,14 +854,35 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }
 
   async function toggleMovementStatus(mov: FinanceMovement) {
-    if (mov.virtual || !['planned', 'confirmed'].includes(mov.status)) return;
+    if (!['planned', 'confirmed'].includes(mov.status)) return;
     const status = mov.status === 'planned' ? 'confirmed' : 'planned';
     try {
-      await updateFinanceMovement(
-        mov.id,
-        { status, updatedAt: mov.updatedAt },
-        vault ?? undefined
-      );
+      if (mov.virtual) {
+        if (status !== 'confirmed' || !mov.ruleId) return;
+        await createFinanceMovement(
+          {
+            dayId: mov.dayId,
+            flow: mov.flow,
+            status: 'confirmed',
+            title: mov.title,
+            amount: mov.amount,
+            currency: mov.currency,
+            notes: mov.notes,
+            certainty: mov.certainty,
+            ruleId: mov.ruleId,
+            accountId: mov.accountId,
+            categoryId: mov.categoryId ?? null,
+            category: mov.category ?? null,
+          },
+          vault ?? undefined
+        );
+      } else {
+        await updateFinanceMovement(
+          mov.id,
+          { status, updatedAt: mov.updatedAt },
+          vault ?? undefined
+        );
+      }
       showToast(t(status === 'confirmed' ? 'fin_status_confirmed' : 'fin_status_planned'), 'success');
       await reload();
     } catch {
@@ -1331,7 +1352,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                                 · {t('fin_installment_total_cost')}: {money(installment.totalAmount, mov.currency)}
                               </span>
                             ) : null}
-                            {!mov.virtual && mov.flow !== 'investment' && mov.status === 'planned' ? (
+                            {mov.flow !== 'investment' && mov.status === 'planned' ? (
                               <span
                                 role="checkbox"
                                 aria-checked="false"
@@ -1351,7 +1372,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                               >
                                 <Circle className="h-3 w-3" />
                               </span>
-                            ) : !mov.virtual && mov.flow !== 'investment' && mov.status === 'confirmed' ? (
+                            ) : mov.flow !== 'investment' && mov.status === 'confirmed' ? (
                               <span
                                 role="checkbox"
                                 aria-checked="true"

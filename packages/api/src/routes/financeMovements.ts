@@ -821,7 +821,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
     if (!clientSealed) {
       accountDek = await ensureAccountDek(uid);
     }
-    let ruleId: string | null = null;
+    let ruleId: string | null = body.ruleId ?? null;
 
     if (body.recurrence) {
       ruleId = body.ruleId ?? generateId();

@@ -751,6 +751,7 @@ export interface TranslationDict {
   project_undated: string;
   project_task_ph: string;
   project_task_date_optional: string;
+  project_recurring: string;
   notes_back: string;
   notes_new: string;
   notes_untitled: string;
@@ -775,6 +776,8 @@ export interface TranslationDict {
   notes_editor_ph: string;
   notes_delete_title: string;
   notes_delete_confirm: string;
+  notes_folder_inbox: string;
+  notes_folder_empty: string;
   action_create: string;
   task_move_to: string;
   task_move_next_week: string;
@@ -2126,6 +2129,7 @@ const es_dict: TranslationDict = {
   project_undated: 'Sin fecha',
   project_task_ph: 'Nueva tarea…',
   project_task_date_optional: 'Fecha (opcional)',
+  project_recurring: 'Recurrente',
   notes_back: 'Volver',
   notes_new: 'Nueva idea',
   notes_untitled: 'Sin título',
@@ -2150,6 +2154,8 @@ const es_dict: TranslationDict = {
   notes_editor_ph: 'Escribe tu idea…',
   notes_delete_title: 'Eliminar idea',
   notes_delete_confirm: 'Esta idea se eliminará de forma permanente.',
+  notes_folder_inbox: 'Sin carpeta',
+  notes_folder_empty: 'Carpeta vacía',
   action_create: 'Crear',
   task_move_to: 'Mover a',
   task_move_next_week: 'Semana siguiente →',
@@ -3543,6 +3549,7 @@ const en_dict: TranslationDict = {
   project_undated: 'No date',
   project_task_ph: 'New task…',
   project_task_date_optional: 'Date (optional)',
+  project_recurring: 'Recurring',
   notes_back: 'Back',
   notes_new: 'New idea',
   notes_untitled: 'Untitled',
@@ -3567,6 +3574,8 @@ const en_dict: TranslationDict = {
   notes_editor_ph: 'Write your idea…',
   notes_delete_title: 'Delete idea',
   notes_delete_confirm: 'This idea will be permanently deleted.',
+  notes_folder_inbox: 'No folder',
+  notes_folder_empty: 'Empty folder',
   action_create: 'Create',
   task_move_to: 'Move to',
   task_move_next_week: 'Next week →',

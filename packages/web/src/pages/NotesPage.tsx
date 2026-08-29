@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarDays,
+  ChevronDown,
   FolderKanban,
   Lightbulb,
   Plus,
@@ -20,10 +21,38 @@ import { useStore } from '@core/store';
 import { fetchAllTasks, type LocatedTaskRow } from '@core/services/taskService';
 import { emptyNoteDoc } from '@core/lib/notes';
 import { isDemoMode } from '@core/lib/demoMode';
-import type { Note, NoteLink, NoteLinkType } from '@core/types';
+import type { Note, NoteLink, NoteLinkType, Project } from '@core/types';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
+
+const FOLDER_KEY = 'dt.notesFolders';
+
+type FolderKey = 'inbox' | `project:${string}` | `sub:${string}:${string}`;
+
+function folderKeyOfNote(note: Note, projects: Project[]): FolderKey {
+  const sub = note.links.find(l => l.type === 'subproject');
+  if (sub) {
+    const projectId =
+      sub.projectId ??
+      projects.find(p => (p.categories ?? []).some(c => c.id === sub.id))?.id;
+    if (projectId) return `sub:${projectId}:${sub.id}`;
+  }
+  const proj = note.links.find(l => l.type === 'project');
+  if (proj) return `project:${proj.id}`;
+  return 'inbox';
+}
+
+function loadExpanded(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(FOLDER_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 export function NotesPage() {
   const { t } = useT();
@@ -40,6 +69,8 @@ export function NotesPage() {
   const [titleDraft, setTitleDraft] = useState('');
   const [linkQuery, setLinkQuery] = useState('');
   const [taskRows, setTaskRows] = useState<LocatedTaskRow[]>([]);
+  const [activeFolder, setActiveFolder] = useState<FolderKey | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(loadExpanded);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selected = notes.find(n => n.id === selectedId) ?? null;
@@ -55,6 +86,19 @@ export function NotesPage() {
     if (selected) setTitleDraft(selected.title);
   }, [selected?.id, selected?.title]);
 
+  function persistExpanded(next: Record<string, boolean>) {
+    setExpanded(next);
+    try {
+      localStorage.setItem(FOLDER_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function toggleFolder(key: FolderKey) {
+    persistExpanded({ ...expanded, [key]: expanded[key] === false });
+  }
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return notes;
@@ -65,12 +109,49 @@ export function NotesPage() {
     });
   }, [notes, search]);
 
+  const tree = useMemo(() => {
+    const byFolder = new Map<FolderKey, Note[]>();
+    for (const note of filtered) {
+      const key = folderKeyOfNote(note, projects);
+      const list = byFolder.get(key) ?? [];
+      list.push(note);
+      byFolder.set(key, list);
+    }
+    return { byFolder };
+  }, [filtered, projects]);
+
+  const searching = search.trim().length > 0;
+
+  function linksForActiveFolder(): NoteLink[] {
+    if (!activeFolder || activeFolder === 'inbox') return [];
+    if (activeFolder.startsWith('project:')) {
+      const id = activeFolder.slice('project:'.length);
+      const project = projects.find(p => p.id === id);
+      return project
+        ? [{ type: 'project', id: project.id, label: project.name }]
+        : [];
+    }
+    const [, projectId, categoryId] = activeFolder.split(':');
+    const project = projects.find(p => p.id === projectId);
+    const cat = project?.categories?.find(c => c.id === categoryId);
+    if (!project || !cat) return [];
+    return [
+      { type: 'project', id: project.id, label: project.name },
+      {
+        type: 'subproject',
+        id: cat.id,
+        projectId: project.id,
+        label: cat.name,
+      },
+    ];
+  }
+
   async function handleCreate() {
     try {
       const created = await addNote({
         title: t('notes_untitled'),
         content: emptyNoteDoc(),
-        links: [],
+        links: linksForActiveFolder(),
       });
       setSelectedId(created.id);
       setMobileEditor(true);
@@ -79,7 +160,10 @@ export function NotesPage() {
     }
   }
 
-  function scheduleSave(noteId: string, patch: { title?: string; content?: Note['content']; links?: NoteLink[] }) {
+  function scheduleSave(
+    noteId: string,
+    patch: { title?: string; content?: Note['content']; links?: NoteLink[] }
+  ) {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       void editNote(noteId, patch).catch(() => {
@@ -107,7 +191,12 @@ export function NotesPage() {
 
   const linkOptions = useMemo(() => {
     const q = linkQuery.trim().toLowerCase();
-    const opts: Array<{ type: NoteLinkType; id: string; projectId?: string | null; label: string }> = [];
+    const opts: Array<{
+      type: NoteLinkType;
+      id: string;
+      projectId?: string | null;
+      label: string;
+    }> = [];
     for (const p of projects) {
       opts.push({ type: 'project', id: p.id, label: p.name });
       for (const c of p.categories ?? []) {
@@ -121,27 +210,48 @@ export function NotesPage() {
     }
     for (const row of taskRows) {
       if (row.kind === 'event' || row.kind === 'possible_event') {
-        opts.push({ type: 'event', id: row.id, projectId: row.projectId, label: row.title });
+        opts.push({
+          type: 'event',
+          id: row.id,
+          projectId: row.projectId,
+          label: row.title,
+        });
       } else if (row.kind === 'task' || row.kind === 'reminder') {
-        opts.push({ type: 'task', id: row.id, projectId: row.projectId, label: row.title });
+        opts.push({
+          type: 'task',
+          id: row.id,
+          projectId: row.projectId,
+          label: row.title,
+        });
       }
     }
     if (!q) return opts.slice(0, 40);
     return opts.filter(o => o.label.toLowerCase().includes(q)).slice(0, 40);
   }, [projects, taskRows, linkQuery]);
 
-  function addLink(opt: { type: NoteLinkType; id: string; projectId?: string | null; label: string }) {
+  function addLink(opt: {
+    type: NoteLinkType;
+    id: string;
+    projectId?: string | null;
+    label: string;
+  }) {
     if (!selected) return;
     if (selected.links.some(l => l.type === opt.type && l.id === opt.id)) return;
     const links = [...selected.links, opt];
-    void editNote(selected.id, { links }).catch(() => showToast(t('notes_save_error'), 'error'));
+    void editNote(selected.id, { links }).catch(() =>
+      showToast(t('notes_save_error'), 'error')
+    );
     setLinkQuery('');
   }
 
   function removeLink(link: NoteLink) {
     if (!selected) return;
-    const links = selected.links.filter(l => !(l.type === link.type && l.id === link.id));
-    void editNote(selected.id, { links }).catch(() => showToast(t('notes_save_error'), 'error'));
+    const links = selected.links.filter(
+      l => !(l.type === link.type && l.id === link.id)
+    );
+    void editNote(selected.id, { links }).catch(() =>
+      showToast(t('notes_save_error'), 'error')
+    );
   }
 
   const linkTypeLabel: Record<NoteLinkType, string> = {
@@ -150,6 +260,89 @@ export function NotesPage() {
     task: t('notes_tag_task'),
     event: t('notes_tag_event'),
   };
+
+  function openNote(note: Note) {
+    setSelectedId(note.id);
+    setMobileEditor(true);
+  }
+
+  function renderNoteRow(note: Note) {
+    return (
+      <button
+        key={note.id}
+        type="button"
+        onClick={() => openNote(note)}
+        className={cn(
+          'mb-0.5 w-full rounded-lg px-3 py-2 text-left transition-colors',
+          selectedId === note.id ? 'bg-accent-teal/10' : 'hover:bg-surface'
+        )}
+      >
+        <p className="truncate text-sm font-medium text-text-primary">
+          {note.title || t('notes_untitled')}
+        </p>
+        <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">
+          {note.excerpt || t('notes_no_excerpt')}
+        </p>
+      </button>
+    );
+  }
+
+  function folderOpen(key: FolderKey): boolean {
+    if (searching) return true;
+    return expanded[key] !== false;
+  }
+
+  function renderFolder(
+    key: FolderKey,
+    label: string,
+    folderNotes: Note[],
+    nested = false
+  ) {
+    if (searching && folderNotes.length === 0) return null;
+    const open = folderOpen(key);
+    return (
+      <div key={key} className={nested ? 'ml-3' : undefined}>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveFolder(key);
+            toggleFolder(key);
+          }}
+          className={cn(
+            'mb-0.5 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide',
+            activeFolder === key
+              ? 'bg-accent-teal/10 text-accent-teal'
+              : 'text-text-muted hover:bg-surface hover:text-text-primary'
+          )}
+        >
+          <ChevronDown
+            className={cn(
+              'h-3.5 w-3.5 shrink-0 transition-transform',
+              open ? 'rotate-0' : '-rotate-90'
+            )}
+          />
+          <FolderKanban className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate normal-case tracking-normal">
+            {label}
+          </span>
+          <span className="tabular-nums text-[10px]">{folderNotes.length}</span>
+        </button>
+        {open ? (
+          <div className="mb-1 pl-2">
+            {folderNotes.length === 0 ? (
+              <p className="px-2 py-1 text-[11px] text-text-muted">
+                {t('notes_folder_empty')}
+              </p>
+            ) : (
+              folderNotes.map(renderNoteRow)
+            )}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  const inboxNotes = tree.byFolder.get('inbox') ?? [];
 
   return (
     <Layout
@@ -176,13 +369,15 @@ export function NotesPage() {
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-1.5">
             {loading ? (
               <p className="px-3 py-4 text-xs text-text-muted">{t('notes_loading')}</p>
-            ) : filtered.length === 0 ? (
+            ) : notes.length === 0 && projects.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
                 <StickyNote className="h-8 w-8 text-text-muted" />
-                <p className="text-sm font-medium text-text-primary">{t('notes_empty_title')}</p>
+                <p className="text-sm font-medium text-text-primary">
+                  {t('notes_empty_title')}
+                </p>
                 <p className="text-xs text-text-muted">{t('notes_empty_hint')}</p>
                 <Button size="sm" onClick={() => void handleCreate()}>
                   <Plus className="mr-1 h-3.5 w-3.5" />
@@ -190,40 +385,69 @@ export function NotesPage() {
                 </Button>
               </div>
             ) : (
-              <ul className="p-1.5">
-                {filtered.map(note => (
-                  <li key={note.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedId(note.id);
-                        setMobileEditor(true);
-                      }}
-                      className={cn(
-                        'mb-0.5 w-full rounded-lg px-3 py-2.5 text-left transition-colors',
-                        selectedId === note.id
-                          ? 'bg-accent-teal/10'
-                          : 'hover:bg-surface'
-                      )}
-                    >
-                      <p className="truncate text-sm font-medium text-text-primary">
-                        {note.title || t('notes_untitled')}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">
-                        {note.excerpt || t('notes_no_excerpt')}
-                      </p>
-                      {note.links.length > 0 ? (
-                        <p className="mt-1 truncate text-[10px] text-accent-teal">
-                          {note.links
-                            .map(l => l.label || linkTypeLabel[l.type])
-                            .slice(0, 3)
-                            .join(' · ')}
-                        </p>
+              <>
+                {projects.map(project => {
+                  const projectKey: FolderKey = `project:${project.id}`;
+                  const ownNotes = tree.byFolder.get(projectKey) ?? [];
+                  const cats = project.categories ?? [];
+                  const hasVisibleChild =
+                    !searching ||
+                    ownNotes.length > 0 ||
+                    cats.some(
+                      c =>
+                        (tree.byFolder.get(`sub:${project.id}:${c.id}`) ?? [])
+                          .length > 0
+                    );
+                  if (searching && !hasVisibleChild) return null;
+                  const open = folderOpen(projectKey);
+                  return (
+                    <div key={project.id} className="mb-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveFolder(projectKey);
+                          toggleFolder(projectKey);
+                        }}
+                        className={cn(
+                          'mb-0.5 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm font-medium',
+                          activeFolder === projectKey
+                            ? 'bg-accent-teal/10 text-accent-teal'
+                            : 'text-text-primary hover:bg-surface'
+                        )}
+                      >
+                        <ChevronDown
+                          className={cn(
+                            'h-3.5 w-3.5 shrink-0 text-text-muted transition-transform',
+                            open ? 'rotate-0' : '-rotate-90'
+                          )}
+                        />
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs"
+                          style={{ backgroundColor: project.color + '22' }}
+                        >
+                          {project.icon}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                      </button>
+                      {open ? (
+                        <div className="mb-1">
+                          {cats.map(cat =>
+                            renderFolder(
+                              `sub:${project.id}:${cat.id}`,
+                              cat.name,
+                              tree.byFolder.get(`sub:${project.id}:${cat.id}`) ??
+                                [],
+                              true
+                            )
+                          )}
+                          {ownNotes.map(renderNoteRow)}
+                        </div>
                       ) : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                    </div>
+                  );
+                })}
+                {renderFolder('inbox', t('notes_folder_inbox'), inboxNotes)}
+              </>
             )}
           </div>
         </aside>
@@ -237,7 +461,9 @@ export function NotesPage() {
           {!selected ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
               <Lightbulb className="h-8 w-8 text-text-muted" />
-              <p className="text-sm font-medium text-text-primary">{t('notes_pick_title')}</p>
+              <p className="text-sm font-medium text-text-primary">
+                {t('notes_pick_title')}
+              </p>
               <p className="max-w-sm text-xs text-text-muted">{t('notes_pick_hint')}</p>
             </div>
           ) : (
@@ -315,7 +541,9 @@ export function NotesPage() {
                                 <span className="text-[10px] uppercase text-text-muted">
                                   {linkTypeLabel[opt.type]}
                                 </span>
-                                <span className="truncate text-text-primary">{opt.label}</span>
+                                <span className="truncate text-text-primary">
+                                  {opt.label}
+                                </span>
                               </button>
                             </li>
                           ))

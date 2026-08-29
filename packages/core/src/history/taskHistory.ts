@@ -7,9 +7,11 @@ import {
 } from '../services/taskService';
 import {
   claimBridgeMovement,
-  confirmBridgeMovement,
+  confirmFinanceForCompletedTask,
   deletePlannedBridgeMovement,
 } from '../lib/finance/bridge';
+import { getFinanceVaultSession } from '../lib/finance/session';
+import { isFinanceKind } from '../lib/financeKinds';
 import type {
   CreateTaskPayload,
   Task,
@@ -466,13 +468,34 @@ export const taskHistory = {
     try {
       await updateTask(locWeekId, locDayId, taskId, serverPatch);
       pushHistory(false);
-      if (patch.completed === true && before.financeMovementId) {
-        store.updateTaskOptimistic(locWeekId, locDayId, taskId, {
-          linkedFinance: before.linkedFinance
-            ? { ...before.linkedFinance, status: 'confirmed' }
-            : before.linkedFinance,
-        });
-        void confirmBridgeMovement(before.financeMovementId).catch(() => undefined);
+      if (patch.completed === true && isFinanceKind(before.kind)) {
+        void confirmFinanceForCompletedTask({
+          dayId: locDayId,
+          title: before.title,
+          kind: before.kind,
+          finance: before.finance,
+          financeMovementId: before.financeMovementId,
+          vault: getFinanceVaultSession() ?? undefined,
+        })
+          .then(async movementId => {
+            if (!movementId) return;
+            if (movementId !== before.financeMovementId) {
+              await updateTask(locWeekId, locDayId, taskId, {
+                financeMovementId: movementId,
+              });
+            }
+            store.updateTaskOptimistic(locWeekId, locDayId, taskId, {
+              financeMovementId: movementId,
+              linkedFinance: {
+                flow: before.kind === 'finance_income' ? 'income' : 'expense',
+                amount: before.finance?.amount ?? before.linkedFinance?.amount ?? 0,
+                currency:
+                  before.finance?.currency ?? before.linkedFinance?.currency ?? 'EUR',
+                status: 'confirmed',
+              },
+            });
+          })
+          .catch(() => undefined);
       }
     } catch (err) {
       if (uid && shouldQueueMutation(err)) {

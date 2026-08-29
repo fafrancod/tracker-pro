@@ -8,6 +8,7 @@ import {
   GanttChart,
   Pencil,
   Plus,
+  Repeat,
   Trash2,
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
@@ -32,7 +33,11 @@ import {
   mergeLocatedRowsIntoStore,
   type LocatedTaskRow,
 } from '@core/services/taskService';
-import { getWeekIdFromDayId } from '@core/lib/recurrence';
+import { formatRecurrenceLabel, getWeekIdFromDayId, isRecurring } from '@core/lib/recurrence';
+import {
+  collapseProjectTaskSeries,
+  type ProjectListTask,
+} from '@core/lib/projectTaskList';
 import { INBOX_DAY_ID, INBOX_WEEK_ID, isCalendarDayId } from '@core/lib/inbox';
 import { useStore } from '@core/store';
 import { isDemoMode } from '@core/lib/demoMode';
@@ -295,16 +300,19 @@ function ProjectWorkspace({
           : null;
       byCat.get(key)!.push(row);
     }
-    for (const list of byCat.values()) {
-      list.sort((a, b) => {
+    const collapsed = new Map<string | null, ProjectListTask[]>();
+    for (const [key, list] of byCat) {
+      const next = collapseProjectTaskSeries(list);
+      next.sort((a, b) => {
         const ac = a.completed === b.completed ? 0 : a.completed ? 1 : -1;
         if (ac !== 0) return ac;
         const ad = isCalendarDayId(a.dayId) ? a.dayId : '9999';
         const bd = isCalendarDayId(b.dayId) ? b.dayId : '9999';
         return ad.localeCompare(bd) || a.title.localeCompare(b.title);
       });
+      collapsed.set(key, next);
     }
-    return { cats, byCat };
+    return { cats, byCat: collapsed };
   }, [project.categories, rows]);
 
   async function handleAddTask(categoryId: string | null, title: string, dayId: string) {
@@ -428,13 +436,21 @@ function TaskGroup({
 }: {
   title: string;
   color: string;
-  tasks: LocatedTaskRow[];
+  tasks: ProjectListTask[];
   onOpen: (row: LocatedTaskRow) => void;
   onAdd: (title: string, dayId: string) => void;
 }) {
   const { t } = useT();
   const [draft, setDraft] = useState('');
   const [dayId, setDayId] = useState('');
+  const recurrenceLabels = {
+    none: t('task_repeat_none'),
+    daily: t('task_repeat_daily'),
+    weekly: t('task_repeat_weekly'),
+    monthly: t('task_repeat_monthly'),
+    yearly: t('task_repeat_yearly'),
+    every: (n: number, unit: string) => `${t('task_repeat_every')} ${n} · ${unit}`,
+  };
 
   return (
     <div className="mb-4 rounded-lg border border-border bg-surface">
@@ -476,10 +492,22 @@ function TaskGroup({
                 >
                   {row.title}
                 </span>
-                <span className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
-                  <CalendarDays className="h-3 w-3" />
-                  {isCalendarDayId(row.dayId) ? row.dayId : t('project_undated')}
-                </span>
+                {isRecurring(row.recurrence) ? (
+                  <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-teal">
+                      <Repeat className="h-3 w-3" />
+                      {t('project_recurring')}
+                    </span>
+                    <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-text-muted">
+                      {formatRecurrenceLabel(row.recurrence, recurrenceLabels)}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flex shrink-0 items-center gap-1 text-[11px] text-text-muted">
+                    <CalendarDays className="h-3 w-3" />
+                    {isCalendarDayId(row.dayId) ? row.dayId : t('project_undated')}
+                  </span>
+                )}
               </button>
             </li>
           ))}

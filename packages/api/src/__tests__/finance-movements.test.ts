@@ -346,6 +346,26 @@ describe('POST /api/finances/movements', () => {
     ]);
   });
 
+  it('concreta una ocurrencia de regla existente sin crear otra regla', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-09-05',
+        flow: 'income',
+        status: 'confirmed',
+        title: 'Salario',
+        amount: 1_200_000,
+        currency: 'CLP',
+        ruleId: 'rule-salary-01',
+      });
+    expect(res.status).toBe(201);
+    expect(lastMovementInsert?.rule_id).toBe('rule-salary-01');
+    expect(lastMovementInsert?.day_id).toBe('2026-09-05');
+    expect(lastMovementInsert?.status).toBe('confirmed');
+    expect(lastRuleInsert).toBeNull();
+  });
+
   it('dayId inválido → 400', async () => {
     const res = await request(app)
       .post('/api/finances/movements')

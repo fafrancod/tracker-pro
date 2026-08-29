@@ -69,6 +69,42 @@ export async function confirmBridgeMovement(movementId: string): Promise<void> {
   await updateFinanceMovement(movementId, { status: 'confirmed' });
 }
 
+/**
+ * Al completar un ingreso/gasto del calendario: confirma el movimiento
+ * vinculado o crea uno ese día si la instancia de la serie no tenía puente.
+ */
+export async function confirmFinanceForCompletedTask(opts: {
+  dayId: string;
+  title: string;
+  kind: Task['kind'];
+  finance: Task['finance'];
+  financeMovementId: string | null;
+  vault?: FinanceVaultCtx;
+  reportingCurrency?: string;
+}): Promise<string | null> {
+  if (opts.kind !== 'finance_income' && opts.kind !== 'finance_expense') {
+    return opts.financeMovementId;
+  }
+  if (opts.financeMovementId) {
+    await confirmBridgeMovement(opts.financeMovementId);
+    return opts.financeMovementId;
+  }
+  const amount = opts.finance?.amount ?? 0;
+  if (!(amount > 0) || !opts.dayId) return null;
+  const created = await createBridgeMovement({
+    dayId: opts.dayId,
+    title: opts.title,
+    amount,
+    currency: opts.finance?.currency ?? 'EUR',
+    certainty: opts.finance?.certainty ?? 'fixed',
+    flow: opts.kind === 'finance_income' ? 'income' : 'expense',
+    vault: opts.vault,
+    reportingCurrency: opts.reportingCurrency,
+  });
+  await confirmBridgeMovement(created.id);
+  return created.id;
+}
+
 /** Elimina el movimiento solo si sigue planned. Confirmed se queda en el mayor. */
 export async function deletePlannedBridgeMovement(
   movementId: string

@@ -211,9 +211,9 @@ export async function createFinanceMovement(
   if (isDemoMode()) {
     const now = new Date().toISOString();
     const id = `demo-fm-${Date.now().toString(36)}`;
-    let ruleId: string | null = null;
+    let ruleId: string | null = payload.ruleId ?? null;
     if (payload.recurrence) {
-      ruleId = `demo-fr-${Date.now().toString(36)}`;
+      ruleId = payload.ruleId ?? `demo-fr-${Date.now().toString(36)}`;
       const rules = loadJson<FinanceRule>(DEMO_RULE_KEY);
       rules.unshift({
         id: ruleId,
@@ -306,10 +306,10 @@ export async function createFinanceMovement(
       categorySplits: payload.categorySplits,
     });
     const payloadEnc = await encryptFinancePayload(vault.dek, inner, aad);
-    let ruleId: string | undefined;
+    let ruleId: string | undefined = payload.ruleId ?? undefined;
     let rulePayloadEnc: string | undefined;
     if (payload.recurrence) {
-      ruleId = newFinanceId('fr');
+      ruleId = payload.ruleId ?? newFinanceId('fr');
       rulePayloadEnc = await encryptFinancePayload(
         vault.dek,
         inner,

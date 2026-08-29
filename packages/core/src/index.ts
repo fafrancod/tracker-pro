@@ -45,6 +45,7 @@ export * from './lib/steps';
 export * from './lib/taskImages';
 export * from './lib/projectCategories';
 export * from './lib/inbox';
+export * from './lib/projectTaskList';
 export * from './lib/notes';
 export * from './lib/gantt';
 export * from './services/noteService';
