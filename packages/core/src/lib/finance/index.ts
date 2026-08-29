@@ -19,3 +19,4 @@ export * from './unseal';
 export * from './session';
 export * from './bridge';
 export * from './fromTasks';
+export * from './listRows';

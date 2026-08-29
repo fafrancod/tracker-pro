@@ -4,7 +4,6 @@ import {
   addDays,
   addMonths,
   format,
-  getDay,
   startOfMonth,
   startOfWeek,
 } from 'date-fns';
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
+import { SimpleSelect } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { DecimalInput } from '@/components/ui/decimal-input';
@@ -60,6 +60,8 @@ import { getDayId, fetchTasksInRange } from '@core/services/taskService';
 import { useStore } from '@core/store';
 import { isFinanceKind } from '@core/lib/financeKinds';
 import {
+  INFERRED_RULE_PREFIX,
+  matchFinanceRuleForMovement,
   mergeBoardFinanceIntoMovements,
   syncBoardFinanceToLedger,
 } from '@core/lib/finance';
@@ -70,6 +72,7 @@ import {
   fetchFinanceLedger,
   resolveFinanceFx,
   updateFinanceMovement,
+  updateFinanceRule,
   type FinanceVaultCtx,
 } from '@core/services/financeMovementService';
 import { fetchFinanceAccounts } from '@core/services/financeAccountService';
@@ -671,6 +674,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       }
     }
     if (mov.virtual) {
+      const virtualRule = mov.ruleId
+        ? ledgerRules.find(rule => rule.id === mov.ruleId)
+        : matchFinanceRuleForMovement(ledgerRules, mov);
       setEditing(null);
       setForm({
         ...emptyForm(mov.dayId, mov.currency),
@@ -679,7 +685,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         title: mov.title,
         amount: mov.amount,
         notes: mov.notes,
-        repeat: 'none',
+        repeat: virtualRule?.frequency ?? 'none',
+        recurrenceDay:
+          virtualRule?.recurrenceDay ??
+          (Number(mov.dayId.slice(8, 10)) || 1),
       });
       setShowAttach(false);
       setDialogOpen(true);
@@ -706,9 +715,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         });
       }
     }
-    const recurringRule = firstPurchaseRow.ruleId
-      ? ledgerRules.find(rule => rule.id === firstPurchaseRow.ruleId)
-      : undefined;
+    const recurringRule = matchFinanceRuleForMovement(
+      ledgerRules,
+      firstPurchaseRow
+    );
     setEditing(mov);
     setShowAttach(
       purchaseRows.some(row => (row.images?.length ?? 0) > 0)
@@ -862,10 +872,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         form.repeat !== 'none'
           ? {
               frequency: form.repeat,
-              recurrenceDay:
-                form.repeat === 'weekly'
-                  ? getDay(new Date(`${form.dayId}T00:00:00`))
-                  : form.recurrenceDay,
+              recurrenceDay: form.recurrenceDay,
             }
           : null,
     };
@@ -1026,9 +1033,44 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           <MovementsListPanel
             movements={paymentLedger}
             rules={ledgerRules}
-            todayDayId={todayId}
             money={money}
             onEdit={openEdit}
+            onUpdateRule={(rule, patch, sample) => {
+              void (async () => {
+                try {
+                  if (rule.id.startsWith(INFERRED_RULE_PREFIX)) {
+                    const cadence = {
+                      frequency: patch.frequency ?? rule.frequency,
+                      recurrenceDay: patch.recurrenceDay ?? rule.recurrenceDay,
+                    };
+                    await createFinanceMovement(
+                      {
+                        dayId: sample.dayId,
+                        flow: sample.flow,
+                        status: sample.status,
+                        currency: sample.currency,
+                        title: sample.title,
+                        amount: sample.amount,
+                        notes: sample.notes,
+                        certainty: sample.certainty,
+                        recurrence: cadence,
+                        replaceMovementId:
+                          sample.virtual || sample.id.startsWith('rule:')
+                            ? undefined
+                            : sample.id,
+                      },
+                      vault ?? undefined
+                    );
+                  } else {
+                    await updateFinanceRule(rule.id, patch);
+                  }
+                  showToast(t('fin_saved'), 'success');
+                  await reload();
+                } catch {
+                  showToast(t('fin_save_error'), 'error');
+                }
+              })();
+            }}
           />
         ) : null}
 
@@ -1945,40 +1987,61 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             {form.flow !== 'investment' && (
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_repeat')}</span>
-                <select
+                <SimpleSelect
                   value={form.repeat}
-                  onChange={e =>
+                  onChange={value =>
                     setForm(f => ({
                       ...f,
-                      repeat: e.target.value as MovementForm['repeat'],
+                      repeat: value as MovementForm['repeat'],
+                      recurrenceDay:
+                        value === 'weekly'
+                          ? Math.min(6, f.recurrenceDay > 6 ? 1 : f.recurrenceDay)
+                          : Math.min(31, Math.max(1, f.recurrenceDay || 1)),
                     }))
                   }
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  <option value="none">{t('fin_repeat_none')}</option>
-                  <option value="monthly">{t('fin_freq_monthly')}</option>
-                  <option value="weekly">{t('fin_freq_weekly')}</option>
-                </select>
-              </label>
-            )}
-            {form.repeat === 'monthly' && (
-              <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_field_monthday')}</span>
-                <Input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={form.recurrenceDay}
-                  onChange={e =>
-                    setForm(f => ({
-                      ...f,
-                      recurrenceDay: Number(e.target.value) || 1,
-                    }))
-                  }
-                  className="h-9 text-sm"
+                  options={[
+                    { value: 'none', label: t('fin_repeat_none') },
+                    { value: 'monthly', label: t('fin_freq_monthly') },
+                    { value: 'weekly', label: t('fin_freq_weekly') },
+                  ]}
                 />
               </label>
             )}
+            {form.repeat === 'monthly' ? (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_field_monthday')}</span>
+                <SimpleSelect
+                  value={String(form.recurrenceDay)}
+                  onChange={value =>
+                    setForm(f => ({ ...f, recurrenceDay: Number(value) || 1 }))
+                  }
+                  options={Array.from({ length: 31 }, (_, i) => ({
+                    value: String(i + 1),
+                    label: t('fin_list_month_day').replace('{n}', String(i + 1)),
+                  }))}
+                />
+              </label>
+            ) : null}
+            {form.repeat === 'weekly' ? (
+              <label className="block space-y-1 text-xs text-text-muted">
+                <span>{t('fin_field_weekday')}</span>
+                <SimpleSelect
+                  value={String(form.recurrenceDay)}
+                  onChange={value =>
+                    setForm(f => ({ ...f, recurrenceDay: Number(value) }))
+                  }
+                  options={[
+                    t('fin_weekday_0'),
+                    t('fin_weekday_1'),
+                    t('fin_weekday_2'),
+                    t('fin_weekday_3'),
+                    t('fin_weekday_4'),
+                    t('fin_weekday_5'),
+                    t('fin_weekday_6'),
+                  ].map((label, i) => ({ value: String(i), label }))}
+                />
+              </label>
+            ) : null}
             <label className="block space-y-1 text-xs text-text-muted">
               <span>{t('fin_field_notes')}</span>
               <textarea

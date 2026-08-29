@@ -673,3 +673,28 @@ export async function sealFinanceRule(
     payloadEnc,
   });
 }
+
+export async function updateFinanceRule(
+  ruleId: string,
+  patch: { frequency?: 'monthly' | 'weekly'; recurrenceDay?: number }
+): Promise<{ id: string; frequency: 'monthly' | 'weekly'; recurrenceDay: number }> {
+  if (isDemoMode()) {
+    const rules = loadJson<FinanceRule>(DEMO_RULE_KEY);
+    const idx = rules.findIndex(r => r.id === ruleId);
+    if (idx >= 0) {
+      rules[idx] = {
+        ...rules[idx],
+        frequency: patch.frequency ?? rules[idx].frequency,
+        recurrenceDay: patch.recurrenceDay ?? rules[idx].recurrenceDay,
+        updatedAt: new Date().toISOString(),
+      };
+      saveJson(DEMO_RULE_KEY, rules);
+      return {
+        id: ruleId,
+        frequency: rules[idx].frequency,
+        recurrenceDay: rules[idx].recurrenceDay,
+      };
+    }
+  }
+  return api.patch(`/api/finances/rules/${encodeURIComponent(ruleId)}`, patch);
+}

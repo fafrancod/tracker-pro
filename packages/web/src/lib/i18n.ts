@@ -72,6 +72,7 @@ export interface TranslationDict {
   fin_list_empty: string;
   fin_list_empty_hint: string;
   fin_list_untitled: string;
+  fin_list_month_day: string;
   fin_tab_accounts: string;
   fin_tab_goals: string;
   fin_tab_credits: string;
@@ -1400,6 +1401,7 @@ const es_dict: TranslationDict = {
   fin_list_empty: 'No hay movimientos con ese filtro',
   fin_list_empty_hint: 'Cambia el filtro o crea un movimiento con el botón Añadir.',
   fin_list_untitled: 'Sin título',
+  fin_list_month_day: 'Día {n}',
   fin_tab_accounts: 'Medios de pago',
   fin_tab_goals: 'Objetivos',
   fin_tab_credits: 'Créditos',
@@ -2835,6 +2837,7 @@ const en_dict: TranslationDict = {
   fin_list_empty: 'No movements match this filter',
   fin_list_empty_hint: 'Change the filter or add a movement.',
   fin_list_untitled: 'Untitled',
+  fin_list_month_day: 'Day {n}',
   fin_tab_accounts: 'Payment methods',
   fin_tab_goals: 'Goals',
   fin_tab_credits: 'Credits',

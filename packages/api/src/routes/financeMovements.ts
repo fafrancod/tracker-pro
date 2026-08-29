@@ -1138,20 +1138,60 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
     const uid = req.user!.uid;
     const { ruleId } = req.params;
     const body = z
-      .object({ payloadEnc: z.string().min(16).max(24_000) })
+      .object({
+        payloadEnc: z.string().min(16).max(24_000).optional(),
+        frequency: z.enum(['monthly', 'weekly']).optional(),
+        recurrenceDay: z.number().int().min(0).max(31).optional(),
+      })
+      .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' })
       .parse(req.body);
+
+    const { data: existing, error: fetchError } = await getSupabaseAdmin()
+      .from('finance_rules')
+      .select('*')
+      .eq('id', ruleId)
+      .eq('user_id', uid)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing) throw ApiError.notFound('Regla no encontrada');
+
+    const nextFrequency =
+      body.frequency ??
+      (existing.frequency === 'weekly' ? 'weekly' : 'monthly');
+    const nextDay =
+      body.recurrenceDay !== undefined
+        ? body.recurrenceDay
+        : Number(existing.recurrence_day ?? 1);
+    if (nextFrequency === 'weekly' && (nextDay < 0 || nextDay > 6)) {
+      throw ApiError.badRequest('recurrenceDay semanal debe ser 0–6');
+    }
+    if (nextFrequency === 'monthly' && (nextDay < 1 || nextDay > 31)) {
+      throw ApiError.badRequest('recurrenceDay mensual debe ser 1–31');
+    }
+
+    const update: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (body.frequency) update.frequency = body.frequency;
+    if (body.recurrenceDay !== undefined) update.recurrence_day = body.recurrenceDay;
+    if (body.payloadEnc) {
+      update.payload = {};
+      update.payload_enc = body.payloadEnc;
+      update.enc_v = '1';
+    }
+
     const { error } = await getSupabaseAdmin()
       .from('finance_rules')
-      .update({
-        payload: {},
-        payload_enc: body.payloadEnc,
-        enc_v: '1',
-        updated_at: new Date().toISOString(),
-      })
+      .update(update)
       .eq('id', ruleId)
       .eq('user_id', uid);
     if (error) throw error;
-    res.json({ id: ruleId, sealed: true });
+    res.json({
+      id: ruleId,
+      frequency: nextFrequency,
+      recurrenceDay: nextDay,
+      sealed: Boolean(body.payloadEnc),
+    });
   } catch (err) {
     next(err);
   }

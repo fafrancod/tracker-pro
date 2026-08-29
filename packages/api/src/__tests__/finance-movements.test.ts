@@ -16,6 +16,7 @@ let ruleRows: Record<string, unknown>[] = [];
 let lastMovementInsert: Record<string, unknown> | null = null;
 let lastMovementInsertRows: Record<string, unknown>[] = [];
 let lastRuleInsert: Record<string, unknown> | null = null;
+let lastRuleUpdate: Record<string, unknown> | null = null;
 
 function chainEqMaybeSingle(result: { data: unknown; error: null }) {
   const terminal = {
@@ -103,6 +104,10 @@ function buildFromMock() {
           c.eq = vi.fn(() => c);
           c.lte = vi.fn(() => c);
           c.order = vi.fn(async () => ({ data: ruleRows, error: null }));
+          c.maybeSingle = vi.fn(async () => ({
+            data: ruleRows[0] ?? null,
+            error: null,
+          }));
           return c;
         }),
         insert: vi.fn(async (row: Record<string, unknown>) => {
@@ -110,7 +115,8 @@ function buildFromMock() {
           ruleRows = [...ruleRows, row];
           return { data: null, error: null };
         }),
-        update: vi.fn(() => {
+        update: vi.fn((row: Record<string, unknown>) => {
+          lastRuleUpdate = row;
           const c: Record<string, unknown> = {};
           c.eq = vi.fn(() => c);
           c.then = (resolve: (v: unknown) => void) =>
@@ -129,6 +135,7 @@ beforeEach(() => {
   lastMovementInsert = null;
   lastMovementInsertRows = [];
   lastRuleInsert = null;
+  lastRuleUpdate = null;
   vi.mocked(getSupabaseAdmin).mockReturnValue({
     auth: {
       getUser: vi.fn(async (token: string) => {
@@ -543,5 +550,32 @@ describe('bridge vida ↔ dinero', () => {
     expect(res.status).toBe(200);
     expect(res.body.dayId).toBe('2026-09-23');
     expect(res.body.purchaseDayId).toBe('2026-08-23');
+  });
+});
+
+describe('PATCH /api/finances/rules/:ruleId', () => {
+  it('cambia frecuencia y día sin exigir payloadEnc', async () => {
+    ruleRows = [
+      {
+        id: 'rule-globant',
+        user_id: 'test-uid',
+        flow: 'income',
+        currency: 'CLP',
+        frequency: 'monthly',
+        recurrence_day: 25,
+        start_day_id: '2026-01-25',
+        payload: { title: 'Ingreso Globant', amount: 2500000 },
+        active: true,
+      },
+    ];
+    const res = await request(app)
+      .patch('/api/finances/rules/rule-globant')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ frequency: 'weekly', recurrenceDay: 1 });
+    expect(res.status).toBe(200);
+    expect(res.body.frequency).toBe('weekly');
+    expect(res.body.recurrenceDay).toBe(1);
+    expect(lastRuleUpdate?.frequency).toBe('weekly');
+    expect(lastRuleUpdate?.recurrence_day).toBe(1);
   });
 });

@@ -1,66 +1,78 @@
 import { useMemo, useState } from 'react';
 import { Pencil, Repeat, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { SimpleSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useT } from '@/hooks/useT';
-import { expandFinanceRules } from '@core/lib/finance/expandRules';
-import { addDaysToDayId } from '@core/lib/recurrence';
-import type { FinanceMovement, FinanceRule } from '@core/lib/finance/types';
+import { collapseFinanceListRows } from '@core/lib/finance/listRows';
+import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from '@core/lib/finance/types';
+import type { TKey } from '@/lib/i18n';
 
 type RecurrenceFilter = 'all' | 'recurring' | 'one_off';
 type FlowFilter = 'all' | 'income' | 'expense' | 'investment';
 
+const WEEKDAY_KEYS: TKey[] = [
+  'fin_weekday_0',
+  'fin_weekday_1',
+  'fin_weekday_2',
+  'fin_weekday_3',
+  'fin_weekday_4',
+  'fin_weekday_5',
+  'fin_weekday_6',
+];
+
 export function MovementsListPanel({
   movements,
   rules,
-  todayDayId,
   money,
   onEdit,
+  onUpdateRule,
 }: {
   movements: FinanceMovement[];
   rules: FinanceRule[];
-  todayDayId: string;
   money: (n: number, currency: string) => string;
   onEdit: (mov: FinanceMovement) => void;
+  onUpdateRule: (
+    rule: FinanceRule,
+    patch: { frequency?: FinanceRuleFrequency; recurrenceDay?: number },
+    sample: FinanceMovement
+  ) => void;
 }) {
   const { t } = useT();
   const [query, setQuery] = useState('');
   const [recurrence, setRecurrence] = useState<RecurrenceFilter>('all');
   const [flow, setFlow] = useState<FlowFilter>('all');
 
-  const rows = useMemo(() => {
-    const from = addDaysToDayId(todayDayId, -400);
-    const to = addDaysToDayId(todayDayId, 400);
-    const extra = expandFinanceRules(rules, movements, from, to);
-    const byId = new Map<string, FinanceMovement>();
-    for (const mov of [...movements, ...extra]) {
-      if (!byId.has(mov.id)) byId.set(mov.id, mov);
-    }
-    const q = query.trim().toLowerCase();
-    return [...byId.values()]
-      .filter(mov => {
-        if (flow !== 'all' && mov.flow !== flow) return false;
-        const recurring = Boolean(mov.ruleId);
-        if (recurrence === 'recurring' && !recurring) return false;
-        if (recurrence === 'one_off' && recurring) return false;
-        if (!q) return true;
-        return (
-          mov.title.toLowerCase().includes(q) ||
-          mov.notes.toLowerCase().includes(q) ||
-          mov.dayId.includes(q)
-        );
-      })
-      .sort(
-        (a, b) =>
-          b.dayId.localeCompare(a.dayId) ||
-          a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
-      );
-  }, [movements, rules, todayDayId, query, recurrence, flow]);
+  const freqOptions = [
+    { value: 'monthly', label: t('fin_freq_monthly') },
+    { value: 'weekly', label: t('fin_freq_weekly') },
+  ];
+  const weekdayOptions = WEEKDAY_KEYS.map((key, i) => ({
+    value: String(i),
+    label: t(key),
+  }));
+  const monthDayOptions = Array.from({ length: 31 }, (_, i) => ({
+    value: String(i + 1),
+    label: t('fin_list_month_day').replace('{n}', String(i + 1)),
+  }));
 
-  const ruleById = useMemo(() => {
-    const map = new Map(rules.map(rule => [rule.id, rule]));
-    return map;
-  }, [rules]);
+  const rows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return collapseFinanceListRows(movements, rules).filter(row => {
+      const sample = row.kind === 'one_off' ? row.movement : row.sample;
+      if (flow !== 'all' && sample.flow !== flow) return false;
+      if (recurrence === 'recurring' && row.kind !== 'series') return false;
+      if (recurrence === 'one_off' && row.kind !== 'one_off') return false;
+      if (!q) return true;
+      const title = row.kind === 'one_off' ? row.movement.title : row.rule.title;
+      const notes = row.kind === 'one_off' ? row.movement.notes : row.rule.notes;
+      return (
+        title.toLowerCase().includes(q) ||
+        notes.toLowerCase().includes(q) ||
+        sample.dayId.includes(q)
+      );
+    });
+  }, [movements, rules, query, recurrence, flow]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -126,72 +138,122 @@ export function MovementsListPanel({
         </div>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
-          {rows.map(mov => {
-            const rule = mov.ruleId ? ruleById.get(mov.ruleId) : undefined;
-            const recurring = Boolean(mov.ruleId);
+          {rows.map(row => {
+            const sample = row.kind === 'one_off' ? row.movement : row.sample;
+            const title = row.kind === 'one_off' ? row.movement.title : row.rule.title;
             return (
-              <li key={mov.id}>
+              <li key={row.key} className="flex items-center gap-2 px-3 py-2.5">
                 <button
                   type="button"
-                  onClick={() => onEdit(mov)}
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-background"
+                  onClick={() => onEdit(sample)}
+                  className="min-w-0 flex-1 text-left hover:opacity-90"
                 >
-                  <span
-                    className={cn(
-                      'w-14 shrink-0 text-[11px] tabular-nums text-text-muted',
-                    )}
-                  >
-                    {mov.dayId.slice(5)}
+                  <span className="block truncate text-sm text-text-primary">
+                    {title || t('fin_list_untitled')}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm text-text-primary">
-                      {mov.title || t('fin_list_untitled')}
+                  <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-text-muted">
+                    {row.kind === 'one_off' ? (
+                      <span>{sample.dayId}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/15 px-1.5 py-0.5 font-medium text-accent-teal">
+                        <Repeat className="h-3 w-3" />
+                        {t('fin_kind_recurring')}
+                      </span>
+                    )}
+                    <span>·</span>
+                    <span>
+                      {sample.flow === 'income'
+                        ? t('fin_flow_income')
+                        : sample.flow === 'investment'
+                          ? t('fin_flow_investment')
+                          : t('fin_flow_expense')}
                     </span>
-                    <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] text-text-muted">
-                      <span>
-                        {mov.flow === 'income'
-                          ? t('fin_flow_income')
-                          : mov.flow === 'investment'
-                            ? t('fin_flow_investment')
-                            : t('fin_flow_expense')}
-                      </span>
-                      <span>·</span>
-                      <span>
-                        {mov.status === 'confirmed'
-                          ? t('fin_status_confirmed')
-                          : mov.status === 'planned'
-                            ? t('fin_status_planned')
-                            : mov.status}
-                      </span>
-                      {recurring ? (
-                        <span className="inline-flex items-center gap-0.5 rounded-full bg-accent-teal/15 px-1.5 py-0.5 font-medium text-accent-teal">
-                          <Repeat className="h-3 w-3" />
-                          {t('fin_kind_recurring')}
-                          {rule
-                            ? ` · ${
-                                rule.frequency === 'weekly'
-                                  ? t('fin_freq_weekly')
-                                  : t('fin_freq_monthly')
-                              }`
-                            : ''}
+                    {row.kind === 'one_off' ? (
+                      <>
+                        <span>·</span>
+                        <span>
+                          {sample.status === 'confirmed'
+                            ? t('fin_status_confirmed')
+                            : t('fin_status_planned')}
                         </span>
-                      ) : null}
-                    </span>
+                      </>
+                    ) : null}
                   </span>
-                  <span
-                    className={cn(
-                      'shrink-0 text-sm font-semibold tabular-nums',
-                      mov.flow === 'income'
-                        ? 'text-accent-green'
-                        : mov.flow === 'investment'
-                          ? 'text-accent-teal'
-                          : 'text-accent-red'
-                    )}
+                </button>
+                {row.kind === 'series' ? (
+                  <div
+                    className="flex shrink-0 flex-wrap items-center gap-1"
+                    onClick={e => e.stopPropagation()}
+                    onPointerDown={e => e.stopPropagation()}
                   >
-                    {mov.flow === 'income' ? '+' : mov.flow === 'expense' ? '−' : ''}
-                    {money(mov.amount, mov.currency)}
-                  </span>
-                  <Pencil className="h-3.5 w-3.5 shrink-0 text-text-muted" />
+                    <SimpleSelect
+                      aria-label={t('fin_repeat')}
+                      value={row.rule.frequency}
+                      onChange={value =>
+                        onUpdateRule(
+                          row.rule,
+                          {
+                            frequency: value as FinanceRuleFrequency,
+                            recurrenceDay:
+                              value === 'weekly'
+                                ? Math.min(
+                                    6,
+                                    Math.max(
+                                      0,
+                                      row.rule.recurrenceDay > 6 ? 1 : row.rule.recurrenceDay
+                                    )
+                                  )
+                                : Math.min(31, Math.max(1, row.rule.recurrenceDay || 1)),
+                          },
+                          row.sample
+                        )
+                      }
+                      options={freqOptions}
+                      className="h-8 w-[7.5rem] text-[11px]"
+                    />
+                    <SimpleSelect
+                      aria-label={
+                        row.rule.frequency === 'weekly'
+                          ? t('fin_field_weekday')
+                          : t('fin_field_monthday')
+                      }
+                      value={String(row.rule.recurrenceDay)}
+                      onChange={value =>
+                        onUpdateRule(
+                          row.rule,
+                          { recurrenceDay: Number(value) },
+                          row.sample
+                        )
+                      }
+                      options={
+                        row.rule.frequency === 'weekly'
+                          ? weekdayOptions
+                          : monthDayOptions
+                      }
+                      className="h-8 w-[8.5rem] text-[11px]"
+                    />
+                  </div>
+                ) : null}
+                <span
+                  className={cn(
+                    'shrink-0 text-sm font-semibold tabular-nums',
+                    sample.flow === 'income'
+                      ? 'text-accent-green'
+                      : sample.flow === 'investment'
+                        ? 'text-accent-teal'
+                        : 'text-accent-red'
+                  )}
+                >
+                  {sample.flow === 'income' ? '+' : sample.flow === 'expense' ? '−' : ''}
+                  {money(sample.amount, sample.currency)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onEdit(sample)}
+                  className="rounded-md p-1 text-text-muted hover:bg-background hover:text-text-primary"
+                  aria-label={t('fin_edit')}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
                 </button>
               </li>
             );
