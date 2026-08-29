@@ -7,6 +7,20 @@ import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from './types
 
 export const INFERRED_RULE_PREFIX = 'inferred:';
 
+export type FinanceListSeriesHint = {
+  seriesId: string;
+  title: string;
+  flow: FinanceMovement['flow'];
+  frequency: FinanceRuleFrequency;
+  recurrenceDay: number;
+  startDayId: string;
+  amount: number;
+  currency: string;
+  notes: string;
+  certainty: FinanceMovement['certainty'];
+  sourceTaskIds: string[];
+};
+
 export type FinanceListRow =
   | { key: string; kind: 'one_off'; movement: FinanceMovement }
   | {
@@ -48,6 +62,62 @@ function weekdayOf(dayId: string): number {
 function dayGap(a: string, b: string): number {
   const ms = Date.parse(`${b}T00:00:00`) - Date.parse(`${a}T00:00:00`);
   return Math.round(ms / 86_400_000);
+}
+
+function amountsMatch(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.009;
+}
+
+function uniqueAmountFlowRule(
+  rules: FinanceRule[],
+  mov: Pick<FinanceMovement, 'flow' | 'title' | 'amount'>
+): FinanceRule | undefined {
+  const hits = rules.filter(
+    rule => rule.flow === mov.flow && amountsMatch(rule.amount, mov.amount)
+  );
+  if (hits.length !== 1) return undefined;
+  const rule = hits[0]!;
+  const movTitle = normTitle(mov.title);
+  const ruleTitle = normTitle(rule.title);
+  if (ruleTitle && movTitle && ruleTitle !== movTitle) return undefined;
+  return rule;
+}
+
+function matchHint(
+  hints: FinanceListSeriesHint[],
+  mov: Pick<FinanceMovement, 'flow' | 'title' | 'sourceTaskId'>
+): FinanceListSeriesHint | undefined {
+  if (mov.sourceTaskId) {
+    const bySource = hints.find(hint => hint.sourceTaskIds.includes(mov.sourceTaskId!));
+    if (bySource) return bySource;
+  }
+  const title = normTitle(mov.title);
+  if (!title) return undefined;
+  return hints.find(hint => hint.flow === mov.flow && normTitle(hint.title) === title);
+}
+
+function ruleFromHint(hint: FinanceListSeriesHint): FinanceRule {
+  return {
+    id: `${INFERRED_RULE_PREFIX}task:${hint.seriesId}`,
+    flow: hint.flow === 'investment' ? 'expense' : hint.flow,
+    currency: hint.currency,
+    frequency: hint.frequency,
+    recurrenceDay: hint.recurrenceDay,
+    startDayId: hint.startDayId,
+    title: hint.title,
+    amount: hint.amount,
+    notes: hint.notes,
+    certainty: hint.certainty,
+    active: true,
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
+function pickSample(instances: FinanceMovement[]): FinanceMovement {
+  const real = instances.filter(item => !item.virtual);
+  const pool = real.length > 0 ? real : instances;
+  return [...pool].sort((a, b) => b.dayId.localeCompare(a.dayId))[0]!;
 }
 
 function installmentListKey(mov: FinanceMovement): string | null {
@@ -188,28 +258,39 @@ function sampleFromRule(rule: FinanceRule): FinanceMovement {
 
 export function collapseFinanceListRows(
   movements: FinanceMovement[],
-  rules: FinanceRule[]
+  rules: FinanceRule[],
+  hints: FinanceListSeriesHint[] = []
 ): FinanceListRow[] {
   const activeRules = rules.filter(rule => rule.active);
   const byRule = new Map<string, FinanceMovement[]>();
+  const byHint = new Map<string, FinanceMovement[]>();
   const unmatched: FinanceMovement[] = [];
   const oneOff: FinanceMovement[] = [];
   const installmentGroups = new Map<string, FinanceMovement[]>();
 
   for (const mov of movements) {
-    if (mov.virtual) continue;
-    const installmentKey = installmentListKey(mov);
+    const installmentKey = mov.virtual ? null : installmentListKey(mov);
     if (installmentKey) {
       const list = installmentGroups.get(installmentKey) ?? [];
       list.push(mov);
       installmentGroups.set(installmentKey, list);
       continue;
     }
-    const matched = matchFinanceRuleForMovement(activeRules, mov);
+    if (mov.virtual && installmentListKey(mov)) continue;
+    const matched =
+      matchFinanceRuleForMovement(activeRules, mov) ??
+      uniqueAmountFlowRule(activeRules, mov);
     if (matched) {
       const list = byRule.get(matched.id) ?? [];
       list.push(mov);
       byRule.set(matched.id, list);
+      continue;
+    }
+    const hint = matchHint(hints, mov);
+    if (hint) {
+      const list = byHint.get(hint.seriesId) ?? [];
+      list.push(mov);
+      byHint.set(hint.seriesId, list);
       continue;
     }
     unmatched.push(mov);
@@ -247,8 +328,7 @@ export function collapseFinanceListRows(
   const used = new Set<string>();
   const ruleById = new Map(activeRules.map(rule => [rule.id, rule]));
   for (const [ruleId, instances] of byRule) {
-    instances.sort((a, b) => b.dayId.localeCompare(a.dayId));
-    const sample = instances[0]!;
+    const sample = pickSample(instances);
     const rule = ruleById.get(ruleId);
     if (!rule) {
       rows.push({ key: `one:${sample.id}`, kind: 'one_off', movement: sample });
@@ -260,7 +340,22 @@ export function collapseFinanceListRows(
       kind: 'series',
       rule,
       sample,
-      instanceCount: instances.length,
+      instanceCount: instances.filter(item => !item.virtual).length || instances.length,
+    });
+  }
+
+  const hintById = new Map(hints.map(hint => [hint.seriesId, hint]));
+  const usedHints = new Set<string>();
+  for (const [seriesId, instances] of byHint) {
+    const hint = hintById.get(seriesId);
+    if (!hint) continue;
+    usedHints.add(seriesId);
+    rows.push({
+      key: `series:hint:${seriesId}`,
+      kind: 'series',
+      rule: ruleFromHint(hint),
+      sample: pickSample(instances),
+      instanceCount: instances.filter(item => !item.virtual).length || instances.length,
     });
   }
 
@@ -279,15 +374,14 @@ export function collapseFinanceListRows(
       }
       continue;
     }
-    group.sort((a, b) => b.dayId.localeCompare(a.dayId));
-    const sample = group[0]!;
+    const sample = pickSample(group);
     const rule = syntheticRule(sample, cadence, group);
     rows.push({
       key: `series:${rule.id}`,
       kind: 'series',
       rule,
       sample,
-      instanceCount: group.length,
+      instanceCount: group.filter(item => !item.virtual).length || group.length,
     });
   }
 
@@ -296,9 +390,33 @@ export function collapseFinanceListRows(
       .filter((row): row is Extract<FinanceListRow, { kind: 'series' }> => row.kind === 'series')
       .map(row => `${row.rule.flow}|${normTitle(row.rule.title)}`)
   );
+  const seriesAmounts = new Set(
+    rows
+      .filter((row): row is Extract<FinanceListRow, { kind: 'series' }> => row.kind === 'series')
+      .map(row => `${row.rule.flow}|${row.rule.amount}`)
+  );
+  for (const hint of hints) {
+    if (usedHints.has(hint.seriesId)) continue;
+    const fp = `${hint.flow}|${normTitle(hint.title)}`;
+    if (seriesFingerprints.has(fp)) continue;
+    usedHints.add(hint.seriesId);
+    seriesFingerprints.add(fp);
+    const rule = ruleFromHint(hint);
+    rows.push({
+      key: `series:hint:${hint.seriesId}`,
+      kind: 'series',
+      rule,
+      sample: sampleFromRule(rule),
+      instanceCount: 0,
+    });
+  }
   for (const rule of activeRules) {
     if (used.has(rule.id)) continue;
-    if (seriesFingerprints.has(`${rule.flow}|${normTitle(rule.title)}`)) continue;
+    const fp = `${rule.flow}|${normTitle(rule.title)}`;
+    if (fp.endsWith('|') && seriesAmounts.has(`${rule.flow}|${rule.amount}`)) {
+      continue;
+    }
+    if (seriesFingerprints.has(fp)) continue;
     rows.push({
       key: `series:${rule.id}`,
       kind: 'series',

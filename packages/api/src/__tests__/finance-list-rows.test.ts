@@ -251,4 +251,47 @@ describe('collapseFinanceListRows', () => {
     expect(purchase?.kind === 'installment' && purchase.endsOn).toBe('2027-02-23');
     expect(purchase?.kind === 'installment' && purchase.totalAmount).toBe(240000);
   });
+
+  it('marca como serie un ingreso del tablero aunque solo haya una fila en el mayor', () => {
+    const rows = collapseFinanceListRows(
+      [
+        mov({
+          id: 'globant-1',
+          dayId: '2026-08-25',
+          title: 'Ingreso Globant',
+          sourceTaskId: 'task-g1',
+        }),
+      ],
+      [],
+      [
+        {
+          seriesId: 'series-globant',
+          title: 'Ingreso Globant',
+          flow: 'income',
+          frequency: 'monthly',
+          recurrenceDay: 25,
+          startDayId: '2026-01-25',
+          amount: 1_000_000,
+          currency: 'CLP',
+          notes: '',
+          certainty: 'fixed',
+          sourceTaskIds: ['task-g1', 'task-g2'],
+        },
+      ]
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.kind).toBe('series');
+    expect(rows[0]?.kind === 'series' && rows[0].rule.frequency).toBe('monthly');
+    expect(rows[0]?.kind === 'series' && rows[0].rule.recurrenceDay).toBe(25);
+  });
+
+  it('une un movimiento a la regla del mismo importe si el título de la regla viene vacío', () => {
+    const rows = collapseFinanceListRows(
+      [mov({ id: 'g1', dayId: '2026-08-25', title: 'Ingreso Globant', amount: 2_500_000 })],
+      [{ ...globantRule, title: '' }]
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.kind).toBe('series');
+    expect(rows[0]?.kind === 'series' && rows[0].rule.id).toBe('rule-globant');
+  });
 });

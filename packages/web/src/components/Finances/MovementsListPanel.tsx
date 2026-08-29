@@ -7,6 +7,7 @@ import { useT } from '@/hooks/useT';
 import {
   collapseFinanceListRows,
   type FinanceListRow,
+  type FinanceListSeriesHint,
 } from '@core/lib/finance/listRows';
 import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from '@core/lib/finance/types';
 import type { TKey } from '@/lib/i18n';
@@ -41,12 +42,14 @@ const WEEKDAY_KEYS: TKey[] = [
 export function MovementsListPanel({
   movements,
   rules,
+  seriesHints = [],
   money,
   onEdit,
   onUpdateRule,
 }: {
   movements: FinanceMovement[];
   rules: FinanceRule[];
+  seriesHints?: FinanceListSeriesHint[];
   money: (n: number, currency: string) => string;
   onEdit: (mov: FinanceMovement) => void;
   onUpdateRule: (
@@ -75,7 +78,7 @@ export function MovementsListPanel({
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return collapseFinanceListRows(movements, rules).filter(row => {
+    return collapseFinanceListRows(movements, rules, seriesHints).filter(row => {
       const sample = rowSample(row);
       if (flow !== 'all' && sample.flow !== flow) return false;
       if (recurrence === 'recurring' && row.kind !== 'series') return false;
@@ -95,7 +98,7 @@ export function MovementsListPanel({
         (row.kind === 'installment' && row.endsOn.includes(q))
       );
     });
-  }, [movements, rules, query, recurrence, flow]);
+  }, [movements, rules, seriesHints, query, recurrence, flow]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -160,7 +163,7 @@ export function MovementsListPanel({
           <p className="mt-1 text-xs text-text-muted">{t('fin_list_empty_hint')}</p>
         </div>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface">
+        <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface pb-20">
           {rows.map(row => {
             const sample = rowSample(row);
             const title = rowTitle(row);

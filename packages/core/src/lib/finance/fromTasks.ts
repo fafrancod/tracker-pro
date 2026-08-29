@@ -1,11 +1,70 @@
 import type { Task } from '../../types';
 import { isFinanceKind } from '../financeKinds';
 import { isCalendarDayId } from '../inbox';
-import type { FinanceMovement } from './types';
+import { isRecurring } from '../recurrence';
+import type { FinanceListSeriesHint } from './listRows';
+import type { FinanceMovement, FinanceRuleFrequency } from './types';
 
 export type LocatedFinanceTask = Task & { weekId: string; dayId: string };
 
 export const BOARD_FINANCE_ID_PREFIX = 'ftask:';
+
+function cadenceFromFinanceTask(
+  task: LocatedFinanceTask
+): { frequency: FinanceRuleFrequency; recurrenceDay: number } | null {
+  if (!isRecurring(task.recurrence)) return null;
+  const freq = task.recurrence.frequency;
+  const [ys, ms, ds] = task.dayId.split('-');
+  const y = Number(ys);
+  const m = Number(ms);
+  const d = Number(ds);
+  const weekday = y && m && d ? new Date(y, m - 1, d).getDay() : 1;
+  if (freq === 'weekly') {
+    const iso = task.recurrence.weekdays?.[0];
+    const js = iso == null ? weekday : iso === 7 ? 0 : iso;
+    return { frequency: 'weekly', recurrenceDay: js };
+  }
+  if (freq === 'monthly' || freq === 'yearly') {
+    return { frequency: 'monthly', recurrenceDay: d || 1 };
+  }
+  if (freq === 'daily') {
+    return { frequency: 'weekly', recurrenceDay: weekday };
+  }
+  return null;
+}
+
+/** Series recurrentes del tablero (finance_income/expense) para colapsar la lista. */
+export function financeSeriesHintsFromTasks(
+  tasks: LocatedFinanceTask[]
+): FinanceListSeriesHint[] {
+  const bySeries = new Map<string, FinanceListSeriesHint>();
+  for (const task of tasks) {
+    if (!isFinanceKind(task.kind)) continue;
+    const cadence = cadenceFromFinanceTask(task);
+    if (!cadence) continue;
+    const seriesId = task.seriesId || task.id;
+    const existing = bySeries.get(seriesId);
+    if (existing) {
+      existing.sourceTaskIds.push(task.id);
+      if (task.dayId < existing.startDayId) existing.startDayId = task.dayId;
+      continue;
+    }
+    bySeries.set(seriesId, {
+      seriesId,
+      title: task.title,
+      flow: task.kind === 'finance_income' ? 'income' : 'expense',
+      frequency: cadence.frequency,
+      recurrenceDay: cadence.recurrenceDay,
+      startDayId: task.dayId,
+      amount: amountOf(task),
+      currency: currencyOf(task),
+      notes: task.notes ?? '',
+      certainty: task.finance?.certainty ?? 'fixed',
+      sourceTaskIds: [task.id],
+    });
+  }
+  return [...bySeries.values()];
+}
 
 function amountOf(task: LocatedFinanceTask): number {
   const n = task.finance?.amount ?? task.linkedFinance?.amount ?? 0;

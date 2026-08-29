@@ -197,6 +197,19 @@ export async function fetchTasksInRange(
   return mergeLocatedById(covering, habits);
 }
 
+/** Ingresos/gastos del tablero (todas las fechas) para clasificar series en Finanzas. */
+export async function fetchFinanceKindTasks(uid: string): Promise<LocatedTaskRow[]> {
+  if (isDemoMode()) return [];
+  const { data, error } = await getSupabase()
+    .from('tasks')
+    .select('*')
+    .eq('user_id', uid)
+    .in('kind', ['finance_income', 'finance_expense'])
+    .order('day_id', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(row => mapLocatedRow(row as Record<string, unknown>));
+}
+
 /**
  * Todas las tareas del usuario (para Eisenhower y listados globales).
  * Opcionalmente filtra por proyecto en cliente tras el select.

@@ -56,14 +56,20 @@ import {
 } from '@/components/Finances/CategorySplitEditor';
 import { ApiClientError } from '@core/lib/api';
 import { todayCivilDate } from '@core/lib/civilDate';
-import { getDayId, fetchTasksInRange } from '@core/services/taskService';
+import {
+  getDayId,
+  fetchFinanceKindTasks,
+  fetchTasksInRange,
+} from '@core/services/taskService';
 import { useStore } from '@core/store';
 import { isFinanceKind } from '@core/lib/financeKinds';
 import {
   INFERRED_RULE_PREFIX,
+  financeSeriesHintsFromTasks,
   matchFinanceRuleForMovement,
   mergeBoardFinanceIntoMovements,
   syncBoardFinanceToLedger,
+  type LocatedFinanceTask,
 } from '@core/lib/finance';
 import {
   createFinanceMovement,
@@ -268,6 +274,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   );
   const [ledgerMovements, setLedgerMovements] = useState<FinanceMovement[]>([]);
   const [ledgerRules, setLedgerRules] = useState<FinanceRule[]>([]);
+  const [boardFinanceTasks, setBoardFinanceTasks] = useState<LocatedFinanceTask[]>(
+    []
+  );
   const migratedInstallmentGroups = useRef(new Set<string>());
   const [filterAccountId, setFilterAccountId] = useState('all');
 
@@ -303,7 +312,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [rows, accs, gls, crs, ledger, cats, taskRows] = await Promise.all([
+      const [rows, accs, gls, crs, ledger, cats, taskRows, financeKindTasks] =
+        await Promise.all([
         fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
         fetchFinanceAccounts(),
         fetchFinanceGoals(),
@@ -313,6 +323,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         uid
           ? fetchTasksInRange(uid, range.from, range.to).catch(() => [])
           : Promise.resolve([]),
+        uid ? fetchFinanceKindTasks(uid).catch(() => []) : Promise.resolve([]),
       ]);
       setAccounts(accs);
       setGoals(gls);
@@ -353,6 +364,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           : rows;
       }
       const financeTasks = taskRows.filter(row => isFinanceKind(row.kind));
+      setBoardFinanceTasks(financeKindTasks.filter(row => isFinanceKind(row.kind)));
       setMovements(mergeBoardFinanceIntoMovements(next, financeTasks));
       if (financeTasks.length > 0) {
         const persisted = await syncBoardFinanceToLedger({
@@ -452,6 +464,20 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const paymentLedger = useMemo(
     () => (ledgerMovements.length > 0 ? ledgerMovements : movements),
     [ledgerMovements, movements]
+  );
+  const listMovements = useMemo(() => {
+    const map = new Map<string, FinanceMovement>();
+    for (const mov of paymentLedger) map.set(mov.id, mov);
+    for (const mov of movements) {
+      const existing = map.get(mov.id);
+      if (!existing) map.set(mov.id, mov);
+      else if (existing.virtual && !mov.virtual) map.set(mov.id, mov);
+    }
+    return [...map.values()];
+  }, [paymentLedger, movements]);
+  const seriesHints = useMemo(
+    () => financeSeriesHintsFromTasks(boardFinanceTasks),
+    [boardFinanceTasks]
   );
   const installmentPurchases = useMemo(
     () => summarizeInstallmentPurchases(paymentLedger, todayId),
@@ -994,7 +1020,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       onFabClick={() => openCreate(todayId)}
       showFab={hub === 'calendar' || hub === 'list'}
     >
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6">
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col gap-4 p-4 md:p-6',
+          hub === 'list' ? 'overflow-hidden' : 'overflow-y-auto'
+        )}
+      >
         <div className="flex flex-wrap gap-1">
           {FINANCE_HUBS.map(id => (
             <button
@@ -1031,8 +1062,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
 
         {hub === 'list' ? (
           <MovementsListPanel
-            movements={paymentLedger}
+            movements={listMovements}
             rules={ledgerRules}
+            seriesHints={seriesHints}
             money={money}
             onEdit={openEdit}
             onUpdateRule={(rule, patch, sample) => {
