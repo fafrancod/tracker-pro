@@ -21,6 +21,7 @@ export function isInstallmentMovement(mov: FinanceMovement): boolean {
   if (mov.status === 'skipped') return false;
   if (mov.flow !== 'expense') return false;
   if (mov.tag === 'card_payment' || mov.tag === 'goal_contribution') return false;
+  if (mov.tag === 'credit_payment' || mov.creditId) return false;
   return (mov.installmentTotal ?? 0) > 1 || Boolean(mov.installmentGroupId);
 }
 

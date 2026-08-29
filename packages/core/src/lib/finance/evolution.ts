@@ -42,13 +42,54 @@ export function classifyExpenseKind(
   return 'unit';
 }
 
-function virtualCreditMovement(
+function daysInMonth(year: number, monthIndex0: number): number {
+  return new Date(year, monthIndex0 + 1, 0).getDate();
+}
+
+export function creditDueDateOnMonth(
+  year: number,
+  monthIndex0: number,
+  dueDay: number
+): string {
+  const dim = daysInMonth(year, monthIndex0);
+  const day = Math.min(Math.max(1, dueDay), dim);
+  return `${year}-${String(monthIndex0 + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Primera cuota en o después de startDayId, en el día de vencimiento. */
+export function firstCreditDueDayId(credit: FinanceCredit): string {
+  const [ys, ms] = credit.startDayId.split('-');
+  const y = Number(ys);
+  const m = Number(ms);
+  if (!y || !m) return credit.startDayId;
+  const inStartMonth = creditDueDateOnMonth(y, m - 1, credit.dueDay);
+  if (inStartMonth >= credit.startDayId) return inStartMonth;
+  const nextMonthIndex = m; // 0-based next (m is 1-based)
+  const year = nextMonthIndex >= 12 ? y + 1 : y;
+  const monthIndex0 = nextMonthIndex % 12;
+  return creditDueDateOnMonth(year, monthIndex0, credit.dueDay);
+}
+
+export function creditInstallmentDayId(
+  credit: FinanceCredit,
+  index0: number
+): string {
+  const first = firstCreditDueDayId(credit);
+  const [ys, ms] = first.split('-').map(Number);
+  const monthIndex = (ms - 1) + Math.max(0, Math.floor(index0) || 0);
+  const year = ys + Math.floor(monthIndex / 12);
+  const monthIndex0 = ((monthIndex % 12) + 12) % 12;
+  return creditDueDateOnMonth(year, monthIndex0, credit.dueDay);
+}
+
+export function virtualCreditMovement(
   credit: FinanceCredit,
   dayId: string
 ): FinanceMovement {
   return {
-    id: `fcr:${credit.id}:${dayId.slice(0, 7)}`,
+    id: `fcr:${credit.id}:${dayId}`,
     dayId,
+    purchaseDayId: dayId,
     flow: 'expense',
     status: 'planned',
     currency: credit.currency,
@@ -77,18 +118,17 @@ function virtualCreditMovement(
   };
 }
 
-/** Cuotas de crédito aún no registradas, dentro de la ventana de meses. */
-export function synthesizeCreditSchedule(
+export function expandFinanceCredits(
   credits: FinanceCredit[],
   movements: FinanceMovement[],
-  monthIds: Iterable<string>
+  fromDayId: string,
+  toDayId: string
 ): FinanceMovement[] {
-  const window = monthIds instanceof Set ? monthIds : new Set(monthIds);
   const paid = new Map<string, Set<string>>();
   for (const mov of movements) {
-    if (!mov.creditId) continue;
-    if (mov.status === 'skipped') continue;
-    if (mov.flow !== 'expense') continue;
+    if (!mov.creditId || mov.status === 'skipped' || mov.flow !== 'expense') {
+      continue;
+    }
     const set = paid.get(mov.creditId) ?? new Set<string>();
     set.add(monthIdFromDayId(mov.dayId));
     paid.set(mov.creditId, set);
@@ -97,14 +137,31 @@ export function synthesizeCreditSchedule(
   for (const credit of credits) {
     if (credit.archived) continue;
     const seen = paid.get(credit.id) ?? new Set<string>();
-    for (let i = 0; i < credit.termMonths; i++) {
-      const dayId = addMonthsToDayId(credit.startDayId, i);
-      const monthId = monthIdFromDayId(dayId);
-      if (!window.has(monthId) || seen.has(monthId)) continue;
+    for (let i = 0; i < credit.termMonths; i += 1) {
+      const dayId = creditInstallmentDayId(credit, i);
+      if (dayId < fromDayId || dayId > toDayId) continue;
+      if (seen.has(monthIdFromDayId(dayId))) continue;
       extra.push(virtualCreditMovement(credit, dayId));
     }
   }
   return extra;
+}
+
+/** Cuotas de crédito aún no registradas, dentro de la ventana de meses. */
+export function synthesizeCreditSchedule(
+  credits: FinanceCredit[],
+  movements: FinanceMovement[],
+  monthIds: Iterable<string>
+): FinanceMovement[] {
+  const window = monthIds instanceof Set ? monthIds : new Set(monthIds);
+  const sorted = [...window].sort();
+  if (sorted.length === 0) return [];
+  const from = `${sorted[0]}-01`;
+  const [ys, ms] = sorted[sorted.length - 1]!.split('-').map(Number);
+  const to = creditDueDateOnMonth(ys, (ms || 1) - 1, 31);
+  return expandFinanceCredits(credits, movements, from, to).filter(mov =>
+    window.has(monthIdFromDayId(mov.dayId))
+  );
 }
 
 export function summarizeMonthlyEvolution(

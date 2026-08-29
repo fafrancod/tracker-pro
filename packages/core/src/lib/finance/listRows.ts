@@ -3,7 +3,17 @@ import {
   isInstallmentMovement,
   stripInstallmentSuffix,
 } from './installmentSchedule';
-import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from './types';
+import {
+  creditInstallmentDayId,
+  firstCreditDueDayId,
+  virtualCreditMovement,
+} from './evolution';
+import type {
+  FinanceCredit,
+  FinanceMovement,
+  FinanceRule,
+  FinanceRuleFrequency,
+} from './types';
 
 export const INFERRED_RULE_PREFIX = 'inferred:';
 
@@ -33,6 +43,17 @@ export type FinanceListRow =
   | {
       key: string;
       kind: 'installment';
+      sample: FinanceMovement;
+      title: string;
+      paidCount: number;
+      remainingCount: number;
+      totalCount: number;
+      endsOn: string;
+      totalAmount: number;
+    }
+  | {
+      key: string;
+      kind: 'credit';
       sample: FinanceMovement;
       title: string;
       paidCount: number;
@@ -120,6 +141,13 @@ function pickSample(instances: FinanceMovement[]): FinanceMovement {
   return [...pool].sort((a, b) => b.dayId.localeCompare(a.dayId))[0]!;
 }
 
+function creditListKey(mov: FinanceMovement): string | null {
+  if (mov.flow !== 'expense' || mov.status === 'skipped') return null;
+  if (mov.creditId) return `c:${mov.creditId}`;
+  if (mov.tag === 'credit_payment') return `t:${normTitle(mov.title)}`;
+  return null;
+}
+
 function installmentListKey(mov: FinanceMovement): string | null {
   if (!isInstallmentMovement(mov)) return null;
   if (mov.installmentGroupId) return `g:${mov.installmentGroupId}`;
@@ -143,7 +171,7 @@ function installmentEndsOn(instances: FinanceMovement[], totalCount: number): st
 
 function rowSortDay(row: FinanceListRow): string {
   if (row.kind === 'one_off') return row.movement.dayId;
-  if (row.kind === 'installment') {
+  if (row.kind === 'installment' || row.kind === 'credit') {
     return row.sample.purchaseDayId ?? row.sample.dayId;
   }
   return row.sample.dayId;
@@ -151,7 +179,7 @@ function rowSortDay(row: FinanceListRow): string {
 
 function rowSortTitle(row: FinanceListRow): string {
   if (row.kind === 'one_off') return row.movement.title;
-  if (row.kind === 'installment') return row.title;
+  if (row.kind === 'installment' || row.kind === 'credit') return row.title;
   return row.rule.title;
 }
 
@@ -259,7 +287,8 @@ function sampleFromRule(rule: FinanceRule): FinanceMovement {
 export function collapseFinanceListRows(
   movements: FinanceMovement[],
   rules: FinanceRule[],
-  hints: FinanceListSeriesHint[] = []
+  hints: FinanceListSeriesHint[] = [],
+  credits: FinanceCredit[] = []
 ): FinanceListRow[] {
   const activeRules = rules.filter(rule => rule.active);
   const byRule = new Map<string, FinanceMovement[]>();
@@ -267,8 +296,16 @@ export function collapseFinanceListRows(
   const unmatched: FinanceMovement[] = [];
   const oneOff: FinanceMovement[] = [];
   const installmentGroups = new Map<string, FinanceMovement[]>();
+  const creditGroups = new Map<string, FinanceMovement[]>();
 
   for (const mov of movements) {
+    const creditKey = creditListKey(mov);
+    if (creditKey) {
+      const list = creditGroups.get(creditKey) ?? [];
+      list.push(mov);
+      creditGroups.set(creditKey, list);
+      continue;
+    }
     const installmentKey = mov.virtual ? null : installmentListKey(mov);
     if (installmentKey) {
       const list = installmentGroups.get(installmentKey) ?? [];
@@ -322,6 +359,49 @@ export function collapseFinanceListRows(
       totalCount,
       endsOn: installmentEndsOn(instances, totalCount),
       totalAmount: instances.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+    });
+  }
+
+  const usedCredits = new Set<string>();
+  const creditById = new Map(credits.filter(c => !c.archived).map(c => [c.id, c]));
+  for (const [groupKey, instances] of creditGroups) {
+    const sample = pickSample(instances);
+    const credit = sample.creditId ? creditById.get(sample.creditId) : undefined;
+    const paidCount = instances.filter(item => item.status === 'confirmed').length;
+    const totalCount = Math.max(credit?.termMonths ?? 0, instances.length);
+    const lastKnown = [...instances].sort((a, b) =>
+      a.dayId.localeCompare(b.dayId)
+    )[instances.length - 1];
+    usedCredits.add(sample.creditId ?? groupKey);
+    rows.push({
+      key: `credit:${groupKey}`,
+      kind: 'credit',
+      sample,
+      title: credit?.name || sample.title,
+      paidCount,
+      remainingCount: Math.max(0, totalCount - paidCount),
+      totalCount,
+      endsOn: credit
+        ? creditInstallmentDayId(credit, Math.max(0, credit.termMonths - 1))
+        : lastKnown?.dayId ?? sample.dayId,
+      totalAmount: credit
+        ? credit.monthlyInstallment
+        : sample.amount,
+    });
+  }
+  for (const credit of creditById.values()) {
+    if (usedCredits.has(credit.id)) continue;
+    const sample = virtualCreditMovement(credit, firstCreditDueDayId(credit));
+    rows.push({
+      key: `credit:c:${credit.id}`,
+      kind: 'credit',
+      sample,
+      title: credit.name,
+      paidCount: 0,
+      remainingCount: credit.termMonths,
+      totalCount: credit.termMonths,
+      endsOn: creditInstallmentDayId(credit, Math.max(0, credit.termMonths - 1)),
+      totalAmount: credit.monthlyInstallment,
     });
   }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   collapseFinanceListRows,
+  type FinanceCredit,
   type FinanceMovement,
   type FinanceRule,
 } from '@daily-tracker/core';
@@ -293,5 +294,44 @@ describe('collapseFinanceListRows', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.kind).toBe('series');
     expect(rows[0]?.kind === 'series' && rows[0].rule.id).toBe('rule-globant');
+  });
+
+  it('deja una sola fila para un crédito de consumo', () => {
+    const consumo: FinanceCredit = {
+      id: 'cr-consumo',
+      currency: 'CLP',
+      kind: 'consumer',
+      dueDay: 5,
+      startDayId: '2026-08-29',
+      termMonths: 12,
+      name: 'Crédito consumo',
+      principal: 2_000_000,
+      monthlyInstallment: 180_000,
+      notes: '',
+      archived: false,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const rows = collapseFinanceListRows(
+      [
+        mov({
+          id: 'p1',
+          dayId: '2026-09-05',
+          title: 'Crédito consumo',
+          flow: 'expense',
+          amount: 180_000,
+          creditId: 'cr-consumo',
+          tag: 'credit_payment',
+        }),
+      ],
+      [],
+      [],
+      [consumo]
+    );
+    expect(rows.filter(row => row.kind === 'credit')).toHaveLength(1);
+    const row = rows.find(r => r.kind === 'credit');
+    expect(row?.kind === 'credit' && row.totalCount).toBe(12);
+    expect(row?.kind === 'credit' && row.remainingCount).toBe(11);
+    expect(row?.kind === 'credit' && row.endsOn).toBe('2027-08-05');
   });
 });

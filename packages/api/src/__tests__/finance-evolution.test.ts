@@ -4,6 +4,8 @@ import {
   buildCategoryInstallmentSchedule,
   classifyExpenseKind,
   collectFinanceBanks,
+  expandFinanceCredits,
+  firstCreditDueDayId,
   isValidPaymentInstitution,
   listMonthIds,
   parseFinancePayload,
@@ -216,6 +218,48 @@ describe('evolución de pagos', () => {
     );
     expect(rows[0].expenseCredit).toBe(550_000);
     expect(rows[0].expense).toBe(550_000);
+  });
+
+  it('coloca la cuota en el día de vencimiento, no en la fecha de alta', () => {
+    const consumo = credit({
+      id: 'consumo-1',
+      name: 'Crédito consumo',
+      startDayId: '2026-08-29',
+      dueDay: 5,
+      termMonths: 12,
+      monthlyInstallment: 180_000,
+    });
+    expect(firstCreditDueDayId(consumo)).toBe('2026-09-05');
+    const extra = expandFinanceCredits(
+      [consumo],
+      [],
+      '2026-08-31',
+      '2026-09-06'
+    );
+    expect(extra).toHaveLength(1);
+    expect(extra[0]?.dayId).toBe('2026-09-05');
+    expect(extra[0]?.virtual).toBe(true);
+    expect(extra[0]?.creditId).toBe('consumo-1');
+    expect(extra[0]?.tag).toBe('credit_payment');
+    expect(extra[0]?.status).toBe('planned');
+  });
+
+  it('no duplica la cuota si ya hay un pago de crédito ese mes', () => {
+    const extra = expandFinanceCredits(
+      [credit({ id: 'c1', startDayId: '2026-01-05', dueDay: 5, termMonths: 12 })],
+      [
+        mov({
+          id: 'paid',
+          dayId: '2026-08-03',
+          amount: 200_000,
+          creditId: 'c1',
+          tag: 'credit_payment',
+        }),
+      ],
+      '2026-08-01',
+      '2026-08-31'
+    );
+    expect(extra).toHaveLength(0);
   });
 
   it('acumula flujo mes a mes', () => {

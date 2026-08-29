@@ -65,6 +65,7 @@ import { useStore } from '@core/store';
 import { isFinanceKind } from '@core/lib/financeKinds';
 import {
   INFERRED_RULE_PREFIX,
+  expandFinanceCredits,
   financeSeriesHintsFromTasks,
   matchFinanceRuleForMovement,
   mergeBoardFinanceIntoMovements,
@@ -365,7 +366,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       }
       const financeTasks = taskRows.filter(row => isFinanceKind(row.kind));
       setBoardFinanceTasks(financeKindTasks.filter(row => isFinanceKind(row.kind)));
-      setMovements(mergeBoardFinanceIntoMovements(next, financeTasks));
+      const withCredits = [
+        ...next,
+        ...expandFinanceCredits(crs, next, range.from, range.to),
+      ];
+      setMovements(mergeBoardFinanceIntoMovements(withCredits, financeTasks));
       if (financeTasks.length > 0) {
         const persisted = await syncBoardFinanceToLedger({
           movements: next,
@@ -378,7 +383,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             range.to,
             vault ?? undefined
           );
-          setMovements(mergeBoardFinanceIntoMovements(refreshed, financeTasks));
+          const refreshedWithCredits = [
+            ...refreshed,
+            ...expandFinanceCredits(crs, refreshed, range.from, range.to),
+          ];
+          setMovements(
+            mergeBoardFinanceIntoMovements(refreshedWithCredits, financeTasks)
+          );
         }
       }
     } catch (err) {
@@ -715,6 +726,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         recurrenceDay:
           virtualRule?.recurrenceDay ??
           (Number(mov.dayId.slice(8, 10)) || 1),
+        creditPayment:
+          Boolean(mov.creditId) || mov.tag === 'credit_payment',
+        creditId: mov.creditId ?? '',
       });
       setShowAttach(false);
       setDialogOpen(true);
@@ -938,7 +952,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     const status = mov.status === 'planned' ? 'confirmed' : 'planned';
     try {
       if (mov.virtual) {
-        if (status !== 'confirmed' || !mov.ruleId) return;
+        if (status !== 'confirmed' || (!mov.ruleId && !mov.creditId)) return;
         await createFinanceMovement(
           {
             dayId: mov.dayId,
@@ -949,10 +963,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             currency: mov.currency,
             notes: mov.notes,
             certainty: mov.certainty,
-            ruleId: mov.ruleId,
-            accountId: mov.accountId,
-            categoryId: mov.categoryId ?? null,
-            category: mov.category ?? null,
+            ruleId: mov.ruleId ?? undefined,
+            creditId: mov.creditId ?? undefined,
+            tag: mov.tag ?? (mov.creditId ? 'credit_payment' : undefined),
+            accountId: mov.accountId ?? undefined,
+            categoryId: mov.categoryId ?? undefined,
+            category: mov.category ?? (mov.creditId ? 'debt' : undefined),
           },
           vault ?? undefined
         );
@@ -1065,6 +1081,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             movements={listMovements}
             rules={ledgerRules}
             seriesHints={seriesHints}
+            credits={credits}
             money={money}
             onEdit={openEdit}
             onUpdateRule={(rule, patch, sample) => {

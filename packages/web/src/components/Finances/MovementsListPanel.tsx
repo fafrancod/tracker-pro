@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CreditCard, Pencil, Repeat, Search } from 'lucide-react';
+import { CreditCard, Landmark, Pencil, Repeat, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { SimpleSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,12 @@ import {
   type FinanceListRow,
   type FinanceListSeriesHint,
 } from '@core/lib/finance/listRows';
-import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from '@core/lib/finance/types';
+import type {
+  FinanceCredit,
+  FinanceMovement,
+  FinanceRule,
+  FinanceRuleFrequency,
+} from '@core/lib/finance/types';
 import type { TKey } from '@/lib/i18n';
 
 function rowSample(row: FinanceListRow): FinanceMovement {
@@ -18,12 +23,14 @@ function rowSample(row: FinanceListRow): FinanceMovement {
 
 function rowTitle(row: FinanceListRow): string {
   if (row.kind === 'one_off') return row.movement.title;
-  if (row.kind === 'installment') return row.title;
+  if (row.kind === 'installment' || row.kind === 'credit') return row.title;
   return row.rule.title;
 }
 
 function rowAmount(row: FinanceListRow): number {
-  return row.kind === 'installment' ? row.totalAmount : rowSample(row).amount;
+  if (row.kind === 'installment') return row.totalAmount;
+  if (row.kind === 'credit') return row.totalAmount;
+  return rowSample(row).amount;
 }
 
 type RecurrenceFilter = 'all' | 'recurring' | 'one_off';
@@ -43,6 +50,7 @@ export function MovementsListPanel({
   movements,
   rules,
   seriesHints = [],
+  credits = [],
   money,
   onEdit,
   onUpdateRule,
@@ -50,6 +58,7 @@ export function MovementsListPanel({
   movements: FinanceMovement[];
   rules: FinanceRule[];
   seriesHints?: FinanceListSeriesHint[];
+  credits?: FinanceCredit[];
   money: (n: number, currency: string) => string;
   onEdit: (mov: FinanceMovement) => void;
   onUpdateRule: (
@@ -78,11 +87,22 @@ export function MovementsListPanel({
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return collapseFinanceListRows(movements, rules, seriesHints).filter(row => {
+    return collapseFinanceListRows(movements, rules, seriesHints, credits).filter(row => {
       const sample = rowSample(row);
       if (flow !== 'all' && sample.flow !== flow) return false;
-      if (recurrence === 'recurring' && row.kind !== 'series') return false;
-      if (recurrence === 'one_off' && row.kind === 'series') return false;
+      if (
+        recurrence === 'recurring' &&
+        row.kind !== 'series' &&
+        row.kind !== 'credit'
+      ) {
+        return false;
+      }
+      if (
+        recurrence === 'one_off' &&
+        (row.kind === 'series' || row.kind === 'credit')
+      ) {
+        return false;
+      }
       if (!q) return true;
       const title = rowTitle(row);
       const notes =
@@ -95,10 +115,11 @@ export function MovementsListPanel({
         title.toLowerCase().includes(q) ||
         notes.toLowerCase().includes(q) ||
         sample.dayId.includes(q) ||
-        (row.kind === 'installment' && row.endsOn.includes(q))
+        ((row.kind === 'installment' || row.kind === 'credit') &&
+          row.endsOn.includes(q))
       );
     });
-  }, [movements, rules, seriesHints, query, recurrence, flow]);
+  }, [movements, rules, seriesHints, credits, query, recurrence, flow]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -169,7 +190,8 @@ export function MovementsListPanel({
             const title = rowTitle(row);
             const amount = rowAmount(row);
             const paidRatio =
-              row.kind === 'installment' && row.totalCount > 0
+              (row.kind === 'installment' || row.kind === 'credit') &&
+              row.totalCount > 0
                 ? Math.min(1, row.paidCount / row.totalCount)
                 : 0;
             return (
@@ -193,6 +215,11 @@ export function MovementsListPanel({
                         <CreditCard className="h-3 w-3" />
                         {t('fin_list_installments')}
                       </span>
+                    ) : row.kind === 'credit' ? (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-800 dark:text-amber-200">
+                        <Landmark className="h-3 w-3" />
+                        {t('fin_list_credit')}
+                      </span>
                     ) : (
                       <span>{sample.dayId}</span>
                     )}
@@ -214,7 +241,7 @@ export function MovementsListPanel({
                         </span>
                       </>
                     ) : null}
-                    {row.kind === 'installment' ? (
+                    {row.kind === 'installment' || row.kind === 'credit' ? (
                       <>
                         <span>·</span>
                         <span>
@@ -227,13 +254,16 @@ export function MovementsListPanel({
                       </>
                     ) : null}
                   </span>
-                  {row.kind === 'installment' ? (
+                  {row.kind === 'installment' || row.kind === 'credit' ? (
                     <span
                       className="mt-1 block h-1 max-w-[9rem] overflow-hidden rounded-full bg-border"
                       aria-hidden
                     >
                       <span
-                        className="block h-full rounded-full bg-violet-500"
+                        className={cn(
+                          'block h-full rounded-full',
+                          row.kind === 'credit' ? 'bg-amber-500' : 'bg-violet-500'
+                        )}
                         style={{ width: `${Math.round(paidRatio * 100)}%` }}
                       />
                     </span>

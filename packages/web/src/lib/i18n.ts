@@ -75,6 +75,7 @@ export interface TranslationDict {
   fin_list_month_day: string;
   fin_list_installments: string;
   fin_list_installment_meta: string;
+  fin_list_credit: string;
   fin_tab_accounts: string;
   fin_tab_goals: string;
   fin_tab_credits: string;
@@ -1407,6 +1408,7 @@ const es_dict: TranslationDict = {
   fin_list_installments: 'Cuotas',
   fin_list_installment_meta:
     '{paid}/{total} pagadas · {remaining} por pagar · termina {date}',
+  fin_list_credit: 'Crédito',
   fin_tab_accounts: 'Medios de pago',
   fin_tab_goals: 'Objetivos',
   fin_tab_credits: 'Créditos',
@@ -2846,6 +2848,7 @@ const en_dict: TranslationDict = {
   fin_list_installments: 'Installments',
   fin_list_installment_meta:
     '{paid}/{total} paid · {remaining} left · ends {date}',
+  fin_list_credit: 'Loan',
   fin_tab_accounts: 'Payment methods',
   fin_tab_goals: 'Goals',
   fin_tab_credits: 'Credits',
