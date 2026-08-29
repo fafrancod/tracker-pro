@@ -23,6 +23,8 @@ import {
   Tags,
   CreditCard,
   Landmark,
+  PanelLeftClose,
+  PanelLeftOpen,
   ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -70,13 +72,16 @@ export const NAV_ITEMS: NavItem[] = [
 interface SidebarProps {
   variant?: 'desktop' | 'drawer';
   onNavigate?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const NAV_EXPANDED_KEY = 'daily-tracker:nav-expanded';
 
-function navClass(active: boolean): string {
+function navClass(active: boolean, collapsed = false): string {
   return cn(
-    'sidebar-nav-item mb-0.5 flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-all duration-200',
+    'sidebar-nav-item mb-0.5 flex items-center rounded-xl py-2 text-sm transition-all duration-200',
+    collapsed ? 'justify-center px-2' : 'gap-3 px-3',
     active
       ? 'sidebar-nav-item-active bg-accent-teal/10 text-accent-teal'
       : 'text-text-muted'
@@ -94,7 +99,12 @@ function loadNavExpanded(): Record<string, boolean> {
   }
 }
 
-export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
+export function Sidebar({
+  variant = 'desktop',
+  onNavigate,
+  collapsed = false,
+  onToggleCollapse,
+}: SidebarProps) {
   const { user, signOut } = useAuth();
   const { t } = useT();
   const location = useLocation();
@@ -155,19 +165,30 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
       <NavLink
         key={item.to}
         to={item.to}
+        title={collapsed ? t(item.labelKey) : undefined}
         onClick={() => {
           if (item.to === '/board') requestFocusToday();
           onNavigate?.();
         }}
-        className={({ isActive }) => navClass(isActive)}
+        className={({ isActive }) => navClass(isActive, collapsed)}
       >
-        <Icon className="h-4 w-4" />
-        <span>{t(item.labelKey)}</span>
+        <Icon className="h-4 w-4 shrink-0" />
+        {collapsed ? null : <span>{t(item.labelKey)}</span>}
       </NavLink>
     );
   }
 
-  const mementoBlock = (
+  const mementoBlock = collapsed ? (
+    <NavLink
+      key="memento-block"
+      to="/memento-mori"
+      title={t('nav_memento')}
+      onClick={onNavigate}
+      className={navClass(onMemento, true)}
+    >
+      <Hourglass className="h-4 w-4 shrink-0" />
+    </NavLink>
+  ) : (
     <div key="memento-block" className="mb-1">
       <div className="flex items-center gap-0.5">
         <NavLink
@@ -210,7 +231,17 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
     </div>
   );
 
-  const financesBlock = (
+  const financesBlock = collapsed ? (
+    <NavLink
+      key="finances-block"
+      to="/finances"
+      title={t('nav_finances')}
+      onClick={onNavigate}
+      className={navClass(onFinances, true)}
+    >
+      <Wallet className="h-4 w-4 shrink-0" />
+    </NavLink>
+  ) : (
     <div key="finances-block" className="mb-1">
       <div className="flex items-center gap-0.5">
         <NavLink
@@ -303,21 +334,44 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
       as="aside"
       chrome
       className={cn(
-        'flex h-full w-60 shrink-0 flex-col border-r border-border',
+        'flex h-full shrink-0 flex-col border-r border-border',
+        collapsed ? 'w-16' : 'w-60',
         variant === 'drawer' && 'w-full max-w-xs'
       )}
     >
-      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <CalendarDays className="h-5 w-5 text-accent-teal" />
-        <span className="text-sm font-bold tracking-tight text-text-primary">
-          Daily Tracker
-        </span>
+      <div
+        className={cn(
+          'flex items-center border-b border-border',
+          collapsed ? 'h-auto flex-col gap-1 px-1 py-2' : 'h-14 gap-2 px-4'
+        )}
+      >
+        <CalendarDays className="h-5 w-5 shrink-0 text-accent-teal" />
+        {collapsed ? null : (
+          <span className="min-w-0 flex-1 truncate text-sm font-bold tracking-tight text-text-primary">
+            Daily Tracker
+          </span>
+        )}
+        {variant === 'desktop' && onToggleCollapse ? (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="rounded-md p-1 text-text-muted hover:bg-background hover:text-text-primary"
+            aria-label={collapsed ? t('nav_expand') : t('nav_collapse')}
+            title={collapsed ? t('nav_expand') : t('nav_collapse')}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </button>
+        ) : null}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-3">{navNodes}</nav>
 
-      <div className="border-t border-border p-3">
-        <div className="mb-2 flex items-center gap-2">
+      <div className={cn('border-t border-border', collapsed ? 'p-2' : 'p-3')}>
+        <div className={cn('mb-2 flex items-center', collapsed ? 'justify-center' : 'gap-2')}>
           {userAvatarUrl(user) ? (
             <img src={userAvatarUrl(user)!} alt="" className="h-7 w-7 rounded-full" />
           ) : (
@@ -325,22 +379,28 @@ export function Sidebar({ variant = 'desktop', onNavigate }: SidebarProps) {
               {userDisplayName(user).slice(0, 1).toUpperCase()}
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-semibold text-text-primary">
-              {userDisplayName(user)}
-            </p>
-            <p className="truncate text-[10px] text-text-muted">{user?.email}</p>
-          </div>
+          {collapsed ? null : (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-text-primary">
+                {userDisplayName(user)}
+              </p>
+              <p className="truncate text-[10px] text-text-muted">{user?.email}</p>
+            </div>
+          )}
         </div>
-        <button
-          onClick={signOut}
-          className="sidebar-sign-out w-full rounded-xl border border-border bg-field px-2 py-1.5 text-xs text-text-muted transition-all duration-200"
-        >
-          {t('action_sign_out')}
-        </button>
-        <p className="mt-2 text-[10px] text-text-muted">
-          v{appVersion.version} · {appVersion.channel}
-        </p>
+        {collapsed ? null : (
+          <>
+            <button
+              onClick={signOut}
+              className="sidebar-sign-out w-full rounded-xl border border-border bg-field px-2 py-1.5 text-xs text-text-muted transition-all duration-200"
+            >
+              {t('action_sign_out')}
+            </button>
+            <p className="mt-2 text-[10px] text-text-muted">
+              v{appVersion.version} · {appVersion.channel}
+            </p>
+          </>
+        )}
       </div>
     </GlassPanel>
   );

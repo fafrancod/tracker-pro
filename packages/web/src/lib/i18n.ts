@@ -778,6 +778,11 @@ export interface TranslationDict {
   notes_delete_confirm: string;
   notes_folder_inbox: string;
   notes_folder_empty: string;
+  notes_collapse_explorer: string;
+  notes_expand_explorer: string;
+  notes_resize_explorer: string;
+  nav_collapse: string;
+  nav_expand: string;
   action_create: string;
   task_move_to: string;
   task_move_next_week: string;
@@ -2156,6 +2161,11 @@ const es_dict: TranslationDict = {
   notes_delete_confirm: 'Esta idea se eliminará de forma permanente.',
   notes_folder_inbox: 'Sin carpeta',
   notes_folder_empty: 'Carpeta vacía',
+  notes_collapse_explorer: 'Ocultar explorador',
+  notes_expand_explorer: 'Mostrar explorador',
+  notes_resize_explorer: 'Ajustar ancho del explorador',
+  nav_collapse: 'Ocultar menú',
+  nav_expand: 'Mostrar menú',
   action_create: 'Crear',
   task_move_to: 'Mover a',
   task_move_next_week: 'Semana siguiente →',
@@ -3576,6 +3586,11 @@ const en_dict: TranslationDict = {
   notes_delete_confirm: 'This idea will be permanently deleted.',
   notes_folder_inbox: 'No folder',
   notes_folder_empty: 'Empty folder',
+  notes_collapse_explorer: 'Hide explorer',
+  notes_expand_explorer: 'Show explorer',
+  notes_resize_explorer: 'Resize explorer',
+  nav_collapse: 'Collapse menu',
+  nav_expand: 'Expand menu',
   action_create: 'Create',
   task_move_to: 'Move to',
   task_move_next_week: 'Next week →',

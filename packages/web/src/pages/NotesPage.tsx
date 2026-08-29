@@ -14,6 +14,7 @@ import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ResizableAside } from '@/components/ui/resizable-aside';
 import { NotesEditor } from '@/components/Notes/NotesEditor';
 import { useNotes } from '@core/hooks/useNotes';
 import { useProjects } from '@core/hooks/useProjects';
@@ -27,6 +28,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { cn } from '@/lib/utils';
 
 const FOLDER_KEY = 'dt.notesFolders';
+const EXPLORER_WIDTH_KEY = 'dt.notesExplorerWidth';
+const EXPLORER_COLLAPSED_KEY = 'dt.notesExplorerCollapsed';
+const EXPLORER_MAX_WIDTH = 320;
 
 type FolderKey = 'inbox' | `project:${string}` | `sub:${string}:${string}`;
 
@@ -71,6 +75,13 @@ export function NotesPage() {
   const [taskRows, setTaskRows] = useState<LocatedTaskRow[]>([]);
   const [activeFolder, setActiveFolder] = useState<FolderKey | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(loadExpanded);
+  const [explorerCollapsed, setExplorerCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(EXPLORER_COLLAPSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selected = notes.find(n => n.id === selectedId) ?? null;
@@ -83,8 +94,11 @@ export function NotesPage() {
   }, [uid]);
 
   useEffect(() => {
-    if (selected) setTitleDraft(selected.title);
-  }, [selected?.id, selected?.title]);
+    const note = notes.find(n => n.id === selectedId);
+    setTitleDraft(note?.title ?? '');
+    // Solo al cambiar de idea: si dependemos de `notes`, el autoguardado pisa acentos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   function persistExpanded(next: Record<string, boolean>) {
     setExpanded(next);
@@ -97,6 +111,15 @@ export function NotesPage() {
 
   function toggleFolder(key: FolderKey) {
     persistExpanded({ ...expanded, [key]: expanded[key] === false });
+  }
+
+  function setExplorerCollapsedPersist(next: boolean) {
+    setExplorerCollapsed(next);
+    try {
+      localStorage.setItem(EXPLORER_COLLAPSED_KEY, next ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
   }
 
   const filtered = useMemo(() => {
@@ -267,6 +290,8 @@ export function NotesPage() {
   }
 
   function renderNoteRow(note: Note) {
+    const title =
+      note.id === selectedId ? titleDraft || t('notes_untitled') : note.title || t('notes_untitled');
     return (
       <button
         key={note.id}
@@ -277,12 +302,7 @@ export function NotesPage() {
           selectedId === note.id ? 'bg-accent-teal/10' : 'hover:bg-surface'
         )}
       >
-        <p className="truncate text-sm font-medium text-text-primary">
-          {note.title || t('notes_untitled')}
-        </p>
-        <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">
-          {note.excerpt || t('notes_no_excerpt')}
-        </p>
+        <p className="truncate text-sm font-medium text-text-primary">{title}</p>
       </button>
     );
   }
@@ -344,6 +364,102 @@ export function NotesPage() {
 
   const inboxNotes = tree.byFolder.get('inbox') ?? [];
 
+  const explorerBody = (
+    <>
+      <div className="border-b border-border p-2 pr-8">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
+          <Input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t('notes_search')}
+            className="h-9 pl-8 text-sm"
+          />
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-1.5">
+        {loading ? (
+          <p className="px-3 py-4 text-xs text-text-muted">{t('notes_loading')}</p>
+        ) : notes.length === 0 && projects.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+            <StickyNote className="h-8 w-8 text-text-muted" />
+            <p className="text-sm font-medium text-text-primary">
+              {t('notes_empty_title')}
+            </p>
+            <p className="text-xs text-text-muted">{t('notes_empty_hint')}</p>
+            <Button size="sm" onClick={() => void handleCreate()}>
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              {t('notes_new')}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {projects.map(project => {
+              const projectKey: FolderKey = `project:${project.id}`;
+              const ownNotes = tree.byFolder.get(projectKey) ?? [];
+              const cats = project.categories ?? [];
+              const hasVisibleChild =
+                !searching ||
+                ownNotes.length > 0 ||
+                cats.some(
+                  c =>
+                    (tree.byFolder.get(`sub:${project.id}:${c.id}`) ?? []).length >
+                    0
+                );
+              if (searching && !hasVisibleChild) return null;
+              const open = folderOpen(projectKey);
+              return (
+                <div key={project.id} className="mb-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveFolder(projectKey);
+                      toggleFolder(projectKey);
+                    }}
+                    className={cn(
+                      'mb-0.5 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm font-medium',
+                      activeFolder === projectKey
+                        ? 'bg-accent-teal/10 text-accent-teal'
+                        : 'text-text-primary hover:bg-surface'
+                    )}
+                  >
+                    <ChevronDown
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0 text-text-muted transition-transform',
+                        open ? 'rotate-0' : '-rotate-90'
+                      )}
+                    />
+                    <span
+                      className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs"
+                      style={{ backgroundColor: project.color + '22' }}
+                    >
+                      {project.icon}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                  </button>
+                  {open ? (
+                    <div className="mb-1">
+                      {cats.map(cat =>
+                        renderFolder(
+                          `sub:${project.id}:${cat.id}`,
+                          cat.name,
+                          tree.byFolder.get(`sub:${project.id}:${cat.id}`) ?? [],
+                          true
+                        )
+                      )}
+                      {ownNotes.map(renderNoteRow)}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+            {renderFolder('inbox', t('notes_folder_inbox'), inboxNotes)}
+          </>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <Layout
       title={t('nav_ideas')}
@@ -354,103 +470,23 @@ export function NotesPage() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
           className={cn(
-            'flex w-full shrink-0 flex-col border-border md:w-80 md:border-r',
-            mobileEditor ? 'hidden md:flex' : 'flex'
+            'flex w-full shrink-0 flex-col border-border md:hidden',
+            mobileEditor ? 'hidden' : 'flex'
           )}
         >
-          <div className="border-b border-border p-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t('notes_search')}
-                className="h-9 pl-8 text-sm"
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-1.5">
-            {loading ? (
-              <p className="px-3 py-4 text-xs text-text-muted">{t('notes_loading')}</p>
-            ) : notes.length === 0 && projects.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-                <StickyNote className="h-8 w-8 text-text-muted" />
-                <p className="text-sm font-medium text-text-primary">
-                  {t('notes_empty_title')}
-                </p>
-                <p className="text-xs text-text-muted">{t('notes_empty_hint')}</p>
-                <Button size="sm" onClick={() => void handleCreate()}>
-                  <Plus className="mr-1 h-3.5 w-3.5" />
-                  {t('notes_new')}
-                </Button>
-              </div>
-            ) : (
-              <>
-                {projects.map(project => {
-                  const projectKey: FolderKey = `project:${project.id}`;
-                  const ownNotes = tree.byFolder.get(projectKey) ?? [];
-                  const cats = project.categories ?? [];
-                  const hasVisibleChild =
-                    !searching ||
-                    ownNotes.length > 0 ||
-                    cats.some(
-                      c =>
-                        (tree.byFolder.get(`sub:${project.id}:${c.id}`) ?? [])
-                          .length > 0
-                    );
-                  if (searching && !hasVisibleChild) return null;
-                  const open = folderOpen(projectKey);
-                  return (
-                    <div key={project.id} className="mb-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setActiveFolder(projectKey);
-                          toggleFolder(projectKey);
-                        }}
-                        className={cn(
-                          'mb-0.5 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-sm font-medium',
-                          activeFolder === projectKey
-                            ? 'bg-accent-teal/10 text-accent-teal'
-                            : 'text-text-primary hover:bg-surface'
-                        )}
-                      >
-                        <ChevronDown
-                          className={cn(
-                            'h-3.5 w-3.5 shrink-0 text-text-muted transition-transform',
-                            open ? 'rotate-0' : '-rotate-90'
-                          )}
-                        />
-                        <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-xs"
-                          style={{ backgroundColor: project.color + '22' }}
-                        >
-                          {project.icon}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate">{project.name}</span>
-                      </button>
-                      {open ? (
-                        <div className="mb-1">
-                          {cats.map(cat =>
-                            renderFolder(
-                              `sub:${project.id}:${cat.id}`,
-                              cat.name,
-                              tree.byFolder.get(`sub:${project.id}:${cat.id}`) ??
-                                [],
-                              true
-                            )
-                          )}
-                          {ownNotes.map(renderNoteRow)}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {renderFolder('inbox', t('notes_folder_inbox'), inboxNotes)}
-              </>
-            )}
-          </div>
+          {explorerBody}
         </aside>
+        <ResizableAside
+          storageKey={EXPLORER_WIDTH_KEY}
+          maxWidth={EXPLORER_MAX_WIDTH}
+          collapsed={explorerCollapsed}
+          onCollapsedChange={setExplorerCollapsedPersist}
+          collapseLabel={t('notes_collapse_explorer')}
+          expandLabel={t('notes_expand_explorer')}
+          resizeLabel={t('notes_resize_explorer')}
+        >
+          {explorerBody}
+        </ResizableAside>
 
         <section
           className={cn(
@@ -555,6 +591,7 @@ export function NotesPage() {
               </header>
               <NotesEditor
                 key={selected.id}
+                noteId={selected.id}
                 content={selected.content}
                 placeholder={t('notes_editor_ph')}
                 onChange={content => scheduleSave(selected.id, { content })}

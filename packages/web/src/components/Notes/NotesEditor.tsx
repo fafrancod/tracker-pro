@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -31,6 +31,7 @@ import { emptyNoteDoc } from '@core/lib/notes';
 import type { NoteContent } from '@core/types';
 
 interface NotesEditorProps {
+  noteId: string;
   content: NoteContent | null;
   editable?: boolean;
   placeholder?: string;
@@ -67,11 +68,13 @@ function ToolbarButton({
 }
 
 export function NotesEditor({
+  noteId,
   content,
   editable = true,
   placeholder = 'Escribe tu idea…',
   onChange,
 }: NotesEditorProps) {
+  const composing = useRef(false);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -94,8 +97,19 @@ export function NotesEditor({
       attributes: {
         class: 'note-editor-surface focus:outline-none',
       },
+      handleDOMEvents: {
+        compositionstart: () => {
+          composing.current = true;
+          return false;
+        },
+        compositionend: () => {
+          composing.current = false;
+          return false;
+        },
+      },
     },
     onUpdate: ({ editor: ed }) => {
+      if (composing.current) return;
       onChange(ed.getJSON() as NoteContent);
     },
   });
@@ -106,13 +120,9 @@ export function NotesEditor({
   }, [editor, editable]);
 
   useEffect(() => {
-    if (!editor || !content) return;
-    const current = JSON.stringify(editor.getJSON());
-    const next = JSON.stringify(content);
-    if (current !== next) {
-      editor.commands.setContent(content, false);
-    }
-  }, [editor, content]);
+    if (!editor) return;
+    editor.commands.setContent(content ?? emptyNoteDoc(), false);
+  }, [editor, noteId]);
 
   if (!editor) return null;
 

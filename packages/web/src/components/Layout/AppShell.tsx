@@ -36,8 +36,17 @@ export function AppShell() {
   );
 }
 
+const NAV_COLLAPSED_KEY = 'daily-tracker:nav-collapsed';
+
 function AppShellInner() {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(NAV_COLLAPSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const location = useLocation();
   const { t } = useT();
   const chrome = usePageChromeState();
@@ -102,7 +111,19 @@ function AppShellInner() {
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-background overscroll-none">
       <div className="hidden md:flex">
-        <Sidebar variant="desktop" />
+        <Sidebar
+          variant="desktop"
+          collapsed={navCollapsed}
+          onToggleCollapse={() => {
+            const next = !navCollapsed;
+            setNavCollapsed(next);
+            try {
+              localStorage.setItem(NAV_COLLAPSED_KEY, next ? '1' : '0');
+            } catch {
+              /* ignore */
+            }
+          }}
+        />
       </div>
 
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />

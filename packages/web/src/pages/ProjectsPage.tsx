@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   FolderKanban,
   GanttChart,
+  PanelLeftOpen,
   Pencil,
   Plus,
   Repeat,
@@ -74,6 +75,13 @@ export function ProjectsPage() {
   const [deleting, setDeleting] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
+  const [listCollapsed, setListCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('dt.projectsListCollapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
 
   const selected =
     projects.find(p => p.id === selectedId) ?? projects[0] ?? null;
@@ -154,11 +162,98 @@ export function ProjectsPage() {
           <>
             <aside
               className={cn(
-                'w-full shrink-0 overflow-y-auto border-border md:w-72 md:border-r',
-                mobileDetail ? 'hidden md:block' : 'block'
+                'hidden h-full shrink-0 flex-col border-border md:flex md:border-r',
+                listCollapsed ? 'w-10' : 'w-72'
               )}
             >
+              {listCollapsed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setListCollapsed(false);
+                    try {
+                      localStorage.setItem('dt.projectsListCollapsed', '0');
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                  className="flex h-full w-full flex-col items-center pt-2 text-text-muted hover:bg-surface hover:text-text-primary"
+                  aria-label={t('nav_expand')}
+                  title={t('nav_expand')}
+                >
+                  <PanelLeftOpen className="h-4 w-4" />
+                </button>
+              ) : (
+                <>
+                  <div className="flex justify-end p-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setListCollapsed(true);
+                        try {
+                          localStorage.setItem('dt.projectsListCollapsed', '1');
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                      className="rounded-md p-1 text-text-muted hover:bg-background hover:text-text-primary"
+                      aria-label={t('nav_collapse')}
+                      title={t('nav_collapse')}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                  </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <ul className="space-y-0.5 p-2 md:p-3">
+                {projects.map(p => (
+                  <li key={p.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedId(p.id);
+                        setMobileDetail(true);
+                      }}
+                      className={cn(
+                        'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
+                        selected?.id === p.id
+                          ? 'bg-accent-teal/10 text-text-primary'
+                          : 'text-text-muted hover:bg-surface hover:text-text-primary'
+                      )}
+                    >
+                      <span
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-sm"
+                        style={{ backgroundColor: p.color + '22' }}
+                      >
+                        {p.icon}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-text-primary">
+                          {p.name}
+                        </span>
+                        <span className="block truncate text-[11px] text-text-muted">
+                          {(p.categories?.length ?? 0) === 0
+                            ? t('project_no_subprojects_short')
+                            : t('project_categories_count').replace(
+                                '{n}',
+                                String(p.categories.length)
+                              )}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+                </>
+              )}
+            </aside>
+            <aside
+              className={cn(
+                'w-full overflow-y-auto border-border md:hidden',
+                mobileDetail ? 'hidden' : 'block'
+              )}
+            >
+              <ul className="space-y-0.5 p-2">
                 {projects.map(p => (
                   <li key={p.id}>
                     <button

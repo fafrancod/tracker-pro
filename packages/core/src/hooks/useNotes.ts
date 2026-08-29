@@ -38,8 +38,30 @@ export function useNotes() {
   }, []);
 
   const editNote = useCallback(async (noteId: string, payload: UpdateNotePayload) => {
+    setNotes(prev =>
+      prev.map(n =>
+        n.id === noteId
+          ? {
+              ...n,
+              title: payload.title !== undefined ? payload.title : n.title,
+              content: payload.content ?? n.content,
+              links: payload.links !== undefined ? payload.links : n.links,
+              updatedAt: new Date().toISOString(),
+            }
+          : n
+      )
+    );
     const updated = await updateNote(noteId, payload);
-    setNotes(prev => prev.map(n => (n.id === noteId ? updated : n)));
+    setNotes(prev =>
+      prev.map(n => {
+        if (n.id !== noteId) return n;
+        return {
+          ...updated,
+          title: payload.title !== undefined ? n.title : updated.title,
+          content: payload.content != null ? n.content : updated.content,
+        };
+      })
+    );
     return updated;
   }, []);
 
