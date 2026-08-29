@@ -25,6 +25,7 @@ import { HabitsPage } from '@/pages/HabitsPage';
 import { DocumentsPage } from '@/pages/DocumentsPage';
 import { LoginPage } from '@/pages/Login';
 import { GanttPage } from '@/pages/GanttPage';
+import { NotesPage } from '@/pages/NotesPage';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -195,6 +196,14 @@ function App() {
                         element={
                           <RouteErrorBoundary>
                             <ProjectsPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="ideas"
+                        element={
+                          <RouteErrorBoundary>
+                            <NotesPage />
                           </RouteErrorBoundary>
                         }
                       />

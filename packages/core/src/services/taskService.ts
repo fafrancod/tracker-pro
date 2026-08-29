@@ -46,6 +46,7 @@ import {
 import { isOwnTaskEcho, noteOwnTaskMutation } from '../lib/taskEcho';
 import { findTaskLocation, useStore } from '../store';
 import { getISOWeek, format } from 'date-fns';
+import { INBOX_DAY_ID, INBOX_WEEK_ID, isCalendarDayId, isInboxDayId } from '../lib/inbox';
 
 export { noteOwnTaskMutation, isOwnTaskEcho } from '../lib/taskEcho';
 export {
@@ -86,10 +87,17 @@ export async function fetchTasks(uid: string, weekId: string, dayId: string): Pr
 }
 
 function mapLocatedRow(row: Record<string, unknown>): LocatedTaskRow {
+  const dayId = (row.day_id as string | null) ?? null;
+  const weekIdRaw = (row.week_id as string | null) ?? null;
   return {
     ...mapTask(row.id as string, row),
-    weekId: (row.week_id as string) ?? getWeekIdFromDayId(row.day_id as string),
-    dayId: row.day_id as string,
+    weekId:
+      weekIdRaw && isCalendarDayId(dayId)
+        ? weekIdRaw
+        : isCalendarDayId(dayId)
+          ? getWeekIdFromDayId(dayId)
+          : INBOX_WEEK_ID,
+    dayId: isCalendarDayId(dayId) ? dayId : INBOX_DAY_ID,
   };
 }
 
@@ -214,11 +222,7 @@ export async function fetchAllTasks(
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []).map(row => ({
-    ...mapTask(row.id as string, row),
-    weekId: (row.week_id as string) ?? getWeekIdFromDayId(row.day_id as string),
-    dayId: row.day_id as string,
-  }));
+  return (data ?? []).map(row => mapLocatedRow(row));
 }
 
 /** Fusiona filas located en buckets start-day del store. */
@@ -623,11 +627,11 @@ export async function createTask(
   payload: CreateTaskPayload,
   eventId?: string
 ): Promise<CreateTaskResult> {
-  const endDayId = payload.endDayId ?? dayId;
+  const undated = payload.undated === true || isInboxDayId(dayId);
   const res = await api.post<CreateTaskResponse>('/api/tasks', {
-    weekId,
-    dayId,
-    endDayId,
+    weekId: undated ? null : weekId,
+    dayId: undated ? null : dayId,
+    ...(undated ? {} : { endDayId: payload.endDayId ?? dayId }),
     title: payload.title,
     projectId: payload.projectId ?? null,
     projectCategoryId: payload.projectCategoryId ?? null,
@@ -685,6 +689,46 @@ function materializeDemoCreate(
 ): CreateTaskResult {
   const now = new Date().toISOString();
   const kind = payload.kind ?? 'task';
+
+  if (payload.undated === true || isInboxDayId(dayId)) {
+    const task: Task & { weekId: string; dayId: string } = {
+      id: firstId,
+      title: payload.title,
+      completed: false,
+      completedAt: null,
+      projectId: kindSupportsProject(kind) ? (payload.projectId ?? null) : null,
+      projectCategoryId: kindSupportsProject(kind)
+        ? (payload.projectCategoryId ?? null)
+        : null,
+      priority: payload.priority ?? 'medium',
+      notes: payload.notes ?? '',
+      order: 0,
+      tags: mergeTags(payload.tags, extractHashtags(payload.title)),
+      movedFrom: null,
+      seriesId: null,
+      recurrence: { frequency: 'none', interval: 1 },
+      endDayId: INBOX_DAY_ID,
+      urgency: payload.urgency ?? null,
+      importance: payload.importance ?? null,
+      kind,
+      color: payload.color ?? null,
+      startTime: payload.startTime ?? null,
+      endTime: payload.endTime ?? null,
+      rx: null,
+      involvedContactIds: payload.involvedContactIds ?? [],
+      location: payload.location?.trim() || null,
+      departureTime: payload.departureTime ?? null,
+      steps: kindSupportsSteps(kind) ? normalizeTaskSteps(payload.steps) : [],
+      images: normalizeTaskImages(payload.images),
+      finance: null,
+      financeMovementId: null,
+      createdAt: now,
+      updatedAt: now,
+      weekId: INBOX_WEEK_ID,
+      dayId: INBOX_DAY_ID,
+    };
+    return { task, instances: [task] };
+  }
 
   if (isRxKind(kind) && payload.rxPhases?.length) {
     const occs = materializeRxOccurrences(dayId, payload.rxPhases);

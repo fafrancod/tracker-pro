@@ -183,6 +183,37 @@ async function demoFetch<T>(path: string, method: string, body: unknown): Promis
     } as T;
   }
 
+  if (method === 'GET' && path === '/api/notes') {
+    return { notes: [] } as T;
+  }
+  if (method === 'POST' && path === '/api/notes') {
+    const now = nowIso();
+    return {
+      id: randomId(),
+      title: json?.title ?? '',
+      content: json?.content ?? { type: 'doc', content: [{ type: 'paragraph' }] },
+      excerpt: '',
+      links: Array.isArray(json?.links) ? json.links : [],
+      createdAt: now,
+      updatedAt: now,
+    } as T;
+  }
+  if (method === 'PATCH' && path.startsWith('/api/notes/')) {
+    const now = nowIso();
+    return {
+      id: path.split('/').pop(),
+      title: json?.title ?? '',
+      content: json?.content ?? { type: 'doc', content: [{ type: 'paragraph' }] },
+      excerpt: '',
+      links: Array.isArray(json?.links) ? json.links : [],
+      createdAt: now,
+      updatedAt: now,
+    } as T;
+  }
+  if (method === 'DELETE' && path.startsWith('/api/notes/')) {
+    return undefined as T;
+  }
+
   if (method === 'POST' && path === '/api/projects') {
     return {
       id: randomId(),

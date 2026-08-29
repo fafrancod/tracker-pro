@@ -131,7 +131,7 @@ export function shouldExcludeFromGantt(kind: TaskKind | string | null | undefine
 export function toGanttItem(row: GanttSourceRow): GanttItem | null {
   if (!isGanttKind(row.kind)) return null;
   const start = row.dayId;
-  if (!start) return null;
+  if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
   const end = row.endDayId && row.endDayId >= start ? row.endDayId : start;
   const occ: GanttOccurrence = {
     id: row.id,

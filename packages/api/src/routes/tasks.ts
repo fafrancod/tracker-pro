@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import {
+  INBOX_DAY_ID,
+  INBOX_WEEK_ID,
   MAX_TASK_IMAGES,
   kindSupportsProject,
   normalizePomodoroCount,
@@ -12,7 +14,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { ApiError } from '../errors.js';
 import { generateId } from '../lib/ids.js';
-import { isValidDayId, isValidWeekId } from '../lib/period.js';
+import { currentPeriod, isValidDayId, isValidWeekId } from '../lib/period.js';
 import { bumpUsage, readProfilePlan, readUsage } from '../lib/usage.js';
 import { getLimits } from '../lib/planLimits.js';
 import {
@@ -84,10 +86,29 @@ export const tasksRouter = Router();
 tasksRouter.use(requireAuth);
 tasksRouter.use(rateLimit({ windowMs: 60_000, max: 120 }));
 
-const taskLocation = z.object({
-  weekId: z.string().refine(isValidWeekId, 'weekId formato YYYY-Www'),
-  dayId: z.string().refine(isValidDayId, 'dayId formato YYYY-MM-DD'),
+const taskLocationFields = z.object({
+  weekId: z
+    .string()
+    .refine(isValidWeekId, 'weekId formato YYYY-Www')
+    .nullable()
+    .optional(),
+  dayId: z
+    .string()
+    .refine(isValidDayId, 'dayId formato YYYY-MM-DD')
+    .nullable()
+    .optional(),
 });
+
+function isInboxLocation(weekId: string, dayId: string): boolean {
+  return weekId === INBOX_WEEK_ID && dayId === INBOX_DAY_ID;
+}
+
+function assertTaskLocation(weekId: string, dayId: string) {
+  if (isInboxLocation(weekId, dayId)) return;
+  if (!isValidWeekId(weekId) || !isValidDayId(dayId)) {
+    throw ApiError.badRequest('weekId/dayId con formato invalido');
+  }
+}
 
 const prioritySchema = z.enum(['low', 'medium', 'high']);
 const recurrenceFrequencySchema = z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']);
@@ -257,7 +278,7 @@ function normalizeImages(raw: unknown): string[] {
   return normalizeTaskImages(raw);
 }
 
-const createSchema = taskLocation.extend({
+const createSchema = taskLocationFields.extend({
   title: z.string().min(1).max(280).trim(),
   projectId: z.string().nullable().optional(),
   projectCategoryId: z.string().min(1).max(80).nullable().optional(),
@@ -302,6 +323,16 @@ const createSchema = taskLocation.extend({
     .max(90)
     .optional(),
   financeMovementId: z.string().min(1).max(80).nullable().optional(),
+}).superRefine((val, ctx) => {
+  const hasDay = Boolean(val.dayId);
+  const hasWeek = Boolean(val.weekId);
+  if (hasDay !== hasWeek) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'dayId y weekId deben ir juntos',
+      path: hasDay ? ['weekId'] : ['dayId'],
+    });
+  }
 });
 
 const updateSchema = z
@@ -381,14 +412,17 @@ function toClientTask(
 ) {
   const frequency = (row.recurrence_frequency as RecurrenceFrequency | undefined) ?? 'none';
   const interval = typeof row.recurrence_interval === 'number' ? row.recurrence_interval : 1;
-  const dayId = overrides?.dayId ?? (row.day_id as string);
+  const rawDay = overrides?.dayId ?? (row.day_id as string | null | undefined);
+  const dayId = rawDay && isValidDayId(rawDay) ? rawDay : INBOX_DAY_ID;
+  const rawWeek = overrides?.weekId ?? (row.week_id as string | null | undefined);
+  const weekId = rawWeek && isValidWeekId(rawWeek) ? rawWeek : INBOX_WEEK_ID;
   const endDayId =
     (row.end_day_id as string | undefined) ??
     (row.endDayId as string | undefined) ??
-    dayId;
+    (dayId === INBOX_DAY_ID ? INBOX_DAY_ID : dayId);
   return {
     id: row.id as string,
-    weekId: overrides?.weekId ?? (row.week_id as string),
+    weekId,
     dayId,
     endDayId,
     title: row.title as string,
@@ -617,6 +651,136 @@ tasksRouter.post('/', async (req, res, next) => {
       );
       if (ok) resolvedProjectCategoryId = rawProjectCategoryId;
     }
+
+    const undated = !dayId;
+    if (undated) {
+      if (isRxKind(taskKind) || isHabitKind(taskKind) || isFinance) {
+        throw ApiError.badRequest('Este tipo de ítem necesita una fecha');
+      }
+      if (recurrenceFrequency && recurrenceFrequency !== 'none') {
+        throw ApiError.badRequest('Las tareas sin fecha no admiten repetición');
+      }
+      if (rawEndDayId) {
+        throw ApiError.badRequest('endDayId requiere dayId');
+      }
+      if (rawSpecificDayIds && rawSpecificDayIds.length > 0) {
+        throw ApiError.badRequest('specificDayIds requiere una fecha de inicio');
+      }
+
+      const now = new Date().toISOString();
+      const involvedIds = Array.isArray(involvedContactIds)
+        ? Array.from(new Set(involvedContactIds.map(s => s.trim()).filter(Boolean))).slice(
+            0,
+            40
+          )
+        : [];
+      const isEventLike = taskKind === 'event' || taskKind === 'possible_event';
+      const supportsLocation =
+        taskKind === 'task' ||
+        taskKind === 'reminder' ||
+        taskKind === 'event' ||
+        taskKind === 'possible_event';
+      const locationValue =
+        supportsLocation && typeof location === 'string' && location.trim()
+          ? location.trim().slice(0, 200)
+          : null;
+      const departureValue = taskKind === 'event' ? (departureTime ?? null) : null;
+      const stepsValue = kindSupportsSteps(taskKind) ? normalizeSteps(rawSteps) : [];
+      const imagesValue = normalizeImages(rawImages);
+      const mergedTags = mergeTags(tags, extractHashtags(title));
+      const row: Record<string, unknown> = {
+        id: generateId(),
+        user_id: uid,
+        week_id: null,
+        day_id: null,
+        end_day_id: null,
+        title,
+        completed: false,
+        completed_at: null,
+        project_id: supportsProject ? (projectId ?? null) : null,
+        project_category_id: supportsProject ? resolvedProjectCategoryId : null,
+        priority: priority ?? 'medium',
+        notes: notes ?? '',
+        order: 0,
+        tags: mergedTags,
+        moved_from: null,
+        series_id: null,
+        recurrence_frequency: 'none',
+        recurrence_interval: 1,
+        urgency: isEventLike ? null : (urgency ?? null),
+        importance: isEventLike ? null : (importance ?? null),
+        kind: taskKind,
+        color:
+          color ??
+          (taskKind === 'event'
+            ? '#58a6ff'
+            : taskKind === 'possible_event'
+              ? '#a371f7'
+              : null),
+        start_time: startTime ?? null,
+        end_time: endTime ?? null,
+        rx_meta: null,
+        finance_meta: null,
+        finance_movement_id: null,
+        involved_contact_ids: isEventLike ? involvedIds : [],
+        location: locationValue,
+        departure_time: departureValue,
+        steps: stepsValue,
+        images: imagesValue,
+        pomodoro_target: 0,
+        pomodoro_done: 0,
+        created_at: now,
+        updated_at: now,
+      };
+
+      const [plan, usage] = await Promise.all([
+        readProfilePlan(uid),
+        readUsage(uid, currentPeriod()),
+      ]);
+      const limits = getLimits(plan);
+      if (Number.isFinite(limits.maxTasksPerMonth)) {
+        const tasksThisMonth = usage.tasks_created ?? 0;
+        if (tasksThisMonth + 1 > limits.maxTasksPerMonth) {
+          throw ApiError.planLimit(
+            `Tu plan permite hasta ${limits.maxTasksPerMonth} tareas por mes.`,
+            { plan, limit: limits.maxTasksPerMonth, current: tasksThisMonth, requested: 1 }
+          );
+        }
+      }
+
+      const { error } = await getSupabaseAdmin().from('tasks').insert([row]);
+      if (error) throw error;
+
+      const first = toClientTask(row);
+      res.status(201).json({
+        ...first,
+        createdCount: 1,
+        instances: [
+          {
+            id: row.id as string,
+            weekId: INBOX_WEEK_ID,
+            dayId: INBOX_DAY_ID,
+            endDayId: INBOX_DAY_ID,
+            seriesId: null,
+          },
+        ],
+      });
+      logger.info(
+        recordTaskCreate({
+          ms: nowMs() - t0,
+          rows: 1,
+          kind: taskKind,
+          orderQueries: 0,
+          recurrence: 'none',
+        }),
+        'api.tasks.create'
+      );
+      void bumpUsage(uid, { tasksCreated: 1 }, eventId).catch(err => {
+        logger.warn({ err, uid, n: 1 }, 'bumpUsage after create failed');
+      });
+      return;
+    }
+
     const resolvedEndDayId =
       typeof rawEndDayId === 'string' && rawEndDayId >= dayId ? rawEndDayId : dayId;
     // Finanzas no usan horario.
@@ -977,20 +1141,18 @@ tasksRouter.patch('/:weekId/:dayId/:taskId', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
     const { weekId, dayId, taskId } = req.params;
-    if (!isValidWeekId(weekId) || !isValidDayId(dayId)) {
-      throw ApiError.badRequest('weekId/dayId con formato invalido');
-    }
+    assertTaskLocation(weekId, dayId);
     const patch = updateSchema.parse(req.body);
     const now = new Date().toISOString();
 
-    const { data: existing, error: fetchError } = await getSupabaseAdmin()
+    const existingQuery = getSupabaseAdmin()
       .from('tasks')
       .select('*')
       .eq('id', taskId)
-      .eq('user_id', uid)
-      .eq('week_id', weekId)
-      .eq('day_id', dayId)
-      .maybeSingle();
+      .eq('user_id', uid);
+    const { data: existing, error: fetchError } = await (isInboxLocation(weekId, dayId)
+      ? existingQuery.is('day_id', null).maybeSingle()
+      : existingQuery.eq('week_id', weekId).eq('day_id', dayId).maybeSingle());
     if (fetchError) throw fetchError;
     if (!existing) throw ApiError.notFound('Task not found');
 
@@ -1754,18 +1916,16 @@ tasksRouter.delete('/:weekId/:dayId/:taskId', async (req, res, next) => {
   try {
     const uid = req.user!.uid;
     const { weekId, dayId, taskId } = req.params;
-    if (!isValidWeekId(weekId) || !isValidDayId(dayId)) {
-      throw ApiError.badRequest('weekId/dayId con formato invalido');
-    }
+    assertTaskLocation(weekId, dayId);
 
-    const { data: existing, error: fetchError } = await getSupabaseAdmin()
+    const existingQuery = getSupabaseAdmin()
       .from('tasks')
       .select('id')
       .eq('id', taskId)
-      .eq('user_id', uid)
-      .eq('week_id', weekId)
-      .eq('day_id', dayId)
-      .maybeSingle();
+      .eq('user_id', uid);
+    const { data: existing, error: fetchError } = await (isInboxLocation(weekId, dayId)
+      ? existingQuery.is('day_id', null).maybeSingle()
+      : existingQuery.eq('week_id', weekId).eq('day_id', dayId).maybeSingle());
     if (fetchError) throw fetchError;
     if (!existing) throw ApiError.notFound('Task not found');
 

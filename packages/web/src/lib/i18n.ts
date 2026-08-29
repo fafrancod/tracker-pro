@@ -11,6 +11,7 @@ export interface TranslationDict {
   nav_summary: string;
   nav_tasks: string;
   nav_projects: string;
+  nav_ideas: string;
   nav_documents: string;
   nav_circle: string;
   nav_analytics: string;
@@ -737,6 +738,43 @@ export interface TranslationDict {
   project_categories_count: string;
   project_subprojects: string;
   project_no_subprojects: string;
+  project_no_subprojects_short: string;
+  project_empty_title: string;
+  project_empty_hint: string;
+  project_empty_cta: string;
+  project_workspace_hint: string;
+  project_tasks_load_error: string;
+  project_task_add_error: string;
+  project_tasks_loading: string;
+  project_ungrouped_tasks: string;
+  project_no_tasks: string;
+  project_undated: string;
+  project_task_ph: string;
+  project_task_date_optional: string;
+  notes_back: string;
+  notes_new: string;
+  notes_untitled: string;
+  notes_save_error: string;
+  notes_delete_error: string;
+  notes_search: string;
+  notes_loading: string;
+  notes_empty_title: string;
+  notes_empty_hint: string;
+  notes_no_excerpt: string;
+  notes_pick_title: string;
+  notes_pick_hint: string;
+  notes_title_ph: string;
+  notes_delete: string;
+  notes_untag: string;
+  notes_tag_ph: string;
+  notes_tag_empty: string;
+  notes_tag_project: string;
+  notes_tag_subproject: string;
+  notes_tag_task: string;
+  notes_tag_event: string;
+  notes_editor_ph: string;
+  notes_delete_title: string;
+  notes_delete_confirm: string;
   action_create: string;
   task_move_to: string;
   task_move_next_week: string;
@@ -1287,6 +1325,7 @@ const es_dict: TranslationDict = {
   nav_summary: 'Resumen',
   nav_tasks: 'Calendario',
   nav_projects: 'Proyectos',
+  nav_ideas: 'Ideas',
   nav_documents: 'Documentos',
   nav_circle: 'Círculo',
   nav_analytics: 'Analytics',
@@ -2073,6 +2112,44 @@ const es_dict: TranslationDict = {
   project_categories_count: '{n} subcategorías',
   project_subprojects: 'Subproyectos',
   project_no_subprojects: 'Aún no hay subproyectos. Añade uno abajo.',
+  project_no_subprojects_short: 'Sin subproyectos',
+  project_empty_title: 'Aún no tienes proyectos',
+  project_empty_hint:
+    'Crea tu primer proyecto para agrupar tareas y ver subproyectos y pendientes en una lista.',
+  project_empty_cta: 'Crear primer proyecto',
+  project_workspace_hint: 'Subproyectos y tareas, con o sin fecha',
+  project_tasks_load_error: 'No pude cargar las tareas de este proyecto.',
+  project_task_add_error: 'No pude añadir la tarea.',
+  project_tasks_loading: 'Cargando tareas…',
+  project_ungrouped_tasks: 'Sin subproyecto',
+  project_no_tasks: 'No hay tareas en este grupo.',
+  project_undated: 'Sin fecha',
+  project_task_ph: 'Nueva tarea…',
+  project_task_date_optional: 'Fecha (opcional)',
+  notes_back: 'Volver',
+  notes_new: 'Nueva idea',
+  notes_untitled: 'Sin título',
+  notes_save_error: 'No pude guardar la idea.',
+  notes_delete_error: 'No pude eliminar la idea.',
+  notes_search: 'Buscar ideas…',
+  notes_loading: 'Cargando ideas…',
+  notes_empty_title: 'Aún no hay ideas',
+  notes_empty_hint: 'Anota un pensamiento y enlázalo a un proyecto, una tarea o un evento.',
+  notes_no_excerpt: 'Sin contenido todavía',
+  notes_pick_title: 'Elige una idea',
+  notes_pick_hint: 'La lista de la izquierda abre el editor. Puedes etiquetar cada nota.',
+  notes_title_ph: 'Título de la idea',
+  notes_delete: 'Eliminar idea',
+  notes_untag: 'Quitar etiqueta',
+  notes_tag_ph: 'Etiquetar proyecto, subproyecto, tarea o evento…',
+  notes_tag_empty: 'Nada coincide con esa búsqueda',
+  notes_tag_project: 'Proyecto',
+  notes_tag_subproject: 'Subproyecto',
+  notes_tag_task: 'Tarea',
+  notes_tag_event: 'Evento',
+  notes_editor_ph: 'Escribe tu idea…',
+  notes_delete_title: 'Eliminar idea',
+  notes_delete_confirm: 'Esta idea se eliminará de forma permanente.',
   action_create: 'Crear',
   task_move_to: 'Mover a',
   task_move_next_week: 'Semana siguiente →',
@@ -2666,6 +2743,7 @@ const en_dict: TranslationDict = {
   nav_summary: 'Summary',
   nav_tasks: 'Calendar',
   nav_projects: 'Projects',
+  nav_ideas: 'Ideas',
   nav_documents: 'Documents',
   nav_circle: 'Circle',
   nav_analytics: 'Analytics',
@@ -3451,6 +3529,44 @@ const en_dict: TranslationDict = {
   project_categories_count: '{n} subcategories',
   project_subprojects: 'Subprojects',
   project_no_subprojects: 'No subprojects yet. Add one below.',
+  project_no_subprojects_short: 'No subprojects',
+  project_empty_title: 'You have no projects yet',
+  project_empty_hint:
+    'Create your first project to group tasks and see subprojects and a task list.',
+  project_empty_cta: 'Create first project',
+  project_workspace_hint: 'Subprojects and tasks, with or without a date',
+  project_tasks_load_error: 'Could not load tasks for this project.',
+  project_task_add_error: 'Could not add the task.',
+  project_tasks_loading: 'Loading tasks…',
+  project_ungrouped_tasks: 'No subproject',
+  project_no_tasks: 'No tasks in this group.',
+  project_undated: 'No date',
+  project_task_ph: 'New task…',
+  project_task_date_optional: 'Date (optional)',
+  notes_back: 'Back',
+  notes_new: 'New idea',
+  notes_untitled: 'Untitled',
+  notes_save_error: 'Could not save the idea.',
+  notes_delete_error: 'Could not delete the idea.',
+  notes_search: 'Search ideas…',
+  notes_loading: 'Loading ideas…',
+  notes_empty_title: 'No ideas yet',
+  notes_empty_hint: 'Jot something down and tag it with a project, task or event.',
+  notes_no_excerpt: 'No content yet',
+  notes_pick_title: 'Pick an idea',
+  notes_pick_hint: 'The list on the left opens the editor. You can tag each note.',
+  notes_title_ph: 'Idea title',
+  notes_delete: 'Delete idea',
+  notes_untag: 'Remove tag',
+  notes_tag_ph: 'Tag a project, subproject, task or event…',
+  notes_tag_empty: 'Nothing matches that search',
+  notes_tag_project: 'Project',
+  notes_tag_subproject: 'Subproject',
+  notes_tag_task: 'Task',
+  notes_tag_event: 'Event',
+  notes_editor_ph: 'Write your idea…',
+  notes_delete_title: 'Delete idea',
+  notes_delete_confirm: 'This idea will be permanently deleted.',
   action_create: 'Create',
   task_move_to: 'Move to',
   task_move_next_week: 'Next week →',

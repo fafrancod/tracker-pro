@@ -26,6 +26,12 @@ import {
 } from './applyMutation';
 import type { HistoryEntry, HistoryMutation } from './types';
 import {
+  INBOX_DAY_ID,
+  INBOX_WEEK_ID,
+  isCalendarDayId,
+  isInboxDayId,
+} from '../lib/inbox';
+import {
   normalizeRecurrence,
   addDaysToDayId,
   getWeekIdFromDayId,
@@ -68,16 +74,24 @@ export const taskHistory = {
   ): Promise<void> {
     const store = useStore.getState();
     // Allow create form to target another start day than the open column/sheet.
-    const { startDayId: payloadStart, ...restPayload } = payload;
-    const targetDayId =
-      typeof payloadStart === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(payloadStart)
+    const { startDayId: payloadStart, undated: payloadUndated, ...restPayload } = payload;
+    const undated =
+      payloadUndated === true ||
+      (isInboxDayId(dayId) && !isCalendarDayId(payloadStart));
+    const targetDayId = undated
+      ? INBOX_DAY_ID
+      : typeof payloadStart === 'string' && isCalendarDayId(payloadStart)
         ? payloadStart
         : dayId;
-    const targetWeekId =
-      targetDayId === dayId ? weekId : getWeekIdFromDayId(targetDayId);
+    const targetWeekId = undated
+      ? INBOX_WEEK_ID
+      : targetDayId === dayId
+        ? weekId
+        : getWeekIdFromDayId(targetDayId);
     const apiPayload: CreateTaskPayload = {
       ...restPayload,
-      endDayId: restPayload.endDayId ?? targetDayId,
+      undated,
+      endDayId: undated ? undefined : (restPayload.endDayId ?? targetDayId),
     };
 
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;

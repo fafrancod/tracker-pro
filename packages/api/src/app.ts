@@ -11,6 +11,7 @@ import { versionRouter } from './routes/version.js';
 import { publicConfigRouter } from './routes/publicConfig.js';
 import { tasksRouter } from './routes/tasks.js';
 import { projectsRouter } from './routes/projects.js';
+import { notesRouter } from './routes/notes.js';
 import { contactsRouter } from './routes/contacts.js';
 import { authRouter } from './routes/auth.js';
 import { notificationsRouter } from './routes/notifications.js';
@@ -89,6 +90,7 @@ export function buildApp(): Express {
   app.use('/api/auth', authRouter);
   app.use('/api/tasks', tasksRouter);
   app.use('/api/projects', projectsRouter);
+  app.use('/api/notes', notesRouter);
   app.use('/api/contacts', contactsRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/finances', financeFxRouter);
@@ -117,6 +119,7 @@ export function buildApp(): Express {
         '/api/auth/bootstrap',
         '/api/tasks',
         '/api/projects',
+        '/api/notes',
         '/api/contacts',
         '/api/finances',
         '/api/finances/movements',

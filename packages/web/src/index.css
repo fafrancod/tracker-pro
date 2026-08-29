@@ -561,3 +561,53 @@ html[data-material='glass'] {
   background-color: var(--color-accent-teal);
   color: #fff;
 }
+
+/* Editor de ideas (TipTap / estilo documento) */
+.note-editor .ProseMirror {
+  min-height: 100%;
+  padding: 1.5rem 1.75rem 3rem;
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.note-editor .ProseMirror:focus {
+  outline: none;
+}
+.note-editor .ProseMirror h1 {
+  font-size: 1.85rem;
+  font-weight: 700;
+  margin: 0.6em 0 0.35em;
+}
+.note-editor .ProseMirror h2 {
+  font-size: 1.35rem;
+  font-weight: 650;
+  margin: 0.7em 0 0.3em;
+}
+.note-editor .ProseMirror h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.7em 0 0.25em;
+}
+.note-editor .ProseMirror p {
+  margin: 0.35em 0;
+}
+.note-editor .ProseMirror ul,
+.note-editor .ProseMirror ol {
+  padding-left: 1.4rem;
+  margin: 0.4em 0;
+}
+.note-editor .ProseMirror a {
+  color: var(--color-accent-teal);
+  text-decoration: underline;
+}
+.note-editor .ProseMirror mark {
+  background: color-mix(in srgb, var(--color-accent-teal) 28%, transparent);
+  border-radius: 2px;
+}
+.note-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-text-muted);
+}

@@ -1,4 +1,5 @@
 import type { Task } from '../types';
+import { INBOX_WEEK_ID } from './inbox';
 import {
   buildVirtualHabitForDay,
   habitShouldAppearOnDay,
@@ -58,6 +59,7 @@ export function collectTasksCovering(
   const habitSeeds = new Map<string, HabitSeed>();
 
   for (const [weekId, days] of Object.entries(tasksByDay)) {
+    if (weekId === INBOX_WEEK_ID) continue;
     for (const [startDayId, tasks] of Object.entries(days)) {
       for (const task of tasks) {
         if (isHabitKind(task.kind) && task.seriesId) {

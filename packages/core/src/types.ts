@@ -577,6 +577,11 @@ export interface CreateTaskPayload {
   recurrenceWeekdays?: number[] | null;
   /** Fechas concretas del plan (hábitos). Materializa una fila por día. */
   specificDayIds?: string[];
+  /**
+   * true = backlog (sin day_id). No aparece en el calendario.
+   * Incompatible con recetario, hábitos, finanzas y repetición.
+   */
+  undated?: boolean;
 }
 
 export type TaskApplyTo = 'instance' | 'series';
@@ -801,4 +806,41 @@ export interface FinanceMonthSummary {
   totalIncome: number;
   totalExpense: number;
   balance: number;
+}
+
+/** Enlace de una idea a un proyecto, subproyecto, tarea o evento. */
+export type NoteLinkType = 'project' | 'subproject' | 'task' | 'event';
+
+export interface NoteLink {
+  type: NoteLinkType;
+  id: string;
+  /** Requerido para subproyecto (id del proyecto padre). */
+  projectId?: string | null;
+  /** Etiqueta denormalizada para la lista (nombre al guardar). */
+  label?: string | null;
+}
+
+/** Documento TipTap JSON (ProseMirror). */
+export type NoteContent = Record<string, unknown>;
+
+export interface Note {
+  id: string;
+  title: string;
+  content: NoteContent;
+  excerpt: string;
+  links: NoteLink[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateNotePayload {
+  title?: string;
+  content?: NoteContent | null;
+  links?: NoteLink[];
+}
+
+export interface UpdateNotePayload {
+  title?: string;
+  content?: NoteContent | null;
+  links?: NoteLink[];
 }
