@@ -49,7 +49,10 @@ import {
 import { rescheduleTaskSpan } from './rescheduleSpan';
 import { getChileHolidaysInRange } from '@core/lib/chileHolidays';
 import { tintHoliday } from '@/lib/tintClasses';
-import { scheduleScrollToCalendarToday } from '@/lib/calendarToday';
+import {
+  redirectNestedWheelToCalendar,
+  scheduleScrollToCalendarToday,
+} from '@/lib/calendarToday';
 import { todayCivilDate, todayDayId } from '@core/lib/civilDate';
 
 export interface MonthViewProps {
@@ -771,7 +774,6 @@ export function MonthView({
           ref={calendarRootRef}
           className={cn(
             'flex flex-col gap-1',
-            mode === 'single' ? 'flex-1 overflow-y-auto' : '',
             'select-none',
             barDrag && 'cursor-grabbing'
           )}
@@ -930,13 +932,9 @@ export function MonthView({
                         Cada chip sí detiene la propagación.
                       */}
                       <div
-                        className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain"
+                        className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto"
                         onWheel={e => {
-                          // Keep wheel scroll inside the day cell when the list overflows.
-                          const el = e.currentTarget;
-                          if (el.scrollHeight > el.clientHeight) {
-                            e.stopPropagation();
-                          }
+                          redirectNestedWheelToCalendar(e);
                         }}
                       >
                         {holidayName && (

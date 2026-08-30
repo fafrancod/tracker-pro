@@ -54,6 +54,7 @@ export * from './lib/notifications';
 export * from './lib/tags';
 export * from './lib/time';
 export * from './lib/civilDate';
+export * from './lib/calendarScroll';
 export * from './lib/network';
 export * from './lib/taskCache';
 export * from './lib/offlineQueue';

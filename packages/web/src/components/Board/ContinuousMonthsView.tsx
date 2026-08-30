@@ -156,7 +156,7 @@ export function ContinuousMonthsView({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-x-auto bg-background">
+    <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden bg-background">
       {/*
         Seven calendar columns stop being useful once a task title has only a
         few pixels left. The calendar canvas therefore preserves a readable
