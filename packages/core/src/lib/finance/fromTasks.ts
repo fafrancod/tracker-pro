@@ -2,6 +2,8 @@ import type { Task } from '../../types';
 import { isFinanceKind } from '../financeKinds';
 import { isCalendarDayId } from '../inbox';
 import { isRecurring } from '../recurrence';
+import { monthIdFromDayId } from './movementSummary';
+import { financeTitlesMatch } from './title';
 import type { FinanceListSeriesHint } from './listRows';
 import type { FinanceMovement, FinanceRuleFrequency } from './types';
 
@@ -138,13 +140,19 @@ export function coveringMovementForTask(
   if (bySource) return bySource;
   const amount = amountOf(task);
   const flow = task.kind === 'finance_income' ? 'income' : 'expense';
-  return movements.find(
-    m =>
-      m.dayId === task.dayId &&
-      m.flow === flow &&
-      sameAmount(m.amount, amount) &&
-      (m.title || '').trim().toLowerCase() === task.title.trim().toLowerCase()
-  );
+  const monthly =
+    task.recurrence?.frequency === 'monthly' ||
+    task.recurrence?.frequency === 'yearly';
+  return movements.find(m => {
+    if (m.status === 'skipped' || m.flow !== flow) return false;
+    if (!financeTitlesMatch(m.title, task.title)) return false;
+    if (amount > 0 && m.amount > 0 && !sameAmount(m.amount, amount)) return false;
+    if (m.dayId === task.dayId) return true;
+    if (monthly && monthIdFromDayId(m.dayId) === monthIdFromDayId(task.dayId)) {
+      return true;
+    }
+    return false;
+  });
 }
 
 /**

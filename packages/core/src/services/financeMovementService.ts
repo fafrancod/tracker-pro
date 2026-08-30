@@ -2,7 +2,10 @@ import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
 import { buildFinancePayload, parseFinancePayload } from '../lib/finance/payload';
 import type { TickerQuote, TickerSearchHit } from '../lib/finance/portfolio';
-import { expandFinanceRules } from '../lib/finance/expandRules';
+import {
+  dedupeFinanceCalendarMovements,
+  expandFinanceRules,
+} from '../lib/finance/expandRules';
 import {
   encryptFinancePayload,
   financePayloadAad,
@@ -198,7 +201,10 @@ export async function fetchFinanceCalendar(
     ? await unsealFinanceLedger(vault.uid, vault.dek, raw.movements, raw.rules)
     : raw;
   const virtuals = expandFinanceRules(rules, movements, fromDayId, toDayId);
-  return [...movements, ...virtuals].sort((a, b) => {
+  return dedupeFinanceCalendarMovements(
+    [...movements, ...virtuals],
+    rules
+  ).sort((a, b) => {
     if (a.dayId !== b.dayId) return a.dayId.localeCompare(b.dayId);
     return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
   });

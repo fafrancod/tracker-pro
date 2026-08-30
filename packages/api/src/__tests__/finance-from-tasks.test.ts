@@ -107,6 +107,26 @@ describe('mergeBoardFinanceIntoMovements', () => {
     expect(out[0].id).toBe('m1');
   });
 
+  it('cubre el arriendo del mes aunque el día del tablero no coincida', () => {
+    const board = task({
+      id: 't-arriendo-sep',
+      title: 'Arriendo dpto',
+      dayId: '2026-09-01',
+      kind: 'finance_expense',
+      finance: { amount: 500000, currency: 'CLP', certainty: 'fixed' },
+    });
+    const existing = mov({
+      id: 'm1',
+      dayId: '2026-09-05',
+      title: 'Arriendo depto',
+      flow: 'expense',
+      amount: 500000,
+    });
+    expect(coveringMovementForTask([existing], board)?.id).toBe('m1');
+    const merged = mergeBoardFinanceIntoMovements([existing], [board]);
+    expect(merged).toHaveLength(1);
+  });
+
   it('no duplica una ocurrencia virtual de la misma regla', () => {
     const globant = task({
       id: 't-globant-aug',

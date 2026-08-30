@@ -69,6 +69,7 @@ import {
   financeSeriesHintsFromTasks,
   matchFinanceRuleForMovement,
   mergeBoardFinanceIntoMovements,
+  dedupeFinanceCalendarMovements,
   syncBoardFinanceToLedger,
   type LocatedFinanceTask,
 } from '@core/lib/finance';
@@ -370,7 +371,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         ...next,
         ...expandFinanceCredits(crs, next, range.from, range.to),
       ];
-      setMovements(mergeBoardFinanceIntoMovements(withCredits, financeTasks));
+      const calendarRules = opened.rules;
+      setMovements(
+        dedupeFinanceCalendarMovements(
+          mergeBoardFinanceIntoMovements(withCredits, financeTasks),
+          calendarRules
+        )
+      );
       if (financeTasks.length > 0) {
         const persisted = await syncBoardFinanceToLedger({
           movements: next,
@@ -388,7 +395,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             ...expandFinanceCredits(crs, refreshed, range.from, range.to),
           ];
           setMovements(
-            mergeBoardFinanceIntoMovements(refreshedWithCredits, financeTasks)
+            dedupeFinanceCalendarMovements(
+              mergeBoardFinanceIntoMovements(refreshedWithCredits, financeTasks),
+              calendarRules
+            )
           );
         }
       }

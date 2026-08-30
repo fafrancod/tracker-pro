@@ -1,4 +1,6 @@
 import { listDayIdsInclusive } from '../habitPlan';
+import { monthIdFromDayId } from './movementSummary';
+import { financeTitlesMatch, normalizeFinanceTitle } from './title';
 import type { FinanceMovement, FinanceRule } from './types';
 
 function daysInMonth(year: number, monthIndex0: number): number {
@@ -28,31 +30,65 @@ export function makeVirtualFinanceId(ruleId: string, dayId: string): string {
   return `fvr:${ruleId}:${dayId}`;
 }
 
-function normTitle(title: string): string {
-  return title.trim().toLowerCase();
-}
-
 function amountsCompatible(a: number, b: number): boolean {
   if (!(a > 0) || !(b > 0)) return true;
   return Math.abs(a - b) < 0.009;
 }
 
-function txKey(mov: Pick<FinanceMovement, 'flow' | 'title' | 'dayId'>): string {
-  return `${mov.flow}|${normTitle(mov.title)}|${mov.dayId}`;
+function txKey(
+  mov: Pick<FinanceMovement, 'flow' | 'title' | 'dayId'>,
+  monthly: boolean
+): string {
+  const when = monthly ? monthIdFromDayId(mov.dayId) : mov.dayId;
+  return `${mov.flow}|${normalizeFinanceTitle(mov.title)}|${when}`;
+}
+
+function ruleOccurrenceKey(rule: FinanceRule, dayId: string): string {
+  if (rule.frequency === 'monthly') {
+    return `${rule.id}|${monthIdFromDayId(dayId)}`;
+  }
+  return `${rule.id}|${dayId}`;
+}
+
+export function isSyntheticFinanceMovement(mov: FinanceMovement): boolean {
+  return (
+    Boolean(mov.virtual) ||
+    mov.id.startsWith('fvr:') ||
+    mov.id.startsWith('ftask:') ||
+    mov.id.startsWith('fcr:')
+  );
+}
+
+export function preferFinanceMovement(
+  a: FinanceMovement,
+  b: FinanceMovement
+): FinanceMovement {
+  const score = (m: FinanceMovement) =>
+    (isSyntheticFinanceMovement(m) ? 0 : 8) +
+    (m.status === 'confirmed' ? 4 : 0) +
+    (m.ruleId ? 2 : 0) +
+    (m.sourceTaskId ? 1 : 0);
+  return score(b) > score(a) ? b : a;
 }
 
 /** Fila del mayor que ya representa esa ocurrencia de la regla (con o sin ruleId). */
 export function movementCoversFinanceRule(
   mov: FinanceMovement,
-  rule: FinanceRule
+  rule: FinanceRule,
+  occurrenceDayId?: string
 ): boolean {
   if (mov.status === 'skipped') return false;
   if (mov.flow !== rule.flow) return false;
-  if (mov.ruleId && mov.ruleId === rule.id) return true;
-  if (normTitle(mov.title) !== normTitle(rule.title) || !normTitle(rule.title)) {
-    return false;
+  const sameIdentity =
+    (mov.ruleId && mov.ruleId === rule.id) ||
+    financeTitlesMatch(mov.title, rule.title);
+  if (!sameIdentity) return false;
+  if (!amountsCompatible(mov.amount, rule.amount)) return false;
+  if (!occurrenceDayId) return true;
+  if (rule.frequency === 'monthly') {
+    return monthIdFromDayId(mov.dayId) === monthIdFromDayId(occurrenceDayId);
   }
-  return amountsCompatible(mov.amount, rule.amount);
+  return mov.dayId === occurrenceDayId;
 }
 
 export function expandFinanceRules(
@@ -65,12 +101,20 @@ export function expandFinanceRules(
   const existingTx = new Set<string>();
   for (const mov of movements) {
     if (mov.status === 'skipped') continue;
-    existingTx.add(txKey(mov));
-    if (mov.ruleId) covered.add(`${mov.ruleId}:${mov.dayId}`);
+    existingTx.add(txKey(mov, false));
+    existingTx.add(txKey(mov, true));
+    if (mov.ruleId) {
+      const owned = rules.find(item => item.id === mov.ruleId);
+      covered.add(
+        owned
+          ? ruleOccurrenceKey(owned, mov.dayId)
+          : `${mov.ruleId}|${mov.dayId}`
+      );
+    }
     for (const rule of rules) {
       if (!rule.active) continue;
-      if (movementCoversFinanceRule(mov, rule)) {
-        covered.add(`${rule.id}:${mov.dayId}`);
+      if (movementCoversFinanceRule(mov, rule, mov.dayId)) {
+        covered.add(ruleOccurrenceKey(rule, mov.dayId));
       }
     }
   }
@@ -78,14 +122,14 @@ export function expandFinanceRules(
   const days = listDayIdsInclusive(fromDayId, toDayId);
   for (const rule of rules) {
     if (!rule.active) continue;
+    const monthly = rule.frequency === 'monthly';
     for (const dayId of days) {
       if (!financeRuleAppliesOnDay(rule, dayId)) continue;
-      if (covered.has(`${rule.id}:${dayId}`)) continue;
-      const fingerprint = txKey({
-        flow: rule.flow,
-        title: rule.title,
-        dayId,
-      });
+      if (covered.has(ruleOccurrenceKey(rule, dayId))) continue;
+      const fingerprint = txKey(
+        { flow: rule.flow, title: rule.title, dayId },
+        monthly
+      );
       if (existingTx.has(fingerprint)) continue;
       existingTx.add(fingerprint);
       extra.push({
@@ -120,4 +164,67 @@ export function expandFinanceRules(
     }
   }
   return extra;
+}
+
+function seriesFingerprint(mov: FinanceMovement): string {
+  const amount = Number.isFinite(mov.amount) ? Math.round(mov.amount) : 0;
+  return `${mov.flow}|${normalizeFinanceTitle(mov.title)}|${monthIdFromDayId(mov.dayId)}|${amount}`;
+}
+
+function dayFingerprint(mov: FinanceMovement): string {
+  return `${mov.flow}|${normalizeFinanceTitle(mov.title)}|${mov.dayId}`;
+}
+
+function looksLikeMonthlySeries(
+  mov: FinanceMovement,
+  rules: FinanceRule[]
+): boolean {
+  if (isSyntheticFinanceMovement(mov) || mov.ruleId) return true;
+  const title = normalizeFinanceTitle(mov.title);
+  return rules.some(
+    rule =>
+      rule.active &&
+      rule.frequency === 'monthly' &&
+      rule.flow === mov.flow &&
+      normalizeFinanceTitle(rule.title) === title
+  );
+}
+
+/**
+ * Una transacción mensual (arriendo, sueldo) no debe verse dos veces en el mismo mes:
+ * movimiento real + virtual, dpto/depto, o copia del tablero.
+ */
+export function dedupeFinanceCalendarMovements(
+  movements: FinanceMovement[],
+  rules: FinanceRule[] = []
+): FinanceMovement[] {
+  const out: FinanceMovement[] = [];
+  const byDay = new Map<string, number>();
+  const byMonthSeries = new Map<string, number>();
+  for (const mov of movements) {
+    if (mov.status === 'skipped') {
+      out.push(mov);
+      continue;
+    }
+    const dayKey = dayFingerprint(mov);
+    const dayIdx = byDay.get(dayKey);
+    if (dayIdx !== undefined) {
+      out[dayIdx] = preferFinanceMovement(out[dayIdx]!, mov);
+      continue;
+    }
+    if (looksLikeMonthlySeries(mov, rules)) {
+      const monthKey = seriesFingerprint(mov);
+      const monthIdx = byMonthSeries.get(monthKey);
+      if (monthIdx !== undefined) {
+        const kept = preferFinanceMovement(out[monthIdx]!, mov);
+        out[monthIdx] = kept;
+        byDay.set(dayFingerprint(kept), monthIdx);
+        continue;
+      }
+      byMonthSeries.set(monthKey, out.length);
+    }
+    byDay.set(dayKey, out.length);
+    out.push(mov);
+  }
+  return out;
 }

@@ -1,6 +1,7 @@
 export * from './types';
 export * from './payload';
 export * from './expandRules';
+export * from './title';
 export * from './movementSummary';
 export * from './cardUsage';
 export * from './fx';

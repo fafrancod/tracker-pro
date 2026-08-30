@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import {
+  dedupeFinanceCalendarMovements,
   expandFinanceRules,
   financeRuleAppliesOnDay,
   inclusiveDaySpan,
+  type FinanceMovement,
   type FinanceRule,
 } from '@daily-tracker/core';
 import { buildApp } from '../app.js';
@@ -271,6 +273,95 @@ describe('finance rule expansion', () => {
     );
     const onFifth = extra.filter(m => m.dayId === '2026-08-05');
     expect(onFifth).toHaveLength(1);
+  });
+
+  it('un arriendo en el mes cubre el vencimiento, aunque el día no coincida', () => {
+    const extra = expandFinanceRules(
+      [{ ...rule, title: 'Arriendo depto', recurrenceDay: 5 }],
+      [
+        {
+          id: 'm-arriendo',
+          dayId: '2026-09-01',
+          flow: 'expense',
+          status: 'confirmed',
+          currency: 'CLP',
+          title: 'Arriendo dpto',
+          amount: 500000,
+          notes: '',
+          certainty: 'fixed',
+          ruleId: null,
+          sourceTaskId: 'task-arriendo',
+          accountId: null,
+          cardAccountId: null,
+          goalId: null,
+          creditId: null,
+          installmentGroupId: null,
+          installmentIndex: null,
+          installmentTotal: null,
+          tag: null,
+          originalAmount: null,
+          originalCurrency: null,
+          exchangeRate: null,
+          fxPending: false,
+          reportingCurrency: null,
+          createdAt: rule.createdAt,
+          updatedAt: rule.updatedAt,
+        },
+      ],
+      '2026-09-01',
+      '2026-09-30'
+    );
+    expect(extra.filter(m => m.title.toLowerCase().includes('arriendo'))).toHaveLength(
+      0
+    );
+  });
+
+  it('deja una sola pastilla si hay real y virtual el mismo mes', () => {
+    const real: FinanceMovement = {
+      id: 'm-real',
+      dayId: '2026-09-01',
+      flow: 'expense',
+      status: 'confirmed',
+      currency: 'CLP',
+      title: 'Arriendo dpto',
+      amount: 500000,
+      notes: '',
+      certainty: 'fixed',
+      accountId: null,
+      cardAccountId: null,
+      goalId: null,
+      creditId: null,
+      installmentGroupId: null,
+      installmentIndex: null,
+      installmentTotal: null,
+      tag: null,
+      originalAmount: 500000,
+      originalCurrency: 'CLP',
+      exchangeRate: 1,
+      fxPending: false,
+      reportingCurrency: 'CLP',
+      ruleId: null,
+      sourceTaskId: null,
+      virtual: false,
+      createdAt: rule.createdAt,
+      updatedAt: rule.updatedAt,
+    };
+    const virtual: FinanceMovement = {
+      ...real,
+      id: 'fvr:rule-1:2026-09-05',
+      dayId: '2026-09-05',
+      title: 'Arriendo depto',
+      status: 'planned',
+      virtual: true,
+      ruleId: 'rule-1',
+    };
+    const out = dedupeFinanceCalendarMovements(
+      [virtual, real],
+      [{ ...rule, id: 'rule-1', title: 'Arriendo depto' }]
+    );
+    const sept = out.filter(m => m.dayId.startsWith('2026-09') && m.status !== 'skipped');
+    expect(sept).toHaveLength(1);
+    expect(sept[0]?.id).toBe('m-real');
   });
 
   it('span inclusivo de 93 días es el tope', () => {
