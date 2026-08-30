@@ -220,6 +220,59 @@ describe('finance rule expansion', () => {
     expect(extra.length).toBe(0);
   });
 
+  it('no duplica Arriendo si la fila física no trae ruleId', () => {
+    const extra = expandFinanceRules(
+      [{ ...rule, title: 'Arriendo depto' }],
+      [
+        {
+          id: 'm-arriendo',
+          dayId: '2026-08-05',
+          flow: 'expense',
+          status: 'planned',
+          currency: 'CLP',
+          title: 'Arriendo depto',
+          amount: 500000,
+          notes: '',
+          certainty: 'fixed',
+          ruleId: null,
+          sourceTaskId: 'task-arriendo',
+          accountId: null,
+          cardAccountId: null,
+          goalId: null,
+          creditId: null,
+          installmentGroupId: null,
+          installmentIndex: null,
+          installmentTotal: null,
+          tag: null,
+          originalAmount: null,
+          originalCurrency: null,
+          exchangeRate: null,
+          fxPending: false,
+          reportingCurrency: null,
+          createdAt: rule.createdAt,
+          updatedAt: rule.updatedAt,
+        },
+      ],
+      '2026-08-01',
+      '2026-08-31'
+    );
+    expect(extra.some(m => m.dayId === '2026-08-05')).toBe(false);
+  });
+
+  it('no emite dos virtuales si hay dos reglas con el mismo título', () => {
+    const extra = expandFinanceRules(
+      [
+        { ...rule, id: 'rule-a', title: 'Arriendo depto' },
+        { ...rule, id: 'rule-b', title: 'Arriendo depto' },
+      ],
+      [],
+      '2026-08-01',
+      '2026-08-31'
+    );
+    const onFifth = extra.filter(m => m.dayId === '2026-08-05');
+    expect(onFifth).toHaveLength(1);
+  });
+
   it('span inclusivo de 93 días es el tope', () => {
     expect(inclusiveDaySpan('2026-08-01', '2026-10-31')).toBeGreaterThan(90);
     expect(inclusiveDaySpan('2026-08-01', '2026-08-31')).toBe(31);

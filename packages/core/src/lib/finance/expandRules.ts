@@ -28,6 +28,33 @@ export function makeVirtualFinanceId(ruleId: string, dayId: string): string {
   return `fvr:${ruleId}:${dayId}`;
 }
 
+function normTitle(title: string): string {
+  return title.trim().toLowerCase();
+}
+
+function amountsCompatible(a: number, b: number): boolean {
+  if (!(a > 0) || !(b > 0)) return true;
+  return Math.abs(a - b) < 0.009;
+}
+
+function txKey(mov: Pick<FinanceMovement, 'flow' | 'title' | 'dayId'>): string {
+  return `${mov.flow}|${normTitle(mov.title)}|${mov.dayId}`;
+}
+
+/** Fila del mayor que ya representa esa ocurrencia de la regla (con o sin ruleId). */
+export function movementCoversFinanceRule(
+  mov: FinanceMovement,
+  rule: FinanceRule
+): boolean {
+  if (mov.status === 'skipped') return false;
+  if (mov.flow !== rule.flow) return false;
+  if (mov.ruleId && mov.ruleId === rule.id) return true;
+  if (normTitle(mov.title) !== normTitle(rule.title) || !normTitle(rule.title)) {
+    return false;
+  }
+  return amountsCompatible(mov.amount, rule.amount);
+}
+
 export function expandFinanceRules(
   rules: FinanceRule[],
   movements: FinanceMovement[],
@@ -35,8 +62,17 @@ export function expandFinanceRules(
   toDayId: string
 ): FinanceMovement[] {
   const covered = new Set<string>();
+  const existingTx = new Set<string>();
   for (const mov of movements) {
+    if (mov.status === 'skipped') continue;
+    existingTx.add(txKey(mov));
     if (mov.ruleId) covered.add(`${mov.ruleId}:${mov.dayId}`);
+    for (const rule of rules) {
+      if (!rule.active) continue;
+      if (movementCoversFinanceRule(mov, rule)) {
+        covered.add(`${rule.id}:${mov.dayId}`);
+      }
+    }
   }
   const extra: FinanceMovement[] = [];
   const days = listDayIdsInclusive(fromDayId, toDayId);
@@ -45,6 +81,13 @@ export function expandFinanceRules(
     for (const dayId of days) {
       if (!financeRuleAppliesOnDay(rule, dayId)) continue;
       if (covered.has(`${rule.id}:${dayId}`)) continue;
+      const fingerprint = txKey({
+        flow: rule.flow,
+        title: rule.title,
+        dayId,
+      });
+      if (existingTx.has(fingerprint)) continue;
+      existingTx.add(fingerprint);
       extra.push({
         id: makeVirtualFinanceId(rule.id, dayId),
         dayId,
