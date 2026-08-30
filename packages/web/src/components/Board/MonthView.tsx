@@ -29,6 +29,7 @@ import { isDemoMode } from '@core/lib/demoMode';
 import { taskMatchesFilters, type BoardTaskFilters, type Task } from '@core/types';
 import { boardShowsHolidays, boardShowsTasks } from '@core/lib/boardFilters';
 import { isHabitGood, isHabitKind, isHabitQuit } from '@core/lib/habits';
+import { isBoardCreditTaskId } from '@core/lib/finance/boardCredits';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useT } from '@/hooks/useT';
@@ -561,6 +562,7 @@ export function MonthView({
     source: BarDragSource = 'bar'
   ) {
     if (e.button !== 0) return;
+    if (isBoardCreditTaskId(bar.task.id)) return;
     // Do not preventDefault here — that would cancel dblclick.
     e.stopPropagation();
     lockTextSelect();
@@ -994,7 +996,10 @@ export function MonthView({
                                 timeLabel ? `${task.title} · ${timeLabel}` : task.title
                               }
                               className={cn(
-                                'flex cursor-grab select-none items-center gap-1 rounded px-1.5 py-0.5 text-[11px] leading-tight transition-colors active:cursor-grabbing',
+                                'flex select-none items-center gap-1 rounded px-1.5 py-0.5 text-[11px] leading-tight transition-colors',
+                                isBoardCreditTaskId(task.id)
+                                  ? 'cursor-pointer'
+                                  : 'cursor-grab active:cursor-grabbing',
                                 task.completed
                                   ? isHabitQuit(task.kind)
                                     ? 'task-completed-title bg-red-500/10 text-text-muted line-through'

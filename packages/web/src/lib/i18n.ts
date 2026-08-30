@@ -2024,7 +2024,8 @@ const es_dict: TranslationDict = {
   task_money_pill: 'Dinero',
   task_money_pill_locked: 'Dinero',
   board_filter_category_finances: 'Finances',
-  board_category_finances_hint: 'Ingresos y gastos del calendario.',
+  board_category_finances_hint:
+    'Ingresos, gastos y cuotas de créditos (consumo, hipotecario y otros) en su día de vencimiento.',
   board_filter_category_holidays: 'Feriados CL',
   board_category_holidays_hint: 'Feriados nacionales de Chile.',
   empty_no_holidays: 'No hay feriados en este rango.',
@@ -3463,7 +3464,8 @@ const en_dict: TranslationDict = {
   task_money_pill: 'Money',
   task_money_pill_locked: 'Money',
   board_filter_category_finances: 'Finances',
-  board_category_finances_hint: 'Calendar income and expenses.',
+  board_category_finances_hint:
+    'Income, expenses and credit installments (consumer, mortgage and others) on their due date.',
   board_filter_category_holidays: 'CL holidays',
   board_category_holidays_hint: 'Chile national holidays.',
   empty_no_holidays: 'No holidays in this range.',

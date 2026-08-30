@@ -1,4 +1,5 @@
 import type { Project, Task, UserProfile } from '@core/types';
+import { BOARD_CREDIT_WEEK_ID } from '@core/lib/finance/boardCredits';
 
 const KEY = 'daily-tracker:demo-state:v1';
 
@@ -49,9 +50,12 @@ export function loadDemoState(): DemoSnapshot | null {
 export function saveDemoState(snapshot: Omit<DemoSnapshot, 'v' | 'savedAt'>): void {
   if (typeof window === 'undefined') return;
   try {
+    const { [BOARD_CREDIT_WEEK_ID]: _credits, ...tasksByDay } =
+      snapshot.tasksByDay;
     const payload: DemoSnapshot = {
       v: 1,
       ...snapshot,
+      tasksByDay,
       savedAt: new Date().toISOString(),
     };
     window.localStorage.setItem(KEY, JSON.stringify(payload));

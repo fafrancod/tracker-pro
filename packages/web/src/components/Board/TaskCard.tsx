@@ -20,6 +20,7 @@ import { formatDose, isRxKind } from '@core/lib/rx';
 import { isHabitGood, isHabitKind, isHabitQuit, normalizePomodoroCount } from '@core/lib/habits';
 import { HabitPomodoroSection } from './HabitPomodoroSection';
 import { isFinanceKind } from '@core/lib/financeKinds';
+import { isBoardCreditTaskId } from '@core/lib/finance/boardCredits';
 import { isPdfAttachment, parseTaskAttachment } from '@core/lib/taskImages';
 import { useT } from '@/hooks/useT';
 import { tintEvent, tintHabit, tintPossible } from '@/lib/tintClasses';
@@ -93,6 +94,7 @@ export function TaskCard({
   const isHabit = isHabitKind(task.kind);
   const habitGood = isHabitGood(task.kind);
   const habitQuit = isHabitQuit(task.kind);
+  const isCreditInstallment = isBoardCreditTaskId(task.id);
 
   const openMenuAt = useCallback(
     (x: number, y: number) => {
@@ -356,7 +358,7 @@ export function TaskCard({
         </button>
 
         {/* Grip: en día (no dense) junto al check; en semana dense → esquina inferior derecha */}
-        {!dense && (
+        {!dense && !isCreditInstallment && (
           <button
             type="button"
             {...dragHandleProps}
@@ -693,7 +695,7 @@ export function TaskCard({
           )}
         </div>
 
-        {dense && (
+        {dense && !isCreditInstallment && (
           <button
             type="button"
             {...dragHandleProps}
@@ -723,6 +725,7 @@ export function TaskCard({
               <Maximize2 className="h-3.5 w-3.5" />
             </button>
           )}
+          {!isCreditInstallment && (
           <button
             type="button"
             onClick={() => setEditingTitle(true)}
@@ -732,6 +735,7 @@ export function TaskCard({
           >
             <Pencil className="h-3.5 w-3.5" />
           </button>
+          )}
           <button
             type="button"
             onClick={e => {
@@ -745,6 +749,7 @@ export function TaskCard({
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
+          {!isCreditInstallment && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -768,6 +773,7 @@ export function TaskCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -783,7 +789,7 @@ export function TaskCard({
         onClose={() => setCtxMenu(null)}
         onToggleComplete={() => onToggle()}
         onEdit={() => onOpenDetail?.()}
-        onDelete={() => onDelete()}
+        onDelete={isCreditInstallment ? undefined : () => onDelete()}
         onConfirmAsEvent={
           onConfirmAsEvent
             ? () => onConfirmAsEvent()

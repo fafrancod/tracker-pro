@@ -1,4 +1,5 @@
 import type { Task } from '../types';
+import { BOARD_CREDIT_WEEK_ID } from './finance/boardCredits';
 
 const KEY = 'daily-tracker:task-cache:v1';
 /** Keep offline snapshot up to 7 days. */
@@ -27,6 +28,12 @@ function storage(): StorageLike | null {
   }
 }
 
+function stripBoardCreditOverlay(tasksByDay: TasksByDay): TasksByDay {
+  if (!(BOARD_CREDIT_WEEK_ID in tasksByDay)) return tasksByDay;
+  const { [BOARD_CREDIT_WEEK_ID]: _credits, ...rest } = tasksByDay;
+  return rest;
+}
+
 export function saveTaskCache(uid: string, tasksByDay: TasksByDay): void {
   const ls = storage();
   if (!ls || !uid) return;
@@ -34,7 +41,7 @@ export function saveTaskCache(uid: string, tasksByDay: TasksByDay): void {
     const payload: TaskCachePayload = {
       uid,
       savedAt: Date.now(),
-      tasksByDay,
+      tasksByDay: stripBoardCreditOverlay(tasksByDay),
     };
     ls.setItem(KEY, JSON.stringify(payload));
   } catch {
@@ -75,6 +82,7 @@ export function hydrateTasksByDay(
 ): { weekId: string; dayId: string; tasks: Task[] }[] {
   const toApply: { weekId: string; dayId: string; tasks: Task[] }[] = [];
   for (const [weekId, days] of Object.entries(cached)) {
+    if (weekId === BOARD_CREDIT_WEEK_ID) continue;
     for (const [dayId, tasks] of Object.entries(days)) {
       if (!Array.isArray(tasks)) continue;
       const existing = current[weekId]?.[dayId];

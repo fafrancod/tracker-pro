@@ -7,6 +7,7 @@ import {
   rematerializeRxSeries,
   deleteRxTreatment,
 } from '../services/taskService';
+import { isBoardCreditWeekId } from '../lib/finance/boardCredits';
 import { collectTasksCovering } from '../lib/taskPresence';
 import type {
   CreateTaskPayload,
@@ -43,6 +44,8 @@ export function useTasks(weekId: string, dayId: string) {
     if (!uid) return;
     // Offline: keep cache-hydrated state; no live subscription traffic.
     if (!isBrowserOnline()) return;
+
+    if (isBoardCreditWeekId(weekId)) return;
 
     // Fase 3: un canal por uid + ensure de semana ISO (sin refetch por evento RT).
     return subscribeTasks(uid, weekId, dayId);

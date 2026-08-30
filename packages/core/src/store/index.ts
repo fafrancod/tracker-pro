@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { Task, Project, Contact, UserProfile, AnalyticsData } from '../types';
 import { getWeekId, getDayId } from '../services/taskService';
+import { BOARD_CREDIT_WEEK_ID } from '../lib/finance/boardCredits';
 
 interface TasksState {
   // weekId -> dayId -> tasks
@@ -48,6 +49,8 @@ interface Actions {
   applyLinkedFinance: (
     byMovementId: Record<string, NonNullable<Task['linkedFinance']>>
   ) => void;
+  /** Reemplaza el cubo virtual de cuotas de crédito en el tablero. */
+  replaceBoardCreditTasks: (byDay: Record<string, Task[]>) => void;
   removeTaskOptimistic: (weekId: string, dayId: string, taskId: string) => void;
   reorderTasks: (weekId: string, dayId: string, tasks: Task[]) => void;
 
@@ -183,6 +186,11 @@ export const useStore = create<AppStore>()(
             }
           }
         }
+      }),
+
+    replaceBoardCreditTasks: byDay =>
+      set(state => {
+        state.tasksByDay[BOARD_CREDIT_WEEK_ID] = byDay;
       }),
 
     removeTaskOptimistic: (weekId, dayId, taskId) =>

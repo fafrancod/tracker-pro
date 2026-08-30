@@ -20,6 +20,7 @@ export function useLinkedFinanceHydration(): void {
   useEffect(() => {
     if (!uid) {
       setFinanceVaultSession(null);
+      useStore.getState().replaceBoardCreditTasks({});
       return;
     }
     const vault = getFinanceVaultSession();

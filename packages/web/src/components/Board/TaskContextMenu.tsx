@@ -4,6 +4,7 @@ import { CalendarCheck, Check, Circle, Pencil, Trash2 } from 'lucide-react';
 import { useT } from '@/hooks/useT';
 import { cn } from '@/lib/utils';
 import type { Task } from '@core/types';
+import { isBoardCreditTaskId } from '@core/lib/finance/boardCredits';
 
 export interface TaskContextMenuState {
   x: number;
@@ -131,7 +132,7 @@ export function TaskContextMenu({
           {t('task_ctx_confirm_event')}
         </button>
       )}
-      {onDelete && (
+      {onDelete && !isBoardCreditTaskId(menu.task.id) && (
         <button
           type="button"
           role="menuitem"

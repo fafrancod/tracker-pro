@@ -6,6 +6,8 @@ import {
   isHabitKind,
   type HabitSeed,
 } from './habits';
+import { isBoardCreditTaskId } from './finance/boardCredits';
+import { getWeekIdFromDayId } from './recurrence';
 
 /** True when dayId is inside the inclusive [startDayId, endDayId] span. */
 export function taskCoversDay(startDayId: string, endDayId: string, dayId: string): boolean {
@@ -82,7 +84,13 @@ export function collectTasksCovering(
         const end = task.endDayId || startDayId;
         if (!taskCoversDay(startDayId, end, dayId)) continue;
         seen.add(task.id);
-        result.push({ ...task, weekId, startDayId });
+        result.push({
+          ...task,
+          weekId: isBoardCreditTaskId(task.id)
+            ? getWeekIdFromDayId(startDayId)
+            : weekId,
+          startDayId,
+        });
       }
     }
   }

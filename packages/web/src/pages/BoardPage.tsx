@@ -28,7 +28,6 @@ import {
   MobileSheetTitle,
 } from '@/components/ui/mobile-sheet';
 import { useTasks } from '@core/hooks/useTasks';
-import { useLinkedFinanceHydration } from '@core/hooks/useLinkedFinanceHydration';
 import { useTaskHistory } from '@core/hooks/useTaskHistory';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
@@ -96,7 +95,6 @@ export function BoardPage() {
   const { projects } = useProjects();
   const { locale, weekdayFormat, shortDateFormat, t } = useT();
   const { canUndo, canRedo, undo, redo } = useTaskHistory();
-  useLinkedFinanceHydration();
 
   const hideCompleted = Boolean(settings.hideCompletedTasks);
   const { active: tourActive, step: tourStep } = useOnboardingTour();

@@ -15,6 +15,7 @@ import {
 } from '@core/services/taskService';
 import { useStore } from '@core/store';
 import { useContacts } from '@core/hooks/useContacts';
+import { useLinkedFinanceHydration } from '@core/hooks/useLinkedFinanceHydration';
 import { useT } from '@/hooks/useT';
 import {
   PageChromeProvider,
@@ -53,6 +54,7 @@ function AppShellInner() {
   const uid = useStore(s => s.uid);
   // Precarga Círculo para @menciones en tareas/recetarios en cualquier vista.
   useContacts();
+  useLinkedFinanceHydration();
 
   // Fase 4.2: en idle, precargar la semana ISO actual (Resumen + Board listos).
   useEffect(() => {

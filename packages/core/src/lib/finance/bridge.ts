@@ -9,10 +9,17 @@ import {
   resolveFinanceFx,
   updateFinanceMovement,
 } from '../../services/financeMovementService';
+import { fetchFinanceCredits } from '../../services/financeCreditService';
 import type { FinanceMovement, FinanceRuleFrequency, FinanceVaultCtx } from './types';
 import type { CreateTaskPayload, Task } from '../../types';
 import { getFinanceVaultSession } from './session';
 import { planBoardFinanceSync, type LocatedFinanceTask } from './fromTasks';
+import {
+  BOARD_CREDIT_WEEK_ID,
+  boardCreditTasksByDay,
+  expandCreditsForBoard,
+  parseBoardCreditTaskId,
+} from './boardCredits';
 
 export function linkedFinanceFromMovement(
   mov: Pick<FinanceMovement, 'flow' | 'amount' | 'currency' | 'status'>
@@ -166,13 +173,63 @@ export async function hydrateBoardLinkedFinance(
   toDayId: string,
   vault?: FinanceVaultCtx
 ): Promise<void> {
-  const movements = await fetchFinanceCalendar(fromDayId, toDayId, vault);
+  const [movements, credits] = await Promise.all([
+    fetchFinanceCalendar(fromDayId, toDayId, vault),
+    fetchFinanceCredits().catch(() => []),
+  ]);
   const byId: Record<string, NonNullable<Task['linkedFinance']>> = {};
   for (const mov of movements) {
     if (!mov.id) continue;
     byId[mov.id] = linkedFinanceFromMovement(mov);
   }
-  useStore.getState().applyLinkedFinance(byId);
+  const store = useStore.getState();
+  store.applyLinkedFinance(byId);
+  store.replaceBoardCreditTasks(
+    boardCreditTasksByDay(expandCreditsForBoard(credits, movements))
+  );
+}
+
+/** Marca pagada una cuota virtual del tablero (no crea tarea; escribe el mayor). */
+export async function confirmBoardCreditTask(task: Task): Promise<void> {
+  const parsed = parseBoardCreditTaskId(task.id);
+  if (!parsed) return;
+  if (task.completed && task.financeMovementId) return;
+  let movementId = task.financeMovementId;
+  let linked = task.linkedFinance ?? null;
+  if (movementId) {
+    await confirmBridgeMovement(movementId);
+    linked = {
+      flow: 'expense',
+      amount: task.finance?.amount ?? linked?.amount ?? 0,
+      currency: task.finance?.currency ?? linked?.currency ?? 'EUR',
+      status: 'confirmed',
+    };
+  } else {
+    const amount = task.finance?.amount ?? linked?.amount ?? 0;
+    if (!(amount > 0)) return;
+    const created = await createFinanceMovement(
+      {
+        dayId: parsed.dayId,
+        flow: 'expense',
+        status: 'confirmed',
+        title: task.title,
+        amount,
+        currency: task.finance?.currency ?? linked?.currency ?? 'EUR',
+        certainty: 'fixed',
+        creditId: parsed.creditId,
+        tag: 'credit_payment',
+      },
+      getFinanceVaultSession() ?? undefined
+    );
+    movementId = created.id;
+    linked = linkedFinanceFromMovement(created);
+  }
+  useStore.getState().updateTaskOptimistic(BOARD_CREDIT_WEEK_ID, parsed.dayId, task.id, {
+    completed: true,
+    completedAt: new Date().toISOString(),
+    financeMovementId: movementId,
+    linkedFinance: linked,
+  });
 }
 
 export function defaultHydrationWindow(now = new Date()): {

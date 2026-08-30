@@ -2,6 +2,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { ReactNode } from 'react';
 import type { Task } from '@core/types';
+import { isBoardCreditTaskId } from '@core/lib/finance/boardCredits';
 
 interface DraggableTaskProps {
   task: Task;
@@ -23,6 +24,7 @@ export function DraggableTask({ task, weekId, dayId, children }: DraggableTaskPr
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `task:${task.id}`,
     data: { task, weekId, dayId },
+    disabled: isBoardCreditTaskId(task.id),
   });
 
   const style: React.CSSProperties | undefined = transform

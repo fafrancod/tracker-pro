@@ -7,11 +7,13 @@ import {
 } from '../services/taskService';
 import {
   claimBridgeMovement,
+  confirmBoardCreditTask,
   confirmFinanceForCompletedTask,
   deletePlannedBridgeMovement,
 } from '../lib/finance/bridge';
 import { getFinanceVaultSession } from '../lib/finance/session';
 import { isFinanceKind } from '../lib/financeKinds';
+import { BOARD_CREDIT_WEEK_ID, isBoardCreditTaskId } from '../lib/finance/boardCredits';
 import type {
   CreateTaskPayload,
   Task,
@@ -343,6 +345,28 @@ export const taskHistory = {
   ): Promise<void> {
     const store = useStore.getState();
 
+    if (isBoardCreditTaskId(taskId)) {
+      const loc = findTaskLocation(taskId);
+      const task = loc?.task;
+      if (!task) return;
+      if (payload.completed === true && !task.completed) {
+        store.updateTaskOptimistic(BOARD_CREDIT_WEEK_ID, loc.dayId, taskId, {
+          completed: true,
+          completedAt: new Date().toISOString(),
+        });
+        try {
+          await confirmBoardCreditTask({ ...task, completed: false });
+        } catch (err) {
+          store.updateTaskOptimistic(BOARD_CREDIT_WEEK_ID, loc.dayId, taskId, {
+            completed: false,
+            completedAt: null,
+          });
+          throw err;
+        }
+      }
+      return;
+    }
+
     // Hábito virtual (lazy): no está en buckets del store; materializa vía API.
     if (isVirtualHabitId(taskId)) {
       const parsed = parseVirtualHabitId(taskId);
@@ -523,6 +547,7 @@ export const taskHistory = {
     taskId: string,
     label?: string
   ): Promise<void> {
+    if (isBoardCreditTaskId(taskId)) return;
     const store = useStore.getState();
     const loc = findTaskLocation(taskId);
     const locWeekId = loc?.weekId ?? weekId;
@@ -633,6 +658,7 @@ export const taskHistory = {
     toDayId: string,
     label?: string
   ): Promise<void> {
+    if (isBoardCreditTaskId(task.id)) return;
     const store = useStore.getState();
     // Always resolve the real start bucket (drag may start from a mid-span day).
     const loc = findTaskLocation(task.id);
