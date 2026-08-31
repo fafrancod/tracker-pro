@@ -249,6 +249,45 @@ function emptyForm(dayId: string, currency: string): MovementForm {
   };
 }
 
+function paintFinanceCalendar(
+  rows: FinanceMovement[],
+  credits: FinanceCredit[],
+  rules: FinanceRule[],
+  tasks: LocatedFinanceTask[],
+  from: string,
+  to: string
+): FinanceMovement[] {
+  const withCredits = [
+    ...rows,
+    ...expandFinanceCredits(credits, rows, from, to),
+  ];
+  return dedupeFinanceCalendarMovements(
+    retargetMonthlyRuleOccurrences(
+      mergeBoardFinanceIntoMovements(withCredits, tasks),
+      rules
+    ),
+    rules
+  );
+}
+
+function mergeLedgerRows(
+  current: FinanceMovement[],
+  incoming: FinanceMovement[],
+  removeIds: string[] = []
+): FinanceMovement[] {
+  const drop = new Set(removeIds);
+  const byId = new Map<string, FinanceMovement>();
+  for (const mov of current) {
+    if (drop.has(mov.id) || mov.virtual) continue;
+    byId.set(mov.id, mov);
+  }
+  for (const mov of incoming) {
+    if (mov.virtual || drop.has(mov.id)) continue;
+    byId.set(mov.id, mov);
+  }
+  return [...byId.values()];
+}
+
 export function FinancesPage() {
   return (
     <FinanceVaultGate>
@@ -311,6 +350,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     []
   );
   const migratedInstallmentGroups = useRef(new Set<string>());
+  const calendarReadyRef = useRef(false);
+  const extrasRef = useRef({
+    credits,
+    ledgerRules,
+    boardFinanceTasks,
+  });
+  extrasRef.current = { credits, ledgerRules, boardFinanceTasks };
   const [filterAccountId, setFilterAccountId] = useState('all');
 
   // Goals and custom categories are only needed by their own hubs or by the
@@ -370,7 +416,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     });
   }, [view, weekStart, gridStart]);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (
+    kind: 'boot' | 'range' | 'mutation' = calendarReadyRef.current ? 'range' : 'boot'
+  ) => {
     const reloadStartedAt = performance.now();
     let initialFetchMs = 0;
     let unsealMs = 0;
@@ -378,7 +426,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     let fxMs = 0;
     let bridgeMs = 0;
     let calendarFetches = 1;
-    let ledgerFetches = 1;
+    let ledgerFetches = kind === 'mutation' ? 0 : 1;
     let movementCount = 0;
     let ruleCount = 0;
     let visibleTaskCount = 0;
@@ -387,8 +435,41 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     let fxUpdates = 0;
     let bridgePersisted = false;
     let completed = false;
-    setLoading(true);
+    const blankCalendar = !calendarReadyRef.current;
+    if (blankCalendar) setLoading(true);
     try {
+      if (kind === 'mutation' || kind === 'range') {
+        const initialFetchStartedAt = performance.now();
+        const rows = await fetchFinanceCalendar(
+          range.from,
+          range.to,
+          vault ?? undefined
+        );
+        initialFetchMs = performance.now() - initialFetchStartedAt;
+        const extras = extrasRef.current;
+        const financeTasks = extras.boardFinanceTasks.filter(
+          row => row.dayId >= range.from && row.dayId <= range.to
+        );
+        visibleTaskCount = financeTasks.length;
+        financeTaskCount = extras.boardFinanceTasks.length;
+        ruleCount = extras.ledgerRules.length;
+        movementCount = rows.length;
+        setMovements(
+          paintFinanceCalendar(
+            rows,
+            extras.credits,
+            extras.ledgerRules,
+            financeTasks,
+            range.from,
+            range.to
+          )
+        );
+        setLedgerMovements(prev => mergeLedgerRows(prev, rows));
+        calendarReadyRef.current = true;
+        completed = true;
+        return;
+      }
+
       const initialFetchStartedAt = performance.now();
       const [rows, accs, crs, ledger, taskRows, financeKindTasks] =
         await Promise.all([
@@ -420,9 +501,6 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       const allFinanceTasks = financeKindTasks.filter(row => isFinanceKind(row.kind));
       visibleTaskCount = financeTasks.length;
       financeTaskCount = allFinanceTasks.length;
-      // A board series can be moved after its ledger rule was created. Align
-      // the persisted rule before expanding calendar virtuals; otherwise the
-      // List can correctly say “Día 29” while Calendar keeps painting day 1.
       const ruleAlignments = planFinanceRuleAlignment(
         allFinanceTasks,
         opened.rules,
@@ -497,18 +575,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         fxMs = performance.now() - fxStartedAt;
       }
       setBoardFinanceTasks(allFinanceTasks);
-      const withCredits = [
-        ...next,
-        ...expandFinanceCredits(crs, next, range.from, range.to),
-      ];
-      const calendarRules = opened.rules;
       setMovements(
-        dedupeFinanceCalendarMovements(
-          retargetMonthlyRuleOccurrences(
-            mergeBoardFinanceIntoMovements(withCredits, financeTasks),
-            calendarRules
-          ),
-          calendarRules
+        paintFinanceCalendar(
+          next,
+          crs,
+          opened.rules,
+          financeTasks,
+          range.from,
+          range.to
         )
       );
       if (financeTasks.length > 0) {
@@ -527,17 +601,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           );
           calendarFetches += 1;
           next = refreshed;
-          const refreshedWithCredits = [
-            ...refreshed,
-            ...expandFinanceCredits(crs, refreshed, range.from, range.to),
-          ];
           setMovements(
-            dedupeFinanceCalendarMovements(
-              retargetMonthlyRuleOccurrences(
-                mergeBoardFinanceIntoMovements(refreshedWithCredits, financeTasks),
-                calendarRules
-              ),
-              calendarRules
+            paintFinanceCalendar(
+              refreshed,
+              crs,
+              opened.rules,
+              financeTasks,
+              range.from,
+              range.to
             )
           );
         }
@@ -545,6 +616,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       }
       movementCount = next.length;
       ruleCount = opened.rules.length;
+      calendarReadyRef.current = true;
       completed = true;
     } catch (err) {
       const msg =
@@ -1125,14 +1197,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           : null,
     };
     try {
+      const created = await createFinanceMovement(payload, vault ?? undefined);
       if (editing) {
-        await createFinanceMovement(payload, vault ?? undefined);
         showToast(
           fx.fxPending ? t('fin_fx_pending') : t('fin_saved'),
           fx.fxPending ? 'info' : 'success'
         );
       } else {
-        await createFinanceMovement(payload, vault ?? undefined);
         setNewMovementDraft(null);
         showToast(
           fx.fxPending ? t('fin_fx_pending') : t('fin_created'),
@@ -1140,7 +1211,28 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         );
       }
       setDialogOpen(false);
-      await reload();
+      if (created?.id) {
+        const removeIds = payload.replaceMovementId
+          ? [payload.replaceMovementId]
+          : [];
+        const extras = extrasRef.current;
+        setLedgerMovements(prev => mergeLedgerRows(prev, [created], removeIds));
+        setMovements(prev => {
+          const drop = new Set(removeIds);
+          drop.add(created.id);
+          return paintFinanceCalendar(
+            [...prev.filter(item => !drop.has(item.id)), created],
+            extras.credits,
+            extras.ledgerRules,
+            extras.boardFinanceTasks.filter(
+              row => row.dayId >= range.from && row.dayId <= range.to
+            ),
+            range.from,
+            range.to
+          );
+        });
+      }
+      void reload('mutation');
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
@@ -1188,7 +1280,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         );
       }
       showToast(t(status === 'confirmed' ? 'fin_status_confirmed' : 'fin_status_planned'), 'success');
-      await reload();
+      setMovements(prev =>
+        prev.map(item => (item.id === mov.id ? { ...item, status } : item))
+      );
+      setLedgerMovements(prev =>
+        prev.map(item => (item.id === mov.id ? { ...item, status } : item))
+      );
+      void reload('mutation');
     } catch {
       showToast(t('fin_save_error'), 'error');
     }
@@ -1201,7 +1299,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       await deleteFinanceMovement(deleteTarget.id);
       showToast(t('fin_deleted'), 'info');
       setDeleteTarget(null);
-      await reload();
+      setMovements(prev => prev.filter(item => item.id !== deleteTarget.id));
+      setLedgerMovements(prev => prev.filter(item => item.id !== deleteTarget.id));
+      void reload('mutation');
     } catch {
       showToast(t('fin_save_error'), 'error');
     } finally {
@@ -1331,7 +1431,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                     await updateFinanceRule(rule.id, patch);
                   }
                   showToast(t('fin_saved'), 'success');
-                  await reload();
+                  void reload('mutation');
                 } catch {
                   showToast(t('fin_save_error'), 'error');
                 }
@@ -1615,7 +1715,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           )}
         </div>
 
-        {loading ? (
+        {loading && movements.length === 0 ? (
           <p className="text-sm text-text-muted">{t('status_checking')}</p>
         ) : (
           <div
