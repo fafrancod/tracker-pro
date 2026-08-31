@@ -1,6 +1,11 @@
 import { api } from '../lib/api';
 import { isDemoMode } from '../lib/demoMode';
 import { buildFinancePayload, parseFinancePayload } from '../lib/finance/payload';
+import {
+  resolveFinanceFxRequests,
+  type FinanceFxRequest,
+  type FinanceFxResolution,
+} from '../lib/finance/fx';
 import type { TickerQuote, TickerSearchHit } from '../lib/finance/portfolio';
 import {
   dedupeFinanceCalendarMovements,
@@ -581,6 +586,18 @@ export async function resolveFinanceFx(opts: {
       reportingCurrency,
     };
   }
+}
+
+/** Resuelve cotizaciones pendientes en paralelo acotado y por clave única. */
+export async function resolveFinanceFxBatch(
+  requests: FinanceFxRequest[],
+  maxConcurrent = 4
+): Promise<FinanceFxResolution[]> {
+  return resolveFinanceFxRequests(
+    requests,
+    async (from, to, dayId) => (await fetchFinanceRate(from, to, dayId)).rate,
+    maxConcurrent
+  );
 }
 
 export async function deleteFinanceMovement(id: string): Promise<void> {

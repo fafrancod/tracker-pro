@@ -2,7 +2,7 @@
 
 La pantalla **Finanzas / Calendario** tiene varios recorridos duplicados y efectos de escritura dentro de su carga inicial. El principal problema no es un único query lento: es una cascada de lecturas, descifrados, sincronizaciones y recargas que bloquea el primer render útil.
 
-> **Estado:** instrumentación de la etapa 1 implementada. Antes de aplicar los cambios P0, reunir una muestra real de p50/p95 en Railway para confirmar el orden de impacto.
+> **Estado:** se eliminaron dos bloqueos de bajo riesgo del primer recorrido: datos de paneles no visibles y cotizaciones FX duplicadas/secuenciales. Antes de rediseñar la conciliación o el libro, reunir una muestra real de p50/p95 en Railway para confirmar el orden de impacto.
 
 ## Instrumentación implementada
 
@@ -22,8 +22,9 @@ Desde **v2.38.5**, cada carga del Calendario envía de forma no bloqueante una m
 |---|---|
 | Proyección mínima para tareas `finance_income` y `finance_expense` | Evita descargar adjuntos, pasos, contactos y metadatos ajenos al puente financiero. |
 | Metas y categorías personalizadas bajo demanda | El primer Calendario ya no espera dos consultas de paneles no visibles; se cargan al abrir su pestaña o el diálogo de movimiento. |
+| FX pendiente por lote | Las cotizaciones se deduplican por `origen + destino + fecha` y se solicitan con un máximo de 4 en paralelo; las persistencias usan el mismo límite. |
 
-Aún queda pendiente el corte P0: quitar libro completo, escrituras de conciliación y FX del camino crítico. Se priorizará con las muestras de Railway.
+Aún queda pendiente el corte P0 mayor: quitar libro completo y escrituras de conciliación del camino crítico. FX conserva su comportamiento actual de actualización durante la carga; hacerlo no bloqueante requiere validar primero la consistencia del refresco posterior con métricas reales.
 
 ## Recorrido actual
 
@@ -43,7 +44,7 @@ Después ejecuta posibles escrituras de alineación, conversión FX y sincroniza
 |---|---|---|---|---|
 | P0 | Libro completo duplicado | El calendario obtiene `/finances/movements?from&to`; en paralelo, el libro pide `/finances/ledger` con hasta 2.000 movimientos y 500 reglas. Ambos traen reglas y ambos descifran. | Payload, CPU y descifrado duplicados antes de pintar el mes. | Crear un endpoint de *bootstrap* de calendario que entregue sólo el rango y los agregados necesarios; reutilizarlo para KPI/Lista. Cargar el libro completo sólo al abrir Lista/Evolución. |
 | P0 | Sincronización con escrituras durante `reload` | La carga puede alinear reglas, escribirlas y volver a consultar calendario+ledger. Luego puede sincronizar Board→ledger y consultar el calendario una tercera vez. | Un primer render depende de mutaciones y de hasta dos recargas extra. | Separar **lectura** de **reconciliación**. Pintar el calendario con datos actuales; ejecutar reconciliación en segundo plano, con un único refresco sólo si hubo cambios. Idealmente conciliar al guardar/mover el evento, no al abrir Finanzas. |
-| P0 | FX secuencial bloqueante | Cada movimiento pendiente ejecuta `await resolveFinanceFx` y `await updateFinanceMovement` dentro de un `for`. | N movimientos pendientes = N peticiones de cotización + N escrituras en cadena antes de terminar la carga. | Resolver por lotes y con concurrencia limitada; deduplicar por `moneda origen + moneda destino + fecha`. No bloquear la primera pintura: actualizar valores FX en segundo plano. |
+| P0 | FX en el camino crítico | Cada movimiento pendiente se resolvía y persistía en un `for` secuencial. | N movimientos pendientes = N peticiones de cotización + N escrituras en cadena antes de terminar la carga. | **Avance aplicado:** resolver por lotes, deduplicar por `moneda origen + moneda destino + fecha` y limitar cotizaciones/escrituras a 4 concurrentes. **Pendiente:** no bloquear la primera pintura y refrescar en segundo plano. |
 | P1 | Todas las tareas financieras sin límite | `fetchFinanceKindTasks(uid)` usa `select('*')` de todas las tareas `finance_income/finance_expense`, ordenadas por fecha. | Crece con todo el historial y descarga campos que el calendario no necesita. | Consultar sólo `id, series_id, day_id, kind, finance_meta, finance_movement_id, updated_at, title`; limitar al horizonte de recurrencias/series activas o crear una vista/endpoint de resúmenes de serie. |
 | P1 | Sincronización Board→ledger secuencial | `syncBoardFinanceToLedger` procesa cada acción una a una; una acción de creación puede además actualizar la tarea. | Al acumular tareas sin puente se convierte en N+1 HTTP y DB writes. | Añadir endpoint batch transaccional para acciones de puente, con respuesta de IDs actualizados; ejecutar sólo tras mutaciones del Board o mediante cola. |
 | P1 | `select('*')` en endpoints financieros | `/ledger` y `/movements` devuelven filas completas; `/ledger` además tiene límite alto fijo (2.000/500). | Payload y parseo innecesarios, especialmente con imágenes, notas y payloads cifrados. | Definir proyecciones por vista: calendario, KPI, lista y detalle. Paginar Lista/Evolución. Mantener payload completo sólo para editar/abrir detalle. |

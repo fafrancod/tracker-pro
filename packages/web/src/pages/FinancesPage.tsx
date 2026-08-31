@@ -83,6 +83,7 @@ import {
   fetchFinanceLedger,
   recordFinanceCalendarLoad,
   resolveFinanceFx,
+  resolveFinanceFxBatch,
   updateFinanceMovement,
   updateFinanceRule,
   type FinanceVaultCtx,
@@ -449,22 +450,31 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       const pending = next.filter(m => m.fxPending && !m.virtual);
       if (pending.length > 0) {
         const fxStartedAt = performance.now();
-        let converted = 0;
-        for (const mov of pending) {
-          const fx = await resolveFinanceFx({
+        const resolutions = await resolveFinanceFxBatch(
+          pending.map(mov => ({
             amount: mov.amount,
             currency: mov.originalCurrency || mov.currency,
             reportingCurrency: preferred,
             dayId: mov.dayId,
-          });
-          if (fx.fxPending) continue;
-          await updateFinanceMovement(
-            mov.id,
-            { ...fx, updatedAt: mov.updatedAt },
-            vault ?? undefined
+          })),
+          4
+        );
+        const updates = pending.flatMap((mov, index) => {
+          const fx = resolutions[index];
+          return fx?.fxPending ? [] : [{ mov, fx }];
+        });
+        for (let start = 0; start < updates.length; start += 4) {
+          await Promise.all(
+            updates.slice(start, start + 4).map(({ mov, fx }) =>
+              updateFinanceMovement(
+                mov.id,
+                { ...fx, updatedAt: mov.updatedAt },
+                vault ?? undefined
+              )
+            )
           );
-          converted += 1;
         }
+        const converted = updates.length;
         fxUpdates = converted;
         next = converted
           ? await fetchFinanceCalendar(range.from, range.to, vault ?? undefined)

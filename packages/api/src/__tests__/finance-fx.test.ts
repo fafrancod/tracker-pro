@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
 import {
   reportingAmountOf,
+  resolveFinanceFxRequests,
   summarizeCurrencyBreakdown,
   netCurrencyBreakdown,
   summarizeMovementsByCurrency,
@@ -34,6 +35,51 @@ describe('lookupExchangeRate', () => {
     expect(q.rate).toBe(950);
     expect(q.date).toBe('2026-08-10');
     expect(String(fake.mock.calls[0]?.[0])).toContain('frankfurter');
+  });
+});
+
+describe('resolución FX por lote', () => {
+  it('deduplica cotizaciones y limita la concurrencia sin perder el orden', async () => {
+    let active = 0;
+    let peak = 0;
+    const lookup = vi.fn(async (from: string, to: string, dayId: string) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      active -= 1;
+      return from === 'USD' && to === 'CLP' && dayId === '2026-08-29' ? 900 : 950;
+    });
+
+    const results = await resolveFinanceFxRequests(
+      [
+        { amount: 10, currency: 'USD', reportingCurrency: 'CLP', dayId: '2026-08-29' },
+        { amount: 20, currency: 'usd', reportingCurrency: 'clp', dayId: '2026-08-29' },
+        { amount: 30, currency: 'EUR', reportingCurrency: 'CLP', dayId: '2026-08-30' },
+        { amount: 40, currency: 'GBP', reportingCurrency: 'CLP', dayId: '2026-08-30' },
+      ],
+      lookup,
+      2
+    );
+
+    expect(lookup).toHaveBeenCalledTimes(3);
+    expect(peak).toBeLessThanOrEqual(2);
+    expect(results).toEqual([
+      { originalAmount: 10, originalCurrency: 'USD', exchangeRate: 900, fxPending: false, reportingCurrency: 'CLP' },
+      { originalAmount: 20, originalCurrency: 'usd', exchangeRate: 900, fxPending: false, reportingCurrency: 'clp' },
+      { originalAmount: 30, originalCurrency: 'EUR', exchangeRate: 950, fxPending: false, reportingCurrency: 'CLP' },
+      { originalAmount: 40, originalCurrency: 'GBP', exchangeRate: 950, fxPending: false, reportingCurrency: 'CLP' },
+    ]);
+  });
+
+  it('preserva una cotización fallida como pendiente', async () => {
+    const results = await resolveFinanceFxRequests(
+      [{ amount: 10, currency: 'USD', reportingCurrency: 'CLP', dayId: '2026-08-29' }],
+      async () => {
+        throw new Error('Proveedor no disponible');
+      }
+    );
+
+    expect(results[0]).toMatchObject({ exchangeRate: null, fxPending: true });
   });
 });
 
