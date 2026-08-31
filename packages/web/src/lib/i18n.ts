@@ -269,6 +269,8 @@ export interface TranslationDict {
   fin_mark_confirmed: string;
   fin_mark_planned: string;
   fin_kpi_planned: string;
+  fin_kpi_fx_at_txn: string;
+  fin_kpi_fx_pending_short: string;
   fin_view_month: string;
   fin_view_week: string;
   fin_sql_needed: string;
@@ -1616,6 +1618,8 @@ const es_dict: TranslationDict = {
   fin_mark_confirmed: 'Marcar como concretado',
   fin_mark_planned: 'Marcar como previsto',
   fin_kpi_planned: 'Previsto',
+  fin_kpi_fx_at_txn: 'Convertido al tipo del día de la transacción',
+  fin_kpi_fx_pending_short: 'tipo pendiente',
   fin_view_month: 'Mes',
   fin_view_week: 'Semana',
   fin_sql_needed:
@@ -3056,6 +3060,8 @@ const en_dict: TranslationDict = {
   fin_mark_confirmed: 'Mark as completed',
   fin_mark_planned: 'Mark as planned',
   fin_kpi_planned: 'Planned',
+  fin_kpi_fx_at_txn: 'Converted at the transaction-day rate',
+  fin_kpi_fx_pending_short: 'rate pending',
   fin_view_month: 'Month',
   fin_view_week: 'Week',
   fin_sql_needed:

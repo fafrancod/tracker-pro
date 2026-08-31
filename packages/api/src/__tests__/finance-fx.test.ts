@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
-import { reportingAmountOf, summarizeMovementsByCurrency } from '@daily-tracker/core';
+import {
+  reportingAmountOf,
+  summarizeCurrencyBreakdown,
+  netCurrencyBreakdown,
+  summarizeMovementsByCurrency,
+} from '@daily-tracker/core';
 import { buildApp } from '../app.js';
 import { lookupExchangeRate } from '../routes/financeFx.js';
 
@@ -118,5 +123,95 @@ describe('resumen en moneda de reporte', () => {
     expect(reportingAmountOf(pending, 'CLP')).toBeNull();
     const sum = summarizeMovementsByCurrency([usd, clp, pending], '2026-08', 'CLP');
     expect(sum.CLP.confirmedExpense).toBe(10_000);
+  });
+});
+
+describe('desglose KPI por divisa original', () => {
+  const usd = {
+    amount: 10,
+    currency: 'USD',
+    originalAmount: 10,
+    originalCurrency: 'USD',
+    exchangeRate: 900,
+    fxPending: false,
+  };
+  const clp = {
+    amount: 1000,
+    currency: 'CLP',
+    originalAmount: 1000,
+    originalCurrency: 'CLP',
+    exchangeRate: null,
+    fxPending: false,
+  };
+  const pending = {
+    amount: 20,
+    currency: 'USD',
+    originalAmount: 20,
+    originalCurrency: 'USD',
+    exchangeRate: null,
+    fxPending: true,
+  };
+
+  it('total de reporte = preferida + otras al tipo de cada transacción', () => {
+    const breakdown = summarizeCurrencyBreakdown([usd, clp], 'CLP');
+    expect(breakdown.reportingCurrency).toBe('CLP');
+    expect(breakdown.reportingTotal).toBe(10_000);
+    expect(breakdown.lines.map(l => l.currency)).toEqual(['CLP', 'USD']);
+    expect(breakdown.lines[0]).toMatchObject({
+      currency: 'CLP',
+      nativeTotal: 1000,
+      reportingTotal: 1000,
+      isPreferred: true,
+    });
+    expect(breakdown.lines[1]).toMatchObject({
+      currency: 'USD',
+      nativeTotal: 10,
+      reportingTotal: 9000,
+      isPreferred: false,
+    });
+  });
+
+  it('no usa un tipo en vivo: cada movimiento conserva su tipo del día', () => {
+    const laterUsd = { ...usd, exchangeRate: 950 };
+    const breakdown = summarizeCurrencyBreakdown([usd, laterUsd], 'CLP');
+    expect(breakdown.reportingTotal).toBe(10 * 900 + 10 * 950);
+    expect(breakdown.lines).toHaveLength(1);
+    expect(breakdown.lines[0].nativeTotal).toBe(20);
+  });
+
+  it('FX pendiente queda en el detalle nativo y no infla el total preferido', () => {
+    const breakdown = summarizeCurrencyBreakdown([usd, clp, pending], 'CLP');
+    expect(breakdown.reportingTotal).toBe(10_000);
+    expect(breakdown.pendingCount).toBe(1);
+    const usdLine = breakdown.lines.find(l => l.currency === 'USD');
+    expect(usdLine).toMatchObject({
+      nativeTotal: 30,
+      reportingTotal: 9000,
+      pendingNativeTotal: 20,
+      pendingCount: 1,
+    });
+  });
+
+  it('el neto resta gastos en cada divisa y en el total preferido', () => {
+    const income = summarizeCurrencyBreakdown([clp], 'CLP');
+    const expense = summarizeCurrencyBreakdown([usd], 'CLP');
+    const net = netCurrencyBreakdown(
+      [
+        { breakdown: income, sign: 1 },
+        { breakdown: expense, sign: -1 },
+      ],
+      'CLP'
+    );
+    expect(net.reportingTotal).toBe(1000 - 9000);
+    expect(net.lines[0]).toMatchObject({
+      currency: 'CLP',
+      nativeTotal: 1000,
+      reportingTotal: 1000,
+    });
+    expect(net.lines[1]).toMatchObject({
+      currency: 'USD',
+      nativeTotal: -10,
+      reportingTotal: -9000,
+    });
   });
 });

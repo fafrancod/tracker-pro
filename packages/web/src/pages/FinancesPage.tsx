@@ -88,7 +88,12 @@ import { fetchFinanceGoals } from '@core/services/financeGoalService';
 import { fetchFinanceCredits } from '@core/services/financeCreditService';
 import {
   monthIdFromDayId,
+  movementNativeAmount,
+  movementSourceCurrency,
+  netCurrencyBreakdown,
+  summarizeCurrencyBreakdown,
   summarizeMovementsByCurrency,
+  type FinanceCurrencyBreakdown,
 } from '@core/lib/finance/movementSummary';
 import type {
   CreateFinanceMovementPayload,
@@ -580,22 +585,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     () => summarizeMovementsByCurrency(movements, monthId, preferred),
     [movements, monthId, preferred]
   );
-  const currencyKeys = Object.keys(summaries).sort();
-  const [summaryCurrency, setSummaryCurrency] = useState(preferred);
-  useEffect(() => {
-    if (currencyKeys.length === 0) {
-      setSummaryCurrency(preferred);
-      return;
-    }
-    if (!currencyKeys.includes(summaryCurrency)) {
-      setSummaryCurrency(
-        currencyKeys.includes(preferred) ? preferred : currencyKeys[0]
-      );
-    }
-  }, [currencyKeys, preferred, summaryCurrency]);
-  const summary = summaries[summaryCurrency] ?? {
+  const summary = summaries[preferred] ?? {
     monthId,
-    currency: summaryCurrency,
+    currency: preferred,
     confirmedIncome: 0,
     confirmedExpense: 0,
     plannedIncome: 0,
@@ -619,11 +611,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       ) {
         continue;
       }
-      const amount = reportingAmountOf(mov, summary.currency);
-      if (amount == null) continue;
+      const amount = reportingAmountOf(mov, preferred);
       if (mov.flow === 'income') {
         income.push(mov);
-        incomeTotal += amount;
+        if (amount != null) incomeTotal += amount;
         continue;
       }
       const isCreditCard =
@@ -633,10 +624,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       if (isCreditCard && (mov.installmentTotal ?? 0) > 1) continue;
       if (isCreditCard) {
         cardExpenses.push(mov);
-        cardExpenseTotal += amount;
+        if (amount != null) cardExpenseTotal += amount;
       } else {
         expenses.push(mov);
-        expenseTotal += amount;
+        if (amount != null) expenseTotal += amount;
       }
     }
     for (const [groupId, rows] of installmentRowsByGroup) {
@@ -652,7 +643,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       if (!purchaseDayId.startsWith(monthId)) continue;
       const amounts = rows
         .filter(row => row.status !== 'skipped')
-        .map(row => reportingAmountOf(row, summary.currency));
+        .map(row => reportingAmountOf(row, preferred));
       if (!amounts.every((amount): amount is number => amount !== null)) continue;
       const purchaseTotal = amounts.reduce((sum, amount) => sum + amount, 0);
       cardExpenseTotal += purchaseTotal;
@@ -662,8 +653,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         dayId: purchaseDayId,
         title: stripInstallmentSuffix(first.title),
         amount: purchaseTotal,
-        currency: summary.currency,
-        originalCurrency: summary.currency,
+        currency: preferred,
+        originalCurrency: preferred,
         exchangeRate: 1,
         fxPending: false,
         virtual: true,
@@ -683,9 +674,52 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     movements,
     installmentRowsByGroup,
     monthId,
-    summary.currency,
+    preferred,
     accounts,
   ]);
+  const incomeCurrencyBreakdown = useMemo(
+    () => summarizeCurrencyBreakdown(monthlyBreakdown.income, preferred),
+    [monthlyBreakdown.income, preferred]
+  );
+  const expenseCurrencyBreakdown = useMemo(
+    () => summarizeCurrencyBreakdown(monthlyBreakdown.expenses, preferred),
+    [monthlyBreakdown.expenses, preferred]
+  );
+  const availableCurrencyBreakdown = useMemo(
+    () =>
+      netCurrencyBreakdown(
+        [
+          { breakdown: incomeCurrencyBreakdown, sign: 1 },
+          { breakdown: expenseCurrencyBreakdown, sign: -1 },
+        ],
+        preferred
+      ),
+    [incomeCurrencyBreakdown, expenseCurrencyBreakdown, preferred]
+  );
+  const ledgerBalanceCurrencyBreakdown = useMemo(() => {
+    const income: FinanceMovement[] = [];
+    const expenses: FinanceMovement[] = [];
+    for (const mov of movements) {
+      if (!mov.dayId.startsWith(monthId)) continue;
+      if (
+        mov.status !== 'confirmed' ||
+        mov.flow === 'investment' ||
+        mov.tag === 'card_payment' ||
+        mov.tag === 'goal_contribution'
+      ) {
+        continue;
+      }
+      if (mov.flow === 'income') income.push(mov);
+      else expenses.push(mov);
+    }
+    return netCurrencyBreakdown(
+      [
+        { breakdown: summarizeCurrencyBreakdown(income, preferred), sign: 1 },
+        { breakdown: summarizeCurrencyBreakdown(expenses, preferred), sign: -1 },
+      ],
+      preferred
+    );
+  }, [movements, monthId, preferred]);
   useEffect(() => {
     if (dialogOpen && !editing) setNewMovementDraft(form);
   }, [dialogOpen, editing, form]);
@@ -1269,13 +1303,20 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <Kpi
             label={t('fin_total_income')}
-            value={money(monthlyBreakdown.incomeTotal, summary.currency)}
+            value={money(monthlyBreakdown.incomeTotal, preferred)}
             tone="green"
             secondary={{
               label: t('fin_kpi_planned'),
-              value: money(summary.plannedIncome, summary.currency),
+              value: money(summary.plannedIncome, preferred),
               tone: 'green',
             }}
+            currencies={
+              <KpiCurrencyDetail
+                breakdown={incomeCurrencyBreakdown}
+                fxPendingLabel={t('fin_kpi_fx_pending_short')}
+                fxAtTxnLabel={t('fin_kpi_fx_at_txn')}
+              />
+            }
             detail={
               <MonthlyBreakdownTooltip
                 sections={[
@@ -1286,20 +1327,27 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                     total: monthlyBreakdown.incomeTotal,
                   },
                 ]}
-                currency={summary.currency}
+                currency={preferred}
                 emptyLabel={t('fin_breakdown_empty')}
               />
             }
           />
           <Kpi
             label={t('fin_total_expense')}
-            value={money(monthlyBreakdown.expenseTotal, summary.currency)}
+            value={money(monthlyBreakdown.expenseTotal, preferred)}
             tone="red"
             secondary={{
               label: t('fin_credit_card_expenses'),
-              value: money(monthlyBreakdown.cardExpenseTotal, summary.currency),
+              value: money(monthlyBreakdown.cardExpenseTotal, preferred),
               tone: 'violet',
             }}
+            currencies={
+              <KpiCurrencyDetail
+                breakdown={expenseCurrencyBreakdown}
+                fxPendingLabel={t('fin_kpi_fx_pending_short')}
+                fxAtTxnLabel={t('fin_kpi_fx_at_txn')}
+              />
+            }
             detail={
               <MonthlyBreakdownTooltip
                 sections={[
@@ -1316,41 +1364,41 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                     total: monthlyBreakdown.cardExpenseTotal,
                   },
                 ]}
-                currency={summary.currency}
+                currency={preferred}
                 emptyLabel={t('fin_breakdown_empty')}
               />
             }
           />
           <Kpi
             label={t('fin_balance_available')}
-            value={money(monthlyBreakdown.availableBalance, summary.currency)}
+            value={money(monthlyBreakdown.availableBalance, preferred)}
             tone={monthlyBreakdown.availableBalance >= 0 ? 'teal' : 'red'}
             secondary={{
               label: t('fin_balance_including_card'),
-              value: money(monthlyBreakdown.balanceIncludingCard, summary.currency),
+              value: money(monthlyBreakdown.balanceIncludingCard, preferred),
               tone: monthlyBreakdown.balanceIncludingCard >= 0 ? 'teal' : 'red',
             }}
+            currencies={
+              <KpiCurrencyDetail
+                breakdown={availableCurrencyBreakdown}
+                fxPendingLabel={t('fin_kpi_fx_pending_short')}
+                fxAtTxnLabel={t('fin_kpi_fx_at_txn')}
+              />
+            }
           />
           <Kpi
             label={t('fin_balance')}
-            value={money(summary.balance, summary.currency)}
+            value={money(summary.balance, preferred)}
             tone={summary.balance >= 0 ? 'teal' : 'red'}
+            currencies={
+              <KpiCurrencyDetail
+                breakdown={ledgerBalanceCurrencyBreakdown}
+                fxPendingLabel={t('fin_kpi_fx_pending_short')}
+                fxAtTxnLabel={t('fin_kpi_fx_at_txn')}
+              />
+            }
           />
         </div>
-
-        {currencyKeys.length > 1 && (
-          <select
-            value={summaryCurrency}
-            onChange={e => setSummaryCurrency(e.target.value)}
-            className="h-8 w-fit rounded-md border border-border bg-background px-2 text-xs"
-          >
-            {currencyKeys.map(c => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        )}
 
         <div className="flex flex-wrap gap-1.5">
           {(['all', 'expense', 'income', 'investment'] as const).map(id => (
@@ -2190,12 +2238,14 @@ function Kpi({
   value,
   tone,
   secondary,
+  currencies,
   detail,
 }: {
   label: string;
   value: string;
   tone: KpiTone;
   secondary?: { label: string; value: string; tone: KpiTone };
+  currencies?: ReactNode;
   detail?: ReactNode;
 }) {
   const card = (
@@ -2203,7 +2253,7 @@ function Kpi({
       <div className={cn('grid gap-3', secondary && 'grid-cols-2')}>
         <div className="min-w-0">
           <p className="text-[11px] text-text-muted">{label}</p>
-          <p className={cn('text-lg font-semibold tabular-nums', kpiToneClass(tone))}>
+          <p className={cn('text-xl font-semibold tabular-nums leading-tight', kpiToneClass(tone))}>
             {value}
           </p>
         </div>
@@ -2221,6 +2271,7 @@ function Kpi({
           </div>
         ) : null}
       </div>
+      {currencies}
     </div>
   );
   return detail ? (
@@ -2236,6 +2287,68 @@ function Kpi({
     </Tooltip>
   ) : (
     card
+  );
+}
+
+function KpiCurrencyDetail({
+  breakdown,
+  fxPendingLabel,
+  fxAtTxnLabel,
+}: {
+  breakdown: FinanceCurrencyBreakdown;
+  fxPendingLabel: string;
+  fxAtTxnLabel: string;
+}) {
+  const hasSecondary = breakdown.lines.some(line => !line.isPreferred);
+  if (!hasSecondary) return null;
+  const lines = breakdown.lines.some(line => line.isPreferred)
+    ? breakdown.lines
+    : [
+        {
+          currency: breakdown.reportingCurrency,
+          nativeTotal: 0,
+          reportingTotal: 0,
+          pendingNativeTotal: 0,
+          pendingCount: 0,
+          isPreferred: true,
+        },
+        ...breakdown.lines,
+      ];
+  return (
+    <ul className="mt-2 space-y-1 border-t border-border pt-2">
+      {lines.map(line => {
+        const showConverted = !line.isPreferred && line.reportingTotal !== 0;
+        return (
+          <li
+            key={line.currency}
+            className="flex items-baseline justify-between gap-2 text-[10px] tabular-nums"
+          >
+            <span
+              className={cn(
+                'shrink-0 font-medium',
+                line.isPreferred ? 'text-text-primary' : 'text-text-muted'
+              )}
+            >
+              {line.currency}
+            </span>
+            <span className="min-w-0 text-right text-text-primary">
+              <span>{money(line.nativeTotal, line.currency)}</span>
+              {showConverted ? (
+                <span
+                  className="ml-1 text-text-muted"
+                  title={fxAtTxnLabel}
+                >
+                  → {money(line.reportingTotal, breakdown.reportingCurrency)}
+                </span>
+              ) : null}
+              {line.pendingCount > 0 ? (
+                <span className="ml-1 text-text-muted">{fxPendingLabel}</span>
+              ) : null}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -2306,15 +2419,21 @@ function MonthlyBreakdownRow({
   currency: string;
   tone: KpiTone;
 }) {
-  const amount = reportingAmountOf(movement, currency) ?? 0;
+  const converted = reportingAmountOf(movement, currency);
+  const source = movementSourceCurrency(movement);
+  const amount = converted ?? movementNativeAmount(movement);
+  const shownCurrency = converted == null ? source : currency;
   return (
     <li className="flex items-center justify-between gap-3 rounded bg-field px-2 py-1 text-[10px]">
       <span className="min-w-0 truncate text-text-primary">
         <span className="mr-1 text-text-muted">{movement.dayId}</span>
         {stripInstallmentSuffix(movement.title)}
+        {source !== currency ? (
+          <span className="ml-1 text-text-muted">{source}</span>
+        ) : null}
       </span>
       <strong className={cn('shrink-0 tabular-nums', kpiToneClass(tone))}>
-        {tone === 'green' ? '+' : '−'}{money(amount, currency)}
+        {tone === 'green' ? '+' : '−'}{money(amount, shownCurrency)}
       </strong>
     </li>
   );
