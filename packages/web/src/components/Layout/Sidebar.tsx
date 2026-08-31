@@ -21,6 +21,7 @@ import {
   GanttChart,
   Lightbulb,
   Tags,
+  Store,
   CreditCard,
   Landmark,
   List,
@@ -291,6 +292,14 @@ export function Sidebar({
           >
             <Tags className="h-3.5 w-3.5" />
             <span>{t('nav_fin_categories')}</span>
+          </NavLink>
+          <NavLink
+            to="/finances?tab=merchants"
+            onClick={onNavigate}
+            className={cn(navClass(financesTab === 'merchants'), 'ml-3 pl-2 text-[13px]')}
+          >
+            <Store className="h-3.5 w-3.5" />
+            <span>{t('nav_fin_merchants')}</span>
           </NavLink>
           <NavLink
             to="/finances?tab=accounts"

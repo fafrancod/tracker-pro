@@ -154,6 +154,7 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
     closesLotId: payload.closesLotId ?? null,
     category: payload.category ?? null,
     categoryId: payload.categoryId ?? null,
+    merchantId: payload.merchantId ?? null,
     images: payload.images ?? [],
     categorySplits: payload.categorySplits ?? [],
     ruleId: (raw.ruleId as string | null) ?? (raw.rule_id as string | null) ?? null,
@@ -328,6 +329,7 @@ export async function createFinanceMovement(
       closesLotId: payload.closesLotId ?? null,
       category: payload.category ?? (payload.flow === 'investment' ? 'invest' : null),
       categoryId: payload.categoryId ?? null,
+      merchantId: payload.merchantId ?? null,
       images: payload.images ?? [],
       categorySplits: payload.categorySplits ?? [],
       ruleId,
@@ -365,6 +367,7 @@ export async function createFinanceMovement(
       closesLotId: payload.closesLotId,
       category: payload.category,
       categoryId: payload.categoryId,
+      merchantId: payload.merchantId,
       images: payload.images,
       categorySplits: payload.categorySplits,
     });
@@ -411,6 +414,7 @@ export async function createFinanceMovement(
       closesLotId: payload.closesLotId,
       category: payload.category,
       categoryId: payload.categoryId,
+      merchantId: payload.merchantId,
     };
   }
   const res = await api.post<Record<string, unknown>>(
@@ -488,6 +492,7 @@ export async function updateFinanceMovement(
         closesLotId: payload.closesLotId,
         category: payload.category,
         categoryId: payload.categoryId,
+        merchantId: payload.merchantId,
         images: payload.images,
         categorySplits: payload.categorySplits,
       }),

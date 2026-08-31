@@ -138,6 +138,10 @@ export function parseFinancePayload(raw: unknown): FinanceMovementPayload {
       typeof o.categoryId === 'string' && o.categoryId.trim()
         ? o.categoryId.trim().slice(0, 80)
         : null,
+    merchantId:
+      typeof o.merchantId === 'string' && o.merchantId.trim()
+        ? o.merchantId.trim().slice(0, 80)
+        : null,
     images: normalizeTaskImages(o.images),
     categorySplits: normalizeCategorySplits(
       Array.isArray(o.categorySplits) ? o.categorySplits : undefined
@@ -166,6 +170,7 @@ export function buildFinancePayload(input: {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  merchantId?: string | null;
   images?: string[];
   categorySplits?: import('./types').FinanceCategorySplit[];
   existing?: FinanceMovementPayload;
@@ -218,12 +223,24 @@ export function buildFinancePayload(input: {
     category: input.category !== undefined ? input.category : existing?.category,
     categoryId:
       input.categoryId !== undefined ? input.categoryId : existing?.categoryId,
+    merchantId:
+      input.merchantId !== undefined ? input.merchantId : existing?.merchantId,
     images: input.images !== undefined ? input.images : existing?.images,
     categorySplits:
       input.categorySplits !== undefined
         ? input.categorySplits
         : existing?.categorySplits,
   });
+}
+
+export function parseMerchantPayload(
+  raw: unknown
+): import('./types').FinanceMerchantPayload {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  return {
+    name: typeof o.name === 'string' ? o.name.trim().slice(0, 80) : '',
+    notes: typeof o.notes === 'string' ? o.notes.slice(0, 2000) : '',
+  };
 }
 
 export function parseCategoryPayload(raw: unknown): import('./types').FinanceCategoryPayload {

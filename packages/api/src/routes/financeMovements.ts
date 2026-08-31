@@ -142,6 +142,7 @@ const createSchema = z
       .nullable()
       .optional(),
     categoryId: z.string().min(1).max(80).nullable().optional(),
+    merchantId: z.string().min(1).max(80).nullable().optional(),
     images: z
       .array(z.string().min(24).max(MAX_TASK_PDF_DATA_URL_LENGTH))
       .max(MAX_TASK_IMAGES)
@@ -231,6 +232,7 @@ const updateSchema = z
       .nullable()
       .optional(),
     categoryId: z.string().min(1).max(80).nullable().optional(),
+    merchantId: z.string().min(1).max(80).nullable().optional(),
     images: z
       .array(z.string().min(24).max(MAX_TASK_PDF_DATA_URL_LENGTH))
       .max(MAX_TASK_IMAGES)
@@ -412,6 +414,7 @@ function mapMovement(
     closesLotId: payload.closesLotId ?? null,
     category: payload.category ?? null,
     categoryId: payload.categoryId ?? null,
+    merchantId: payload.merchantId ?? null,
     images: payload.images ?? [],
     categorySplits: payload.categorySplits ?? [],
     ruleId: (row.rule_id as string | null) ?? null,
@@ -891,6 +894,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           closesLotId: body.closesLotId,
           category: body.category,
           categoryId: body.categoryId,
+          merchantId: body.merchantId,
           images,
           categorySplits,
         });
@@ -1172,6 +1176,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
         patch.assetName !== undefined ||
         patch.category !== undefined ||
         patch.categoryId !== undefined ||
+        patch.merchantId !== undefined ||
         patch.images !== undefined ||
         patch.categorySplits !== undefined)
         ? buildFinancePayload({
@@ -1195,6 +1200,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             closesLotId: patch.closesLotId,
             category: patch.category,
             categoryId: patch.categoryId,
+            merchantId: patch.merchantId,
             images:
               patch.images !== undefined
                 ? normalizeTaskImages(patch.images)

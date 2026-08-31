@@ -52,6 +52,22 @@ export interface FinanceCategoryPayload {
   necessary: boolean;
 }
 
+export interface FinanceMerchantPayload {
+  name: string;
+  notes: string;
+}
+
+export interface FinanceMerchant {
+  id: string;
+  color: string;
+  name: string;
+  notes: string;
+  archived: boolean;
+  sealed?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface FinanceUserCategory {
   id: string;
   groupKey: FinanceCategory;
@@ -88,6 +104,7 @@ export interface FinanceMovementPayload {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  merchantId?: string | null;
   images?: string[];
   categorySplits?: FinanceCategorySplit[];
 }
@@ -193,6 +210,7 @@ export interface FinanceMovement {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  merchantId?: string | null;
   images?: string[];
   categorySplits?: FinanceCategorySplit[];
   ruleId: string | null;
@@ -271,6 +289,7 @@ export interface CreateFinanceMovementPayload {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  merchantId?: string | null;
   images?: string[];
   categorySplits?: FinanceCategorySplit[];
   recurrence?: {
@@ -317,6 +336,7 @@ export interface UpdateFinanceMovementPayload {
   closesLotId?: string | null;
   category?: FinanceCategory | null;
   categoryId?: string | null;
+  merchantId?: string | null;
   images?: string[];
   categorySplits?: FinanceCategorySplit[];
 }

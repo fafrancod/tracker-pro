@@ -27,6 +27,7 @@ export interface TranslationDict {
   nav_finances: string;
   nav_toggle_section: string;
   nav_fin_categories: string;
+  nav_fin_merchants: string;
   nav_fin_payment_methods: string;
   nav_fin_evolution: string;
   nav_fin_credits: string;
@@ -82,6 +83,7 @@ export interface TranslationDict {
   fin_tab_investments: string;
   fin_tab_health: string;
   fin_tab_categories: string;
+  fin_tab_merchants: string;
   fin_tab_evolution: string;
   fin_field_payment_method: string;
   fin_payment_none: string;
@@ -144,6 +146,24 @@ export interface TranslationDict {
   fin_cat_saved: string;
   fin_cat_no_budget: string;
   fin_field_category: string;
+  fin_field_merchant: string;
+  fin_merchant_none: string;
+  fin_merchant_add: string;
+  fin_merchant_edit: string;
+  fin_merchant_name: string;
+  fin_merchant_notes: string;
+  fin_merchant_empty: string;
+  fin_merchant_empty_hint: string;
+  fin_merchant_name_required: string;
+  fin_merchant_saved: string;
+  fin_merchant_deleted: string;
+  fin_merchant_delete_title: string;
+  fin_merchant_delete_hint: string;
+  fin_merchant_sql_needed: string;
+  fin_merchant_window_month: string;
+  fin_merchant_window_3m: string;
+  fin_merchant_count: string;
+  fin_merchant_no_spend: string;
   fin_split_on: string;
   fin_split_off: string;
   fin_split_title: string;
@@ -1367,6 +1387,7 @@ const es_dict: TranslationDict = {
   nav_finances: 'Finances',
   nav_toggle_section: 'Mostrar u ocultar submenús',
   nav_fin_categories: 'Categorías',
+  nav_fin_merchants: 'Comercios',
   nav_fin_payment_methods: 'Medios de pago',
   nav_fin_evolution: 'Evolución de pagos',
   nav_fin_credits: 'Créditos',
@@ -1420,6 +1441,7 @@ const es_dict: TranslationDict = {
   fin_tab_investments: 'Inversiones',
   fin_tab_health: 'Salud',
   fin_tab_categories: 'Categorías',
+  fin_tab_merchants: 'Comercios',
   fin_tab_evolution: 'Evolución de pagos',
   fin_field_payment_method: 'Medio de pago',
   fin_payment_none: 'Ninguno',
@@ -1486,6 +1508,27 @@ const es_dict: TranslationDict = {
   fin_cat_saved: 'Categoría guardada.',
   fin_cat_no_budget: 'Sin presupuesto',
   fin_field_category: 'Categoría',
+  fin_field_merchant: 'Comercio',
+  fin_merchant_none: 'Sin comercio',
+  fin_merchant_add: 'Añadir comercio',
+  fin_merchant_edit: 'Editar comercio',
+  fin_merchant_name: 'Nombre',
+  fin_merchant_notes: 'Notas',
+  fin_merchant_empty: 'Aún no tienes comercios',
+  fin_merchant_empty_hint:
+    'Registra tiendas o empresas (Jumbo, Uber, Netflix) y asígnalas a cada gasto para ver cuánto dejas en cada una.',
+  fin_merchant_name_required: 'Ponle un nombre al comercio.',
+  fin_merchant_saved: 'Comercio guardado.',
+  fin_merchant_deleted: 'Comercio archivado.',
+  fin_merchant_delete_title: 'Archivar este comercio',
+  fin_merchant_delete_hint:
+    'Los gastos ya etiquetados se quedan; el comercio deja de aparecer en la lista.',
+  fin_merchant_sql_needed:
+    'Supabase no tiene la tabla de comercios. Pega el SQL de finance_merchants y recarga.',
+  fin_merchant_window_month: 'Este mes',
+  fin_merchant_window_3m: 'Últimos 3 meses',
+  fin_merchant_count: '{n} compras',
+  fin_merchant_no_spend: 'Sin compras en este periodo.',
   fin_split_on: 'Desglosar en varias categorías',
   fin_split_off: 'Usar una sola categoría',
   fin_split_title: 'Desglose',
@@ -2816,6 +2859,7 @@ const en_dict: TranslationDict = {
   nav_finances: 'Finances',
   nav_toggle_section: 'Show or hide submenus',
   nav_fin_categories: 'Categories',
+  nav_fin_merchants: 'Merchants',
   nav_fin_payment_methods: 'Payment methods',
   nav_fin_evolution: 'Payment trends',
   nav_fin_credits: 'Credits',
@@ -2867,6 +2911,7 @@ const en_dict: TranslationDict = {
   fin_tab_investments: 'Investments',
   fin_tab_health: 'Health',
   fin_tab_categories: 'Categories',
+  fin_tab_merchants: 'Merchants',
   fin_tab_evolution: 'Payment trends',
   fin_field_payment_method: 'Payment method',
   fin_payment_none: 'None',
@@ -2933,6 +2978,27 @@ const en_dict: TranslationDict = {
   fin_cat_saved: 'Category saved.',
   fin_cat_no_budget: 'No budget',
   fin_field_category: 'Category',
+  fin_field_merchant: 'Merchant',
+  fin_merchant_none: 'No merchant',
+  fin_merchant_add: 'Add merchant',
+  fin_merchant_edit: 'Edit merchant',
+  fin_merchant_name: 'Name',
+  fin_merchant_notes: 'Notes',
+  fin_merchant_empty: 'No merchants yet',
+  fin_merchant_empty_hint:
+    'Save stores or companies (Jumbo, Uber, Netflix) and tag each expense to see how much you spend at each one.',
+  fin_merchant_name_required: 'Give the merchant a name.',
+  fin_merchant_saved: 'Merchant saved.',
+  fin_merchant_deleted: 'Merchant archived.',
+  fin_merchant_delete_title: 'Archive this merchant',
+  fin_merchant_delete_hint:
+    'Tagged expenses stay; the merchant leaves the list.',
+  fin_merchant_sql_needed:
+    'Supabase is missing the merchants table. Paste the finance_merchants SQL and reload.',
+  fin_merchant_window_month: 'This month',
+  fin_merchant_window_3m: 'Last 3 months',
+  fin_merchant_count: '{n} purchases',
+  fin_merchant_no_spend: 'No purchases in this period.',
   fin_split_on: 'Split across categories',
   fin_split_off: 'Use a single category',
   fin_split_title: 'Breakdown',

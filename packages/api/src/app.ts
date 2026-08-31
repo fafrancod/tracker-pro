@@ -22,6 +22,7 @@ import { financeFxRouter } from './routes/financeFx.js';
 import { financeGoalsRouter } from './routes/financeGoals.js';
 import { financeCreditsRouter } from './routes/financeCredits.js';
 import { financeCategoriesRouter } from './routes/financeCategories.js';
+import { financeMerchantsRouter } from './routes/financeMerchants.js';
 import { financeInvestmentsRouter } from './routes/financeInvestments.js';
 import { adminRouter } from './routes/admin.js';
 
@@ -97,6 +98,7 @@ export function buildApp(): Express {
   app.use('/api/finances', financeGoalsRouter);
   app.use('/api/finances', financeCreditsRouter);
   app.use('/api/finances', financeCategoriesRouter);
+  app.use('/api/finances', financeMerchantsRouter);
   app.use('/api/finances', financeInvestmentsRouter);
   app.use('/api/finances', financeAccountsRouter);
   app.use('/api/finances', financeMovementsRouter);

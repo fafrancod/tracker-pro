@@ -11,6 +11,7 @@ export * from './installments';
 export * from './portfolio';
 export * from './engine';
 export * from './categoryBudget';
+export * from './merchantSpend';
 export * from './categorySplits';
 export * from './paymentMethod';
 export * from './evolution';

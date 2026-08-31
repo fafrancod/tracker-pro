@@ -45,6 +45,7 @@ import { CreditsPanel } from '@/components/Finances/CreditsPanel';
 import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
 import { HealthPanel } from '@/components/Finances/HealthPanel';
 import { CategoriesPanel } from '@/components/Finances/CategoriesPanel';
+import { MerchantsPanel } from '@/components/Finances/MerchantsPanel';
 import { EvolutionPanel } from '@/components/Finances/EvolutionPanel';
 import { MovementsListPanel } from '@/components/Finances/MovementsListPanel';
 import { TaskImagesField } from '@/components/Board/TaskImagesField';
@@ -105,6 +106,7 @@ import type {
   FinanceCategory,
   FinanceCredit,
   FinanceGoal,
+  FinanceMerchant,
   FinanceMovement,
   FinanceMovementFlow,
   FinanceMovementStatus,
@@ -125,6 +127,7 @@ import { reportingAmountOf } from '@core/lib/finance/fx';
 import { unsealFinanceLedger } from '@core/lib/finance/unseal';
 import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
+import { fetchFinanceMerchants } from '@core/services/financeMerchantService';
 import {
   defaultCurrencyFromLocale,
   normalizeCurrencyCode,
@@ -170,6 +173,7 @@ const FINANCE_HUBS = [
   'calendar',
   'list',
   'categories',
+  'merchants',
   'accounts',
   'evolution',
   'credits',
@@ -210,6 +214,7 @@ interface MovementForm {
   quantity: number;
   category: FinanceCategory;
   categoryId: string;
+  merchantId: string;
   images: string[];
   categorySplits: CategorySplitRow[];
 }
@@ -238,6 +243,7 @@ function emptyForm(dayId: string, currency: string): MovementForm {
     quantity: 1,
     category: 'other',
     categoryId: '',
+    merchantId: '',
     images: [],
     categorySplits: [],
   };
@@ -298,6 +304,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const [userCategories, setUserCategories] = useState<FinanceUserCategory[]>(
     []
   );
+  const [merchants, setMerchants] = useState<FinanceMerchant[]>([]);
   const [ledgerMovements, setLedgerMovements] = useState<FinanceMovement[]>([]);
   const [ledgerRules, setLedgerRules] = useState<FinanceRule[]>([]);
   const [boardFinanceTasks, setBoardFinanceTasks] = useState<LocatedFinanceTask[]>(
@@ -323,9 +330,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       // Preserve already loaded data while an optional panel is temporarily unavailable.
     }
   }, []);
+  const loadMerchants = useCallback(async () => {
+    try {
+      setMerchants(await fetchFinanceMerchants());
+    } catch {
+      // Same optional-panel policy as categories.
+    }
+  }, []);
   const loadMovementFormOptions = useCallback(() => {
-    void Promise.all([loadGoals(), loadUserCategories()]);
-  }, [loadGoals, loadUserCategories]);
+    void Promise.all([loadGoals(), loadUserCategories(), loadMerchants()]);
+  }, [loadGoals, loadUserCategories, loadMerchants]);
 
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const monthStart = startOfMonth(cursor);
@@ -583,7 +597,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     if (hub === 'categories' || hub === 'evolution') {
       void loadUserCategories();
     }
-  }, [hub, loadGoals, loadUserCategories]);
+    if (hub === 'merchants') {
+      void Promise.all([loadMerchants(), loadUserCategories()]);
+    }
+  }, [hub, loadGoals, loadUserCategories, loadMerchants]);
 
   useEffect(() => {
     const groups = new Map<string, FinanceMovement[]>();
@@ -960,6 +977,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             ? 'debt'
             : 'other'),
       categoryId: firstPurchaseRow.categoryId ?? '',
+      merchantId: firstPurchaseRow.merchantId ?? '',
       images: purchaseRows.find(row => (row.images?.length ?? 0) > 0)?.images ?? [],
       categorySplits:
         categorySplitMap.size > 1
@@ -1080,6 +1098,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         : categorySplits
           ? categorySplits[0].categoryId
           : form.categoryId || null,
+      merchantId: isInvest ? null : form.merchantId || null,
       categorySplits,
       images: form.images,
       installmentTotal:
@@ -1198,6 +1217,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const hubTitle =
     hub === 'categories'
       ? t('fin_tab_categories')
+      : hub === 'merchants'
+        ? t('fin_tab_merchants')
       : hub === 'accounts'
         ? t('fin_tab_accounts')
         : hub === 'evolution'
@@ -1260,6 +1281,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                           ? t('fin_tab_health')
                           : id === 'evolution'
                             ? t('fin_tab_evolution')
+                            : id === 'merchants'
+                              ? t('fin_tab_merchants')
                             : t('fin_tab_categories')}
             </button>
           ))}
@@ -1390,6 +1413,19 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             defaultCurrency={preferred}
             onChanged={async () => {
               await Promise.all([reload(), loadUserCategories()]);
+            }}
+          />
+        ) : null}
+
+        {hub === 'merchants' ? (
+          <MerchantsPanel
+            merchants={merchants}
+            movements={ledgerMovements.length ? ledgerMovements : movements}
+            categories={userCategories}
+            todayDayId={todayId}
+            reportingCurrency={preferred}
+            onChanged={async () => {
+              await Promise.all([reload(), loadMerchants()]);
             }}
           />
         ) : null}
@@ -1979,6 +2015,23 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             )}
             {form.flow !== 'investment' && !form.creditPayment && (
               <div className="space-y-2">
+                <label className="block space-y-1 text-xs text-text-muted">
+                  <span>{t('fin_field_merchant')}</span>
+                  <select
+                    value={form.merchantId}
+                    onChange={e =>
+                      setForm(f => ({ ...f, merchantId: e.target.value }))
+                    }
+                    className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+                  >
+                    <option value="">{t('fin_merchant_none')}</option>
+                    {merchants.map(merchant => (
+                      <option key={merchant.id} value={merchant.id}>
+                        {merchant.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 {form.categorySplits.length >= 2 ? (
                   <>
                     <CategorySplitEditor
