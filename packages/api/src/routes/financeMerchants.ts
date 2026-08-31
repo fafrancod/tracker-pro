@@ -47,13 +47,23 @@ async function loadVaultRow(uid: string): Promise<Record<string, unknown> | null
 
 async function ensureAccountDek(uid: string): Promise<Buffer> {
   const existing = await loadVaultRow(uid);
-  if (
-    inferVaultScheme(existing) !== 'private' &&
-    existing &&
-    typeof existing.account_wrapped_dek === 'string' &&
-    existing.account_wrapped_dek
-  ) {
-    return unwrapAccountDek(uid, existing.account_wrapped_dek);
+  const wrapped =
+    existing && typeof existing.account_wrapped_dek === 'string'
+      ? existing.account_wrapped_dek
+      : '';
+  if (wrapped) {
+    try {
+      return unwrapAccountDek(uid, wrapped);
+    } catch {
+      throw ApiError.badRequest(
+        'No se pudo abrir la bóveda de finanzas. Recarga e inténtalo de nuevo.'
+      );
+    }
+  }
+  if (inferVaultScheme(existing) === 'private') {
+    throw ApiError.badRequest(
+      'La bóveda privada está activa: no se puede crear un comercio sin la clave de cuenta.'
+    );
   }
   const dek = newAccountDek();
   const now = new Date().toISOString();
@@ -62,10 +72,10 @@ async function ensureAccountDek(uid: string): Promise<Buffer> {
       user_id: uid,
       scheme: 'account',
       account_wrapped_dek: wrapAccountDek(uid, dek),
-      kdf_salt: null,
-      kdf_params: null,
-      wrapped_dek: null,
-      recovery_wrapped_dek: null,
+      kdf_salt: existing?.kdf_salt ?? null,
+      kdf_params: existing?.kdf_params ?? null,
+      wrapped_dek: existing?.wrapped_dek ?? null,
+      recovery_wrapped_dek: existing?.recovery_wrapped_dek ?? null,
       enc_v: '2',
       created_at: existing?.created_at ?? now,
       updated_at: now,
@@ -139,11 +149,15 @@ financeMerchantsRouter.get('/merchants', async (req, res, next) => {
     const existing = await loadVaultRow(uid);
     let dek: Buffer | null = null;
     if (
-      inferVaultScheme(existing) !== 'private' &&
       existing &&
-      typeof existing.account_wrapped_dek === 'string'
+      typeof existing.account_wrapped_dek === 'string' &&
+      existing.account_wrapped_dek
     ) {
-      dek = unwrapAccountDek(uid, existing.account_wrapped_dek);
+      try {
+        dek = unwrapAccountDek(uid, existing.account_wrapped_dek);
+      } catch {
+        dek = null;
+      }
     }
     res.json({
       merchants: (data ?? []).map(r => {

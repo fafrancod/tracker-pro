@@ -1411,9 +1411,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             movements={ledgerMovements.length ? ledgerMovements : movements}
             monthId={monthId}
             defaultCurrency={preferred}
-            onChanged={async () => {
-              await Promise.all([reload(), loadUserCategories()]);
-            }}
+            onChanged={loadUserCategories}
           />
         ) : null}
 
@@ -1424,9 +1422,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             categories={userCategories}
             todayDayId={todayId}
             reportingCurrency={preferred}
-            onChanged={async () => {
-              await Promise.all([reload(), loadMerchants()]);
+            onSaved={merchant => {
+              setMerchants(prev => {
+                const rest = prev.filter(item => item.id !== merchant.id);
+                return [merchant, ...rest];
+              });
             }}
+            onChanged={loadMerchants}
           />
         ) : null}
 

@@ -99,6 +99,28 @@ describe('POST /api/finances/merchants', () => {
   });
 });
 
+describe('GET /api/finances/merchants', () => {
+  it('lista los comercios creados sin tumbar el resto de Finanzas', async () => {
+    await request(app)
+      .post('/api/finances/merchants')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Jumbo' });
+    await request(app)
+      .post('/api/finances/merchants')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Uber' });
+    await request(app)
+      .post('/api/finances/merchants')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ name: 'Netflix' });
+    const res = await request(app)
+      .get('/api/finances/merchants')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(200);
+    expect(res.body.merchants).toHaveLength(3);
+  });
+});
+
 function expense(partial: Partial<FinanceMovement> & Pick<FinanceMovement, 'id' | 'dayId'>): FinanceMovement {
   return {
     purchaseDayId: partial.dayId,

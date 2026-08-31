@@ -55,6 +55,7 @@ export function MerchantsPanel({
   categories,
   todayDayId,
   reportingCurrency,
+  onSaved,
   onChanged,
 }: {
   merchants: FinanceMerchant[];
@@ -62,6 +63,7 @@ export function MerchantsPanel({
   categories: FinanceUserCategory[];
   todayDayId: string;
   reportingCurrency: string;
+  onSaved?: (merchant: FinanceMerchant) => void;
   onChanged: () => Promise<void>;
 }) {
   const { t } = useT();
@@ -124,11 +126,13 @@ export function MerchantsPanel({
         notes: form.notes.trim(),
         color: form.color,
       };
-      if (editing) await updateFinanceMerchant(editing.id, body);
-      else await createFinanceMerchant(body);
+      const saved = editing
+        ? await updateFinanceMerchant(editing.id, body)
+        : await createFinanceMerchant(body);
+      onSaved?.(saved);
       showToast(t('fin_merchant_saved'), 'success');
       setOpen(false);
-      await onChanged();
+      void onChanged().catch(() => undefined);
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
