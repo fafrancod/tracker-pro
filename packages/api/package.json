@@ -1,6 +1,6 @@
 {
   "name": "@daily-tracker/api",
-  "version": "2.37.12",
+  "version": "2.37.13",
   "private": true,
   "type": "module",
   "main": "./dist/server.js",
