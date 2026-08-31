@@ -506,8 +506,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       if (!existing) map.set(mov.id, mov);
       else if (existing.virtual && !mov.virtual) map.set(mov.id, mov);
     }
-    return [...map.values()];
-  }, [paymentLedger, movements]);
+    return retargetMonthlyRuleOccurrences([...map.values()], ledgerRules);
+  }, [paymentLedger, movements, ledgerRules]);
   const seriesHints = useMemo(
     () => financeSeriesHintsFromTasks(boardFinanceTasks),
     [boardFinanceTasks]

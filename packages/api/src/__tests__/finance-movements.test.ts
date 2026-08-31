@@ -439,6 +439,64 @@ describe('finance rule expansion', () => {
     expect(shown[0]?.status).toBe('confirmed');
   });
 
+  it('sin ruleId, 31 de julio y 1 de agosto se pintan el 30 (día de la regla)', () => {
+    const globant: FinanceRule = {
+      ...rule,
+      id: 'rule-globant',
+      flow: 'income',
+      title: 'Ingreso Globant',
+      amount: 2_500_000,
+      recurrenceDay: 30,
+      startDayId: '2026-01-31',
+    };
+    const july: FinanceMovement = {
+      id: 'm-jul',
+      dayId: '2026-07-31',
+      flow: 'income',
+      status: 'confirmed',
+      currency: 'CLP',
+      title: 'Ingreso Globant',
+      amount: 2_500_000,
+      notes: '',
+      certainty: 'fixed',
+      accountId: null,
+      cardAccountId: null,
+      goalId: null,
+      creditId: null,
+      installmentGroupId: null,
+      installmentIndex: null,
+      installmentTotal: null,
+      tag: null,
+      originalAmount: 2_500_000,
+      originalCurrency: 'CLP',
+      exchangeRate: 1,
+      fxPending: false,
+      reportingCurrency: 'CLP',
+      ruleId: null,
+      sourceTaskId: 't-jul',
+      virtual: false,
+      createdAt: globant.createdAt,
+      updatedAt: globant.updatedAt,
+    };
+    const aug1: FinanceMovement = {
+      ...july,
+      id: 'm-aug',
+      dayId: '2026-08-01',
+      sourceTaskId: 't-aug',
+    };
+    const aligned = retargetMonthlyRuleOccurrences([july, aug1], [globant]);
+    expect(aligned.map(m => m.dayId)).toEqual(['2026-07-30', '2026-08-30']);
+    const extra = expandFinanceRules(
+      [globant],
+      aligned,
+      '2026-07-27',
+      '2026-08-31'
+    );
+    const shown = dedupeFinanceCalendarMovements([...aligned, ...extra], [globant]);
+    const days = shown.map(m => m.dayId).sort();
+    expect(days).toEqual(['2026-07-30', '2026-08-30']);
+  });
+
   it('span inclusivo de 93 días es el tope', () => {
     expect(inclusiveDaySpan('2026-08-01', '2026-10-31')).toBeGreaterThan(90);
     expect(inclusiveDaySpan('2026-08-01', '2026-08-31')).toBe(31);

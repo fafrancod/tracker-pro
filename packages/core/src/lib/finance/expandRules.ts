@@ -115,8 +115,15 @@ export function retargetMonthlyRuleOccurrences(
   const monthly = rules.filter(rule => rule.active && rule.frequency === 'monthly');
   if (monthly.length === 0) return movements;
   return movements.map(mov => {
-    if (mov.status === 'skipped' || !mov.ruleId) return mov;
-    const rule = monthly.find(item => item.id === mov.ruleId);
+    if (mov.status === 'skipped') return mov;
+    const rule =
+      (mov.ruleId ? monthly.find(item => item.id === mov.ruleId) : undefined) ??
+      monthly.find(
+        item =>
+          item.flow === mov.flow &&
+          financeTitlesMatch(mov.title, item.title) &&
+          amountsCompatible(mov.amount, item.amount)
+      );
     if (!rule) return mov;
     const target = shiftDayIdToMonthDay(mov.dayId, rule.recurrenceDay);
     if (target === mov.dayId) return mov;
