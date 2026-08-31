@@ -1,6 +1,6 @@
 {
   "name": "@daily-tracker/web",
-  "version": "2.38.3",
+  "version": "2.38.4",
   "private": true,
   "type": "module",
   "scripts": {
