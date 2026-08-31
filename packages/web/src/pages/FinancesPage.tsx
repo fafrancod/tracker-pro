@@ -90,7 +90,6 @@ import {
   monthIdFromDayId,
   movementNativeAmount,
   movementSourceCurrency,
-  netCurrencyBreakdown,
   summarizeCurrencyBreakdown,
   summarizeMovementsByCurrency,
   type FinanceCurrencyBreakdown,
@@ -685,41 +684,6 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     () => summarizeCurrencyBreakdown(monthlyBreakdown.expenses, preferred),
     [monthlyBreakdown.expenses, preferred]
   );
-  const availableCurrencyBreakdown = useMemo(
-    () =>
-      netCurrencyBreakdown(
-        [
-          { breakdown: incomeCurrencyBreakdown, sign: 1 },
-          { breakdown: expenseCurrencyBreakdown, sign: -1 },
-        ],
-        preferred
-      ),
-    [incomeCurrencyBreakdown, expenseCurrencyBreakdown, preferred]
-  );
-  const ledgerBalanceCurrencyBreakdown = useMemo(() => {
-    const income: FinanceMovement[] = [];
-    const expenses: FinanceMovement[] = [];
-    for (const mov of movements) {
-      if (!mov.dayId.startsWith(monthId)) continue;
-      if (
-        mov.status !== 'confirmed' ||
-        mov.flow === 'investment' ||
-        mov.tag === 'card_payment' ||
-        mov.tag === 'goal_contribution'
-      ) {
-        continue;
-      }
-      if (mov.flow === 'income') income.push(mov);
-      else expenses.push(mov);
-    }
-    return netCurrencyBreakdown(
-      [
-        { breakdown: summarizeCurrencyBreakdown(income, preferred), sign: 1 },
-        { breakdown: summarizeCurrencyBreakdown(expenses, preferred), sign: -1 },
-      ],
-      preferred
-    );
-  }, [movements, monthId, preferred]);
   useEffect(() => {
     if (dialogOpen && !editing) setNewMovementDraft(form);
   }, [dialogOpen, editing, form]);
@@ -1378,25 +1342,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               value: money(monthlyBreakdown.balanceIncludingCard, preferred),
               tone: monthlyBreakdown.balanceIncludingCard >= 0 ? 'teal' : 'red',
             }}
-            currencies={
-              <KpiCurrencyDetail
-                breakdown={availableCurrencyBreakdown}
-                fxPendingLabel={t('fin_kpi_fx_pending_short')}
-                fxAtTxnLabel={t('fin_kpi_fx_at_txn')}
-              />
-            }
           />
           <Kpi
             label={t('fin_balance')}
             value={money(summary.balance, preferred)}
             tone={summary.balance >= 0 ? 'teal' : 'red'}
-            currencies={
-              <KpiCurrencyDetail
-                breakdown={ledgerBalanceCurrencyBreakdown}
-                fxPendingLabel={t('fin_kpi_fx_pending_short')}
-                fxAtTxnLabel={t('fin_kpi_fx_at_txn')}
-              />
-            }
           />
         </div>
 
