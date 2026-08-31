@@ -173,7 +173,7 @@ describe('mergeBoardFinanceIntoMovements', () => {
         flow: 'income' as const,
         currency: 'CLP',
         frequency: 'monthly' as const,
-        recurrenceDay: 30,
+        recurrenceDay: 29,
         startDayId: '2026-01-30',
         title: 'Ingreso Globant',
         amount: 2_500_000,
@@ -294,7 +294,12 @@ describe('planFinanceRuleAlignment', () => {
     const linked = mov({ id: 'm-globant-seed', dayId: '2026-08-01', ruleId: rule.id });
 
     expect(planFinanceRuleAlignment([globant], [rule], [linked])).toEqual([
-      { ruleId: 'rule-globant', frequency: 'monthly', recurrenceDay: 29 },
+      {
+        ruleId: 'rule-globant',
+        frequency: 'monthly',
+        recurrenceDay: 29,
+        startDayId: '2026-01-01',
+      },
     ]);
   });
 });

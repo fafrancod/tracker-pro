@@ -118,17 +118,12 @@ export function retargetMonthlyRuleOccurrences(
     if (mov.status === 'skipped') return mov;
     const rule =
       (mov.ruleId ? monthly.find(item => item.id === mov.ruleId) : undefined) ??
-      // A source-task movement without rule_id is an explicit board
-      // occurrence (including a rescheduled one).  Matching it only by title
-      // and amount would silently pull it back to the old rule day.
-      (!mov.sourceTaskId
-        ? monthly.find(
-            item =>
-              item.flow === mov.flow &&
-              financeTitlesMatch(mov.title, item.title) &&
-              amountsCompatible(mov.amount, item.amount)
-          )
-        : undefined);
+      monthly.find(
+        item =>
+          item.flow === mov.flow &&
+          financeTitlesMatch(mov.title, item.title) &&
+          amountsCompatible(mov.amount, item.amount)
+      );
     if (!rule) return mov;
     const target = shiftDayIdToMonthDay(mov.dayId, rule.recurrenceDay);
     if (target === mov.dayId) return mov;

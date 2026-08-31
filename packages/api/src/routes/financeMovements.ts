@@ -1180,6 +1180,7 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
         payloadEnc: z.string().min(16).max(24_000).optional(),
         frequency: z.enum(['monthly', 'weekly']).optional(),
         recurrenceDay: z.number().int().min(0).max(31).optional(),
+        startDayId: dayIdSchema.optional(),
       })
       .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' })
       .parse(req.body);
@@ -1212,12 +1213,17 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
     };
     if (body.frequency) update.frequency = body.frequency;
     if (body.recurrenceDay !== undefined) update.recurrence_day = body.recurrenceDay;
+    if (body.startDayId !== undefined) update.start_day_id = body.startDayId;
     if (body.payloadEnc) {
       update.payload = {};
       update.payload_enc = body.payloadEnc;
       update.enc_v = '1';
     }
-    if (nextFrequency === 'monthly' && body.recurrenceDay !== undefined) {
+    if (
+      nextFrequency === 'monthly' &&
+      body.recurrenceDay !== undefined &&
+      body.startDayId === undefined
+    ) {
       const oldStart = String(existing.start_day_id ?? '');
       if (oldStart) {
         const startOcc = shiftDayIdToMonthDay(oldStart, nextDay);

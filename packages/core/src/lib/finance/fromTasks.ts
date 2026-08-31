@@ -72,6 +72,8 @@ export interface FinanceRuleAlignment {
   ruleId: string;
   frequency: FinanceRuleFrequency;
   recurrenceDay: number;
+  /** Earliest materialized task date; preserves the full series horizon. */
+  startDayId: string;
 }
 
 /**
@@ -116,8 +118,21 @@ export function planFinanceRuleAlignment(
           sameAmount(item.amount, amountOf(task))
       );
     if (!rule) continue;
-    if (rule.frequency === frequency && rule.recurrenceDay === recurrenceDay) continue;
-    updates.set(rule.id, { ruleId: rule.id, frequency, recurrenceDay });
+    const startDayId =
+      rule.startDayId && rule.startDayId <= task.dayId ? rule.startDayId : task.dayId;
+    if (
+      rule.frequency === frequency &&
+      rule.recurrenceDay === recurrenceDay &&
+      rule.startDayId === startDayId
+    ) {
+      continue;
+    }
+    updates.set(rule.id, {
+      ruleId: rule.id,
+      frequency,
+      recurrenceDay,
+      startDayId,
+    });
   }
   return [...updates.values()];
 }

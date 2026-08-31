@@ -364,6 +364,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             updateFinanceRule(alignment.ruleId, {
               frequency: alignment.frequency,
               recurrenceDay: alignment.recurrenceDay,
+              startDayId: alignment.startDayId,
             })
           )
         );

@@ -685,7 +685,11 @@ export async function sealFinanceRule(
 
 export async function updateFinanceRule(
   ruleId: string,
-  patch: { frequency?: 'monthly' | 'weekly'; recurrenceDay?: number }
+  patch: {
+    frequency?: 'monthly' | 'weekly';
+    recurrenceDay?: number;
+    startDayId?: string;
+  }
 ): Promise<{ id: string; frequency: 'monthly' | 'weekly'; recurrenceDay: number }> {
   if (isDemoMode()) {
     const rules = loadJson<FinanceRule>(DEMO_RULE_KEY);
@@ -695,6 +699,7 @@ export async function updateFinanceRule(
       const nextDay = patch.recurrenceDay ?? rules[idx].recurrenceDay;
       const now = new Date().toISOString();
       let startDayId = rules[idx].startDayId;
+      if (patch.startDayId) startDayId = patch.startDayId;
       if (nextFrequency === 'monthly' && patch.recurrenceDay !== undefined) {
         const startOcc = shiftDayIdToMonthDay(startDayId, nextDay);
         if (startOcc < startDayId) startDayId = startOcc;
