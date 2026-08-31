@@ -309,6 +309,9 @@ export interface TranslationDict {
   fin_field_monthday: string;
   fin_field_weekday: string;
   fin_field_date: string;
+  fin_field_first_occurrence: string;
+  fin_monthly_first_occurrence_hint: string;
+  fin_date_required: string;
   fin_field_notes: string;
   fin_field_active: string;
   fin_weekday_0: string;
@@ -1664,6 +1667,10 @@ const es_dict: TranslationDict = {
   fin_field_monthday: 'Día del mes',
   fin_field_weekday: 'Día de la semana',
   fin_field_date: 'Fecha',
+  fin_field_first_occurrence: 'Primera ocurrencia',
+  fin_monthly_first_occurrence_hint:
+    'Si ese día no existe en este mes, la primera ocurrencia se ajusta al último día del mes; los meses siguientes conservan el día elegido.',
+  fin_date_required: 'Elige una fecha válida. Febrero de 2026 termina el día 28.',
   fin_field_notes: 'Notas',
   fin_field_active: 'Activo (cuenta en el resumen)',
   fin_weekday_0: 'Domingo',
@@ -3106,6 +3113,10 @@ const en_dict: TranslationDict = {
   fin_field_monthday: 'Day of month',
   fin_field_weekday: 'Weekday',
   fin_field_date: 'Date',
+  fin_field_first_occurrence: 'First occurrence',
+  fin_monthly_first_occurrence_hint:
+    'If that day does not exist in this month, the first occurrence is adjusted to the last day of the month; later months keep the selected day.',
+  fin_date_required: 'Choose a valid date. February 2026 ends on the 28th.',
   fin_field_notes: 'Notes',
   fin_field_active: 'Active (counts in summary)',
   fin_weekday_0: 'Sunday',

@@ -208,6 +208,25 @@ describe('finance rule expansion', () => {
     expect(financeRuleAppliesOnDay(localPayroll, '2026-09-18')).toBe(false);
   });
 
+  it('mantiene el día 30 tras una primera ocurrencia ajustada al 28 de febrero', () => {
+    const arriendo: FinanceRule = {
+      ...rule,
+      recurrenceDay: 30,
+      startDayId: '2026-02-28',
+    };
+    const extra = expandFinanceRules(
+      [arriendo],
+      [],
+      '2026-02-01',
+      '2026-04-30'
+    );
+    expect(extra.map(movement => movement.dayId)).toEqual([
+      '2026-02-28',
+      '2026-03-30',
+      '2026-04-30',
+    ]);
+  });
+
   it('no duplica si ya hay fila física ese día', () => {
     const extra = expandFinanceRules(
       [rule],
@@ -664,6 +683,19 @@ describe('POST /api/finances/movements', () => {
     expect(lastMovementInsert?.day_id).toBe('2026-09-05');
     expect(lastMovementInsert?.status).toBe('confirmed');
     expect(lastRuleInsert).toBeNull();
+  });
+
+  it('rechaza una fecha inexistente aunque tenga formato YYYY-MM-DD', async () => {
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-02-30',
+        flow: 'expense',
+        title: 'Arriendo',
+        amount: 500000,
+      });
+    expect(res.status).toBe(400);
   });
 
   it('dayId inválido → 400', async () => {

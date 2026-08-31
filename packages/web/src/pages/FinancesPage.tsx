@@ -147,6 +147,21 @@ function currencySymbol(code: string): string {
   return '$';
 }
 
+/** Validates a civil YYYY-MM-DD without letting JavaScript normalize 30/02 to March. */
+function isValidFinanceDayId(dayId: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dayId);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
 type CalView = 'month' | 'week';
 
 const FINANCE_HUBS = [
@@ -855,6 +870,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }
 
   async function handleSave() {
+    if (!isValidFinanceDayId(form.dayId)) {
+      showToast(t('fin_date_required'), 'error');
+      return;
+    }
     const isInvest = form.flow === 'investment';
     const isExpense = form.flow === 'expense';
     const ticker = form.ticker.trim().toUpperCase();
@@ -2094,20 +2113,17 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               </>
             )}
             <label className="block space-y-1 text-xs text-text-muted">
-              <span>{t('fin_field_date')}</span>
+              <span>
+                {form.repeat === 'monthly'
+                  ? t('fin_field_first_occurrence')
+                  : t('fin_field_date')}
+              </span>
               <Input
                 type="date"
                 value={form.dayId}
-                onChange={e => {
-                  const dayId = e.target.value;
-                  const monthDay = Number(dayId.slice(8, 10)) || 1;
-                  setForm(f => ({
-                    ...f,
-                    dayId,
-                    recurrenceDay:
-                      f.repeat === 'monthly' ? monthDay : f.recurrenceDay,
-                  }));
-                }}
+                onChange={e =>
+                  setForm(f => ({ ...f, dayId: e.target.value }))
+                }
                 className="h-9 text-sm"
               />
             </label>
@@ -2135,24 +2151,29 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               </label>
             )}
             {form.repeat === 'monthly' ? (
-              <label className="block space-y-1 text-xs text-text-muted">
-                <span>{t('fin_field_monthday')}</span>
-                <SimpleSelect
-                  value={String(form.recurrenceDay)}
-                  onChange={value => {
-                    const recurrenceDay = Number(value) || 1;
-                    setForm(f => ({
-                      ...f,
-                      recurrenceDay,
-                      dayId: shiftDayIdToMonthDay(f.dayId, recurrenceDay),
-                    }));
-                  }}
-                  options={Array.from({ length: 31 }, (_, i) => ({
-                    value: String(i + 1),
-                    label: t('fin_list_month_day').replace('{n}', String(i + 1)),
-                  }))}
-                />
-              </label>
+              <div className="space-y-1">
+                <label className="block space-y-1 text-xs text-text-muted">
+                  <span>{t('fin_field_monthday')}</span>
+                  <SimpleSelect
+                    value={String(form.recurrenceDay)}
+                    onChange={value => {
+                      const recurrenceDay = Number(value) || 1;
+                      setForm(f => ({
+                        ...f,
+                        recurrenceDay,
+                        dayId: shiftDayIdToMonthDay(f.dayId, recurrenceDay),
+                      }));
+                    }}
+                    options={Array.from({ length: 31 }, (_, i) => ({
+                      value: String(i + 1),
+                      label: t('fin_list_month_day').replace('{n}', String(i + 1)),
+                    }))}
+                  />
+                </label>
+                <p className="text-[11px] text-text-muted">
+                  {t('fin_monthly_first_occurrence_hint')}
+                </p>
+              </div>
             ) : null}
             {form.repeat === 'weekly' ? (
               <label className="block space-y-1 text-xs text-text-muted">
