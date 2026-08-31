@@ -5,6 +5,8 @@ import type { TickerQuote, TickerSearchHit } from '../lib/finance/portfolio';
 import {
   dedupeFinanceCalendarMovements,
   expandFinanceRules,
+  retargetMonthlyRuleOccurrences,
+  shiftDayIdToMonthDay,
 } from '../lib/finance/expandRules';
 import {
   encryptFinancePayload,
@@ -200,9 +202,10 @@ export async function fetchFinanceCalendar(
   const { movements, rules } = vault
     ? await unsealFinanceLedger(vault.uid, vault.dek, raw.movements, raw.rules)
     : raw;
-  const virtuals = expandFinanceRules(rules, movements, fromDayId, toDayId);
+  const aligned = retargetMonthlyRuleOccurrences(movements, rules);
+  const virtuals = expandFinanceRules(rules, aligned, fromDayId, toDayId);
   return dedupeFinanceCalendarMovements(
-    [...movements, ...virtuals],
+    [...aligned, ...virtuals],
     rules
   ).sort((a, b) => {
     if (a.dayId !== b.dayId) return a.dayId.localeCompare(b.dayId);
@@ -688,11 +691,26 @@ export async function updateFinanceRule(
     const rules = loadJson<FinanceRule>(DEMO_RULE_KEY);
     const idx = rules.findIndex(r => r.id === ruleId);
     if (idx >= 0) {
+      const nextFrequency = patch.frequency ?? rules[idx].frequency;
+      const nextDay = patch.recurrenceDay ?? rules[idx].recurrenceDay;
+      const now = new Date().toISOString();
+      let startDayId = rules[idx].startDayId;
+      if (nextFrequency === 'monthly' && patch.recurrenceDay !== undefined) {
+        const startOcc = shiftDayIdToMonthDay(startDayId, nextDay);
+        if (startOcc < startDayId) startDayId = startOcc;
+        const movs = loadJson<FinanceMovement>(DEMO_MOV_KEY).map(mov =>
+          mov.ruleId === ruleId
+            ? { ...mov, dayId: shiftDayIdToMonthDay(mov.dayId, nextDay), updatedAt: now }
+            : mov
+        );
+        saveJson(DEMO_MOV_KEY, movs);
+      }
       rules[idx] = {
         ...rules[idx],
-        frequency: patch.frequency ?? rules[idx].frequency,
-        recurrenceDay: patch.recurrenceDay ?? rules[idx].recurrenceDay,
-        updatedAt: new Date().toISOString(),
+        frequency: nextFrequency,
+        recurrenceDay: nextDay,
+        startDayId,
+        updatedAt: now,
       };
       saveJson(DEMO_RULE_KEY, rules);
       return {

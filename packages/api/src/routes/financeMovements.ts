@@ -10,6 +10,7 @@ import {
   inclusiveDaySpan,
   installmentAmountAt,
   installmentTitle,
+  shiftDayIdToMonthDay,
   normalizeFinanceFlow,
   normalizeFinanceStatus,
   normalizeMovementCurrency,
@@ -822,32 +823,69 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
       accountDek = await ensureAccountDek(uid);
     }
     let ruleId: string | null = body.ruleId ?? null;
+    const previousRuleId =
+      typeof (replacement?.data as Record<string, unknown> | undefined)?.rule_id ===
+      'string'
+        ? ((replacement?.data as Record<string, unknown>).rule_id as string)
+        : null;
 
     if (body.recurrence) {
-      ruleId = body.ruleId ?? generateId();
-      const ruleRow: Record<string, unknown> = {
-        id: ruleId,
-        user_id: uid,
-        flow: body.flow,
-        currency,
-        frequency: body.recurrence.frequency,
-        recurrence_day: body.recurrence.recurrenceDay,
-        start_day_id: body.dayId,
-        payload: inner && !accountDek ? inner : {},
-        payload_enc: clientSealed
-          ? (body.rulePayloadEnc ?? null)
-          : accountDek && inner
-            ? encryptAccountPayload(uid, accountDek, 'finance_rules', ruleId, inner)
-            : null,
-        enc_v: clientSealed ? '1' : accountDek ? '2' : null,
-        active: true,
-        created_at: now,
-        updated_at: now,
-      };
-      const { error: ruleErr } = await getSupabaseAdmin()
-        .from('finance_rules')
-        .insert(ruleRow);
-      if (ruleErr) throw ruleErr;
+      const reuseRuleId = body.ruleId ?? previousRuleId;
+      if (reuseRuleId) {
+        ruleId = reuseRuleId;
+        const { data: existingRule, error: existingRuleErr } = await getSupabaseAdmin()
+          .from('finance_rules')
+          .select('id, start_day_id')
+          .eq('id', reuseRuleId)
+          .eq('user_id', uid)
+          .maybeSingle();
+        if (existingRuleErr) throw existingRuleErr;
+        const oldStart = String(
+          (existingRule as Record<string, unknown> | null)?.start_day_id ?? body.dayId
+        );
+        const occ =
+          body.recurrence.frequency === 'monthly'
+            ? shiftDayIdToMonthDay(oldStart, body.recurrence.recurrenceDay)
+            : body.dayId;
+        const rulePatch: Record<string, unknown> = {
+          frequency: body.recurrence.frequency,
+          recurrence_day: body.recurrence.recurrenceDay,
+          active: true,
+          updated_at: now,
+        };
+        if (occ < oldStart) rulePatch.start_day_id = occ;
+        const { error: ruleErr } = await getSupabaseAdmin()
+          .from('finance_rules')
+          .update(rulePatch)
+          .eq('id', reuseRuleId)
+          .eq('user_id', uid);
+        if (ruleErr) throw ruleErr;
+      } else {
+        ruleId = generateId();
+        const ruleRow: Record<string, unknown> = {
+          id: ruleId,
+          user_id: uid,
+          flow: body.flow,
+          currency,
+          frequency: body.recurrence.frequency,
+          recurrence_day: body.recurrence.recurrenceDay,
+          start_day_id: body.dayId,
+          payload: inner && !accountDek ? inner : {},
+          payload_enc: clientSealed
+            ? (body.rulePayloadEnc ?? null)
+            : accountDek && inner
+              ? encryptAccountPayload(uid, accountDek, 'finance_rules', ruleId, inner)
+              : null,
+          enc_v: clientSealed ? '1' : accountDek ? '2' : null,
+          active: true,
+          created_at: now,
+          updated_at: now,
+        };
+        const { error: ruleErr } = await getSupabaseAdmin()
+          .from('finance_rules')
+          .insert(ruleRow);
+        if (ruleErr) throw ruleErr;
+      }
     }
 
     const installmentTotal =
@@ -964,7 +1002,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
       if (retirementError) throw retirementError;
 
       const oldRuleId = previous.rule_id as string | null;
-      if (oldRuleId) {
+      if (oldRuleId && oldRuleId !== ruleId) {
         const { error: ruleError } = await getSupabaseAdmin()
           .from('finance_rules')
           .update({ active: false, updated_at: now })
@@ -1179,6 +1217,13 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
       update.payload_enc = body.payloadEnc;
       update.enc_v = '1';
     }
+    if (nextFrequency === 'monthly' && body.recurrenceDay !== undefined) {
+      const oldStart = String(existing.start_day_id ?? '');
+      if (oldStart) {
+        const startOcc = shiftDayIdToMonthDay(oldStart, nextDay);
+        if (startOcc < oldStart) update.start_day_id = startOcc;
+      }
+    }
 
     const { error } = await getSupabaseAdmin()
       .from('finance_rules')
@@ -1186,6 +1231,29 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
       .eq('id', ruleId)
       .eq('user_id', uid);
     if (error) throw error;
+
+    if (nextFrequency === 'monthly' && body.recurrenceDay !== undefined) {
+      const { data: owned, error: ownedErr } = await getSupabaseAdmin()
+        .from('finance_movements')
+        .select('id, day_id')
+        .eq('user_id', uid)
+        .eq('rule_id', ruleId)
+        .is('deleted_at', null);
+      if (ownedErr) throw ownedErr;
+      const stamp = new Date().toISOString();
+      const ownedRows = Array.isArray(owned) ? owned : [];
+      for (const row of ownedRows) {
+        const current = String((row as { day_id?: string }).day_id ?? '');
+        const nextDayId = shiftDayIdToMonthDay(current, nextDay);
+        if (!current || nextDayId === current) continue;
+        const { error: shiftErr } = await getSupabaseAdmin()
+          .from('finance_movements')
+          .update({ day_id: nextDayId, updated_at: stamp })
+          .eq('id', (row as { id: string }).id)
+          .eq('user_id', uid);
+        if (shiftErr) throw shiftErr;
+      }
+    }
     res.json({
       id: ruleId,
       frequency: nextFrequency,

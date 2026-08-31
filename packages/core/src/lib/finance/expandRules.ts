@@ -12,16 +12,28 @@ function parseDayParts(dayId: string): { y: number; m: number; d: number } {
   return { y: Number(ys), m: Number(ms), d: Number(ds) };
 }
 
+/** Día civil del mes con el día de recurrencia mensual, acotado al último día del mes. */
+export function shiftDayIdToMonthDay(dayId: string, monthDay: number): string {
+  const { y, m } = parseDayParts(dayId);
+  if (!y || !m) return dayId;
+  const dim = daysInMonth(y, m - 1);
+  const d = Math.min(Math.max(1, Math.round(monthDay) || 1), dim);
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
 export function financeRuleAppliesOnDay(rule: FinanceRule, dayId: string): boolean {
   if (!rule.active) return false;
-  if (dayId < rule.startDayId) return false;
   const { y, m, d } = parseDayParts(dayId);
   if (!y || !m || !d) return false;
   if (rule.frequency === 'monthly') {
+    // El arranque es el mes, no el día exacto: una serie que nació el 31
+    // y pasa al 30 debe seguir pintando agosto.
+    if (monthIdFromDayId(dayId) < monthIdFromDayId(rule.startDayId)) return false;
     const dim = daysInMonth(y, m - 1);
     const target = Math.min(Math.max(1, rule.recurrenceDay), dim);
     return d === target;
   }
+  if (dayId < rule.startDayId) return false;
   const weekday = new Date(y, m - 1, d).getDay();
   return weekday === rule.recurrenceDay;
 }
@@ -89,6 +101,27 @@ export function movementCoversFinanceRule(
     return monthIdFromDayId(mov.dayId) === monthIdFromDayId(occurrenceDayId);
   }
   return mov.dayId === occurrenceDayId;
+}
+
+/**
+ * Si la regla mensual cambió de día (31 → 30), las filas físicas de ese mes
+ * se muestran en el día nuevo. Si no, el dedupe las deja en el día viejo
+ * y el calendario parece vacío en el día que eligió el usuario.
+ */
+export function retargetMonthlyRuleOccurrences(
+  movements: FinanceMovement[],
+  rules: FinanceRule[]
+): FinanceMovement[] {
+  const monthly = rules.filter(rule => rule.active && rule.frequency === 'monthly');
+  if (monthly.length === 0) return movements;
+  return movements.map(mov => {
+    if (mov.status === 'skipped' || !mov.ruleId) return mov;
+    const rule = monthly.find(item => item.id === mov.ruleId);
+    if (!rule) return mov;
+    const target = shiftDayIdToMonthDay(mov.dayId, rule.recurrenceDay);
+    if (target === mov.dayId) return mov;
+    return { ...mov, dayId: target };
+  });
 }
 
 export function expandFinanceRules(

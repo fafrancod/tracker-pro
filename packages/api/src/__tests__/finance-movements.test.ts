@@ -5,6 +5,8 @@ import {
   expandFinanceRules,
   financeRuleAppliesOnDay,
   inclusiveDaySpan,
+  retargetMonthlyRuleOccurrences,
+  shiftDayIdToMonthDay,
   type FinanceMovement,
   type FinanceRule,
 } from '@daily-tracker/core';
@@ -54,6 +56,14 @@ function buildFromMock() {
             data: movementRows[0] ?? null,
             error: null,
           }));
+          c.then = (
+            resolve: (v: unknown) => void,
+            reject?: (e: unknown) => void
+          ) =>
+            Promise.resolve({ data: movementRows, error: null }).then(
+              resolve,
+              reject
+            );
           return c;
         }),
         insert: vi.fn(async (row: Record<string, unknown> | Record<string, unknown>[]) => {
@@ -362,6 +372,71 @@ describe('finance rule expansion', () => {
     const sept = out.filter(m => m.dayId.startsWith('2026-09') && m.status !== 'skipped');
     expect(sept).toHaveLength(1);
     expect(sept[0]?.id).toBe('m-real');
+  });
+
+  it('serie mensual que nació el 31 y pasa al 30 sigue aplicando en ese mes', () => {
+    const globant: FinanceRule = {
+      ...rule,
+      id: 'rule-globant',
+      flow: 'income',
+      title: 'Ingreso Globant',
+      amount: 2_500_000,
+      recurrenceDay: 30,
+      startDayId: '2026-08-31',
+    };
+    expect(shiftDayIdToMonthDay('2026-08-31', 30)).toBe('2026-08-30');
+    expect(financeRuleAppliesOnDay(globant, '2026-08-30')).toBe(true);
+    expect(financeRuleAppliesOnDay(globant, '2026-08-31')).toBe(false);
+    const extra = expandFinanceRules([globant], [], '2026-08-01', '2026-08-31');
+    expect(extra.map(m => m.dayId)).toEqual(['2026-08-30']);
+  });
+
+  it('mueve la fila física del 31 al 30 al cambiar el día de la regla', () => {
+    const globant: FinanceRule = {
+      ...rule,
+      id: 'rule-globant',
+      flow: 'income',
+      title: 'Ingreso Globant',
+      amount: 2_500_000,
+      recurrenceDay: 30,
+      startDayId: '2026-08-31',
+    };
+    const seed: FinanceMovement = {
+      id: 'm-globant',
+      dayId: '2026-08-31',
+      flow: 'income',
+      status: 'confirmed',
+      currency: 'CLP',
+      title: 'Ingreso Globant',
+      amount: 2_500_000,
+      notes: '',
+      certainty: 'fixed',
+      accountId: null,
+      cardAccountId: null,
+      goalId: null,
+      creditId: null,
+      installmentGroupId: null,
+      installmentIndex: null,
+      installmentTotal: null,
+      tag: null,
+      originalAmount: 2_500_000,
+      originalCurrency: 'CLP',
+      exchangeRate: 1,
+      fxPending: false,
+      reportingCurrency: 'CLP',
+      ruleId: 'rule-globant',
+      sourceTaskId: null,
+      virtual: false,
+      createdAt: globant.createdAt,
+      updatedAt: globant.updatedAt,
+    };
+    const aligned = retargetMonthlyRuleOccurrences([seed], [globant]);
+    expect(aligned[0]?.dayId).toBe('2026-08-30');
+    const extra = expandFinanceRules([globant], aligned, '2026-08-01', '2026-08-31');
+    expect(extra).toHaveLength(0);
+    const shown = dedupeFinanceCalendarMovements([...aligned, ...extra], [globant]);
+    expect(shown.map(m => m.dayId)).toEqual(['2026-08-30']);
+    expect(shown[0]?.status).toBe('confirmed');
   });
 
   it('span inclusivo de 93 días es el tope', () => {
@@ -721,5 +796,29 @@ describe('PATCH /api/finances/rules/:ruleId', () => {
     expect(res.body.recurrenceDay).toBe(1);
     expect(lastRuleUpdate?.frequency).toBe('weekly');
     expect(lastRuleUpdate?.recurrence_day).toBe(1);
+  });
+
+  it('al pasar de día 31 a 30 adelanta start_day_id para no perder el mes', async () => {
+    ruleRows = [
+      {
+        id: 'rule-globant',
+        user_id: 'test-uid',
+        flow: 'income',
+        currency: 'CLP',
+        frequency: 'monthly',
+        recurrence_day: 31,
+        start_day_id: '2026-08-31',
+        payload: { title: 'Ingreso Globant', amount: 2500000 },
+        active: true,
+      },
+    ];
+    const res = await request(app)
+      .patch('/api/finances/rules/rule-globant')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ recurrenceDay: 30 });
+    expect(res.status).toBe(200);
+    expect(res.body.recurrenceDay).toBe(30);
+    expect(lastRuleUpdate?.recurrence_day).toBe(30);
+    expect(lastRuleUpdate?.start_day_id).toBe('2026-08-30');
   });
 });

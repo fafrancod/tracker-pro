@@ -69,6 +69,8 @@ import {
   financeSeriesHintsFromTasks,
   matchFinanceRuleForMovement,
   mergeBoardFinanceIntoMovements,
+  shiftDayIdToMonthDay,
+  retargetMonthlyRuleOccurrences,
   dedupeFinanceCalendarMovements,
   syncBoardFinanceToLedger,
   type LocatedFinanceTask,
@@ -378,7 +380,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       const calendarRules = opened.rules;
       setMovements(
         dedupeFinanceCalendarMovements(
-          mergeBoardFinanceIntoMovements(withCredits, financeTasks),
+          retargetMonthlyRuleOccurrences(
+            mergeBoardFinanceIntoMovements(withCredits, financeTasks),
+            calendarRules
+          ),
           calendarRules
         )
       );
@@ -400,7 +405,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           ];
           setMovements(
             dedupeFinanceCalendarMovements(
-              mergeBoardFinanceIntoMovements(refreshedWithCredits, financeTasks),
+              retargetMonthlyRuleOccurrences(
+                mergeBoardFinanceIntoMovements(refreshedWithCredits, financeTasks),
+                calendarRules
+              ),
               calendarRules
             )
           );
@@ -857,14 +865,21 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         amount: row.amount,
       }));
     }
+    const saveDayId =
+      form.repeat === 'monthly'
+        ? shiftDayIdToMonthDay(form.dayId, form.recurrenceDay)
+        : form.dayId;
+    const recurringRuleForSave = editing
+      ? matchFinanceRuleForMovement(ledgerRules, editing)
+      : null;
     const fx = await resolveFinanceFx({
       amount: form.amount,
       currency: form.currency,
       reportingCurrency: preferred,
-      dayId: form.dayId,
+      dayId: saveDayId,
     });
     const payload: CreateFinanceMovementPayload = {
-      dayId: form.dayId,
+      dayId: saveDayId,
       flow: form.flow,
       status: form.status,
       currency: form.currency,
@@ -915,6 +930,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           ? form.installmentTotal
           : undefined,
       replaceMovementId: editing?.id,
+      ruleId:
+        editing &&
+        !editing.virtual &&
+        recurringRuleForSave &&
+        !recurringRuleForSave.id.startsWith(INFERRED_RULE_PREFIX)
+          ? recurringRuleForSave.id
+          : undefined,
       ...fx,
       recurrence:
         form.repeat !== 'none'
@@ -1101,9 +1123,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                       frequency: patch.frequency ?? rule.frequency,
                       recurrenceDay: patch.recurrenceDay ?? rule.recurrenceDay,
                     };
+                    const seedDayId =
+                      cadence.frequency === 'monthly'
+                        ? shiftDayIdToMonthDay(sample.dayId, cadence.recurrenceDay)
+                        : sample.dayId;
                     await createFinanceMovement(
                       {
-                        dayId: sample.dayId,
+                        dayId: seedDayId,
                         flow: sample.flow,
                         status: sample.status,
                         currency: sample.currency,
@@ -2038,7 +2064,16 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               <Input
                 type="date"
                 value={form.dayId}
-                onChange={e => setForm(f => ({ ...f, dayId: e.target.value }))}
+                onChange={e => {
+                  const dayId = e.target.value;
+                  const monthDay = Number(dayId.slice(8, 10)) || 1;
+                  setForm(f => ({
+                    ...f,
+                    dayId,
+                    recurrenceDay:
+                      f.repeat === 'monthly' ? monthDay : f.recurrenceDay,
+                  }));
+                }}
                 className="h-9 text-sm"
               />
             </label>
@@ -2070,9 +2105,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 <span>{t('fin_field_monthday')}</span>
                 <SimpleSelect
                   value={String(form.recurrenceDay)}
-                  onChange={value =>
-                    setForm(f => ({ ...f, recurrenceDay: Number(value) || 1 }))
-                  }
+                  onChange={value => {
+                    const recurrenceDay = Number(value) || 1;
+                    setForm(f => ({
+                      ...f,
+                      recurrenceDay,
+                      dayId: shiftDayIdToMonthDay(f.dayId, recurrenceDay),
+                    }));
+                  }}
                   options={Array.from({ length: 31 }, (_, i) => ({
                     value: String(i + 1),
                     label: t('fin_list_month_day').replace('{n}', String(i + 1)),
