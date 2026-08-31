@@ -118,6 +118,22 @@ export function planFinanceRuleAlignment(
           sameAmount(item.amount, amountOf(task))
       );
     if (!rule) continue;
+    // Una regla por N.º día hábil tiene su propio calendario nacional; el
+    // Board sólo sabe días civiles y no debe pisarla durante la conciliación.
+    if (rule.monthlySchedule === 'business_day') continue;
+    // Resolución bidireccional: la edición más reciente gana. Así una
+    // modificación en la lista de Finanzas no se revierte al recargar por una
+    // instancia antigua del Board; una edición posterior en el Board sí vuelve
+    // a propagar su nueva fecha a la regla.
+    const taskUpdatedAt = Date.parse(task.updatedAt);
+    const ruleUpdatedAt = Date.parse(rule.updatedAt);
+    if (
+      Number.isFinite(taskUpdatedAt) &&
+      Number.isFinite(ruleUpdatedAt) &&
+      taskUpdatedAt < ruleUpdatedAt
+    ) {
+      continue;
+    }
     const startDayId =
       rule.startDayId && rule.startDayId <= task.dayId ? rule.startDayId : task.dayId;
     if (

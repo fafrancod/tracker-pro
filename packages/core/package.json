@@ -8,8 +8,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "date-fns": "^3.6.0",
     "@supabase/supabase-js": "^2.49.1",
+    "date-fns": "^3.6.0",
+    "date-holidays": "^3.34.1",
     "immer": "^11.1.8",
     "zustand": "^4.5.2"
   },

@@ -463,6 +463,10 @@ create table if not exists public.finance_rules (
   currency text not null default 'EUR',
   frequency text not null check (frequency in ('monthly', 'weekly')),
   recurrence_day int not null check (recurrence_day >= 0 and recurrence_day <= 31),
+  recurrence_kind text not null default 'calendar_day'
+    check (recurrence_kind in ('calendar_day', 'business_day')),
+  business_day_ordinal smallint check (business_day_ordinal is null or (business_day_ordinal >= 1 and business_day_ordinal <= 23)),
+  business_day_country text check (business_day_country is null or business_day_country ~ '^[A-Z]{2}$'),
   start_day_id text not null check (start_day_id ~ '^\d{4}-\d{2}-\d{2}$'),
   payload jsonb not null default '{}'::jsonb,
   payload_enc text,
@@ -473,6 +477,20 @@ create table if not exists public.finance_rules (
 );
 create index if not exists finance_rules_user_idx
   on public.finance_rules (user_id, active, start_day_id);
+
+-- Migración idempotente: recurrencia por día laboral local.
+alter table public.finance_rules add column if not exists recurrence_kind text not null default 'calendar_day';
+alter table public.finance_rules add column if not exists business_day_ordinal smallint;
+alter table public.finance_rules add column if not exists business_day_country text;
+alter table public.finance_rules drop constraint if exists finance_rules_recurrence_kind_check;
+alter table public.finance_rules add constraint finance_rules_recurrence_kind_check
+  check (recurrence_kind in ('calendar_day', 'business_day'));
+alter table public.finance_rules drop constraint if exists finance_rules_business_day_ordinal_check;
+alter table public.finance_rules add constraint finance_rules_business_day_ordinal_check
+  check (business_day_ordinal is null or (business_day_ordinal >= 1 and business_day_ordinal <= 23));
+alter table public.finance_rules drop constraint if exists finance_rules_business_day_country_check;
+alter table public.finance_rules add constraint finance_rules_business_day_country_check
+  check (business_day_country is null or business_day_country ~ '^[A-Z]{2}$');
 
 create table if not exists public.finance_movements (
   id text primary key,

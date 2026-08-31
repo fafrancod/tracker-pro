@@ -5,6 +5,7 @@ import type { TickerQuote, TickerSearchHit } from '../lib/finance/portfolio';
 import {
   dedupeFinanceCalendarMovements,
   expandFinanceRules,
+  financeRuleOccurrenceDayId,
   retargetMonthlyRuleOccurrences,
   shiftDayIdToMonthDay,
 } from '../lib/finance/expandRules';
@@ -152,6 +153,22 @@ function mapRule(raw: Record<string, unknown>): FinanceRule {
         : typeof raw.recurrence_day === 'number'
           ? raw.recurrence_day
           : 1,
+    monthlySchedule:
+      raw.monthlySchedule === 'business_day' || raw.recurrence_kind === 'business_day'
+        ? 'business_day'
+        : 'calendar_day',
+    businessDayOrdinal:
+      typeof raw.businessDayOrdinal === 'number'
+        ? raw.businessDayOrdinal
+        : typeof raw.business_day_ordinal === 'number'
+          ? raw.business_day_ordinal
+          : null,
+    businessDayCountry:
+      typeof raw.businessDayCountry === 'string'
+        ? raw.businessDayCountry
+        : typeof raw.business_day_country === 'string'
+          ? raw.business_day_country
+          : null,
     startDayId: String(raw.startDayId ?? raw.start_day_id ?? ''),
     title: typeof raw.title === 'string' ? raw.title : payload.title,
     amount: typeof raw.amount === 'number' ? raw.amount : payload.amount,
@@ -230,6 +247,9 @@ export async function createFinanceMovement(
         currency: payload.currency ?? 'EUR',
         frequency: payload.recurrence.frequency,
         recurrenceDay: payload.recurrence.recurrenceDay,
+        monthlySchedule: payload.recurrence.monthlySchedule ?? 'calendar_day',
+        businessDayOrdinal: payload.recurrence.businessDayOrdinal ?? null,
+        businessDayCountry: payload.recurrence.businessDayCountry ?? null,
         startDayId: payload.dayId,
         title: payload.title ?? '',
         amount: payload.amount ?? 0,
@@ -689,6 +709,9 @@ export async function updateFinanceRule(
     frequency?: 'monthly' | 'weekly';
     recurrenceDay?: number;
     startDayId?: string;
+    monthlySchedule?: 'calendar_day' | 'business_day';
+    businessDayOrdinal?: number | null;
+    businessDayCountry?: string | null;
   }
 ): Promise<{ id: string; frequency: 'monthly' | 'weekly'; recurrenceDay: number }> {
   if (isDemoMode()) {
@@ -697,23 +720,62 @@ export async function updateFinanceRule(
     if (idx >= 0) {
       const nextFrequency = patch.frequency ?? rules[idx].frequency;
       const nextDay = patch.recurrenceDay ?? rules[idx].recurrenceDay;
+      const nextSchedule = patch.monthlySchedule ?? rules[idx].monthlySchedule ?? 'calendar_day';
+      const nextBusinessDayOrdinal =
+        patch.businessDayOrdinal ?? rules[idx].businessDayOrdinal ?? 1;
+      const nextBusinessDayCountry =
+        patch.businessDayCountry ?? rules[idx].businessDayCountry ?? 'CL';
       const now = new Date().toISOString();
       let startDayId = rules[idx].startDayId;
       if (patch.startDayId) startDayId = patch.startDayId;
-      if (nextFrequency === 'monthly' && patch.recurrenceDay !== undefined) {
-        const startOcc = shiftDayIdToMonthDay(startDayId, nextDay);
+      if (nextFrequency === 'monthly' && (
+        patch.recurrenceDay !== undefined || patch.monthlySchedule !== undefined ||
+        patch.businessDayOrdinal !== undefined || patch.businessDayCountry !== undefined
+      )) {
+        const startOcc = nextSchedule === 'business_day'
+          ? financeRuleOccurrenceDayId(
+              {
+                ...rules[idx],
+                recurrenceDay: nextDay,
+                monthlySchedule: nextSchedule,
+                businessDayOrdinal: nextBusinessDayOrdinal,
+                businessDayCountry: nextBusinessDayCountry,
+              },
+              Number(startDayId.slice(0, 4)),
+              Number(startDayId.slice(5, 7)) - 1
+            )
+          : shiftDayIdToMonthDay(startDayId, nextDay);
         if (startOcc < startDayId) startDayId = startOcc;
-        const movs = loadJson<FinanceMovement>(DEMO_MOV_KEY).map(mov =>
-          mov.ruleId === ruleId
-            ? { ...mov, dayId: shiftDayIdToMonthDay(mov.dayId, nextDay), updatedAt: now }
-            : mov
-        );
+        const movs = loadJson<FinanceMovement>(DEMO_MOV_KEY).map(mov => {
+          if (mov.ruleId !== ruleId) return mov;
+          const year = Number(mov.dayId.slice(0, 4));
+          const month = Number(mov.dayId.slice(5, 7)) - 1;
+          const nextDayId = nextSchedule === 'business_day'
+            ? financeRuleOccurrenceDayId(
+                {
+                  ...rules[idx], recurrenceDay: nextDay, monthlySchedule: nextSchedule,
+                  businessDayOrdinal: nextBusinessDayOrdinal,
+                  businessDayCountry: nextBusinessDayCountry,
+                }, year, month
+              )
+            : shiftDayIdToMonthDay(mov.dayId, nextDay);
+          return { ...mov, dayId: nextDayId, updatedAt: now };
+        });
         saveJson(DEMO_MOV_KEY, movs);
       }
       rules[idx] = {
         ...rules[idx],
         frequency: nextFrequency,
         recurrenceDay: nextDay,
+        monthlySchedule: nextSchedule,
+        businessDayOrdinal:
+          nextSchedule === 'business_day'
+            ? nextBusinessDayOrdinal
+            : null,
+        businessDayCountry:
+          nextSchedule === 'business_day'
+            ? nextBusinessDayCountry
+            : null,
         startDayId,
         updatedAt: now,
       };

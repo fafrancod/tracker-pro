@@ -302,6 +302,23 @@ describe('planFinanceRuleAlignment', () => {
       },
     ]);
   });
+
+  it('no revierte una regla recién editada desde Finanzas con una tarea antigua', () => {
+    const globant = task({
+      id: 't-globant-31', seriesId: 'series-globant', title: 'Ingreso Globant',
+      dayId: '2026-08-31', financeMovementId: 'm-globant-seed',
+      updatedAt: '2026-08-01T00:00:00.000Z',
+    });
+    const rule: FinanceRule = {
+      id: 'rule-globant', flow: 'income', currency: 'CLP', frequency: 'monthly',
+      recurrenceDay: 29, startDayId: '2026-01-01', title: 'Ingreso Globant',
+      amount: 2_500_000, notes: '', certainty: 'fixed', active: true,
+      createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-08-31T12:00:00.000Z',
+    };
+    const linked = mov({ id: 'm-globant-seed', dayId: '2026-08-29', ruleId: rule.id });
+
+    expect(planFinanceRuleAlignment([globant], [rule], [linked])).toEqual([]);
+  });
 });
 
 describe('financeTaskToMovement', () => {

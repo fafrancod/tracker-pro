@@ -4,6 +4,7 @@ import {
   dedupeFinanceCalendarMovements,
   expandFinanceRules,
   financeRuleAppliesOnDay,
+  financeRuleOccurrenceDayId,
   inclusiveDaySpan,
   retargetMonthlyRuleOccurrences,
   shiftDayIdToMonthDay,
@@ -190,6 +191,21 @@ describe('finance rule expansion', () => {
   it('aparece el día 5 y no el 4', () => {
     expect(financeRuleAppliesOnDay(rule, '2026-08-05')).toBe(true);
     expect(financeRuleAppliesOnDay(rule, '2026-08-04')).toBe(false);
+  });
+
+  it('calcula el N.º día hábil con feriados del país seleccionado', () => {
+    const localPayroll: FinanceRule = {
+      ...rule,
+      recurrenceDay: 1,
+      monthlySchedule: 'business_day',
+      businessDayOrdinal: 14,
+      businessDayCountry: 'CL',
+    };
+    // El 18/09 es feriado en Chile: el 14.º día hábil de septiembre de 2026
+    // llega al lunes 21, no al viernes feriado.
+    expect(financeRuleOccurrenceDayId(localPayroll, 2026, 8)).toBe('2026-09-21');
+    expect(financeRuleAppliesOnDay(localPayroll, '2026-09-21')).toBe(true);
+    expect(financeRuleAppliesOnDay(localPayroll, '2026-09-18')).toBe(false);
   });
 
   it('no duplica si ya hay fila física ese día', () => {
@@ -903,5 +919,24 @@ describe('PATCH /api/finances/rules/:ruleId', () => {
     expect(res.body.recurrenceDay).toBe(29);
     expect(lastRuleUpdate?.recurrence_day).toBe(29);
     expect(lastRuleUpdate?.start_day_id).toBe('2026-07-29');
+  });
+
+  it('guarda país y ordinal para una recurrencia por día hábil', async () => {
+    ruleRows = [
+      {
+        id: 'rule-payroll', user_id: 'test-uid', flow: 'income', currency: 'CLP',
+        frequency: 'monthly', recurrence_day: 1, start_day_id: '2026-09-01',
+        payload: { title: 'Sueldo', amount: 2500000 }, active: true,
+      },
+    ];
+    const res = await request(app)
+      .patch('/api/finances/rules/rule-payroll')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ monthlySchedule: 'business_day', businessDayOrdinal: 14, businessDayCountry: 'CL' });
+
+    expect(res.status).toBe(200);
+    expect(lastRuleUpdate?.recurrence_kind).toBe('business_day');
+    expect(lastRuleUpdate?.business_day_ordinal).toBe(14);
+    expect(lastRuleUpdate?.business_day_country).toBe('CL');
   });
 });

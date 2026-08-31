@@ -1,6 +1,7 @@
 import { listDayIdsInclusive } from '../habitPlan';
 import { monthIdFromDayId } from './movementSummary';
 import { financeTitlesMatch, normalizeFinanceTitle } from './title';
+import { isFinanceBusinessDayCountry, nthBusinessDayOfMonth } from './businessDays';
 import type { FinanceMovement, FinanceRule } from './types';
 
 function daysInMonth(year: number, monthIndex0: number): number {
@@ -21,6 +22,28 @@ export function shiftDayIdToMonthDay(dayId: string, monthDay: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
+/** Fecha de una ocurrencia mensual, incluida la variante «N.º día laboral». */
+export function financeRuleOccurrenceDayId(
+  rule: FinanceRule,
+  year: number,
+  monthIndex0: number
+): string {
+  if (
+    rule.monthlySchedule === 'business_day' &&
+    isFinanceBusinessDayCountry(rule.businessDayCountry)
+  ) {
+    return nthBusinessDayOfMonth(
+      year,
+      monthIndex0,
+      rule.businessDayOrdinal ?? 1,
+      rule.businessDayCountry
+    );
+  }
+  const dim = daysInMonth(year, monthIndex0);
+  const day = Math.min(Math.max(1, rule.recurrenceDay), dim);
+  return `${year}-${String(monthIndex0 + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 export function financeRuleAppliesOnDay(rule: FinanceRule, dayId: string): boolean {
   if (!rule.active) return false;
   const { y, m, d } = parseDayParts(dayId);
@@ -29,9 +52,7 @@ export function financeRuleAppliesOnDay(rule: FinanceRule, dayId: string): boole
     // El arranque es el mes, no el día exacto: una serie que nació el 31
     // y pasa al 30 debe seguir pintando agosto.
     if (monthIdFromDayId(dayId) < monthIdFromDayId(rule.startDayId)) return false;
-    const dim = daysInMonth(y, m - 1);
-    const target = Math.min(Math.max(1, rule.recurrenceDay), dim);
-    return d === target;
+    return dayId === financeRuleOccurrenceDayId(rule, y, m - 1);
   }
   if (dayId < rule.startDayId) return false;
   const weekday = new Date(y, m - 1, d).getDay();
@@ -125,7 +146,8 @@ export function retargetMonthlyRuleOccurrences(
           amountsCompatible(mov.amount, item.amount)
       );
     if (!rule) return mov;
-    const target = shiftDayIdToMonthDay(mov.dayId, rule.recurrenceDay);
+    const { y, m } = parseDayParts(mov.dayId);
+    const target = financeRuleOccurrenceDayId(rule, y, m - 1);
     if (target === mov.dayId) return mov;
     return { ...mov, dayId: target };
   });

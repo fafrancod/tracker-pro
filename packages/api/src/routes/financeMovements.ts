@@ -10,6 +10,9 @@ import {
   inclusiveDaySpan,
   installmentAmountAt,
   installmentTitle,
+  getWeekIdFromDayId,
+  isFinanceBusinessDayCountry,
+  nthBusinessDayOfMonth,
   shiftDayIdToMonthDay,
   normalizeFinanceFlow,
   normalizeFinanceStatus,
@@ -47,10 +50,41 @@ const statusSchema = z.enum(['planned', 'confirmed', 'skipped']);
 const certaintySchema = z.enum(['fixed', 'potential']);
 const frequencySchema = z.enum(['monthly', 'weekly']);
 
-const recurrenceSchema = z.object({
-  frequency: frequencySchema,
-  recurrenceDay: z.number().int().min(0).max(31),
-});
+const businessDayCountrySchema = z.enum([
+  'AR', 'BR', 'CA', 'CL', 'CO', 'DE', 'ES', 'FR', 'GB', 'IT', 'MX', 'PE', 'US',
+]);
+const recurrenceSchema = z
+  .object({
+    frequency: frequencySchema,
+    recurrenceDay: z.number().int().min(0).max(31),
+    monthlySchedule: z.enum(['calendar_day', 'business_day']).optional(),
+    businessDayOrdinal: z.number().int().min(1).max(23).optional(),
+    businessDayCountry: businessDayCountrySchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.monthlySchedule !== 'business_day') return;
+    if (value.frequency !== 'monthly') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Día hábil requiere frecuencia mensual' });
+    }
+    if (value.businessDayOrdinal === undefined || value.businessDayCountry === undefined) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Día hábil requiere ordinal y país' });
+    }
+  });
+
+function monthlyOccurrenceFor(
+  dayId: string,
+  recurrenceDay: number,
+  monthlySchedule: 'calendar_day' | 'business_day',
+  businessDayOrdinal: number | undefined,
+  businessDayCountry: string | undefined
+): string {
+  if (monthlySchedule !== 'business_day' || !isFinanceBusinessDayCountry(businessDayCountry)) {
+    return shiftDayIdToMonthDay(dayId, recurrenceDay);
+  }
+  const year = Number(dayId.slice(0, 4));
+  const month = Number(dayId.slice(5, 7));
+  return nthBusinessDayOfMonth(year, month - 1, businessDayOrdinal ?? 1, businessDayCountry);
+}
 
 const createSchema = z
   .object({
@@ -412,6 +446,11 @@ function mapRule(
     frequency: row.frequency === 'weekly' ? 'weekly' : 'monthly',
     recurrenceDay:
       typeof row.recurrence_day === 'number' ? row.recurrence_day : 1,
+    monthlySchedule: row.recurrence_kind === 'business_day' ? 'business_day' : 'calendar_day',
+    businessDayOrdinal:
+      typeof row.business_day_ordinal === 'number' ? row.business_day_ordinal : null,
+    businessDayCountry:
+      typeof row.business_day_country === 'string' ? row.business_day_country : null,
     startDayId: (row.start_day_id as string) ?? (row.day_id as string) ?? '',
     title: payload.title,
     amount: payload.amount,
@@ -845,11 +884,26 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
         );
         const occ =
           body.recurrence.frequency === 'monthly'
-            ? shiftDayIdToMonthDay(oldStart, body.recurrence.recurrenceDay)
+            ? monthlyOccurrenceFor(
+                oldStart,
+                body.recurrence.recurrenceDay,
+                body.recurrence.monthlySchedule ?? 'calendar_day',
+                body.recurrence.businessDayOrdinal,
+                body.recurrence.businessDayCountry
+              )
             : body.dayId;
         const rulePatch: Record<string, unknown> = {
           frequency: body.recurrence.frequency,
           recurrence_day: body.recurrence.recurrenceDay,
+          recurrence_kind: body.recurrence.monthlySchedule ?? 'calendar_day',
+          business_day_ordinal:
+            body.recurrence.monthlySchedule === 'business_day'
+              ? body.recurrence.businessDayOrdinal
+              : null,
+          business_day_country:
+            body.recurrence.monthlySchedule === 'business_day'
+              ? body.recurrence.businessDayCountry
+              : null,
           active: true,
           updated_at: now,
         };
@@ -869,6 +923,15 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           currency,
           frequency: body.recurrence.frequency,
           recurrence_day: body.recurrence.recurrenceDay,
+          recurrence_kind: body.recurrence.monthlySchedule ?? 'calendar_day',
+          business_day_ordinal:
+            body.recurrence.monthlySchedule === 'business_day'
+              ? body.recurrence.businessDayOrdinal
+              : null,
+          business_day_country:
+            body.recurrence.monthlySchedule === 'business_day'
+              ? body.recurrence.businessDayCountry
+              : null,
           start_day_id: body.dayId,
           payload: inner && !accountDek ? inner : {},
           payload_enc: clientSealed
@@ -1181,6 +1244,9 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
         frequency: z.enum(['monthly', 'weekly']).optional(),
         recurrenceDay: z.number().int().min(0).max(31).optional(),
         startDayId: dayIdSchema.optional(),
+        monthlySchedule: z.enum(['calendar_day', 'business_day']).optional(),
+        businessDayOrdinal: z.number().int().min(1).max(23).nullable().optional(),
+        businessDayCountry: businessDayCountrySchema.nullable().optional(),
       })
       .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' })
       .parse(req.body);
@@ -1201,11 +1267,32 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
       body.recurrenceDay !== undefined
         ? body.recurrenceDay
         : Number(existing.recurrence_day ?? 1);
+    const nextMonthlySchedule =
+      body.monthlySchedule ??
+      (existing.recurrence_kind === 'business_day' ? 'business_day' : 'calendar_day');
+    const nextBusinessDayOrdinal =
+      body.businessDayOrdinal ??
+      (typeof existing.business_day_ordinal === 'number'
+        ? existing.business_day_ordinal
+        : null);
+    const nextBusinessDayCountry =
+      body.businessDayCountry ??
+      (typeof existing.business_day_country === 'string'
+        ? existing.business_day_country
+        : null);
     if (nextFrequency === 'weekly' && (nextDay < 0 || nextDay > 6)) {
       throw ApiError.badRequest('recurrenceDay semanal debe ser 0–6');
     }
     if (nextFrequency === 'monthly' && (nextDay < 1 || nextDay > 31)) {
       throw ApiError.badRequest('recurrenceDay mensual debe ser 1–31');
+    }
+    if (
+      nextMonthlySchedule === 'business_day' &&
+      (nextFrequency !== 'monthly' ||
+        !Number.isInteger(nextBusinessDayOrdinal) ||
+        !isFinanceBusinessDayCountry(nextBusinessDayCountry))
+    ) {
+      throw ApiError.badRequest('Día hábil requiere frecuencia mensual, ordinal y país válidos');
     }
 
     const update: Record<string, unknown> = {
@@ -1214,6 +1301,13 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
     if (body.frequency) update.frequency = body.frequency;
     if (body.recurrenceDay !== undefined) update.recurrence_day = body.recurrenceDay;
     if (body.startDayId !== undefined) update.start_day_id = body.startDayId;
+    if (body.monthlySchedule !== undefined) update.recurrence_kind = body.monthlySchedule;
+    if (body.businessDayOrdinal !== undefined) {
+      update.business_day_ordinal = body.businessDayOrdinal;
+    }
+    if (body.businessDayCountry !== undefined) {
+      update.business_day_country = body.businessDayCountry;
+    }
     if (body.payloadEnc) {
       update.payload = {};
       update.payload_enc = body.payloadEnc;
@@ -1221,12 +1315,19 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
     }
     if (
       nextFrequency === 'monthly' &&
-      body.recurrenceDay !== undefined &&
+      (body.recurrenceDay !== undefined || body.monthlySchedule !== undefined ||
+        body.businessDayOrdinal !== undefined || body.businessDayCountry !== undefined) &&
       body.startDayId === undefined
     ) {
       const oldStart = String(existing.start_day_id ?? '');
       if (oldStart) {
-        const startOcc = shiftDayIdToMonthDay(oldStart, nextDay);
+        const startOcc = monthlyOccurrenceFor(
+          oldStart,
+          nextDay,
+          nextMonthlySchedule,
+          nextBusinessDayOrdinal ?? undefined,
+          nextBusinessDayCountry ?? undefined
+        );
         if (startOcc < oldStart) update.start_day_id = startOcc;
       }
     }
@@ -1238,26 +1339,95 @@ financeMovementsRouter.patch('/rules/:ruleId', async (req, res, next) => {
       .eq('user_id', uid);
     if (error) throw error;
 
-    if (nextFrequency === 'monthly' && body.recurrenceDay !== undefined) {
+    if (
+      nextFrequency === 'monthly' &&
+      (body.recurrenceDay !== undefined || body.monthlySchedule !== undefined ||
+        body.businessDayOrdinal !== undefined || body.businessDayCountry !== undefined)
+    ) {
       const { data: owned, error: ownedErr } = await getSupabaseAdmin()
         .from('finance_movements')
-        .select('id, day_id')
+        .select('id, day_id, source_task_id')
         .eq('user_id', uid)
         .eq('rule_id', ruleId)
         .is('deleted_at', null);
       if (ownedErr) throw ownedErr;
       const stamp = new Date().toISOString();
       const ownedRows = Array.isArray(owned) ? owned : [];
-      for (const row of ownedRows) {
+      const changedRows: Array<{ id: string; sourceTaskId: string | null }> = [];
+      await Promise.all(ownedRows.map(async row => {
         const current = String((row as { day_id?: string }).day_id ?? '');
-        const nextDayId = shiftDayIdToMonthDay(current, nextDay);
-        if (!current || nextDayId === current) continue;
+        const nextDayId = monthlyOccurrenceFor(
+          current,
+          nextDay,
+          nextMonthlySchedule,
+          nextBusinessDayOrdinal ?? undefined,
+          nextBusinessDayCountry ?? undefined
+        );
+        if (!current || nextDayId === current) return;
         const { error: shiftErr } = await getSupabaseAdmin()
           .from('finance_movements')
           .update({ day_id: nextDayId, updated_at: stamp })
           .eq('id', (row as { id: string }).id)
           .eq('user_id', uid);
         if (shiftErr) throw shiftErr;
+        changedRows.push({
+          id: (row as { id: string }).id,
+          sourceTaskId:
+            typeof (row as { source_task_id?: unknown }).source_task_id === 'string'
+              ? ((row as { source_task_id: string }).source_task_id)
+              : null,
+        });
+      }));
+
+      // Una regla editada desde Finanzas debe actualizar también el origen del
+      // Board. De lo contrario, la siguiente conciliación tomaría la tarea
+      // todavía en día 31 y revertiría la regla recién guardada a día 31.
+      const sourceTaskIds = [...new Set(
+        changedRows
+          .map(row => row.sourceTaskId)
+          .filter((id): id is string => Boolean(id))
+      )];
+      if (sourceTaskIds.length > 0 && nextMonthlySchedule === 'calendar_day') {
+        const { data: sources, error: sourceErr } = await getSupabaseAdmin()
+          .from('tasks')
+          .select('id, series_id')
+          .eq('user_id', uid)
+          .in('id', sourceTaskIds);
+        if (sourceErr) throw sourceErr;
+        const seriesIds = [...new Set(
+          (sources ?? [])
+            .map(row => (row as { series_id?: unknown }).series_id)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        )];
+        if (seriesIds.length > 0) {
+          const { data: seriesTasks, error: seriesErr } = await getSupabaseAdmin()
+            .from('tasks')
+            .select('id, day_id, end_day_id')
+            .eq('user_id', uid)
+            .in('series_id', seriesIds);
+          if (seriesErr) throw seriesErr;
+          await Promise.all((seriesTasks ?? []).map(async raw => {
+            const row = raw as { id: string; day_id?: string; end_day_id?: string | null };
+            const dayId = String(row.day_id ?? '');
+            if (!dayId) return;
+            const shiftedDayId = shiftDayIdToMonthDay(dayId, nextDay);
+            const endDayId = row.end_day_id
+              ? shiftDayIdToMonthDay(row.end_day_id, nextDay)
+              : shiftedDayId;
+            if (shiftedDayId === dayId && endDayId === row.end_day_id) return;
+            const { error: taskShiftErr } = await getSupabaseAdmin()
+              .from('tasks')
+              .update({
+                week_id: getWeekIdFromDayId(shiftedDayId),
+                day_id: shiftedDayId,
+                end_day_id: endDayId,
+                updated_at: stamp,
+              })
+              .eq('id', row.id)
+              .eq('user_id', uid);
+            if (taskShiftErr) throw taskShiftErr;
+          }));
+        }
       }
     }
     res.json({

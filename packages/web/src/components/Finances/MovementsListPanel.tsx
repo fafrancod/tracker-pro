@@ -14,7 +14,9 @@ import type {
   FinanceMovement,
   FinanceRule,
   FinanceRuleFrequency,
+  FinanceMonthlySchedule,
 } from '@core/lib/finance/types';
+import { FINANCE_BUSINESS_DAY_COUNTRIES } from '@core/lib/finance/businessDays';
 import type { TKey } from '@/lib/i18n';
 
 function rowSample(row: FinanceListRow): FinanceMovement {
@@ -65,7 +67,13 @@ export function MovementsListPanel({
   onEdit: (mov: FinanceMovement) => void;
   onUpdateRule: (
     rule: FinanceRule,
-    patch: { frequency?: FinanceRuleFrequency; recurrenceDay?: number },
+    patch: {
+      frequency?: FinanceRuleFrequency;
+      recurrenceDay?: number;
+      monthlySchedule?: FinanceMonthlySchedule;
+      businessDayOrdinal?: number | null;
+      businessDayCountry?: string | null;
+    },
     sample: FinanceMovement
   ) => void;
 }) {
@@ -85,6 +93,19 @@ export function MovementsListPanel({
   const monthDayOptions = Array.from({ length: 31 }, (_, i) => ({
     value: String(i + 1),
     label: t('fin_list_month_day').replace('{n}', String(i + 1)),
+  }));
+  const businessOrdinalOptions = Array.from({ length: 23 }, (_, i) => ({
+    value: String(i + 1),
+    label: `${i + 1}.º día hábil`,
+  }));
+  const countryOptions = FINANCE_BUSINESS_DAY_COUNTRIES.map(country => ({
+    value: country,
+    label:
+      ({
+        AR: 'Argentina', BR: 'Brasil', CA: 'Canadá', CL: 'Chile', CO: 'Colombia',
+        DE: 'Alemania', ES: 'España', FR: 'Francia', GB: 'Reino Unido', IT: 'Italia',
+        MX: 'México', PE: 'Perú', US: 'Estados Unidos',
+      } as Record<string, string>)[country] ?? country,
   }));
 
   const rows = useMemo(() => {
@@ -301,6 +322,14 @@ export function MovementsListPanel({
                                     )
                                   )
                                 : Math.min(31, Math.max(1, row.rule.recurrenceDay || 1)),
+                            monthlySchedule:
+                              value === 'weekly'
+                                ? 'calendar_day'
+                                : (row.rule.monthlySchedule ?? 'calendar_day'),
+                            businessDayOrdinal:
+                              value === 'weekly' ? null : row.rule.businessDayOrdinal ?? null,
+                            businessDayCountry:
+                              value === 'weekly' ? null : row.rule.businessDayCountry ?? null,
                           },
                           row.sample
                         )
@@ -308,6 +337,38 @@ export function MovementsListPanel({
                       options={freqOptions}
                       className="h-8 w-[7.5rem] text-[11px]"
                     />
+                    {row.rule.frequency === 'monthly' ? (
+                      <SimpleSelect
+                        aria-label="Tipo de día mensual"
+                        value={row.rule.monthlySchedule ?? 'calendar_day'}
+                        onChange={value =>
+                          onUpdateRule(
+                            row.rule,
+                            value === 'business_day'
+                              ? {
+                                  monthlySchedule: 'business_day',
+                                  businessDayOrdinal: row.rule.businessDayOrdinal ?? 1,
+                                  businessDayCountry: row.rule.businessDayCountry ?? 'CL',
+                                }
+                              : {
+                                  monthlySchedule: 'calendar_day',
+                                  businessDayOrdinal: null,
+                                  businessDayCountry: null,
+                                },
+                            row.sample
+                          )
+                        }
+                        options={[
+                          { value: 'calendar_day', label: 'Día del mes' },
+                          { value: 'business_day', label: 'Día hábil local' },
+                        ]}
+                        className="h-8 w-[8.5rem] text-[11px]"
+                      />
+                    ) : null}
+                    {(
+                      row.rule.frequency === 'weekly' ||
+                      row.rule.monthlySchedule !== 'business_day'
+                    ) ? (
                     <SimpleSelect
                       aria-label={
                         row.rule.frequency === 'weekly'
@@ -329,6 +390,38 @@ export function MovementsListPanel({
                       }
                       className="h-8 w-[8.5rem] text-[11px]"
                     />
+                    ) : null}
+                    {row.rule.frequency === 'monthly' &&
+                    row.rule.monthlySchedule === 'business_day' ? (
+                      <>
+                        <SimpleSelect
+                          aria-label="Número de día hábil"
+                          value={String(row.rule.businessDayOrdinal ?? 1)}
+                          onChange={value =>
+                            onUpdateRule(
+                              row.rule,
+                              { businessDayOrdinal: Number(value) },
+                              row.sample
+                            )
+                          }
+                          options={businessOrdinalOptions}
+                          className="h-8 w-[8.5rem] text-[11px]"
+                        />
+                        <SimpleSelect
+                          aria-label="País para días hábiles"
+                          value={row.rule.businessDayCountry ?? 'CL'}
+                          onChange={value =>
+                            onUpdateRule(
+                              row.rule,
+                              { businessDayCountry: value },
+                              row.sample
+                            )
+                          }
+                          options={countryOptions}
+                          className="h-8 w-[8.5rem] text-[11px]"
+                        />
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
                 <span

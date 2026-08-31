@@ -6,6 +6,7 @@ export type FinanceVaultCtx = { uid: string; dek: FinanceDek };
 export type FinanceMovementFlow = 'income' | 'expense' | 'investment';
 export type FinanceMovementStatus = 'planned' | 'confirmed' | 'skipped';
 export type FinanceRuleFrequency = 'monthly' | 'weekly';
+export type FinanceMonthlySchedule = 'calendar_day' | 'business_day';
 
 /** JSON interior (claro ahora; cifrado en payload_enc cuando haya bóveda). */
 export type FinanceAccountType =
@@ -211,6 +212,12 @@ export interface FinanceRule {
   frequency: FinanceRuleFrequency;
   /** monthly: 1–31; weekly: 0–6 (Sun–Sat, JS getDay). */
   recurrenceDay: number;
+  /** Mensual: día de calendario o N.º día laboral local. */
+  monthlySchedule?: FinanceMonthlySchedule;
+  /** 1–23 cuando monthlySchedule === business_day. */
+  businessDayOrdinal?: number | null;
+  /** ISO 3166-1 alpha-2 cuando monthlySchedule === business_day. */
+  businessDayCountry?: string | null;
   startDayId: string;
   title: string;
   amount: number;
@@ -269,6 +276,9 @@ export interface CreateFinanceMovementPayload {
   recurrence?: {
     frequency: FinanceRuleFrequency;
     recurrenceDay: number;
+    monthlySchedule?: FinanceMonthlySchedule;
+    businessDayOrdinal?: number;
+    businessDayCountry?: string;
   } | null;
 }
 
