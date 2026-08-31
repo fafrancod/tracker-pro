@@ -132,23 +132,34 @@ export function coveringMovementForTask(
   movements: FinanceMovement[],
   task: LocatedFinanceTask
 ): FinanceMovement | undefined {
-  if (task.financeMovementId) {
-    const byId = movements.find(m => m.id === task.financeMovementId);
-    if (byId) return byId;
-  }
-  const bySource = movements.find(m => m.sourceTaskId === task.id);
-  if (bySource) return bySource;
-  const amount = amountOf(task);
-  const flow = task.kind === 'finance_income' ? 'income' : 'expense';
   const monthly =
     task.recurrence?.frequency === 'monthly' ||
     task.recurrence?.frequency === 'yearly';
+
+  if (task.financeMovementId) {
+    const byId = movements.find(m => m.id === task.financeMovementId);
+    if (byId && (byId.dayId === task.dayId || !monthly || !byId.ruleId)) {
+      return byId;
+    }
+  }
+  const bySource = movements.find(m => m.sourceTaskId === task.id);
+  if (bySource && (bySource.dayId === task.dayId || !monthly || !bySource.ruleId)) {
+    return bySource;
+  }
+  const amount = amountOf(task);
+  const flow = task.kind === 'finance_income' ? 'income' : 'expense';
   return movements.find(m => {
     if (m.status === 'skipped' || m.flow !== flow) return false;
     if (!financeTitlesMatch(m.title, task.title)) return false;
     if (amount > 0 && m.amount > 0 && !sameAmount(m.amount, amount)) return false;
     if (m.dayId === task.dayId) return true;
-    if (monthly && monthIdFromDayId(m.dayId) === monthIdFromDayId(task.dayId)) {
+    // Keep supporting legacy monthly rows without rule_id, but never use a
+    // rule-backed scheduled row as proof that a moved board occurrence exists.
+    if (
+      monthly &&
+      !m.ruleId &&
+      monthIdFromDayId(m.dayId) === monthIdFromDayId(task.dayId)
+    ) {
       return true;
     }
     return false;
@@ -163,18 +174,42 @@ export function mergeBoardFinanceIntoMovements(
   movements: FinanceMovement[],
   tasks: LocatedFinanceTask[]
 ): FinanceMovement[] {
-  const out = movements.map(m => ({ ...m }));
+  let out = movements.map(m => ({ ...m }));
   for (const task of tasks) {
     if (!isFinanceKind(task.kind)) continue;
     const derived = financeTaskToMovement(task);
     if (!derived) continue;
     const covering = coveringMovementForTask(out, task);
     if (covering) {
+      // Non-recurring (or legacy rule-less) movements are one concrete row;
+      // mirror a board date change in the calendar immediately. The sync plan
+      // persists this retarget after the merge.
+      if (covering.dayId !== task.dayId) {
+        covering.dayId = task.dayId;
+        covering.sourceTaskId = covering.sourceTaskId ?? task.id;
+      }
       if (task.completed && covering.status === 'planned') {
         covering.status = 'confirmed';
         covering.sourceTaskId = covering.sourceTaskId ?? task.id;
       }
       continue;
+    }
+    // The linked seed of a recurring finance rule is a schedule, not an
+    // immutable occurrence.  If the board task was rescheduled, hide that
+    // stale schedule for this month so the task-derived occurrence is the one
+    // rendered and summed. The ledger sync below will then materialize the
+    // corrected occurrence, preserving the rule for following months.
+    const monthly =
+      task.recurrence?.frequency === 'monthly' ||
+      task.recurrence?.frequency === 'yearly';
+    if (monthly) {
+      out = out.filter(m => {
+        if (!m.ruleId || m.dayId === task.dayId) return true;
+        if (m.status === 'skipped' || m.flow !== derived.flow) return true;
+        if (!financeTitlesMatch(m.title, task.title)) return true;
+        if (!sameAmount(m.amount, derived.amount)) return true;
+        return monthIdFromDayId(m.dayId) !== monthIdFromDayId(task.dayId);
+      });
     }
     out.push(derived);
   }
@@ -184,6 +219,7 @@ export function mergeBoardFinanceIntoMovements(
 export type BoardFinanceSyncAction =
   | { type: 'create'; task: LocatedFinanceTask }
   | { type: 'confirm'; task: LocatedFinanceTask; movementId: string }
+  | { type: 'retarget'; task: LocatedFinanceTask; movementId: string }
   | { type: 'materialize'; task: LocatedFinanceTask; ruleId: string };
 
 export function planBoardFinanceSync(
@@ -207,6 +243,10 @@ export function planBoardFinanceSync(
       } else if (!covering.ruleId) {
         actions.push({ type: 'create', task });
       }
+      continue;
+    }
+    if (covering.dayId !== task.dayId && !covering.ruleId) {
+      actions.push({ type: 'retarget', task, movementId: covering.id });
       continue;
     }
     if (task.completed && covering.status === 'planned') {

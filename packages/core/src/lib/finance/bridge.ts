@@ -83,6 +83,13 @@ export async function syncBoardFinanceToLedger(opts: {
       await confirmBridgeMovement(action.movementId);
       continue;
     }
+    if (action.type === 'retarget') {
+      await updateFinanceMovement(action.movementId, {
+        dayId: action.task.dayId,
+        sourceTaskId: action.task.id,
+      });
+      continue;
+    }
     const task = action.task;
     const amount = task.finance?.amount ?? task.linkedFinance?.amount ?? 0;
     if (!(amount > 0)) continue;
@@ -100,7 +107,10 @@ export async function syncBoardFinanceToLedger(opts: {
       },
       opts.vault
     );
-    if (created.id && !task.financeMovementId) {
+    // A moved recurrence may still point at its original rule seed. Replace
+    // that stale link with the materialized occurrence so future reloads,
+    // month totals, and completion confirmation all address the same row.
+    if (created.id && created.id !== task.financeMovementId) {
       await updateTask(task.weekId, task.dayId, task.id, {
         financeMovementId: created.id,
       }).catch(() => undefined);

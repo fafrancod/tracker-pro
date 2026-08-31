@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   coveringMovementForTask,
+  dedupeFinanceCalendarMovements,
   financeTaskToMovement,
   mergeBoardFinanceIntoMovements,
   planBoardFinanceSync,
+  retargetMonthlyRuleOccurrences,
+  summarizeMovementsByCurrency,
   type FinanceMovement,
   type LocatedTaskRow,
 } from '@daily-tracker/core';
@@ -145,6 +148,52 @@ describe('mergeBoardFinanceIntoMovements', () => {
     expect(out).toHaveLength(1);
     expect(out[0].status).toBe('confirmed');
   });
+
+  it('da prioridad a la fecha movida del tablero sobre el día viejo de una regla mensual', () => {
+    const globant = task({
+      id: 't-globant-sep',
+      title: 'Ingreso Globant',
+      dayId: '2026-09-29',
+      financeMovementId: 'm-globant-seed',
+    });
+    const scheduled = mov({
+      id: 'm-globant-seed',
+      dayId: '2026-09-30',
+      ruleId: 'rule-globant',
+      sourceTaskId: 't-globant-sep',
+    });
+
+    expect(coveringMovementForTask([scheduled], globant)).toBeUndefined();
+    const merged = mergeBoardFinanceIntoMovements([scheduled], [globant]);
+    const rules = [
+      {
+        id: 'rule-globant',
+        flow: 'income' as const,
+        currency: 'CLP',
+        frequency: 'monthly' as const,
+        recurrenceDay: 30,
+        startDayId: '2026-01-30',
+        title: 'Ingreso Globant',
+        amount: 2_500_000,
+        notes: '',
+        certainty: 'fixed' as const,
+        active: true,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+    const shown = dedupeFinanceCalendarMovements(
+      retargetMonthlyRuleOccurrences(merged, rules),
+      rules
+    );
+
+    expect(shown).toHaveLength(1);
+    expect(shown[0]?.dayId).toBe('2026-09-29');
+    expect(shown[0]?.flow).toBe('income');
+    expect(summarizeMovementsByCurrency(shown, '2026-09', 'CLP').CLP?.plannedIncome).toBe(
+      2_500_000
+    );
+  });
 });
 
 describe('planBoardFinanceSync', () => {
@@ -175,6 +224,44 @@ describe('planBoardFinanceSync', () => {
     });
     const actions = planBoardFinanceSync([existing], [globant]);
     expect(actions).toEqual([{ type: 'confirm', task: globant, movementId: 'm1' }]);
+  });
+
+  it('materializa una nueva fila cuando una recurrencia se mueve fuera del día de su regla', () => {
+    const globant = task({
+      id: 't-globant-sep',
+      title: 'Ingreso Globant',
+      dayId: '2026-09-29',
+      financeMovementId: 'm-globant-seed',
+    });
+    const scheduled = mov({
+      id: 'm-globant-seed',
+      dayId: '2026-09-30',
+      ruleId: 'rule-globant',
+      sourceTaskId: 't-globant-sep',
+    });
+
+    expect(planBoardFinanceSync([scheduled], [globant])).toEqual([
+      { type: 'create', task: globant },
+    ]);
+  });
+
+  it('reubica el movimiento concreto cuando una fecha sin regla cambia', () => {
+    const globant = task({
+      id: 't-globant-one-off',
+      title: 'Ingreso Globant',
+      dayId: '2026-09-29',
+      recurrence: { frequency: 'none', interval: 1 },
+      financeMovementId: 'm-globant-one-off',
+    });
+    const existing = mov({
+      id: 'm-globant-one-off',
+      dayId: '2026-09-30',
+      sourceTaskId: 't-globant-one-off',
+    });
+
+    expect(planBoardFinanceSync([existing], [globant])).toEqual([
+      { type: 'retarget', task: globant, movementId: 'm-globant-one-off' },
+    ]);
   });
 });
 

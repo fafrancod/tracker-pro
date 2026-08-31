@@ -439,7 +439,7 @@ describe('finance rule expansion', () => {
     expect(shown[0]?.status).toBe('confirmed');
   });
 
-  it('sin ruleId, 31 de julio y 1 de agosto se pintan el 30 (día de la regla)', () => {
+  it('con sourceTaskId y sin ruleId conserva la fecha explícita del tablero', () => {
     const globant: FinanceRule = {
       ...rule,
       id: 'rule-globant',
@@ -485,7 +485,7 @@ describe('finance rule expansion', () => {
       sourceTaskId: 't-aug',
     };
     const aligned = retargetMonthlyRuleOccurrences([july, aug1], [globant]);
-    expect(aligned.map(m => m.dayId)).toEqual(['2026-07-30', '2026-08-30']);
+    expect(aligned.map(m => m.dayId)).toEqual(['2026-07-31', '2026-08-01']);
     const extra = expandFinanceRules(
       [globant],
       aligned,
@@ -494,7 +494,7 @@ describe('finance rule expansion', () => {
     );
     const shown = dedupeFinanceCalendarMovements([...aligned, ...extra], [globant]);
     const days = shown.map(m => m.dayId).sort();
-    expect(days).toEqual(['2026-07-30', '2026-08-30']);
+    expect(days).toEqual(['2026-07-31', '2026-08-01']);
   });
 
   it('span inclusivo de 93 días es el tope', () => {
