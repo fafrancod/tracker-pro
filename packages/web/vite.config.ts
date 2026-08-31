@@ -70,6 +70,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // El calendario local de feriados (date-holidays) aumenta el bundle
+        // inicial sobre el límite por defecto de Workbox (2 MiB). Se permite
+        // hasta 4 MiB para que el build no omita ni falle al precachear la app.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
