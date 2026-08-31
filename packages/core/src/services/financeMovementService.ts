@@ -24,6 +24,35 @@ import type {
 
 export type { FinanceVaultCtx };
 
+export type FinanceCalendarLoadTelemetry = {
+  completed: boolean;
+  totalMs: number;
+  readyMs: number;
+  initialFetchMs: number;
+  unsealMs: number;
+  alignmentMs: number;
+  fxMs: number;
+  bridgeMs: number;
+  calendarFetches: number;
+  ledgerFetches: number;
+  movementCount: number;
+  ruleCount: number;
+  visibleTaskCount: number;
+  financeTaskCount: number;
+  alignmentUpdates: number;
+  fxUpdates: number;
+  bridgePersisted: boolean;
+  rangeDays: number;
+};
+
+/** Non-blocking, aggregate-only calendar telemetry for production p50/p95 logs. */
+export async function recordFinanceCalendarLoad(
+  metric: FinanceCalendarLoadTelemetry
+): Promise<void> {
+  if (isDemoMode()) return;
+  await api.post<void>('/api/finances/metrics/calendar-load', metric);
+}
+
 function newFinanceId(prefix: string): string {
   const rnd = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
   return `${prefix}_${rnd.replace(/-/g, '').slice(0, 20)}`;

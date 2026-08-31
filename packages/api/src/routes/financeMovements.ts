@@ -28,6 +28,8 @@ import { rateLimit } from '../middleware/rateLimit.js';
 import { ApiError } from '../errors.js';
 import { generateId } from '../lib/ids.js';
 import { isValidDayId } from '../lib/period.js';
+import { logger } from '../logger.js';
+import { recordFinanceCalendarLoad } from '../lib/requestMetrics.js';
 import {
   decryptAccountPayload,
   encryptAccountPayload,
@@ -464,6 +466,27 @@ function mapRule(
   };
 }
 
+const financeCalendarLoadMetricSchema = z.object({
+  completed: z.boolean(),
+  totalMs: z.number().finite().min(0).max(120_000),
+  readyMs: z.number().finite().min(0).max(120_000),
+  initialFetchMs: z.number().finite().min(0).max(120_000),
+  unsealMs: z.number().finite().min(0).max(120_000),
+  alignmentMs: z.number().finite().min(0).max(120_000),
+  fxMs: z.number().finite().min(0).max(120_000),
+  bridgeMs: z.number().finite().min(0).max(120_000),
+  calendarFetches: z.number().int().min(0).max(20),
+  ledgerFetches: z.number().int().min(0).max(20),
+  movementCount: z.number().int().min(0).max(5_000),
+  ruleCount: z.number().int().min(0).max(1_000),
+  visibleTaskCount: z.number().int().min(0).max(5_000),
+  financeTaskCount: z.number().int().min(0).max(20_000),
+  alignmentUpdates: z.number().int().min(0).max(1_000),
+  fxUpdates: z.number().int().min(0).max(1_000),
+  bridgePersisted: z.boolean(),
+  rangeDays: z.number().int().min(1).max(93),
+});
+
 const vaultPutSchema = z.object({
   kdfSalt: z.string().min(8).max(200),
   kdfParams: z.object({
@@ -538,6 +561,20 @@ const adoptItemSchema = z.object({
   amount: z.number().nonnegative().max(1_000_000_000),
   notes: z.string().max(2000).optional(),
   certainty: certaintySchema.optional(),
+});
+
+/**
+ * Receives only timing/count telemetry from the client. Railway logs retain
+ * rolling p50/p95 values; no financial contents or user identifiers are sent.
+ */
+financeMovementsRouter.post('/metrics/calendar-load', (req, res, next) => {
+  try {
+    const metric = financeCalendarLoadMetricSchema.parse(req.body);
+    logger.info(recordFinanceCalendarLoad(metric));
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
 });
 
 financeMovementsRouter.post('/vault/reset', async (req, res, next) => {

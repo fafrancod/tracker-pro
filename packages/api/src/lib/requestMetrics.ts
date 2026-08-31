@@ -12,6 +12,13 @@ type SampleBucket = {
 
 const createBucket: SampleBucket = { samples: [], byKind: {} };
 const updateBucket: SampleBucket = { samples: [], byKind: {} };
+const financeCalendarBucket: SampleBucket = { samples: [], byKind: {} };
+const financeInitialFetchBucket: SampleBucket = { samples: [], byKind: {} };
+const financeUnsealBucket: SampleBucket = { samples: [], byKind: {} };
+const financeAlignmentBucket: SampleBucket = { samples: [], byKind: {} };
+const financeFxBucket: SampleBucket = { samples: [], byKind: {} };
+const financeBridgeBucket: SampleBucket = { samples: [], byKind: {} };
+const financeReadyBucket: SampleBucket = { samples: [], byKind: {} };
 
 function pushSample(bucket: SampleBucket, ms: number, kind: string): void {
   bucket.samples.push(ms);
@@ -114,14 +121,113 @@ export function recordTaskUpdate(m: TaskUpdateMetric): Record<string, unknown> {
   };
 }
 
+export type FinanceCalendarLoadMetric = {
+  completed: boolean;
+  totalMs: number;
+  readyMs: number;
+  initialFetchMs: number;
+  unsealMs: number;
+  alignmentMs: number;
+  fxMs: number;
+  bridgeMs: number;
+  calendarFetches: number;
+  ledgerFetches: number;
+  movementCount: number;
+  ruleCount: number;
+  visibleTaskCount: number;
+  financeTaskCount: number;
+  alignmentUpdates: number;
+  fxUpdates: number;
+  bridgePersisted: boolean;
+  rangeDays: number;
+};
+
+function stageSnapshot(bucket: SampleBucket) {
+  const roll = snapshot(bucket);
+  return { p50_ms: roll.p50_ms, p95_ms: roll.p95_ms };
+}
+
+/**
+ * Registra la carga del calendario financiero en Railway sin títulos, montos,
+ * identificadores de usuario ni movimientos. Sirve para decidir el orden real
+ * de las optimizaciones P0 con p50/p95 sobre una ventana de 100 cargas.
+ */
+export function recordFinanceCalendarLoad(
+  m: FinanceCalendarLoadMetric
+): Record<string, unknown> {
+  const outcome = m.completed ? 'completed' : 'failed';
+  pushSample(financeCalendarBucket, m.totalMs, outcome);
+  pushSample(financeInitialFetchBucket, m.initialFetchMs, outcome);
+  pushSample(financeUnsealBucket, m.unsealMs, outcome);
+  pushSample(financeAlignmentBucket, m.alignmentMs, outcome);
+  pushSample(financeFxBucket, m.fxMs, outcome);
+  pushSample(financeBridgeBucket, m.bridgeMs, outcome);
+  pushSample(financeReadyBucket, m.readyMs, outcome);
+  const total = snapshot(financeCalendarBucket);
+  return {
+    metric: 'api.finances.calendar_load',
+    completed: m.completed,
+    total_ms: Math.round(m.totalMs),
+    ready_ms: Math.round(m.readyMs),
+    initial_fetch_ms: Math.round(m.initialFetchMs),
+    unseal_ms: Math.round(m.unsealMs),
+    alignment_ms: Math.round(m.alignmentMs),
+    fx_ms: Math.round(m.fxMs),
+    bridge_ms: Math.round(m.bridgeMs),
+    calendar_fetches: m.calendarFetches,
+    ledger_fetches: m.ledgerFetches,
+    movements: m.movementCount,
+    rules: m.ruleCount,
+    visible_finance_tasks: m.visibleTaskCount,
+    all_finance_tasks: m.financeTaskCount,
+    alignment_updates: m.alignmentUpdates,
+    fx_updates: m.fxUpdates,
+    bridge_persisted: m.bridgePersisted,
+    range_days: m.rangeDays,
+    p50_ms: total.p50_ms,
+    p95_ms: total.p95_ms,
+    stage_p50_ms: {
+      initial_fetch: stageSnapshot(financeInitialFetchBucket).p50_ms,
+      unseal: stageSnapshot(financeUnsealBucket).p50_ms,
+      alignment: stageSnapshot(financeAlignmentBucket).p50_ms,
+      fx: stageSnapshot(financeFxBucket).p50_ms,
+      bridge: stageSnapshot(financeBridgeBucket).p50_ms,
+      ready: stageSnapshot(financeReadyBucket).p50_ms,
+    },
+    stage_p95_ms: {
+      initial_fetch: stageSnapshot(financeInitialFetchBucket).p95_ms,
+      unseal: stageSnapshot(financeUnsealBucket).p95_ms,
+      alignment: stageSnapshot(financeAlignmentBucket).p95_ms,
+      fx: stageSnapshot(financeFxBucket).p95_ms,
+      bridge: stageSnapshot(financeBridgeBucket).p95_ms,
+      ready: stageSnapshot(financeReadyBucket).p95_ms,
+    },
+    window_n: total.count,
+  };
+}
+
 /** Solo tests. */
 export function _resetRequestMetrics(): void {
-  createBucket.samples = [];
-  createBucket.byKind = {};
-  updateBucket.samples = [];
-  updateBucket.byKind = {};
+  for (const bucket of [
+    createBucket,
+    updateBucket,
+    financeCalendarBucket,
+    financeInitialFetchBucket,
+    financeUnsealBucket,
+    financeAlignmentBucket,
+    financeFxBucket,
+    financeBridgeBucket,
+    financeReadyBucket,
+  ]) {
+    bucket.samples = [];
+    bucket.byKind = {};
+  }
 }
 
 export function _getCreateSnapshot() {
   return snapshot(createBucket);
+}
+
+export function _getFinanceCalendarSnapshot() {
+  return snapshot(financeCalendarBucket);
 }

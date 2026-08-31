@@ -3,8 +3,10 @@ import {
   percentile,
   recordTaskCreate,
   recordTaskUpdate,
+  recordFinanceCalendarLoad,
   _resetRequestMetrics,
   _getCreateSnapshot,
+  _getFinanceCalendarSnapshot,
 } from '../lib/requestMetrics.js';
 
 beforeEach(() => {
@@ -25,6 +27,34 @@ describe('requestMetrics', () => {
     expect(snap.byKind.habit_good).toBe(2);
     expect(snap.byKind.task).toBe(1);
     expect(snap.count).toBe(3);
+  });
+
+  it('registra p50/p95 de carga del calendario financiero sin datos sensibles', () => {
+    const payload = recordFinanceCalendarLoad({
+      completed: true,
+      totalMs: 1200,
+      readyMs: 1260,
+      initialFetchMs: 700,
+      unsealMs: 100,
+      alignmentMs: 200,
+      fxMs: 0,
+      bridgeMs: 50,
+      calendarFetches: 2,
+      ledgerFetches: 2,
+      movementCount: 12,
+      ruleCount: 4,
+      visibleTaskCount: 3,
+      financeTaskCount: 8,
+      alignmentUpdates: 1,
+      fxUpdates: 0,
+      bridgePersisted: true,
+      rangeDays: 42,
+    });
+    expect(payload.metric).toBe('api.finances.calendar_load');
+    expect(payload.p50_ms).toBe(1200);
+    expect(payload.p95_ms).toBe(1200);
+    expect(payload.stage_p95_ms).toMatchObject({ initial_fetch: 700 });
+    expect(_getFinanceCalendarSnapshot().count).toBe(1);
   });
 
   it('recordTaskUpdate expone metric name', () => {

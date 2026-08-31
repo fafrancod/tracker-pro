@@ -81,6 +81,7 @@ import {
   deleteFinanceMovement,
   fetchFinanceCalendar,
   fetchFinanceLedger,
+  recordFinanceCalendarLoad,
   resolveFinanceFx,
   updateFinanceMovement,
   updateFinanceRule,
@@ -334,8 +335,25 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }, [view, weekStart, gridStart]);
 
   const reload = useCallback(async () => {
+    const reloadStartedAt = performance.now();
+    let initialFetchMs = 0;
+    let unsealMs = 0;
+    let alignmentMs = 0;
+    let fxMs = 0;
+    let bridgeMs = 0;
+    let calendarFetches = 1;
+    let ledgerFetches = 1;
+    let movementCount = 0;
+    let ruleCount = 0;
+    let visibleTaskCount = 0;
+    let financeTaskCount = 0;
+    let alignmentUpdates = 0;
+    let fxUpdates = 0;
+    let bridgePersisted = false;
+    let completed = false;
     setLoading(true);
     try {
+      const initialFetchStartedAt = performance.now();
       const [rows, accs, gls, crs, ledger, cats, taskRows, financeKindTasks] =
         await Promise.all([
         fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
@@ -349,10 +367,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           : Promise.resolve([]),
         uid ? fetchFinanceKindTasks(uid).catch(() => []) : Promise.resolve([]),
       ]);
+      initialFetchMs = performance.now() - initialFetchStartedAt;
       setAccounts(accs);
       setGoals(gls);
       setCredits(crs);
       setUserCategories(cats);
+      const unsealStartedAt = performance.now();
       let opened =
         vault
           ? await unsealFinanceLedger(
@@ -362,9 +382,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               ledger.rules
             )
           : ledger;
+      unsealMs += performance.now() - unsealStartedAt;
       let next = rows;
       const financeTasks = taskRows.filter(row => isFinanceKind(row.kind));
       const allFinanceTasks = financeKindTasks.filter(row => isFinanceKind(row.kind));
+      visibleTaskCount = financeTasks.length;
+      financeTaskCount = allFinanceTasks.length;
       // A board series can be moved after its ledger rule was created. Align
       // the persisted rule before expanding calendar virtuals; otherwise the
       // List can correctly say “Día 29” while Calendar keeps painting day 1.
@@ -374,6 +397,8 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         opened.movements
       );
       if (ruleAlignments.length > 0) {
+        const alignmentStartedAt = performance.now();
+        alignmentUpdates = ruleAlignments.length;
         await Promise.all(
           ruleAlignments.map(alignment =>
             updateFinanceRule(alignment.ruleId, {
@@ -387,7 +412,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
           fetchFinanceLedger(),
         ]);
+        calendarFetches += 1;
+        ledgerFetches += 1;
         next = syncedRows;
+        const alignmentUnsealStartedAt = performance.now();
         opened = vault
           ? await unsealFinanceLedger(
               vault.uid,
@@ -396,11 +424,14 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               syncedLedger.rules
             )
           : syncedLedger;
+        unsealMs += performance.now() - alignmentUnsealStartedAt;
+        alignmentMs = performance.now() - alignmentStartedAt;
       }
       setLedgerMovements(opened.movements);
       setLedgerRules(opened.rules);
       const pending = next.filter(m => m.fxPending && !m.virtual);
       if (pending.length > 0) {
+        const fxStartedAt = performance.now();
         let converted = 0;
         for (const mov of pending) {
           const fx = await resolveFinanceFx({
@@ -417,9 +448,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           );
           converted += 1;
         }
+        fxUpdates = converted;
         next = converted
           ? await fetchFinanceCalendar(range.from, range.to, vault ?? undefined)
           : next;
+        if (converted) calendarFetches += 1;
+        fxMs = performance.now() - fxStartedAt;
       }
       setBoardFinanceTasks(allFinanceTasks);
       const withCredits = [
@@ -437,17 +471,21 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         )
       );
       if (financeTasks.length > 0) {
+        const bridgeStartedAt = performance.now();
         const persisted = await syncBoardFinanceToLedger({
           movements: next,
           tasks: financeTasks,
           vault: vault ?? undefined,
         }).catch(() => false);
+        bridgePersisted = persisted;
         if (persisted) {
           const refreshed = await fetchFinanceCalendar(
             range.from,
             range.to,
             vault ?? undefined
           );
+          calendarFetches += 1;
+          next = refreshed;
           const refreshedWithCredits = [
             ...refreshed,
             ...expandFinanceCredits(crs, refreshed, range.from, range.to),
@@ -462,7 +500,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             )
           );
         }
+        bridgeMs = performance.now() - bridgeStartedAt;
       }
+      movementCount = next.length;
+      ruleCount = opened.rules.length;
+      completed = true;
     } catch (err) {
       const msg =
         err instanceof ApiClientError &&
@@ -473,9 +515,37 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           : t('fin_load_error');
       showToast(msg, 'error');
     } finally {
+      const totalMs = performance.now() - reloadStartedAt;
       setLoading(false);
+      const report = () => {
+        void recordFinanceCalendarLoad({
+          completed,
+          totalMs,
+          readyMs: performance.now() - reloadStartedAt,
+          initialFetchMs,
+          unsealMs,
+          alignmentMs,
+          fxMs,
+          bridgeMs,
+          calendarFetches,
+          ledgerFetches,
+          movementCount,
+          ruleCount,
+          visibleTaskCount,
+          financeTaskCount,
+          alignmentUpdates,
+          fxUpdates,
+          bridgePersisted,
+          rangeDays: view === 'week' ? 7 : 42,
+        }).catch(() => undefined);
+      };
+      if (typeof globalThis.requestAnimationFrame === 'function') {
+        globalThis.requestAnimationFrame(report);
+      } else {
+        report();
+      }
     }
-  }, [range.from, range.to, showToast, t, vault, preferred, uid]);
+  }, [range.from, range.to, showToast, t, vault, preferred, uid, view]);
 
   useEffect(() => {
     void reload();

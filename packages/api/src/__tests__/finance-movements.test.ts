@@ -539,6 +539,35 @@ describe('finance rule expansion', () => {
   });
 });
 
+describe('POST /api/finances/metrics/calendar-load', () => {
+  it('acepta solo telemetría agregada de carga', async () => {
+    const res = await request(app)
+      .post('/api/finances/metrics/calendar-load')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        completed: true,
+        totalMs: 1200,
+        readyMs: 1250,
+        initialFetchMs: 800,
+        unsealMs: 90,
+        alignmentMs: 180,
+        fxMs: 0,
+        bridgeMs: 40,
+        calendarFetches: 2,
+        ledgerFetches: 2,
+        movementCount: 10,
+        ruleCount: 3,
+        visibleTaskCount: 2,
+        financeTaskCount: 4,
+        alignmentUpdates: 1,
+        fxUpdates: 0,
+        bridgePersisted: true,
+        rangeDays: 42,
+      });
+    expect(res.status).toBe(204);
+  });
+});
+
 describe('POST /api/finances/movements', () => {
   it('crea un gasto puntual confirmed por defecto', async () => {
     const res = await request(app)

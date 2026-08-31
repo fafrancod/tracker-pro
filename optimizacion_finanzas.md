@@ -2,7 +2,19 @@
 
 La pantalla **Finanzas / Calendario** tiene varios recorridos duplicados y efectos de escritura dentro de su carga inicial. El principal problema no es un único query lento: es una cascada de lecturas, descifrados, sincronizaciones y recargas que bloquea el primer render útil.
 
-> **Estado:** diagnóstico estático de código. Antes de optimizar, medir p50/p95 por etapa en producción para confirmar el orden de impacto real.
+> **Estado:** instrumentación de la etapa 1 implementada. Antes de aplicar los cambios P0, reunir una muestra real de p50/p95 en Railway para confirmar el orden de impacto.
+
+## Instrumentación implementada
+
+Desde **v2.38.5**, cada carga del Calendario envía de forma no bloqueante una muestra técnica agregada al endpoint protegido `POST /api/finances/metrics/calendar-load`. Railway registra la métrica `api.finances.calendar_load` con p50/p95 sobre una ventana en memoria de 100 cargas por instancia.
+
+| Se mide | No se envía |
+|---|---|
+| Total hasta datos listos y hasta el siguiente frame de pintura | Títulos, importes, notas, IDs de movimientos o identificador de usuario |
+| Lectura inicial, descifrado, alineación, FX y puente Board→ledger | Contenido del libro financiero |
+| Conteos de filas, reglas, tareas, escrituras y refetches | Datos que permitan reconstruir un movimiento |
+
+**Cómo usarla:** filtrar los logs de Railway por `metric=api.finances.calendar_load`, comparar `p95_ms` y `stage_p95_ms`, y sólo entonces tomar el siguiente P0. La telemetría no bloquea la carga ni persiste en Supabase.
 
 ## Recorrido actual
 
