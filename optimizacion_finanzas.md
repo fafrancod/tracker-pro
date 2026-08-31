@@ -16,6 +16,15 @@ Desde **v2.38.5**, cada carga del Calendario envía de forma no bloqueante una m
 
 **Cómo usarla:** filtrar los logs de Railway por `metric=api.finances.calendar_load`, comparar `p95_ms` y `stage_p95_ms`, y sólo entonces tomar el siguiente P0. La telemetría no bloquea la carga ni persiste en Supabase.
 
+## Avance de reducción de carga
+
+| Cambio publicado | Efecto en Calendario |
+|---|---|
+| Proyección mínima para tareas `finance_income` y `finance_expense` | Evita descargar adjuntos, pasos, contactos y metadatos ajenos al puente financiero. |
+| Metas y categorías personalizadas bajo demanda | El primer Calendario ya no espera dos consultas de paneles no visibles; se cargan al abrir su pestaña o el diálogo de movimiento. |
+
+Aún queda pendiente el corte P0: quitar libro completo, escrituras de conciliación y FX del camino crítico. Se priorizará con las muestras de Railway.
+
 ## Recorrido actual
 
 Al abrir o cambiar de mes, `FinancesPage.reload()` dispara en paralelo:

@@ -305,6 +305,27 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const migratedInstallmentGroups = useRef(new Set<string>());
   const [filterAccountId, setFilterAccountId] = useState('all');
 
+  // Goals and custom categories are only needed by their own hubs or by the
+  // movement dialog. Keeping them out of the calendar's critical request fan-out
+  // makes the first visible month independent from these inactive panels.
+  const loadGoals = useCallback(async () => {
+    try {
+      setGoals(await fetchFinanceGoals());
+    } catch {
+      // Preserve already loaded data while an optional panel is temporarily unavailable.
+    }
+  }, []);
+  const loadUserCategories = useCallback(async () => {
+    try {
+      setUserCategories(await fetchFinanceCategories());
+    } catch {
+      // Preserve already loaded data while an optional panel is temporarily unavailable.
+    }
+  }, []);
+  const loadMovementFormOptions = useCallback(() => {
+    void Promise.all([loadGoals(), loadUserCategories()]);
+  }, [loadGoals, loadUserCategories]);
+
   const weekStartsOn = settings.weekStartsOnMonday ? 1 : 0;
   const monthStart = startOfMonth(cursor);
   const monthId = format(monthStart, 'yyyy-MM');
@@ -354,24 +375,20 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     setLoading(true);
     try {
       const initialFetchStartedAt = performance.now();
-      const [rows, accs, gls, crs, ledger, cats, taskRows, financeKindTasks] =
+      const [rows, accs, crs, ledger, taskRows, financeKindTasks] =
         await Promise.all([
-        fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
-        fetchFinanceAccounts(),
-        fetchFinanceGoals(),
-        fetchFinanceCredits(),
-        fetchFinanceLedger(),
-        fetchFinanceCategories().catch(() => [] as FinanceUserCategory[]),
-        uid
-          ? fetchTasksInRange(uid, range.from, range.to).catch(() => [])
-          : Promise.resolve([]),
-        uid ? fetchFinanceKindTasks(uid).catch(() => []) : Promise.resolve([]),
-      ]);
+          fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
+          fetchFinanceAccounts(),
+          fetchFinanceCredits(),
+          fetchFinanceLedger(),
+          uid
+            ? fetchTasksInRange(uid, range.from, range.to).catch(() => [])
+            : Promise.resolve([]),
+          uid ? fetchFinanceKindTasks(uid).catch(() => []) : Promise.resolve([]),
+        ]);
       initialFetchMs = performance.now() - initialFetchStartedAt;
       setAccounts(accs);
-      setGoals(gls);
       setCredits(crs);
-      setUserCategories(cats);
       const unsealStartedAt = performance.now();
       let opened =
         vault
@@ -550,6 +567,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (hub === 'goals') void loadGoals();
+    if (hub === 'categories' || hub === 'evolution') {
+      void loadUserCategories();
+    }
+  }, [hub, loadGoals, loadUserCategories]);
 
   useEffect(() => {
     const groups = new Map<string, FinanceMovement[]>();
@@ -816,6 +840,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }, [dialogOpen, editing, form]);
 
   function openCreate(dayId = todayId) {
+    loadMovementFormOptions();
     setEditing(null);
     const d = Number(dayId.slice(8, 10));
     const nextForm =
@@ -829,6 +854,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   }
 
   function openEdit(mov: FinanceMovement) {
+    loadMovementFormOptions();
     if (mov.virtual && mov.ruleId) {
       const sibling = paymentLedger.find(
         item => item.ruleId === mov.ruleId && !item.virtual
@@ -1321,7 +1347,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             movements={ledgerMovements.length ? ledgerMovements : movements}
             todayDayId={todayId}
             defaultCurrency={preferred}
-            onChanged={reload}
+            onChanged={async () => {
+              await Promise.all([reload(), loadGoals()]);
+            }}
           />
         ) : null}
 
@@ -1350,7 +1378,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
             movements={ledgerMovements.length ? ledgerMovements : movements}
             monthId={monthId}
             defaultCurrency={preferred}
-            onChanged={reload}
+            onChanged={async () => {
+              await Promise.all([reload(), loadUserCategories()]);
+            }}
           />
         ) : null}
 

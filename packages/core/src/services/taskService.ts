@@ -197,12 +197,19 @@ export async function fetchTasksInRange(
   return mergeLocatedById(covering, habits);
 }
 
+/**
+ * Proyección mínima para la conciliación/lista de Finanzas. No trae adjuntos,
+ * pasos, contactos ni los metadatos de tareas que el calendario no consume.
+ */
+const FINANCE_KIND_TASK_FIELDS =
+  'id,week_id,day_id,title,completed,completed_at,series_id,recurrence_frequency,recurrence_interval,recurrence_anchor,recurrence_weekdays,kind,finance_meta,finance_movement_id,notes,created_at,updated_at' as const;
+
 /** Ingresos/gastos del tablero (todas las fechas) para clasificar series en Finanzas. */
 export async function fetchFinanceKindTasks(uid: string): Promise<LocatedTaskRow[]> {
   if (isDemoMode()) return [];
   const { data, error } = await getSupabase()
     .from('tasks')
-    .select('*')
+    .select(FINANCE_KIND_TASK_FIELDS)
     .eq('user_id', uid)
     .in('kind', ['finance_income', 'finance_expense'])
     .order('day_id', { ascending: true });
