@@ -524,6 +524,24 @@ create unique index if not exists finance_movements_user_mutation_idx
   on public.finance_movements (user_id, client_mutation_id)
   where client_mutation_id is not null;
 
+-- Migración idempotente: instalaciones anteriores al mayor financiero.
+-- `create table if not exists` no agrega columnas a una tabla ya existente.
+alter table public.finance_rules add column if not exists payload_enc text;
+alter table public.finance_rules add column if not exists enc_v text;
+alter table public.finance_movements add column if not exists payload_enc text;
+alter table public.finance_movements add column if not exists enc_v text;
+alter table public.finance_movements add column if not exists rule_id text;
+alter table public.finance_movements add column if not exists source_task_id text;
+alter table public.finance_movements add column if not exists account_id text;
+alter table public.finance_movements add column if not exists card_account_id text;
+alter table public.finance_movements add column if not exists goal_id text;
+alter table public.finance_movements add column if not exists credit_id text;
+alter table public.finance_movements add column if not exists installment_group_id text;
+alter table public.finance_movements add column if not exists installment_index int;
+alter table public.finance_movements add column if not exists installment_total int;
+alter table public.finance_movements add column if not exists client_mutation_id text;
+alter table public.finance_movements add column if not exists deleted_at timestamptz;
+
 create table if not exists public.finance_credits (
   id text primary key,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -609,6 +627,15 @@ create table if not exists public.finance_vault (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Misma reparación para bóvedas creadas antes del cifrado por cuenta.
+alter table public.finance_vault add column if not exists scheme text;
+alter table public.finance_vault add column if not exists kdf_salt text;
+alter table public.finance_vault add column if not exists kdf_params jsonb;
+alter table public.finance_vault add column if not exists wrapped_dek text;
+alter table public.finance_vault add column if not exists recovery_wrapped_dek text;
+alter table public.finance_vault add column if not exists account_wrapped_dek text;
+alter table public.finance_vault add column if not exists enc_v text;
 
 alter table public.finance_rules enable row level security;
 alter table public.finance_movements enable row level security;
