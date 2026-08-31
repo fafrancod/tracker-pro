@@ -4,10 +4,12 @@ import {
   dedupeFinanceCalendarMovements,
   financeTaskToMovement,
   mergeBoardFinanceIntoMovements,
+  planFinanceRuleAlignment,
   planBoardFinanceSync,
   retargetMonthlyRuleOccurrences,
   summarizeMovementsByCurrency,
   type FinanceMovement,
+  type FinanceRule,
   type LocatedTaskRow,
 } from '@daily-tracker/core';
 
@@ -261,6 +263,38 @@ describe('planBoardFinanceSync', () => {
 
     expect(planBoardFinanceSync([existing], [globant])).toEqual([
       { type: 'retarget', task: globant, movementId: 'm-globant-one-off' },
+    ]);
+  });
+});
+
+describe('planFinanceRuleAlignment', () => {
+  it('alinea una regla mensual antigua con el día configurado en su serie del tablero', () => {
+    const globant = task({
+      id: 't-globant-29',
+      seriesId: 'series-globant',
+      title: 'Ingreso Globant',
+      dayId: '2026-08-29',
+      financeMovementId: 'm-globant-seed',
+    });
+    const rule: FinanceRule = {
+      id: 'rule-globant',
+      flow: 'income',
+      currency: 'CLP',
+      frequency: 'monthly',
+      recurrenceDay: 1,
+      startDayId: '2026-01-01',
+      title: 'Ingreso Globant',
+      amount: 2_500_000,
+      notes: '',
+      certainty: 'fixed',
+      active: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const linked = mov({ id: 'm-globant-seed', dayId: '2026-08-01', ruleId: rule.id });
+
+    expect(planFinanceRuleAlignment([globant], [rule], [linked])).toEqual([
+      { ruleId: 'rule-globant', frequency: 'monthly', recurrenceDay: 29 },
     ]);
   });
 });

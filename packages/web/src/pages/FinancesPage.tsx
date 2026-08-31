@@ -69,6 +69,7 @@ import {
   financeSeriesHintsFromTasks,
   matchFinanceRuleForMovement,
   mergeBoardFinanceIntoMovements,
+  planFinanceRuleAlignment,
   shiftDayIdToMonthDay,
   retargetMonthlyRuleOccurrences,
   dedupeFinanceCalendarMovements,
@@ -337,7 +338,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       setGoals(gls);
       setCredits(crs);
       setUserCategories(cats);
-      const opened =
+      let opened =
         vault
           ? await unsealFinanceLedger(
               vault.uid,
@@ -346,10 +347,43 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               ledger.rules
             )
           : ledger;
+      let next = rows;
+      const financeTasks = taskRows.filter(row => isFinanceKind(row.kind));
+      const allFinanceTasks = financeKindTasks.filter(row => isFinanceKind(row.kind));
+      // A board series can be moved after its ledger rule was created. Align
+      // the persisted rule before expanding calendar virtuals; otherwise the
+      // List can correctly say “Día 29” while Calendar keeps painting day 1.
+      const ruleAlignments = planFinanceRuleAlignment(
+        allFinanceTasks,
+        opened.rules,
+        opened.movements
+      );
+      if (ruleAlignments.length > 0) {
+        await Promise.all(
+          ruleAlignments.map(alignment =>
+            updateFinanceRule(alignment.ruleId, {
+              frequency: alignment.frequency,
+              recurrenceDay: alignment.recurrenceDay,
+            })
+          )
+        );
+        const [syncedRows, syncedLedger] = await Promise.all([
+          fetchFinanceCalendar(range.from, range.to, vault ?? undefined),
+          fetchFinanceLedger(),
+        ]);
+        next = syncedRows;
+        opened = vault
+          ? await unsealFinanceLedger(
+              vault.uid,
+              vault.dek,
+              syncedLedger.movements,
+              syncedLedger.rules
+            )
+          : syncedLedger;
+      }
       setLedgerMovements(opened.movements);
       setLedgerRules(opened.rules);
-      const pending = rows.filter(m => m.fxPending && !m.virtual);
-      let next = rows;
+      const pending = next.filter(m => m.fxPending && !m.virtual);
       if (pending.length > 0) {
         let converted = 0;
         for (const mov of pending) {
@@ -369,10 +403,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         }
         next = converted
           ? await fetchFinanceCalendar(range.from, range.to, vault ?? undefined)
-          : rows;
+          : next;
       }
-      const financeTasks = taskRows.filter(row => isFinanceKind(row.kind));
-      setBoardFinanceTasks(financeKindTasks.filter(row => isFinanceKind(row.kind)));
+      setBoardFinanceTasks(allFinanceTasks);
       const withCredits = [
         ...next,
         ...expandFinanceCredits(crs, next, range.from, range.to),

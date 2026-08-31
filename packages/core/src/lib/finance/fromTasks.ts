@@ -5,7 +5,7 @@ import { isRecurring } from '../recurrence';
 import { monthIdFromDayId } from './movementSummary';
 import { financeTitlesMatch } from './title';
 import type { FinanceListSeriesHint } from './listRows';
-import type { FinanceMovement, FinanceRuleFrequency } from './types';
+import type { FinanceMovement, FinanceRule, FinanceRuleFrequency } from './types';
 
 export type LocatedFinanceTask = Task & { weekId: string; dayId: string };
 
@@ -66,6 +66,60 @@ export function financeSeriesHintsFromTasks(
     });
   }
   return [...bySeries.values()];
+}
+
+export interface FinanceRuleAlignment {
+  ruleId: string;
+  frequency: FinanceRuleFrequency;
+  recurrenceDay: number;
+}
+
+/**
+ * The board task is the source of truth for a linked recurring finance event.
+ * A previous date edit could leave its ledger rule on an old day, making the
+ * List say "Día 29" while the Finance calendar continued expanding the rule
+ * for another day. Reconcile the rule before rendering the calendar.
+ */
+export function planFinanceRuleAlignment(
+  tasks: LocatedFinanceTask[],
+  rules: FinanceRule[],
+  movements: FinanceMovement[]
+): FinanceRuleAlignment[] {
+  const representativeBySeries = new Map<
+    string,
+    { task: LocatedFinanceTask; frequency: FinanceRuleFrequency; recurrenceDay: number }
+  >();
+  for (const task of tasks) {
+    if (!isFinanceKind(task.kind)) continue;
+    const cadence = cadenceFromFinanceTask(task);
+    if (!cadence) continue;
+    const seriesKey = task.seriesId || task.id;
+    const existing = representativeBySeries.get(seriesKey);
+    if (!existing || task.dayId < existing.task.dayId) {
+      representativeBySeries.set(seriesKey, { task, ...cadence });
+    }
+  }
+
+  const updates = new Map<string, FinanceRuleAlignment>();
+  for (const representative of representativeBySeries.values()) {
+    const { task, frequency, recurrenceDay } = representative;
+    const linked = task.financeMovementId
+      ? movements.find(movement => movement.id === task.financeMovementId)
+      : undefined;
+    const rule =
+      (linked?.ruleId ? rules.find(item => item.id === linked.ruleId) : undefined) ??
+      rules.find(
+        item =>
+          item.active &&
+          item.flow === (task.kind === 'finance_income' ? 'income' : 'expense') &&
+          financeTitlesMatch(item.title, task.title) &&
+          sameAmount(item.amount, amountOf(task))
+      );
+    if (!rule) continue;
+    if (rule.frequency === frequency && rule.recurrenceDay === recurrenceDay) continue;
+    updates.set(rule.id, { ruleId: rule.id, frequency, recurrenceDay });
+  }
+  return [...updates.values()];
 }
 
 function amountOf(task: LocatedFinanceTask): number {
