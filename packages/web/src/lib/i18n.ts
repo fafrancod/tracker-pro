@@ -1365,6 +1365,21 @@ export interface TranslationDict {
   gantt_category_urgency_color: string;
   gantt_category_importance_color: string;
   gantt_category_context_hint: string;
+  landing_tagline: string;
+  landing_desc: string;
+  landing_board: string;
+  landing_board_desc: string;
+  landing_habits: string;
+  landing_habits_desc: string;
+  landing_rx: string;
+  landing_rx_desc: string;
+  landing_money: string;
+  landing_money_desc: string;
+  landing_copy_link: string;
+  landing_copied: string;
+  landing_copy_hint: string;
+  landing_privacy: string;
+  landing_preview: string;
 }
 
 const es_dict: TranslationDict = {
@@ -2835,6 +2850,23 @@ const es_dict: TranslationDict = {
   gantt_category_urgency_color: 'Color de urgencia',
   gantt_category_importance_color: 'Color de importancia',
   gantt_category_context_hint: 'Usa el lápiz para cambiar nombre y colores',
+  landing_tagline: 'Tu tablero de vida: tareas, hábitos, recetario y dinero en un solo lugar.',
+  landing_desc:
+    'Planifica la semana, sigue hábitos, gestiona tratamientos y registra tus movimientos financieros sin salir de la misma app.',
+  landing_board: 'Tablero',
+  landing_board_desc: 'Día, semana, mes o continuo. Arrastra tareas y recorre el calendario.',
+  landing_habits: 'Hábitos',
+  landing_habits_desc: 'Rachas y plan semanal en el mismo tablero.',
+  landing_rx: 'Recetario',
+  landing_rx_desc: 'Tomas humanas y de mascotas, con horarios.',
+  landing_money: 'Finanzas',
+  landing_money_desc: 'Ingresos, gastos y cuentas, cifrados en tu cuenta.',
+  landing_copy_link: 'Copiar enlace',
+  landing_copied: 'Enlace copiado',
+  landing_copy_hint:
+    'Copia este enlace y ábrelo en Chrome. No uses el navegador interno de un chat.',
+  landing_privacy: 'Política de privacidad',
+  landing_preview: 'Vista del tablero',
 };
 
 const en_dict: TranslationDict = {
@@ -4303,6 +4335,22 @@ const en_dict: TranslationDict = {
   gantt_category_urgency_color: 'Urgency color',
   gantt_category_importance_color: 'Importance color',
   gantt_category_context_hint: 'Use the pencil to change name and colors',
+  landing_tagline: 'Your life board: tasks, habits, prescriptions and money in one place.',
+  landing_desc:
+    'Plan the week, keep habits, manage treatments and record your finances without leaving the same app.',
+  landing_board: 'Board',
+  landing_board_desc: 'Day, week, month or continuous. Drag tasks and move through the calendar.',
+  landing_habits: 'Habits',
+  landing_habits_desc: 'Streaks and a weekly plan on the same board.',
+  landing_rx: 'Prescriptions',
+  landing_rx_desc: 'Human and pet doses, with times of day.',
+  landing_money: 'Finances',
+  landing_money_desc: 'Income, expenses and accounts, encrypted for your account.',
+  landing_copy_link: 'Copy link',
+  landing_copied: 'Link copied',
+  landing_copy_hint: 'Copy this link and open it in Chrome. Do not use an in-app chat browser.',
+  landing_privacy: 'Privacy policy',
+  landing_preview: 'Board preview',
 };
 
 export const DICTS: Record<Language, TranslationDict> = {

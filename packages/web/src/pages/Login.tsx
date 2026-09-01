@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { isLandingEnabled, getBrandName } from '@/lib/publicConfig';
+import { LandingHome } from '@/components/Landing/LandingHome';
 
 type Mode = 'signin' | 'signup';
 
@@ -111,98 +113,104 @@ export function LoginPage() {
     }
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div
-        data-glass-float
-        className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-xl"
-      >
-        <div className="mb-6 flex items-center gap-2">
-          <ListChecks className="h-6 w-6 text-accent-teal" />
-          <h1 className="text-lg font-bold tracking-tight text-text-primary">Daily Tracker</h1>
-        </div>
-
-        <h2 className="mb-1 text-base font-semibold text-text-primary">
-          {mode === 'signin' ? 'Iniciar sesión' : 'Crear cuenta'}
-        </h2>
-        <p className="mb-4 text-xs text-text-muted">
-          {mode === 'signin'
-            ? 'Vuelve a tu semana donde la dejaste.'
-            : 'Empieza a planificar tu primera semana.'}
-        </p>
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => void handleGoogle()}
-          disabled={busy}
-          className="mb-4 w-full gap-2"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-          Continuar con Google
-        </Button>
-
-        <div className="relative my-4 flex items-center">
-          <div className="flex-1 border-t border-border" />
-          <span className="px-2 text-[10px] uppercase tracking-wider text-text-muted">o</span>
-          <div className="flex-1 border-t border-border" />
-        </div>
-
-        <form onSubmit={e => void handleSubmit(e)} className="space-y-3">
-          {mode === 'signup' && (
-            <Input
-              type="text"
-              placeholder="Tu nombre"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoComplete="name"
-            />
-          )}
-          <Input
-            type="email"
-            placeholder="email@ejemplo.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-          <Input
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-            minLength={6}
-            required
-          />
-          <Button type="submit" disabled={busy || !email.trim() || !password} className="w-full">
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : mode === 'signin' ? (
-              'Entrar'
-            ) : (
-              'Crear cuenta'
-            )}
-          </Button>
-        </form>
-
-        <button
-          type="button"
-          onClick={() => setMode(m => (m === 'signin' ? 'signup' : 'signin'))}
-          className="mt-4 w-full text-center text-xs text-text-muted hover:text-text-primary"
-        >
-          {mode === 'signin'
-            ? '¿No tienes cuenta? Crear una'
-            : '¿Ya tienes cuenta? Iniciar sesión'}
-        </button>
-        <Link
-          to="/privacy"
-          className="mt-3 block w-full text-center text-[11px] text-text-muted hover:text-text-primary hover:underline"
-        >
-          Política de privacidad
-        </Link>
+  const card = (
+    <div
+      data-glass-float
+      className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-xl"
+    >
+      <div className="mb-6 flex items-center gap-2">
+        <ListChecks className="h-6 w-6 text-accent-teal" />
+        <h1 className="text-lg font-bold tracking-tight text-text-primary">{getBrandName()}</h1>
       </div>
+
+      <h2 className="mb-1 text-base font-semibold text-text-primary">
+        {mode === 'signin' ? 'Iniciar sesión' : 'Crear cuenta'}
+      </h2>
+      <p className="mb-4 text-xs text-text-muted">
+        {mode === 'signin'
+          ? 'Vuelve a tu semana donde la dejaste.'
+          : 'Empieza a planificar tu primera semana.'}
+      </p>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => void handleGoogle()}
+        disabled={busy}
+        className="mb-4 w-full gap-2"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+        Continuar con Google
+      </Button>
+
+      <div className="relative my-4 flex items-center">
+        <div className="flex-1 border-t border-border" />
+        <span className="px-2 text-[10px] uppercase tracking-wider text-text-muted">o</span>
+        <div className="flex-1 border-t border-border" />
+      </div>
+
+      <form onSubmit={e => void handleSubmit(e)} className="space-y-3">
+        {mode === 'signup' && (
+          <Input
+            type="text"
+            placeholder="Tu nombre"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            autoComplete="name"
+          />
+        )}
+        <Input
+          type="email"
+          placeholder="email@ejemplo.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          autoComplete="email"
+          required
+        />
+        <Input
+          type="password"
+          placeholder="••••••••"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+          minLength={6}
+          required
+        />
+        <Button type="submit" disabled={busy || !email.trim() || !password} className="w-full">
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : mode === 'signin' ? (
+            'Entrar'
+          ) : (
+            'Crear cuenta'
+          )}
+        </Button>
+      </form>
+
+      <button
+        type="button"
+        onClick={() => setMode(m => (m === 'signin' ? 'signup' : 'signin'))}
+        className="mt-4 w-full text-center text-xs text-text-muted hover:text-text-primary"
+      >
+        {mode === 'signin'
+          ? '¿No tienes cuenta? Crear una'
+          : '¿Ya tienes cuenta? Iniciar sesión'}
+      </button>
+      <Link
+        to="/privacy"
+        className="mt-3 block w-full text-center text-[11px] text-text-muted hover:text-text-primary hover:underline"
+      >
+        Política de privacidad
+      </Link>
     </div>
+  );
+
+  if (isLandingEnabled()) {
+    return <LandingHome>{card}</LandingHome>;
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">{card}</div>
   );
 }
 

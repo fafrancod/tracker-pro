@@ -1,6 +1,7 @@
 import { initSupabase, isSupabaseReady, type SupabaseConfig } from '@core/supabase';
 import { configureApi } from '@core/lib/api';
 import { setDemoMode } from '@core/lib/demoMode';
+import { ingestPublicConfig, type PublicConfigPayload } from '@/lib/publicConfig';
 
 const SUPABASE_LS_KEY = 'daily-tracker:supabase-config:v1';
 
@@ -88,24 +89,17 @@ function resolveApiBaseUrl(): string {
   return '';
 }
 
-interface PublicConfigResponse {
-  supabaseUrl?: string | null;
-  supabaseAnonKey?: string | null;
-  configured?: boolean;
-}
-
-/** Carga config desde la API (runtime) si Vite no embebió VITE_*. */
-async function fetchPublicConfig(): Promise<SupabaseConfig | null> {
+/** Carga config desde la API (runtime): supabase + brand/landing. */
+async function fetchPublicConfig(): Promise<PublicConfigPayload | null> {
   try {
     const base = resolveApiBaseUrl();
     const res = await fetch(`${base}/api/public-config`, {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as PublicConfigResponse;
-    if (data.supabaseUrl && data.supabaseAnonKey) {
-      return { url: data.supabaseUrl, anonKey: data.supabaseAnonKey };
-    }
+    const data = (await res.json()) as PublicConfigPayload;
+    ingestPublicConfig(data);
+    return data;
   } catch {
     // offline / API caida
   }
@@ -115,6 +109,7 @@ async function fetchPublicConfig(): Promise<SupabaseConfig | null> {
 /**
  * Inicializa Supabase + API client.
  * Orden: localStorage → VITE_* embebidas → GET /api/public-config (runtime).
+ * Siempre pide public-config para landingEnabled/brand, aunque VITE_* exista.
  */
 export async function bootstrapSupabase(): Promise<void> {
   if (isDemoActive()) {
@@ -125,10 +120,12 @@ export async function bootstrapSupabase(): Promise<void> {
     return;
   }
 
+  const fromApi = await fetchPublicConfig();
   let cfg = readEnvConfig();
   if (!cfg.url || !cfg.anonKey) {
-    const fromApi = await fetchPublicConfig();
-    if (fromApi) cfg = fromApi;
+    if (fromApi?.supabaseUrl && fromApi?.supabaseAnonKey) {
+      cfg = { url: fromApi.supabaseUrl, anonKey: fromApi.supabaseAnonKey };
+    }
   }
 
   if (cfg.url && cfg.anonKey) {

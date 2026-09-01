@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react';
+import { Component, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -8,6 +8,9 @@ import { SettingsProvider } from '@/contexts/SettingsContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SupabaseConfigGate } from '@/components/SupabaseConfigGate';
 import { AppShell } from '@/components/Layout/AppShell';
+import { PublicShell } from '@/components/PublicShell';
+import { isLandingEnabled } from '@/lib/publicConfig';
+import { LoginPage, PrivacyPage } from '@/routes/lazyPages';
 import { BoardPage } from '@/pages/BoardPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
@@ -23,8 +26,6 @@ import { RecetarioPage } from '@/pages/RecetarioPage';
 import { FinancesPage } from '@/pages/FinancesPage';
 import { HabitsPage } from '@/pages/HabitsPage';
 import { DocumentsPage } from '@/pages/DocumentsPage';
-import { LoginPage } from '@/pages/Login';
-import { PrivacyPage } from '@/pages/Privacy';
 import { GanttPage } from '@/pages/GanttPage';
 import { NotesPage } from '@/pages/NotesPage';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
@@ -57,6 +58,16 @@ function CatchAll() {
   if (loading) return <AuthLoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to="/board" replace />;
+}
+
+function PublicGate() {
+  const inner = (
+    <Suspense fallback={<AuthLoadingScreen />}>
+      <Outlet />
+    </Suspense>
+  );
+  if (!isLandingEnabled()) return inner;
+  return <PublicShell>{inner}</PublicShell>;
 }
 
 /**
@@ -106,8 +117,10 @@ function App() {
                 <PwaUpdateBanner />
                 <PwaInstallBanner />
                 <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/privacy" element={<PrivacyPage />} />
+                  <Route element={<PublicGate />}>
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/privacy" element={<PrivacyPage />} />
+                  </Route>
 
                   <Route element={<AuthenticatedTree />}>
                     {/* path="/" ancla el shell; hijos relativos: board, dashboard, … */}

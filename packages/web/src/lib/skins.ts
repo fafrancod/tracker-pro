@@ -657,8 +657,12 @@ function solidSkinWash(t: SkinTokens, tone: SkinTone): string {
   ].join(', ');
 }
 
-export function applySkin(skinId: string | null | undefined): void {
+export function applySkin(
+  skinId: string | null | undefined,
+  opts?: { force?: boolean }
+): void {
   if (typeof document === 'undefined') return;
+  if (!opts?.force && document.documentElement.dataset.landing === '1') return;
   const skin = getSkinById(skinId);
   const root = document.documentElement;
   const t = skin.tokens;
