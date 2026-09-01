@@ -68,7 +68,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/analytics', labelKey: 'nav_analytics', icon: BarChart3 },
   { to: '/activity', labelKey: 'nav_activity', icon: ScrollText },
   { to: '/settings', labelKey: 'nav_settings', icon: Settings },
-  { to: '/admin', labelKey: 'nav_admin', icon: Shield, adminOnly: true },
+  { to: '/atenas', labelKey: 'nav_admin', icon: Shield, adminOnly: true },
 ];
 
 interface SidebarProps {

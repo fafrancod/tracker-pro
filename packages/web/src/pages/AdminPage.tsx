@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+
 import {
   Crown,
   HardDrive,
@@ -12,14 +12,13 @@ import {
   Users,
   Wifi,
 } from 'lucide-react';
-import { Layout } from '@/components/Layout';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { isAdminUser, type AdminPlan, type AdminUserRow } from '@core/lib/adminPortal';
+import { type AdminPlan, type AdminUserRow } from '@core/lib/adminPortal';
 import { fetchAdminUsers, setAdminUserPlan } from '@core/services/adminService';
 import { SimpleSelect } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -42,25 +41,7 @@ function formatMb(value: number | null | undefined) {
   return `${value.toLocaleString('es-ES', { maximumFractionDigits: 2 })} MB`;
 }
 
-export function AdminPage() {
-  const { user } = useAuth();
-  const allowed = isAdminUser({
-    email: user?.email,
-    appMetadata: user?.app_metadata as { admin?: unknown } | undefined,
-  });
-
-  if (!allowed) {
-    return <Navigate to="/board" replace />;
-  }
-
-  return (
-    <Layout title="Admin" showFab={false}>
-      <AdminPanel />
-    </Layout>
-  );
-}
-
-function AdminPanel() {
+export function AdminUsersPanel() {
   const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('all');

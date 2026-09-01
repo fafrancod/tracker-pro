@@ -1,5 +1,7 @@
 import { api } from '../lib/api';
 import type {
+  AdminErrorsResponse,
+  AdminHealthResponse,
   AdminOverviewResponse,
   AdminPlan,
   AdminUsersResponse,
@@ -18,6 +20,21 @@ export async function fetchAdminUsers(opts?: {
 
 export async function fetchAdminOverview(): Promise<AdminOverviewResponse> {
   return api.get<AdminOverviewResponse>('/api/admin/overview');
+}
+
+export async function fetchAdminErrors(opts?: {
+  limit?: number;
+  cursor?: string | null;
+}): Promise<AdminErrorsResponse> {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  if (opts?.cursor) params.set('cursor', opts.cursor);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return api.get<AdminErrorsResponse>(`/api/admin/errors${suffix}`);
+}
+
+export async function fetchAdminHealth(): Promise<AdminHealthResponse> {
+  return api.get<AdminHealthResponse>('/api/admin/health');
 }
 
 export async function setAdminUserPlan(

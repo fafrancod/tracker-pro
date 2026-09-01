@@ -139,6 +139,19 @@ adminRouter.get('/users', async (req, res, next) => {
   }
 });
 
+adminRouter.get('/health', async (_req, res, next) => {
+  try {
+    const started = Date.now();
+    const { error } = await getSupabaseAdmin().from('profiles').select('id').limit(1);
+    res.json({
+      supabaseOk: !error,
+      latencyMs: Date.now() - started,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 const ERROR_LOG_COLUMNS =
   'id, uid, severity, operation, message, created_at, version, channel, build_id, meta';
 

@@ -61,6 +61,30 @@ export interface AdminOverviewResponse {
   storageFromSql: boolean;
 }
 
+export interface AdminErrorLogRow {
+  id: string;
+  uid: string | null;
+  severity: string | null;
+  operation: string | null;
+  message: string | null;
+  createdAt: string | null;
+  version: string | null;
+  channel: string | null;
+  buildId: string | null;
+  meta: unknown;
+}
+
+export interface AdminErrorsResponse {
+  errors: AdminErrorLogRow[];
+  nextCursor: string | null;
+  limit: number;
+}
+
+export interface AdminHealthResponse {
+  supabaseOk: boolean;
+  latencyMs: number | null;
+}
+
 export function isPrimaryOwnerEmail(email: string | null | undefined): boolean {
   return (email ?? '').trim().toLowerCase() === PRIMARY_OWNER_EMAIL;
 }

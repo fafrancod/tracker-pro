@@ -197,6 +197,32 @@ describe('GET /api/admin/errors', () => {
   });
 });
 
+describe('GET /api/admin/health', () => {
+  it('rechaza sin auth', async () => {
+    const res = await request(app).get('/api/admin/health');
+    expect(res.status).toBe(401);
+  });
+
+  it('rechaza a un usuario no admin', async () => {
+    const res = await request(app)
+      .get('/api/admin/health')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(403);
+  });
+
+  it('pinguea Supabase y no expone secretos', async () => {
+    const res = await request(app)
+      .get('/api/admin/health')
+      .set('Authorization', 'Bearer owner-token');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      supabaseOk: true,
+      latencyMs: expect.any(Number),
+    });
+    expect(JSON.stringify(res.body)).not.toMatch(/service_role/i);
+  });
+});
+
 describe('PATCH /api/admin/users/:id/plan', () => {
   it('rechaza a no-admin', async () => {
     const res = await request(app)

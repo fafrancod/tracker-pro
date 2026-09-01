@@ -33,7 +33,7 @@ import { PwaUpdateBanner } from '@/components/PwaUpdateBanner';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { NotificationBootstrap } from '@/components/NotificationBootstrap';
 import { AdminHeartbeat } from '@/components/AdminHeartbeat';
-import { AdminPage } from '@/pages/AdminPage';
+import { AtenasPage } from '@/pages/AtenasPage';
 
 function AuthLoadingScreen() {
   return (
@@ -121,6 +121,9 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                   </Route>
+                  <Route path="/atenas" element={<AtenasPage />} />
+                  <Route path="/admin" element={<Navigate to="/atenas" replace />} />
+                  <Route path="/atenea" element={<Navigate to="/atenas" replace />} />
 
                   <Route element={<AuthenticatedTree />}>
                     {/* path="/" ancla el shell; hijos relativos: board, dashboard, … */}
@@ -270,23 +273,6 @@ function App() {
                           </RouteErrorBoundary>
                         }
                       />
-                      <Route
-                        path="admin"
-                        element={
-                          <RouteErrorBoundary>
-                            <AdminPage />
-                          </RouteErrorBoundary>
-                        }
-                      />
-                      <Route
-                        path="atenas"
-                        element={
-                          <RouteErrorBoundary>
-                            <AdminPage />
-                          </RouteErrorBoundary>
-                        }
-                      />
-                      <Route path="atenea" element={<Navigate to="/atenas" replace />} />
                     </Route>
                   </Route>
 
