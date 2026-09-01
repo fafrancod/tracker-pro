@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Loader2, ListChecks } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -195,6 +195,12 @@ export function LoginPage() {
             ? '¿No tienes cuenta? Crear una'
             : '¿Ya tienes cuenta? Iniciar sesión'}
         </button>
+        <Link
+          to="/privacy"
+          className="mt-3 block w-full text-center text-[11px] text-text-muted hover:text-text-primary hover:underline"
+        >
+          Política de privacidad
+        </Link>
       </div>
     </div>
   );

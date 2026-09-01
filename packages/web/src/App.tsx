@@ -2,7 +2,7 @@ import { Component, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
@@ -24,6 +24,7 @@ import { FinancesPage } from '@/pages/FinancesPage';
 import { HabitsPage } from '@/pages/HabitsPage';
 import { DocumentsPage } from '@/pages/DocumentsPage';
 import { LoginPage } from '@/pages/Login';
+import { PrivacyPage } from '@/pages/Privacy';
 import { GanttPage } from '@/pages/GanttPage';
 import { NotesPage } from '@/pages/NotesPage';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
@@ -48,6 +49,14 @@ function AuthenticatedTree() {
       <Outlet />
     </ProtectedRoute>
   );
+}
+
+/** Anónimo → login. Con sesión → board. No rebotar /* por /board. */
+function CatchAll() {
+  const { user, loading } = useAuth();
+  if (loading) return <AuthLoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to="/board" replace />;
 }
 
 /**
@@ -98,6 +107,7 @@ function App() {
                 <PwaInstallBanner />
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/privacy" element={<PrivacyPage />} />
 
                   <Route element={<AuthenticatedTree />}>
                     {/* path="/" ancla el shell; hijos relativos: board, dashboard, … */}
@@ -255,10 +265,19 @@ function App() {
                           </RouteErrorBoundary>
                         }
                       />
+                      <Route
+                        path="atenas"
+                        element={
+                          <RouteErrorBoundary>
+                            <AdminPage />
+                          </RouteErrorBoundary>
+                        }
+                      />
+                      <Route path="atenea" element={<Navigate to="/atenas" replace />} />
                     </Route>
                   </Route>
 
-                  <Route path="*" element={<Navigate to="/board" replace />} />
+                  <Route path="*" element={<CatchAll />} />
                 </Routes>
               </TooltipProvider>
             </SettingsProvider>
