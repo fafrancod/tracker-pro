@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { ApiError } from '../errors.js';
+import { redactPii } from '../lib/redactPii.js';
 import {
   mapAdminUser,
   matchesAdminFilters,
@@ -64,17 +65,19 @@ async function countByUser(table: string): Promise<Map<string, number>> {
 }
 
 async function loadCountFallback(): Promise<Map<string, UserStatRow>> {
-  const [tasks, projects, contacts, finance] = await Promise.all([
+  const [tasks, projects, contacts, finance, notes] = await Promise.all([
     countByUser('tasks'),
     countByUser('projects'),
     countByUser('contacts'),
-    countByUser('finance_entries'),
+    countByUser('finance_movements'),
+    countByUser('notes'),
   ]);
   const ids = new Set<string>([
     ...tasks.keys(),
     ...projects.keys(),
     ...contacts.keys(),
     ...finance.keys(),
+    ...notes.keys(),
   ]);
   const byUser = new Map<string, UserStatRow>();
   for (const userId of ids) {
@@ -84,6 +87,7 @@ async function loadCountFallback(): Promise<Map<string, UserStatRow>> {
       projects_count: projects.get(userId) ?? 0,
       contacts_count: contacts.get(userId) ?? 0,
       finance_count: finance.get(userId) ?? 0,
+      notes_count: notes.get(userId) ?? 0,
       total_bytes: null,
     });
   }
@@ -129,6 +133,77 @@ adminRouter.get('/users', async (req, res, next) => {
       generatedAt: new Date().toISOString(),
       onlineWindowSeconds: Math.round(ONLINE_WINDOW_MS / 1000),
       storageFromSql: snap.storageFromSql,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const ERROR_LOG_COLUMNS =
+  'id, uid, severity, operation, message, created_at, version, channel, build_id, meta';
+
+const errorsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().min(1).max(40).optional(),
+});
+
+interface ErrorLogRow {
+  id: string;
+  uid?: string | null;
+  severity?: string | null;
+  operation?: string | null;
+  message?: string | null;
+  created_at?: string | null;
+  version?: string | null;
+  channel?: string | null;
+  build_id?: string | null;
+  meta?: unknown;
+}
+
+function mapErrorLog(row: ErrorLogRow) {
+  return {
+    id: row.id,
+    uid: row.uid ?? null,
+    severity: row.severity ?? null,
+    operation: row.operation ?? null,
+    message: row.message ?? null,
+    createdAt: row.created_at ?? null,
+    version: row.version ?? null,
+    channel: row.channel ?? null,
+    buildId: row.build_id ?? null,
+    meta: row.meta != null ? redactPii(row.meta) : null,
+  };
+}
+
+adminRouter.get('/errors', async (req, res, next) => {
+  try {
+    const query = errorsQuerySchema.parse({
+      limit: req.query.limit,
+      cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
+    });
+    if (query.cursor && Number.isNaN(Date.parse(query.cursor))) {
+      throw ApiError.badRequest('cursor inválido');
+    }
+    const limit = query.limit;
+    let q = getSupabaseAdmin()
+      .from('error_logs')
+      .select(ERROR_LOG_COLUMNS)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(limit + 1);
+    if (query.cursor) {
+      q = q.lt('created_at', query.cursor);
+    }
+    const { data, error } = await q;
+    if (error) throw error;
+    const rows = Array.isArray(data) ? (data as ErrorLogRow[]) : [];
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const last = page[page.length - 1];
+    res.json({
+      errors: page.map(mapErrorLog),
+      nextCursor: hasMore && last?.created_at ? last.created_at : null,
+      limit,
     });
   } catch (err) {
     next(err);

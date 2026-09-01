@@ -147,6 +147,53 @@ describe('GET /api/admin/overview', () => {
     expect(res.body.registered).toBe(2);
     expect(res.body.totals.tasks).toBe(16);
     expect(res.body.totalStorageMb).toBe(2.25);
+    expect(Object.keys(res.body.totals).sort()).toEqual([
+      'contacts',
+      'finance',
+      'projects',
+      'tasks',
+    ]);
+  });
+});
+
+describe('GET /api/admin/errors', () => {
+  it('rechaza sin auth', async () => {
+    const res = await request(app).get('/api/admin/errors');
+    expect(res.status).toBe(401);
+  });
+
+  it('rechaza a un usuario no admin', async () => {
+    const res = await request(app)
+      .get('/api/admin/errors')
+      .set('Authorization', 'Bearer valid-token');
+    expect(res.status).toBe(403);
+  });
+
+  it('pagina fallos sin ip, stack ni montos', async () => {
+    const res = await request(app)
+      .get('/api/admin/errors?limit=1')
+      .set('Authorization', 'Bearer owner-token');
+    expect(res.status).toBe(200);
+    expect(res.body.errors).toHaveLength(1);
+    expect(res.body.nextCursor).toBe('2026-09-01T10:00:00.000Z');
+    const row = res.body.errors[0];
+    expect(row).toMatchObject({
+      id: 'err-1',
+      uid: 'admin-uid',
+      operation: 'POST /api/finances/movements',
+      createdAt: '2026-09-01T10:00:00.000Z',
+    });
+    expect(row).not.toHaveProperty('ip');
+    expect(row).not.toHaveProperty('stack');
+    expect(row).not.toHaveProperty('userAgent');
+    expect(JSON.stringify(row)).not.toMatch(/99\.5/);
+    expect(row.meta.details).toMatchObject({
+      amount: '[redacted]',
+      password: '[redacted]',
+      token: '[redacted]',
+      anonKey: '[redacted]',
+      field: 'ok',
+    });
   });
 });
 

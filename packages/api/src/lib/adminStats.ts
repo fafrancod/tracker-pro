@@ -27,6 +27,7 @@ export interface UserStatRow {
   projects_count?: number | string | null;
   contacts_count?: number | string | null;
   finance_count?: number | string | null;
+  notes_count?: number | string | null;
   total_bytes?: number | string | null;
 }
 

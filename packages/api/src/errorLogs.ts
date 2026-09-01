@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from './supabaseAdmin.js';
 import { config } from './config.js';
 import { logger } from './logger.js';
+import { redactPii } from './lib/redactPii.js';
 import type { ErrorSeverity } from './errors.js';
 
 export interface ErrorLogPayload {
@@ -22,7 +23,7 @@ export async function logError(payload: ErrorLogPayload): Promise<void> {
       operation: payload.operation,
       message: payload.message,
       stack: payload.stack ?? null,
-      meta: payload.meta ?? null,
+      meta: payload.meta ? redactPii(payload.meta) : null,
       user_agent: payload.userAgent ?? null,
       ip: payload.ip ?? null,
       version: config.version,

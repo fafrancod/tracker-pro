@@ -56,6 +56,31 @@ describe('POST /api/auth/bootstrap', () => {
   });
 });
 
+describe('DELETE /api/auth/me', () => {
+  it('rechaza sin auth', async () => {
+    const res = await request(app).delete('/api/auth/me').send({ email: 'test@example.com' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rechaza si el email no coincide', async () => {
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ email: 'otro@example.com' });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('forbidden');
+  });
+
+  it('borra la cuenta cuando el email coincide (sin body)', async () => {
+    const res = await request(app)
+      .delete('/api/auth/me')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ email: 'TEST@example.com' });
+    expect(res.status).toBe(204);
+    expect(res.body).toEqual({});
+  });
+});
+
 describe('rutas inexistentes', () => {
   it('devuelve 404 con estructura de error normalizada', async () => {
     const res = await request(app).get('/api/nope');

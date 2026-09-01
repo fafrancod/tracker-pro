@@ -17,6 +17,39 @@ const presenceSchema = z.object({
   platform: z.enum(['web', 'native']).optional(),
 });
 
+const deleteMeSchema = z.object({
+  email: z.string().trim().min(3).max(320),
+});
+
+authRouter.delete(
+  '/me',
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 3 }),
+  async (req, res, next) => {
+    try {
+      const { uid, email } = req.user!;
+      const body = deleteMeSchema.parse(req.body ?? {});
+      const expected = (email ?? '').trim().toLowerCase();
+      if (!expected || body.email.trim().toLowerCase() !== expected) {
+        throw ApiError.forbidden('El email no coincide');
+      }
+
+      const admin = getSupabaseAdmin();
+      const { error: anonError } = await admin
+        .from('error_logs')
+        .update({ uid: null, ip: null, user_agent: null })
+        .eq('uid', uid);
+      if (anonError) throw anonError;
+
+      const { error: deleteError } = await admin.auth.admin.deleteUser(uid);
+      if (deleteError) throw deleteError;
+
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 authRouter.post('/presence', async (req, res, next) => {
   try {
     const { uid } = req.user!;

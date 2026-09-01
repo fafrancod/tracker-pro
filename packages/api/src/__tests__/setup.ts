@@ -32,6 +32,42 @@ export const MOCK_PROFILES = [
   },
 ];
 
+export const MOCK_ERROR_LOGS = [
+  {
+    id: 'err-1',
+    uid: 'admin-uid',
+    severity: 'high',
+    operation: 'POST /api/finances/movements',
+    message: 'Invalid payload',
+    stack: 'Error: secret-stack',
+    meta: {
+      code: 'bad_request',
+      details: { amount: 99.5, password: 'pw', token: 'abc', anonKey: 'key', field: 'ok' },
+    },
+    user_agent: 'Mozilla/5.0',
+    ip: '203.0.113.10',
+    version: '2.39.3',
+    channel: 'prod',
+    build_id: 'b1',
+    created_at: '2026-09-01T10:00:00.000Z',
+  },
+  {
+    id: 'err-2',
+    uid: 'other-uid',
+    severity: 'medium',
+    operation: 'GET /api/tasks',
+    message: 'Not found',
+    stack: null,
+    meta: null,
+    user_agent: 'okhttp',
+    ip: '198.51.100.2',
+    version: '2.39.3',
+    channel: 'prod',
+    build_id: 'b1',
+    created_at: '2026-08-31T10:00:00.000Z',
+  },
+];
+
 export const MOCK_USER_STATS = [
   {
     user_id: 'admin-uid',
@@ -64,6 +100,12 @@ function chainable(result: unknown = { data: null, error: null, count: 0 }) {
   chain.delete = vi.fn(self);
   chain.upsert = vi.fn(async () => ({ data: null, error: null }));
   chain.order = vi.fn(self);
+  chain.limit = vi.fn(self);
+  chain.lt = vi.fn(self);
+  chain.lte = vi.fn(self);
+  chain.gt = vi.fn(self);
+  chain.gte = vi.fn(self);
+  chain.is = vi.fn(self);
   chain.get = vi.fn(async () => result);
   chain.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
     Promise.resolve(result).then(resolve, reject);
@@ -123,6 +165,9 @@ vi.mock('../supabaseAdmin', () => {
   return {
     getSupabaseAdmin: vi.fn(() => ({
       auth: {
+        admin: {
+          deleteUser: vi.fn(async () => ({ data: { user: null }, error: null })),
+        },
         getUser: vi.fn(async (token: string) => {
           if (token === 'valid-token') {
             return {
@@ -170,6 +215,9 @@ vi.mock('../supabaseAdmin', () => {
         return { data: null, error: new Error(`unknown rpc ${name}`) };
       }),
       from: vi.fn((table: string) => {
+        if (table === 'error_logs') {
+          return chainable({ data: MOCK_ERROR_LOGS, error: null });
+        }
         if (table === 'profiles') {
           return listChain;
         }

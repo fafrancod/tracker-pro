@@ -313,6 +313,9 @@ create table if not exists public.error_logs (
   created_at timestamptz not null default now()
 );
 
+create index if not exists error_logs_created_at_idx
+  on public.error_logs (created_at desc);
+
 -- Entregas de notificaciones (dedupe email / canales servidor)
 create table if not exists public.notification_deliveries (
   id text primary key,
@@ -706,6 +709,8 @@ alter table public.profiles add column if not exists last_platform text;
 create index if not exists profiles_last_seen_idx
   on public.profiles (last_seen_at desc);
 
+drop function if exists public.admin_user_stats();
+
 create or replace function public.admin_user_stats()
 returns table (
   user_id uuid,
@@ -719,7 +724,9 @@ returns table (
   finance_bytes bigint,
   deliveries_bytes bigint,
   profile_bytes bigint,
-  total_bytes bigint
+  total_bytes bigint,
+  notes_count bigint,
+  notes_bytes bigint
 )
 language sql
 stable
@@ -743,7 +750,10 @@ as $$
       + coalesce(c.bytes, 0)
       + coalesce(f.bytes, 0)
       + coalesce(d.bytes, 0)
-      + coalesce(pg_column_size(p.*), 0)::bigint
+      + coalesce(n.bytes, 0)
+      + coalesce(pg_column_size(p.*), 0)::bigint,
+    coalesce(n.cnt, 0),
+    coalesce(n.bytes, 0)
   from public.profiles p
   left join (
     select user_id,
@@ -770,9 +780,17 @@ as $$
     select user_id,
            count(*)::bigint as cnt,
            coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
-    from public.finance_entries x
+    from public.finance_movements x
+    where x.deleted_at is null
     group by user_id
   ) f on f.user_id = p.id
+  left join (
+    select user_id,
+           count(*)::bigint as cnt,
+           coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
+    from public.notes x
+    group by user_id
+  ) n on n.user_id = p.id
   left join (
     select user_id,
            coalesce(sum(pg_column_size(x.*)), 0)::bigint as bytes
