@@ -4,8 +4,30 @@ import { config } from '../config.js';
 /**
  * Config pública para el frontend (sin secrets).
  * La anon key de Supabase es publicable; la service_role NUNCA va aquí.
+ *
+ * brand / publicAppUrl / landingEnabled / playStoreUrl son aditivos: clientes
+ * viejos los ignoran. LANDING_ENABLED y PLAY_STORE_URL se leen en el request
+ * para poder encender la landing sin rebuild del APK.
  */
 export const publicConfigRouter = Router();
+
+function envFlag(name: string, defaultValue = false): boolean {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return defaultValue;
+  return raw.toLowerCase() === 'true';
+}
+
+function resolvePublicAppUrl(): string {
+  const fromEnv = config.email.appUrl.trim().replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+  const httpsOrigin = config.allowedOrigins.find((origin) => origin.startsWith('https://'));
+  return (httpsOrigin ?? config.allowedOrigins[0] ?? '').replace(/\/$/, '');
+}
+
+function resolvePlayStoreUrl(): string | null {
+  const raw = process.env.PLAY_STORE_URL?.trim();
+  return raw ? raw : null;
+}
 
 publicConfigRouter.get('/', (_req, res) => {
   const supabaseUrl = config.supabase.url ?? null;
@@ -24,5 +46,9 @@ publicConfigRouter.get('/', (_req, res) => {
      */
     googleAuth: 'supabase-provider',
     docsAuthEmail: '/docs/AUTH_AND_EMAIL.md',
+    brand: config.email.appName,
+    publicAppUrl: resolvePublicAppUrl(),
+    landingEnabled: envFlag('LANDING_ENABLED', false),
+    playStoreUrl: resolvePlayStoreUrl(),
   });
 });

@@ -44,7 +44,10 @@ Variables del servicio:
 | `NODE_ENV` | runtime | `production` |
 | `RESEND_API_KEY` | runtime (email) | Notificaciones por correo |
 | `EMAIL_FROM` | runtime (email) | Remitente con dominio verificado en Resend |
-| `APP_PUBLIC_URL` | runtime | URL pública de la app (enlaces en emails) |
+| `APP_PUBLIC_URL` | runtime | URL pública de la app (emails + `public-config.publicAppUrl`) |
+| `APP_NAME` | runtime | Nombre visible (emails + `public-config.brand`). Default `Daily Tracker` |
+| `LANDING_ENABLED` | runtime | Default `false`. Encender landing sin rebuild del APK |
+| `PLAY_STORE_URL` | runtime (opcional) | URL de Play; si falta, `public-config.playStoreUrl` es `null` |
 
 Tras el deploy: abre `https://tu-app.up.railway.app/` → UI. Health: `/api/version`.
 
