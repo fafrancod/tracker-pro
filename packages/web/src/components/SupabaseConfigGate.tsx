@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { ListChecks, Play, Settings as SettingsIcon } from 'lucide-react';
 import { isDemoMode } from '@core/lib/demoMode';
 import { enableDemo, isSupabaseReady } from '@/lib/supabase';
+import { getBrandName } from '@/lib/publicConfig';
 import { Button } from '@/components/ui/button';
 import { SupabaseConfigForm } from './SupabaseConfigForm';
 
@@ -26,7 +27,7 @@ export function SupabaseConfigGate({ children }: { children: ReactNode }) {
       <div className="w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-xl">
         <div className="mb-4 flex items-center gap-2">
           <ListChecks className="h-6 w-6 text-accent-teal" />
-          <h1 className="text-base font-bold text-text-primary">Daily Tracker</h1>
+          <h1 className="text-base font-bold text-text-primary">{getBrandName()}</h1>
         </div>
 
         {mode === 'menu' ? (

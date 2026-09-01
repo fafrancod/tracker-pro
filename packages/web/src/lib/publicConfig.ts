@@ -1,3 +1,4 @@
+import { APP_BRAND } from '@core/lib/brand';
 import { isNativePlatform } from '@/lib/capacitor';
 
 export interface PublicConfigPayload {
@@ -18,7 +19,7 @@ export interface PublicAppConfig {
 }
 
 const DEFAULTS: PublicAppConfig = {
-  brand: 'Daily Tracker',
+  brand: APP_BRAND,
   publicAppUrl: '',
   landingEnabled: false,
   playStoreUrl: null,

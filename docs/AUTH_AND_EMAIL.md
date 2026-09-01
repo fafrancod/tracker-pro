@@ -24,16 +24,16 @@ Código relevante:
 ### 1.1 Resend
 1. Cuenta en [resend.com](https://resend.com).
 2. Añade y verifica un **dominio** (SPF + DKIM; DMARC recomendado).
-3. Remitente de prod, p. ej. `Daily Tracker <noreply@tudominio.com>`.
+3. Remitente de prod, p. ej. `Meteora <noreply@tudominio.com>`.
 4. En desarrollo sin dominio: `onboarding@resend.dev` solo envía a destinatarios de prueba de Resend.
 
 ### 1.2 Railway (servicio API / monorepo)
 
 ```env
 RESEND_API_KEY=re_xxxxxxxx
-EMAIL_FROM=Daily Tracker <noreply@tudominio.com>
+EMAIL_FROM=Meteora <noreply@tudominio.com>
 APP_PUBLIC_URL=https://tu-dominio-prod
-APP_NAME=Daily Tracker
+APP_NAME=Meteora
 RUN_EMBEDDED_WORKER=true
 NOTIFICATIONS_INTERVAL_MS=60000
 ```

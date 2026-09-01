@@ -1,5 +1,5 @@
 ﻿/**
- * Skins for Daily Tracker:
+ * Skins for Meteora:
  * - 20 dark solid
  * - 20 light solid
  * - 10 Liquid Glass light + 10 Liquid Glass dark

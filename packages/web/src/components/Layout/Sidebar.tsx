@@ -37,6 +37,7 @@ import { userAvatarUrl, userDisplayName } from '@/lib/userDisplay';
 import type { TKey } from '@/lib/i18n';
 import { GlassPanel } from '@/components/ui/glass-panel';
 import { isAdminUser } from '@core/lib/adminPortal';
+import { getBrandName } from '@/lib/publicConfig';
 import { requestFocusToday } from '@/lib/calendarToday';
 
 export interface NavItem {
@@ -366,7 +367,7 @@ export function Sidebar({
         <CalendarDays className="h-5 w-5 shrink-0 text-accent-teal" />
         {collapsed ? null : (
           <span className="min-w-0 flex-1 truncate text-sm font-bold tracking-tight text-text-primary">
-            Daily Tracker
+            {getBrandName()}
           </span>
         )}
         {variant === 'desktop' && onToggleCollapse ? (

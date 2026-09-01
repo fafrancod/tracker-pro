@@ -14,7 +14,7 @@ const liveReloadUrl = process.env.CAP_SERVER_URL;
 
 const config: CapacitorConfig = {
   appId: 'com.cerebrostudios.dailytracker',
-  appName: 'Daily Tracker',
+  appName: 'Meteora',
   webDir: 'dist',
   android: {
     allowMixedContent: false,

@@ -2,6 +2,8 @@
 
 This file applies to **all coding agents** working in this repository (Claude Code, Grok, Cursor, Codex, etc.).
 
+**Producto visible: Meteora.** Repo, npm (`daily-tracker`, `@daily-tracker/*`), keys `daily-tracker:*`, canal `daily-tracker-reminders`, `service: daily-tracker-api` y `applicationId` `com.cerebrostudios.dailytracker` **no se renombran**. Copy de UI en castellano (tú).
+
 ## Primary rule: main only + both remotes
 
 **Always implement on `main`. Always push completed work to BOTH remotes.**

@@ -248,8 +248,8 @@ export async function sendTestEmailToUser(opts: {
       : `${config.email.appName}: notificación de prueba`;
   const body =
     language === 'en'
-      ? 'This is a test email from Daily Tracker.'
-      : 'Este es un correo de prueba de Daily Tracker.';
+      ? `This is a test email from ${config.email.appName}.`
+      : `Este es un correo de prueba de ${config.email.appName}.`;
   const html = reminderEmailHtml({
     userName: opts.name || opts.email.split('@')[0],
     title: language === 'en' ? 'Test reminder' : 'Recordatorio de prueba',

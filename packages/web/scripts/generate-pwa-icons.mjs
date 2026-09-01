@@ -11,13 +11,19 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const outDir = join(__dirname, '../public/icons');
 mkdirSync(outDir, { recursive: true });
 
+/** Meteora mark: mountain range (not a $). */
+function mountainGroup() {
+  return `<path d="M64 416 L160 176 L256 336 L352 112 L448 416 Z" fill="#58a6ff"/>
+  <path d="M288 416 L352 112 L448 416 Z" fill="#3fb950"/>
+  <circle cx="400" cy="128" r="24" fill="#e6edf3"/>`;
+}
+
 /** Full-bleed icon (for purpose: any). */
 function svgAny(size) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="112" fill="#0d1117"/>
-  <path d="M128 176 L224 272 L384 112" stroke="#58a6ff" stroke-width="48" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M128 352 L192 416 L320 288" stroke="#3fb950" stroke-width="48" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  ${mountainGroup()}
 </svg>`;
 }
 
@@ -30,8 +36,7 @@ function svgMaskable(size) {
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#0d1117"/>
   <g transform="translate(56,56) scale(0.78)">
-    <path d="M128 176 L224 272 L384 112" stroke="#58a6ff" stroke-width="48" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M128 352 L192 416 L320 288" stroke="#3fb950" stroke-width="48" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    ${mountainGroup()}
   </g>
 </svg>`;
 }

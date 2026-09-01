@@ -1,6 +1,6 @@
 # Daily Tracker
 
-Planificador semanal de tareas. Monorepo npm workspaces: `packages/core`, `packages/web`, `packages/api`.
+Producto visible: **Meteora**. Repo: `daily-tracker`. Planificador semanal de tareas. Monorepo npm workspaces: `packages/core`, `packages/web`, `packages/api`.
 
 **Stack:** React + Vite + Express + **Supabase** (Auth + PostgreSQL)
 
@@ -45,7 +45,7 @@ Variables del servicio:
 | `RESEND_API_KEY` | runtime (email) | Notificaciones por correo |
 | `EMAIL_FROM` | runtime (email) | Remitente con dominio verificado en Resend |
 | `APP_PUBLIC_URL` | runtime | URL pública de la app (emails + `public-config.publicAppUrl`) |
-| `APP_NAME` | runtime | Nombre visible (emails + `public-config.brand`). Default `Daily Tracker` |
+| `APP_NAME` | runtime | Nombre visible (emails + `public-config.brand`). Default `Meteora` |
 | `LANDING_ENABLED` | runtime | Default `false`. Encender landing sin rebuild del APK |
 | `PLAY_STORE_URL` | runtime (opcional) | URL de Play; si falta, `public-config.playStoreUrl` es `null` |
 
@@ -57,7 +57,7 @@ Auth Google y correo: [`docs/AUTH_AND_EMAIL.md`](docs/AUTH_AND_EMAIL.md).
 
 1. Despliega con **HTTPS** (Railway u otro host).
 2. En el teléfono, abre la URL con **Chrome**.
-3. Si aparece el banner **Instalar Daily Tracker**, pulsa **Instalar**.  
+3. Si aparece el banner **Instalar Meteora**, pulsa **Instalar**.  
    Si no: menú ⋮ → **Instalar app** / **Añadir a la pantalla de inicio**.
 4. El icono abre el board en modo pantalla completa (`standalone`).
 

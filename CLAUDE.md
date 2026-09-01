@@ -1,6 +1,8 @@
-# Daily Tracker — Claude / Agent instructions
+# Daily Tracker (producto: Meteora) — Claude / Agent instructions
 
 Project monorepo: `packages/web` (React + Vite + PWA + Capacitor), `packages/api` (Express), `packages/core` (shared), `supabase/schema.sql`.
+
+Visible UI name is **Meteora**. Do not rename npm packages, remotes, storage keys, notification channel, API `service`, or `applicationId`.
 
 ## Language
 

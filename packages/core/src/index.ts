@@ -58,6 +58,7 @@ export * from './lib/civilDate';
 export * from './lib/calendarScroll';
 export * from './lib/network';
 export * from './lib/taskCache';
+export * from './lib/brand';
 export * from './lib/offlineQueue';
 export * from './offline/bootstrap';
 export * from './history/historyStore';

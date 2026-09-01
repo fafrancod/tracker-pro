@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ListChecks } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { getBrandName } from '@/lib/publicConfig';
 
 const COPY = {
   es: {
@@ -66,7 +67,7 @@ export function PrivacyPage() {
       <article className="mx-auto w-full max-w-2xl rounded-2xl border border-border bg-surface p-6 shadow-xl">
         <div className="mb-6 flex items-center gap-2">
           <ListChecks className="h-6 w-6 text-accent-teal" />
-          <p className="text-sm font-bold tracking-tight text-text-primary">Daily Tracker</p>
+          <p className="text-sm font-bold tracking-tight text-text-primary">{getBrandName()}</p>
         </div>
         <h1 className="text-xl font-semibold text-text-primary">{copy.title}</h1>
         <p className="mt-1 text-xs text-text-muted">{copy.updated}</p>

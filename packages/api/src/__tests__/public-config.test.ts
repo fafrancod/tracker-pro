@@ -29,7 +29,7 @@ describe('GET /api/public-config', () => {
       landingEnabled: false,
       playStoreUrl: null,
     });
-    expect(res.body.brand).toBe('Daily Tracker');
+    expect(res.body.brand).toBe('Meteora');
     expect(res.body).toHaveProperty('supabaseUrl');
     expect(res.body).toHaveProperty('supabaseAnonKey');
   });

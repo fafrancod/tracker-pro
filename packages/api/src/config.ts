@@ -60,8 +60,8 @@ export const config = {
   email: {
     /** Resend API key. Sin key → email deshabilitado (local/tests). */
     resendApiKey: process.env.RESEND_API_KEY ?? '',
-    from: process.env.EMAIL_FROM ?? 'Daily Tracker <onboarding@resend.dev>',
-    appName: process.env.APP_NAME ?? 'Daily Tracker',
+    from: process.env.EMAIL_FROM ?? 'Meteora <onboarding@resend.dev>',
+    appName: process.env.APP_NAME ?? 'Meteora',
     appUrl: process.env.APP_PUBLIC_URL ?? process.env.ALLOWED_ORIGINS?.split(',')[0] ?? '',
   },
   /** Header x-cron-secret o Authorization Bearer para POST /api/notifications/dispatch */
