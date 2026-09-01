@@ -372,6 +372,7 @@ alter table public.error_logs enable row level security;
 revoke all privileges on table public.usage_counters from anon, authenticated;
 revoke all privileges on table public.usage_events from anon, authenticated;
 revoke all privileges on table public.error_logs from anon, authenticated;
+revoke all privileges on table public.notification_deliveries from anon, authenticated;
 
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);

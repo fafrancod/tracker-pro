@@ -1,6 +1,33 @@
 -- Ola 1 Meteora Pro.
 -- Pegar en el SQL editor de Supabase ANTES de fiarse de Atenas Analytics / Fallos.
--- Aditivo: no reescribe tablas de finanzas. Índice barato en error_logs.
+-- Aditivo: no reescribe tablas de finanzas. Idempotente (re-ejecutar si el DROP
+-- ya corrió y el CREATE FUNCTION falló por falta de notification_deliveries).
+--
+-- Prod puede no tener notification_deliveries: vive en schema.sql pero nunca
+-- tuvo migración propia. El worker de email la necesita igual.
+
+create table if not exists public.notification_deliveries (
+  id text primary key,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  task_id text not null,
+  channel text not null check (channel in ('email')),
+  fire_key text not null,
+  scheduled_for timestamptz not null,
+  sent_at timestamptz not null default now(),
+  status text not null default 'sent'
+    check (status in ('sent', 'failed', 'skipped')),
+  error text,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists notification_deliveries_user_fire_key_idx
+  on public.notification_deliveries (user_id, fire_key);
+
+create index if not exists notification_deliveries_user_sent_idx
+  on public.notification_deliveries (user_id, sent_at desc);
+
+alter table public.notification_deliveries enable row level security;
+revoke all privileges on table public.notification_deliveries from anon, authenticated;
 
 create index if not exists error_logs_created_at_idx
   on public.error_logs (created_at desc);
