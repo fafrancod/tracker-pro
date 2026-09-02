@@ -615,6 +615,10 @@ export interface TranslationDict {
   board_filter_kind_tasks: string;
   board_filter_projects_n: string;
   board_filter_all_projects: string;
+  board_filter_none_projects: string;
+  board_filter_none: string;
+  board_filter_expand_projects: string;
+  board_filter_collapse_projects: string;
   board_filter_show: string;
   board_filter_category: string;
   board_filter_category_all: string;
@@ -2037,6 +2041,10 @@ const es_dict: TranslationDict = {
   board_filter_kind_tasks: 'Tareas',
   board_filter_projects_n: '{n} proyectos',
   board_filter_all_projects: 'Todos los proyectos',
+  board_filter_none_projects: 'Ningún proyecto',
+  board_filter_none: 'Ninguno',
+  board_filter_expand_projects: 'Mostrar proyectos',
+  board_filter_collapse_projects: 'Ocultar proyectos',
   board_filter_show: 'Ver',
   board_filter_category: 'Categoría',
   board_filter_category_all: 'Todo',
@@ -3523,6 +3531,10 @@ const en_dict: TranslationDict = {
   board_filter_kind_tasks: 'Tasks',
   board_filter_projects_n: '{n} projects',
   board_filter_all_projects: 'All projects',
+  board_filter_none_projects: 'No projects',
+  board_filter_none: 'None',
+  board_filter_expand_projects: 'Show projects',
+  board_filter_collapse_projects: 'Hide projects',
   board_filter_show: 'Show',
   board_filter_category: 'Category',
   board_filter_category_all: 'All',
