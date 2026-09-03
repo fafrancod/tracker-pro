@@ -1,20 +1,23 @@
 import { mergeAttributes } from '@tiptap/core';
 import Image from '@tiptap/extension-image';
+import { Plugin } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
 import { ResizableImageView } from './ResizableImageView';
 import {
+  isFreeImage,
   isNoteImageAlign,
-  isNoteImageWrap,
+  isNoteImageLayout,
+  parseCoord,
   parsePxAttr,
   type NoteImageAlign,
-  type NoteImageWrap,
+  type NoteImageLayout,
 } from './noteImageLayout';
-import { duplicateImageAt } from './noteImageInsert';
+import { duplicateImageAt, updateCanvasExtent } from './noteImageInsert';
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     resizableImage: {
-      setImageWrap: (wrap: NoteImageWrap) => ReturnType;
+      setImageLayout: (layout: NoteImageLayout) => ReturnType;
       setImageAlign: (align: NoteImageAlign) => ReturnType;
       duplicateImage: () => ReturnType;
     };
@@ -36,15 +39,33 @@ export const ResizableImage = Image.extend({
         renderHTML: attributes =>
           attributes.width ? { width: String(attributes.width) } : {},
       },
-      wrap: {
-        default: 'block' satisfies NoteImageWrap,
+      layout: {
+        default: 'flow' satisfies NoteImageLayout,
         parseHTML: element => {
-          const value = element.getAttribute('data-wrap');
-          return isNoteImageWrap(value) ? value : 'block';
+          const value = element.getAttribute('data-layout');
+          return isNoteImageLayout(value) ? value : 'flow';
         },
         renderHTML: attributes => ({
-          'data-wrap': isNoteImageWrap(attributes.wrap) ? attributes.wrap : 'block',
+          'data-layout': isFreeImage(attributes) ? 'free' : 'flow',
         }),
+      },
+      x: {
+        default: null,
+        parseHTML: element => parseCoord(element.getAttribute('data-x')),
+        renderHTML: attributes =>
+          attributes.x == null ? {} : { 'data-x': String(attributes.x) },
+      },
+      y: {
+        default: null,
+        parseHTML: element => parseCoord(element.getAttribute('data-y')),
+        renderHTML: attributes =>
+          attributes.y == null ? {} : { 'data-y': String(attributes.y) },
+      },
+      z: {
+        default: 1,
+        parseHTML: element => parseCoord(element.getAttribute('data-z')) ?? 1,
+        renderHTML: attributes =>
+          attributes.z && attributes.z !== 1 ? { 'data-z': String(attributes.z) } : {},
       },
       align: {
         default: 'center' satisfies NoteImageAlign,
@@ -55,15 +76,6 @@ export const ResizableImage = Image.extend({
         renderHTML: attributes => ({
           'data-align': isNoteImageAlign(attributes.align) ? attributes.align : 'center',
         }),
-      },
-      indent: {
-        default: 0,
-        parseHTML: element => {
-          const n = parseInt(element.getAttribute('data-indent') || '', 10);
-          return Number.isFinite(n) && n > 0 ? n : 0;
-        },
-        renderHTML: attributes =>
-          attributes.indent ? { 'data-indent': String(attributes.indent) } : {},
       },
     };
   },
@@ -94,21 +106,26 @@ export const ResizableImage = Image.extend({
         commands.insertContent({
           type: this.name,
           attrs: {
-            wrap: 'block' as NoteImageWrap,
-            align: 'center' as NoteImageAlign,
-            indent: 0,
+            layout: 'flow',
+            x: null,
+            y: null,
+            z: 1,
+            align: 'center',
             width: null,
             ...options,
           },
         }),
-      setImageWrap:
-        wrap =>
+      setImageLayout:
+        layout =>
         ({ commands }) =>
-          commands.updateAttributes(this.name, { wrap, indent: 0 }),
+          commands.updateAttributes(this.name, {
+            layout,
+            ...(layout === 'flow' ? { x: null, y: null } : {}),
+          }),
       setImageAlign:
         align =>
         ({ commands }) =>
-          commands.updateAttributes(this.name, { align, wrap: 'block', indent: 0 }),
+          commands.updateAttributes(this.name, { align }),
       duplicateImage:
         () =>
         ({ editor }) => {
@@ -125,19 +142,34 @@ export const ResizableImage = Image.extend({
     };
   },
 
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        view() {
+          return {
+            update(view) {
+              updateCanvasExtent(view);
+            },
+          };
+        },
+      }),
+    ];
+  },
+
   addNodeView() {
     return ReactNodeViewRenderer(ResizableImageView, {
       className: 'note-image-node',
       attrs: ({ node }) => {
-        const wrap = isNoteImageWrap(node.attrs.wrap) ? node.attrs.wrap : 'block';
-        const align = isNoteImageAlign(node.attrs.align) ? node.attrs.align : 'center';
-        const indent = Number(node.attrs.indent) || 0;
+        const free = isFreeImage(node.attrs);
+        const x = parseCoord(node.attrs.x);
+        const y = parseCoord(node.attrs.y);
+        const z = Number(node.attrs.z) || 1;
         const style: string[] = [];
-        if (wrap === 'left' && indent > 0) style.push(`margin-left:${indent}px`);
-        if (wrap === 'right' && indent > 0) style.push(`margin-right:${indent}px`);
+        if (free && x != null && y != null) {
+          style.push(`left:${x}px`, `top:${y}px`, `z-index:${z}`);
+        }
         return {
-          'data-wrap': wrap,
-          'data-align': align,
+          'data-layout': free ? 'free' : 'flow',
           'data-note-image': '1',
           style: style.join(';'),
         };

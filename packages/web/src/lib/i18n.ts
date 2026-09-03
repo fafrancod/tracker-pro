@@ -831,6 +831,9 @@ export interface TranslationDict {
   notes_image_compressing: string;
   notes_image_paste_hint: string;
   notes_image_resize: string;
+  notes_image_layout: string;
+  notes_image_layout_free: string;
+  notes_image_layout_flow: string;
   notes_image_wrap: string;
   notes_image_wrap_left: string;
   notes_image_wrap_right: string;
@@ -2307,8 +2310,11 @@ const es_dict: TranslationDict = {
   notes_image_error: 'No pude añadir la imagen',
   notes_image_not_image: 'Solo se admiten imágenes',
   notes_image_compressing: 'Procesando imagen…',
-  notes_image_paste_hint: 'Arrastra, redimensiona o Ctrl+V',
+  notes_image_paste_hint: 'Arrastra para colocar · Alt suelta las guías',
   notes_image_resize: 'Redimensionar',
+  notes_image_layout: 'Disposición',
+  notes_image_layout_free: 'Libre (lienzo)',
+  notes_image_layout_flow: 'En línea',
   notes_image_wrap: 'Ajuste del texto',
   notes_image_wrap_left: 'Ajustar a la izquierda',
   notes_image_wrap_right: 'Ajustar a la derecha',
@@ -3829,8 +3835,11 @@ const en_dict: TranslationDict = {
   notes_image_error: 'Could not add the image',
   notes_image_not_image: 'Only images are allowed',
   notes_image_compressing: 'Processing image…',
-  notes_image_paste_hint: 'Drag, resize or Ctrl+V',
+  notes_image_paste_hint: 'Drag to place · Alt disables guides',
   notes_image_resize: 'Resize',
+  notes_image_layout: 'Layout',
+  notes_image_layout_free: 'Free (canvas)',
+  notes_image_layout_flow: 'In line',
   notes_image_wrap: 'Text wrapping',
   notes_image_wrap_left: 'Wrap left',
   notes_image_wrap_right: 'Wrap right',

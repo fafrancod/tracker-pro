@@ -564,6 +564,7 @@ html[data-material='glass'] {
 
 /* Editor de ideas (TipTap / estilo documento) */
 .note-editor .ProseMirror {
+  position: relative;
   min-height: 100%;
   padding: 1.5rem 1.75rem 3rem;
   color: var(--color-text-primary);
@@ -611,52 +612,25 @@ html[data-material='glass'] {
   pointer-events: none;
   color: var(--color-text-muted);
 }
-.note-editor .ProseMirror::after {
-  content: '';
-  display: table;
-  clear: both;
-}
-
 .note-editor .ProseMirror .note-image-node {
   max-width: 100%;
   line-height: 0;
   width: max-content;
+  float: none;
+  clear: none;
 }
 .note-editor .ProseMirror .note-image-node.ProseMirror-selectednode {
   outline: none;
 }
-.note-editor .ProseMirror .note-image-node[data-wrap='left'] {
-  float: left;
-  margin: 0.35em 1.1em 0.85em 0;
-  max-width: min(72%, 100%);
-  shape-outside: border-box;
-  shape-margin: 0.5rem;
+.note-editor .ProseMirror .note-image-node[data-layout='flow'] {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0.35em 0.7em 0.55em 0;
 }
-.note-editor .ProseMirror .note-image-node[data-wrap='right'] {
-  float: right;
-  margin: 0.35em 0 0.85em 1.1em;
-  max-width: min(72%, 100%);
-  shape-outside: border-box;
-  shape-margin: 0.5rem;
-}
-.note-editor .ProseMirror .note-image-node[data-wrap='block'] {
-  float: none;
-  clear: both;
-  display: block;
-  margin: 0.85em 0;
-  max-width: 100%;
-}
-.note-editor .ProseMirror .note-image-node[data-wrap='block'][data-align='left'] {
-  margin-left: 0;
-  margin-right: auto;
-}
-.note-editor .ProseMirror .note-image-node[data-wrap='block'][data-align='center'] {
-  margin-left: auto;
-  margin-right: auto;
-}
-.note-editor .ProseMirror .note-image-node[data-wrap='block'][data-align='right'] {
-  margin-left: auto;
-  margin-right: 0;
+.note-editor .ProseMirror .note-image-node[data-layout='free'] {
+  position: absolute;
+  margin: 0;
+  z-index: 2;
 }
 
 .note-image-shell {
@@ -676,7 +650,7 @@ html[data-material='glass'] {
   cursor: grab;
 }
 .note-image-frame.is-placing {
-  opacity: 0.35;
+  cursor: grabbing;
 }
 .note-image-frame img,
 .note-editor .note-image-frame .note-editor-image {
@@ -790,22 +764,18 @@ html[data-material='glass'] {
   z-index: 80;
   pointer-events: none;
 }
-.note-image-ghost {
+.note-image-guide {
   position: fixed;
-  border: 2px dashed var(--color-accent-teal);
-  border-radius: 0.55rem;
-  background: color-mix(in srgb, var(--color-accent-teal) 14%, transparent);
+  z-index: 90;
+  pointer-events: none;
+  background: #e11d8a;
+  box-shadow: 0 0 0 0.5px #fff;
 }
-.note-image-place-chip {
-  position: fixed;
-  padding: 0.2rem 0.5rem;
-  border-radius: 999px;
-  background: var(--color-accent-teal);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+.note-image-guide.is-x {
+  width: 1px;
+}
+.note-image-guide.is-y {
+  height: 1px;
 }
 
 .note-image-menu {
