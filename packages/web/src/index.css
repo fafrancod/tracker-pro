@@ -611,12 +611,263 @@ html[data-material='glass'] {
   pointer-events: none;
   color: var(--color-text-muted);
 }
-.note-editor .ProseMirror img,
-.note-editor .ProseMirror .note-editor-image {
-  display: block;
+.note-editor .ProseMirror::after {
+  content: '';
+  display: table;
+  clear: both;
+}
+
+.note-editor .ProseMirror .note-image-node {
   max-width: 100%;
+  line-height: 0;
+  width: max-content;
+}
+.note-editor .ProseMirror .note-image-node.ProseMirror-selectednode {
+  outline: none;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='left'] {
+  float: left;
+  margin: 0.35em 1.1em 0.85em 0;
+  max-width: min(72%, 100%);
+  shape-outside: border-box;
+  shape-margin: 0.5rem;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='right'] {
+  float: right;
+  margin: 0.35em 0 0.85em 1.1em;
+  max-width: min(72%, 100%);
+  shape-outside: border-box;
+  shape-margin: 0.5rem;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='block'] {
+  float: none;
+  clear: both;
+  display: block;
+  margin: 0.85em 0;
+  max-width: 100%;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='block'][data-align='left'] {
+  margin-left: 0;
+  margin-right: auto;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='block'][data-align='center'] {
+  margin-left: auto;
+  margin-right: auto;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='block'][data-align='right'] {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.note-image-shell {
+  display: inline-block;
+  max-width: 100%;
+}
+.note-image-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  line-height: 0;
+  vertical-align: top;
+  user-select: none;
+  cursor: grab;
+}
+.note-image-frame.is-selected {
+  cursor: grab;
+}
+.note-image-frame.is-placing {
+  opacity: 0.35;
+}
+.note-image-frame img,
+.note-editor .note-image-frame .note-editor-image {
+  display: block;
+  width: 100%;
   height: auto;
-  margin: 0.75em 0;
+  max-width: 100%;
+  margin: 0;
   border-radius: 0.5rem;
   border: 1px solid var(--color-border);
+  pointer-events: none;
+}
+.note-image-frame.is-selected {
+  outline: 2px solid var(--color-accent-teal);
+  outline-offset: 2px;
+  border-radius: 0.55rem;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent-teal) 22%, transparent);
+}
+
+.note-image-handle {
+  position: absolute;
+  z-index: 3;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  touch-action: none;
+}
+.note-image-handle::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: #fff;
+  border: 2px solid var(--color-accent-teal);
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+}
+.note-image-handle.is-nw { left: -9px; top: -9px; cursor: nwse-resize; }
+.note-image-handle.is-ne { right: -9px; top: -9px; cursor: nesw-resize; }
+.note-image-handle.is-sw { left: -9px; bottom: -9px; cursor: nesw-resize; }
+.note-image-handle.is-se { right: -9px; bottom: -9px; cursor: nwse-resize; }
+.note-image-handle.is-n { left: 50%; top: -9px; transform: translateX(-50%); cursor: ns-resize; }
+.note-image-handle.is-s { left: 50%; bottom: -9px; transform: translateX(-50%); cursor: ns-resize; }
+.note-image-handle.is-w { left: -9px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+.note-image-handle.is-e { right: -9px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+
+.note-image-toolbar {
+  position: absolute;
+  left: 50%;
+  top: 0.4rem;
+  z-index: 4;
+  display: flex;
+  transform: translateX(-50%);
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  pointer-events: auto;
+}
+.note-image-toolbar-group {
+  display: flex;
+  gap: 0.1rem;
+}
+.note-image-toolbar-group + .note-image-toolbar-group {
+  margin-left: 0.15rem;
+  padding-left: 0.25rem;
+  border-left: 1px solid var(--color-border);
+}
+.note-image-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 0;
+  border-radius: 0.4rem;
+  color: var(--color-text-muted);
+  background: transparent;
+}
+.note-image-tool:hover,
+.note-image-tool.is-active {
+  color: var(--color-accent-teal);
+  background: color-mix(in srgb, var(--color-accent-teal) 16%, transparent);
+}
+.note-image-tool.is-danger:hover {
+  color: #e11d48;
+  background: rgb(225 29 72 / 0.12);
+}
+.note-image-size {
+  position: absolute;
+  left: 50%;
+  bottom: -1.7rem;
+  z-index: 4;
+  transform: translateX(-50%);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.35rem;
+  background: rgb(15 23 42 / 0.88);
+  color: #fff;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.note-image-place-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+}
+.note-image-ghost {
+  position: fixed;
+  border: 2px dashed var(--color-accent-teal);
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--color-accent-teal) 14%, transparent);
+}
+.note-image-place-chip {
+  position: fixed;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-accent-teal);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
+}
+
+.note-image-menu {
+  position: fixed;
+  z-index: 90;
+  min-width: 13.5rem;
+  padding: 0.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.22);
+  color: var(--color-text-primary);
+}
+.note-image-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: inherit;
+  font-size: 0.82rem;
+  text-align: left;
+}
+.note-image-menu button:hover,
+.note-image-menu button.is-active {
+  background: color-mix(in srgb, var(--color-accent-teal) 14%, transparent);
+}
+.note-image-menu button.is-danger:hover {
+  color: #e11d48;
+  background: rgb(225 29 72 / 0.12);
+}
+.note-image-menu kbd {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+.note-image-menu-sep {
+  height: 1px;
+  margin: 0.25rem 0.3rem;
+  background: var(--color-border);
+}
+.note-image-menu-label {
+  padding: 0.25rem 0.55rem 0.15rem;
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 640px) {
+  .note-image-toolbar {
+    top: 0.4rem;
+    max-width: calc(100% - 8px);
+    overflow-x: auto;
+  }
+  .note-image-handle {
+    width: 22px;
+    height: 22px;
+  }
 }

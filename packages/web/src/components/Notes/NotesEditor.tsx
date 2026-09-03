@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useEditor, EditorContent, type Editor } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
@@ -8,12 +8,12 @@ import TextAlign from '@tiptap/extension-text-align';
 import Highlight from '@tiptap/extension-highlight';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
-import Image from '@tiptap/extension-image';
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
+  CopyPlus,
   Heading1,
   Heading2,
   Heading3,
@@ -25,16 +25,19 @@ import {
   ListOrdered,
   Redo2,
   Strikethrough,
+  Trash2,
   Underline as UnderlineIcon,
   Undo2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { countNoteImages, emptyNoteDoc, MAX_NOTE_IMAGES } from '@core/lib/notes';
 import type { NoteContent } from '@core/types';
-import { compressImageToDataUrl } from '@/lib/imageCompress';
-import { imageFilesFromDataTransfer, isImageFile } from '@/lib/attachmentFiles';
+import { imageFilesFromDataTransfer } from '@/lib/attachmentFiles';
 import { useT } from '@/hooks/useT';
 import { useToast } from '@/contexts/ToastContext';
+import { ResizableImage } from './resizableImage';
+import { clipboardHtmlHasNoteImage } from './noteImageLayout';
+import { duplicateImageAt, insertImageFiles } from './noteImageInsert';
 
 interface NotesEditorProps {
   noteId: string;
@@ -74,52 +77,6 @@ function ToolbarButton({
   );
 }
 
-async function insertImageFiles(
-  editor: Editor,
-  files: File[],
-  t: (key: Parameters<ReturnType<typeof useT>['t']>[0]) => string,
-  showToast: (msg: string, kind: 'error' | 'success' | 'info') => void
-): Promise<void> {
-  const images = files.filter(isImageFile);
-  if (images.length === 0) {
-    showToast(t('notes_image_not_image'), 'error');
-    return;
-  }
-  const current = countNoteImages(editor.getJSON());
-  const remaining = Math.max(0, MAX_NOTE_IMAGES - current);
-  if (remaining <= 0) {
-    showToast(
-      t('notes_image_limit').replace('{n}', String(MAX_NOTE_IMAGES)),
-      'error'
-    );
-    return;
-  }
-  const toAdd = images.slice(0, remaining);
-  if (images.length > remaining) {
-    showToast(
-      t('notes_image_limit').replace('{n}', String(MAX_NOTE_IMAGES)),
-      'error'
-    );
-  }
-  for (const file of toAdd) {
-    try {
-      const dataUrl = await compressImageToDataUrl(file, {
-        maxEdge: 960,
-        quality: 0.72,
-        maxDataUrlLength: 220_000,
-      });
-      editor
-        .chain()
-        .focus()
-        .setImage({ src: dataUrl, alt: file.name || t('notes_image') })
-        .run();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : t('notes_image_error');
-      showToast(msg, 'error');
-    }
-  }
-}
-
 export function NotesEditor({
   noteId,
   content,
@@ -133,6 +90,7 @@ export function NotesEditor({
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const insertRef = useRef<(files: File[]) => Promise<void>>(async () => undefined);
+  const limitToastRef = useRef<() => void>(() => undefined);
 
   const editor = useEditor({
     extensions: [
@@ -148,7 +106,7 @@ export function NotesEditor({
         openOnClick: false,
         autolink: true,
       }),
-      Image.configure({
+      ResizableImage.configure({
         inline: false,
         allowBase64: true,
         HTMLAttributes: {
@@ -173,7 +131,16 @@ export function NotesEditor({
           return false;
         },
       },
-      handlePaste: (_view, event) => {
+      handlePaste: (view, event) => {
+        const html = event.clipboardData?.getData('text/html') ?? '';
+        if (clipboardHtmlHasNoteImage(html)) {
+          if (countNoteImages(view.state.doc.toJSON()) >= MAX_NOTE_IMAGES) {
+            event.preventDefault();
+            limitToastRef.current();
+            return true;
+          }
+          return false;
+        }
         const files = imageFilesFromDataTransfer(event.clipboardData);
         if (files.length === 0) return false;
         event.preventDefault();
@@ -203,6 +170,12 @@ export function NotesEditor({
       } finally {
         setBusy(false);
       }
+    };
+    limitToastRef.current = () => {
+      showToast(
+        t('notes_image_limit').replace('{n}', String(MAX_NOTE_IMAGES)),
+        'error'
+      );
     };
   }, [editor, editable, t, showToast]);
 
@@ -367,6 +340,25 @@ export function NotesEditor({
         >
           <ImagePlus className="h-4 w-4" />
         </ToolbarButton>
+        {editor.isActive('image') ? (
+          <>
+            <span className="mx-1 h-4 w-px bg-border" />
+            <ToolbarButton
+              label={t('notes_image_duplicate')}
+              onClick={() =>
+                duplicateImageAt(editor, editor.state.selection.from, t, showToast)
+              }
+            >
+              <CopyPlus className="h-4 w-4" />
+            </ToolbarButton>
+            <ToolbarButton
+              label={t('notes_image_delete')}
+              onClick={() => editor.chain().focus().deleteSelection().run()}
+            >
+              <Trash2 className="h-4 w-4" />
+            </ToolbarButton>
+          </>
+        ) : null}
         <span className="ml-auto hidden px-1 text-[10px] text-text-muted sm:inline">
           {busy ? t('notes_image_compressing') : t('notes_image_paste_hint')}
         </span>

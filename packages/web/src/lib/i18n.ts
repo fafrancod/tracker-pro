@@ -830,6 +830,21 @@ export interface TranslationDict {
   notes_image_not_image: string;
   notes_image_compressing: string;
   notes_image_paste_hint: string;
+  notes_image_resize: string;
+  notes_image_wrap: string;
+  notes_image_wrap_left: string;
+  notes_image_wrap_right: string;
+  notes_image_wrap_block: string;
+  notes_image_align_left: string;
+  notes_image_align_center: string;
+  notes_image_align_right: string;
+  notes_image_copy: string;
+  notes_image_cut: string;
+  notes_image_paste: string;
+  notes_image_duplicate: string;
+  notes_image_delete: string;
+  notes_image_reset: string;
+  notes_image_paste_blocked: string;
   notes_open_task: string;
   notes_open_event: string;
   notes_open_task_missing: string;
@@ -2292,7 +2307,22 @@ const es_dict: TranslationDict = {
   notes_image_error: 'No pude añadir la imagen',
   notes_image_not_image: 'Solo se admiten imágenes',
   notes_image_compressing: 'Procesando imagen…',
-  notes_image_paste_hint: 'Ctrl+V pega una imagen',
+  notes_image_paste_hint: 'Arrastra, redimensiona o Ctrl+V',
+  notes_image_resize: 'Redimensionar',
+  notes_image_wrap: 'Ajuste del texto',
+  notes_image_wrap_left: 'Ajustar a la izquierda',
+  notes_image_wrap_right: 'Ajustar a la derecha',
+  notes_image_wrap_block: 'Arriba y abajo',
+  notes_image_align_left: 'Alinear a la izquierda',
+  notes_image_align_center: 'Centrar',
+  notes_image_align_right: 'Alinear a la derecha',
+  notes_image_copy: 'Copiar',
+  notes_image_cut: 'Cortar',
+  notes_image_paste: 'Pegar',
+  notes_image_duplicate: 'Duplicar',
+  notes_image_delete: 'Eliminar',
+  notes_image_reset: 'Tamaño original',
+  notes_image_paste_blocked: 'Usa Ctrl+V para pegar la imagen',
   notes_open_task: 'Abrir tarea',
   notes_open_event: 'Abrir evento',
   notes_open_task_missing: 'Esa tarea ya no existe.',
@@ -3799,7 +3829,22 @@ const en_dict: TranslationDict = {
   notes_image_error: 'Could not add the image',
   notes_image_not_image: 'Only images are allowed',
   notes_image_compressing: 'Processing image…',
-  notes_image_paste_hint: 'Ctrl+V pastes an image',
+  notes_image_paste_hint: 'Drag, resize or Ctrl+V',
+  notes_image_resize: 'Resize',
+  notes_image_wrap: 'Text wrapping',
+  notes_image_wrap_left: 'Wrap left',
+  notes_image_wrap_right: 'Wrap right',
+  notes_image_wrap_block: 'Top and bottom',
+  notes_image_align_left: 'Align left',
+  notes_image_align_center: 'Center',
+  notes_image_align_right: 'Align right',
+  notes_image_copy: 'Copy',
+  notes_image_cut: 'Cut',
+  notes_image_paste: 'Paste',
+  notes_image_duplicate: 'Duplicate',
+  notes_image_delete: 'Delete',
+  notes_image_reset: 'Original size',
+  notes_image_paste_blocked: 'Use Ctrl+V to paste the image',
   notes_open_task: 'Open task',
   notes_open_event: 'Open event',
   notes_open_task_missing: 'That task no longer exists.',
