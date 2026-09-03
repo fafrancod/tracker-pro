@@ -35,3 +35,7 @@ packages/web/android/app/*.keystore
 packages/web/android/app/*.jks
 
 packages/web/src/lib/stoicQuotes.generated.txt
+
+# APK/AAB locales (se generan con npm run android:package:debug)
+releases/android/*.apk
+releases/android/*.aab

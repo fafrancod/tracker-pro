@@ -30,29 +30,42 @@ No hace falta generar el proyecto Android otra vez: ya está en el repo (`cap ad
 
 ## Build y abrir en Android Studio
 
-Desde la raíz del monorepo:
+Desde la raíz del monorepo (mismo flujo que finanzas-pro):
+
+```powershell
+$env:JAVA_HOME='D:\AndroidStudio\jbr'
+$env:ANDROID_HOME='D:\AndroidSDK'
+$env:VITE_API_BASE_URL='https://www.mymeteora.com'
+npm run android:package:debug
+```
+
+APK: `releases/android/meteora-debug.apk`
+
+```powershell
+adb install -r releases/android/meteora-debug.apk
+```
+
+O solo sync web → assets nativos, y abrir el IDE:
 
 ```bash
-# 1) Build SPA + copiar a android/assets
 npm run build:android
-
-# 2) Abrir el IDE nativo
 npm run android:open
 ```
 
 En Android Studio: elige un emulador o dispositivo → **Run**.
 
+`packages/web/android/local.properties` debe existir (`sdk.dir=D:/AndroidSDK`). Copia `local.properties.example` si falta. No se commitea.
+
 ### Variables importantes al build web
 
 El WebView **no es same-origin** con Railway. Debes compilar la web apuntando a la API pública:
 
-```bash
-# Ejemplo (PowerShell)
-$env:VITE_API_BASE_URL="https://tu-app.up.railway.app"
-$env:VITE_SUPABASE_URL="https://xxxx.supabase.co"
-$env:VITE_SUPABASE_ANON_KEY="eyJ..."
-npm run build:android
+```powershell
+$env:VITE_API_BASE_URL="https://www.mymeteora.com"
+npm run android:package:debug
 ```
+
+Supabase se resuelve en runtime vía `GET /api/public-config`; no hace falta `VITE_SUPABASE_*` en el APK si esa ruta responde.
 
 | Variable | Uso en native |
 |----------|----------------|
@@ -148,6 +161,8 @@ Checklist completo: [`PLAY_STORE.md`](./PLAY_STORE.md).
 | Script | Dónde | Qué hace |
 |--------|--------|----------|
 | `npm run build:android` | root / web | `vite build` + `cap sync android` |
+| `npm run android:package:debug` | root | Build web + Gradle debug + copia APK a `releases/android/` |
+| `npm run android:package:release` | root | Idem con AAB firmado (keystore) |
 | `npm run android:open` | root | Abre Android Studio |
 | `npm run cap:sync` | web | Solo sync (tras un build) |
 
