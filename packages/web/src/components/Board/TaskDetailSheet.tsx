@@ -48,6 +48,7 @@ import { TimeInput } from '@/components/ui/time-input';
 import { InvolvedContactsPicker } from './InvolvedContactsPicker';
 import { TaskStepsEditor } from './TaskStepsEditor';
 import { AttachmentsExpandRail, TaskImagesField } from './TaskImagesField';
+import { TaskLinkedNotes } from './TaskLinkedNotes';
 import { useTaskAttachmentFiles } from '@/hooks/useTaskAttachmentFiles';
 import { DateRangeField } from './DateRangeField';
 import { TaskKindPicker, defaultKindOptions } from './TaskKindPicker';
@@ -989,6 +990,10 @@ function TaskDetailInner({
             />
           </Field>
         )}
+
+        <Field label={t('task_linked_ideas')}>
+          <TaskLinkedNotes task={task} />
+        </Field>
 
         {/* Pasos asociados */}
         {!isRx && draftSupportsSteps && (

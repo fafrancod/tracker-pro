@@ -14,6 +14,29 @@ export function isImageFile(file: File): boolean {
   return file.type.startsWith('image/');
 }
 
+/** Imágenes del portapapeles o de un drop (Ctrl+V / arrastrar). */
+export function imageFilesFromDataTransfer(
+  data: DataTransfer | null | undefined
+): File[] {
+  if (!data) return [];
+  const seen = new Set<File>();
+  const out: File[] = [];
+  const add = (file: File | null | undefined) => {
+    if (!file || seen.has(file) || !isImageFile(file)) return;
+    seen.add(file);
+    out.push(file);
+  };
+  if (data.files?.length) {
+    for (const file of Array.from(data.files)) add(file);
+  }
+  if (data.items?.length) {
+    for (const item of Array.from(data.items)) {
+      if (item.kind === 'file') add(item.getAsFile());
+    }
+  }
+  return out;
+}
+
 export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

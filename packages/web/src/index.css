@@ -611,3 +611,12 @@ html[data-material='glass'] {
   pointer-events: none;
   color: var(--color-text-muted);
 }
+.note-editor .ProseMirror img,
+.note-editor .ProseMirror .note-editor-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75em 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+}

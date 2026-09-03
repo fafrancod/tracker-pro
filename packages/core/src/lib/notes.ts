@@ -1,9 +1,15 @@
-import type { Note, NoteContent, NoteLink, NoteLinkType } from '../types';
+import type { Note, NoteContent, NoteLink, NoteLinkType, TaskKind } from '../types';
 
 const LINK_TYPES: NoteLinkType[] = ['project', 'subproject', 'task', 'event'];
 const MAX_LINKS = 40;
 const MAX_TITLE = 200;
 const MAX_EXCERPT = 280;
+
+/** Imágenes inline (data URL) por idea. */
+export const MAX_NOTE_IMAGES = 8;
+
+/** Tope del JSON TipTap (incluye data URLs). Alineado con adjuntos de tarea. */
+export const MAX_NOTE_CONTENT_CHARS = 3_500_000;
 
 const EMPTY_DOC: NoteContent = {
   type: 'doc',
@@ -51,6 +57,66 @@ export function normalizeNoteLinks(raw: unknown): NoteLink[] {
     if (out.length >= MAX_LINKS) break;
   }
   return out;
+}
+
+export function walkNoteNodes(
+  content: unknown,
+  visit: (node: Record<string, unknown>) => void
+): void {
+  if (!content || typeof content !== 'object') return;
+  const node = content as Record<string, unknown>;
+  visit(node);
+  if (Array.isArray(node.content)) {
+    for (const child of node.content) walkNoteNodes(child, visit);
+  }
+}
+
+export function countNoteImages(content: unknown): number {
+  let n = 0;
+  walkNoteNodes(content, node => {
+    if (node.type === 'image') n += 1;
+  });
+  return n;
+}
+
+export function noteContentSize(content: unknown): number {
+  try {
+    return JSON.stringify(content ?? {}).length;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
+export function isNoteContentTooLarge(content: unknown): boolean {
+  return noteContentSize(content) > MAX_NOTE_CONTENT_CHARS;
+}
+
+export function noteLinksToTask(note: Note, taskId: string): boolean {
+  return note.links.some(
+    l => (l.type === 'task' || l.type === 'event') && l.id === taskId
+  );
+}
+
+export function notesLinkedToTask(notes: Note[], taskId: string): Note[] {
+  return notes.filter(n => noteLinksToTask(n, taskId));
+}
+
+export function noteLinkTypeForKind(kind: TaskKind): 'task' | 'event' {
+  return kind === 'event' || kind === 'possible_event' ? 'event' : 'task';
+}
+
+export function noteLinkForTask(task: {
+  id: string;
+  title: string;
+  kind: TaskKind;
+  projectId?: string | null;
+}): NoteLink {
+  return {
+    type: noteLinkTypeForKind(task.kind),
+    id: task.id,
+    projectId: task.projectId ?? null,
+    label: task.title.trim().slice(0, 80) || null,
+  };
 }
 
 export function excerptFromNoteContent(content: unknown): string {

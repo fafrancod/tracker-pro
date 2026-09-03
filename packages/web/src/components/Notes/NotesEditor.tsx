@@ -1,5 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
@@ -8,6 +8,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import Highlight from '@tiptap/extension-highlight';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
+import Image from '@tiptap/extension-image';
 import {
   AlignCenter,
   AlignLeft,
@@ -17,6 +18,7 @@ import {
   Heading2,
   Heading3,
   Highlighter,
+  ImagePlus,
   Italic,
   Link2,
   List,
@@ -27,8 +29,12 @@ import {
   Undo2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { emptyNoteDoc } from '@core/lib/notes';
+import { countNoteImages, emptyNoteDoc, MAX_NOTE_IMAGES } from '@core/lib/notes';
 import type { NoteContent } from '@core/types';
+import { compressImageToDataUrl } from '@/lib/imageCompress';
+import { imageFilesFromDataTransfer, isImageFile } from '@/lib/attachmentFiles';
+import { useT } from '@/hooks/useT';
+import { useToast } from '@/contexts/ToastContext';
 
 interface NotesEditorProps {
   noteId: string;
@@ -55,6 +61,7 @@ function ToolbarButton({
     <button
       type="button"
       aria-label={label}
+      title={label}
       disabled={disabled}
       onClick={onClick}
       className={cn(
@@ -67,6 +74,52 @@ function ToolbarButton({
   );
 }
 
+async function insertImageFiles(
+  editor: Editor,
+  files: File[],
+  t: (key: Parameters<ReturnType<typeof useT>['t']>[0]) => string,
+  showToast: (msg: string, kind: 'error' | 'success' | 'info') => void
+): Promise<void> {
+  const images = files.filter(isImageFile);
+  if (images.length === 0) {
+    showToast(t('notes_image_not_image'), 'error');
+    return;
+  }
+  const current = countNoteImages(editor.getJSON());
+  const remaining = Math.max(0, MAX_NOTE_IMAGES - current);
+  if (remaining <= 0) {
+    showToast(
+      t('notes_image_limit').replace('{n}', String(MAX_NOTE_IMAGES)),
+      'error'
+    );
+    return;
+  }
+  const toAdd = images.slice(0, remaining);
+  if (images.length > remaining) {
+    showToast(
+      t('notes_image_limit').replace('{n}', String(MAX_NOTE_IMAGES)),
+      'error'
+    );
+  }
+  for (const file of toAdd) {
+    try {
+      const dataUrl = await compressImageToDataUrl(file, {
+        maxEdge: 960,
+        quality: 0.72,
+        maxDataUrlLength: 220_000,
+      });
+      editor
+        .chain()
+        .focus()
+        .setImage({ src: dataUrl, alt: file.name || t('notes_image') })
+        .run();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t('notes_image_error');
+      showToast(msg, 'error');
+    }
+  }
+}
+
 export function NotesEditor({
   noteId,
   content,
@@ -74,7 +127,13 @@ export function NotesEditor({
   placeholder = 'Escribe tu idea…',
   onChange,
 }: NotesEditorProps) {
+  const { t } = useT();
+  const { showToast } = useToast();
   const composing = useRef(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const insertRef = useRef<(files: File[]) => Promise<void>>(async () => undefined);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -88,6 +147,13 @@ export function NotesEditor({
       Link.configure({
         openOnClick: false,
         autolink: true,
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'note-editor-image',
+        },
       }),
       Placeholder.configure({ placeholder }),
     ],
@@ -107,12 +173,38 @@ export function NotesEditor({
           return false;
         },
       },
+      handlePaste: (_view, event) => {
+        const files = imageFilesFromDataTransfer(event.clipboardData);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        void insertRef.current(files);
+        return true;
+      },
+      handleDrop: (_view, event) => {
+        const files = imageFilesFromDataTransfer(event.dataTransfer);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        void insertRef.current(files);
+        return true;
+      },
     },
     onUpdate: ({ editor: ed }) => {
       if (composing.current) return;
       onChange(ed.getJSON() as NoteContent);
     },
   });
+
+  useEffect(() => {
+    insertRef.current = async (files: File[]) => {
+      if (!editor || !editable) return;
+      setBusy(true);
+      try {
+        await insertImageFiles(editor, files, t, showToast);
+      } finally {
+        setBusy(false);
+      }
+    };
+  }, [editor, editable, t, showToast]);
 
   useEffect(() => {
     if (!editor) return;
@@ -138,8 +230,23 @@ export function NotesEditor({
     editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run();
   }
 
+  function onPickFiles(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    void insertRef.current(Array.from(list));
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      onPaste={e => {
+        if ((e.target as HTMLElement).closest('.ProseMirror')) return;
+        const files = imageFilesFromDataTransfer(e.clipboardData);
+        if (files.length === 0) return;
+        e.preventDefault();
+        void insertRef.current(files);
+      }}
+    >
       <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-surface px-2 py-1">
         <ToolbarButton
           label="Deshacer"
@@ -253,6 +360,24 @@ export function NotesEditor({
         <ToolbarButton label="Enlace" active={editor.isActive('link')} onClick={setLink}>
           <Link2 className="h-4 w-4" />
         </ToolbarButton>
+        <ToolbarButton
+          label={t('notes_image_upload')}
+          disabled={!editable || busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          <ImagePlus className="h-4 w-4" />
+        </ToolbarButton>
+        <span className="ml-auto hidden px-1 text-[10px] text-text-muted sm:inline">
+          {busy ? t('notes_image_compressing') : t('notes_image_paste_hint')}
+        </span>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={e => onPickFiles(e.target.files)}
+        />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto bg-background">
         <EditorContent editor={editor} className="note-editor h-full" />

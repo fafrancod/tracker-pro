@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   CalendarDays,
   ChevronDown,
   FolderKanban,
   Lightbulb,
+  ListChecks,
   Plus,
   Search,
   StickyNote,
@@ -16,11 +18,16 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ResizableAside } from '@/components/ui/resizable-aside';
 import { NotesEditor } from '@/components/Notes/NotesEditor';
+import { TaskDetailSheet } from '@/components/Board';
 import { useNotes } from '@core/hooks/useNotes';
 import { useProjects } from '@core/hooks/useProjects';
 import { useStore } from '@core/store';
-import { fetchAllTasks, type LocatedTaskRow } from '@core/services/taskService';
-import { emptyNoteDoc } from '@core/lib/notes';
+import {
+  fetchAllTasks,
+  mergeLocatedRowsIntoStore,
+  type LocatedTaskRow,
+} from '@core/services/taskService';
+import { emptyNoteDoc, noteLinkTypeForKind } from '@core/lib/notes';
 import { isDemoMode } from '@core/lib/demoMode';
 import type { Note, NoteLink, NoteLinkType, Project } from '@core/types';
 import { useT } from '@/hooks/useT';
@@ -64,6 +71,8 @@ export function NotesPage() {
   const { notes, loading, addNote, editNote, removeNote } = useNotes();
   const { projects } = useProjects();
   const uid = useStore(s => s.uid);
+  const setDetailTask = useStore(s => s.setDetailTask);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobileEditor, setMobileEditor] = useState(false);
@@ -72,6 +81,7 @@ export function NotesPage() {
   const [deleting, setDeleting] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [linkQuery, setLinkQuery] = useState('');
+  const [linkMenuOpen, setLinkMenuOpen] = useState(false);
   const [taskRows, setTaskRows] = useState<LocatedTaskRow[]>([]);
   const [activeFolder, setActiveFolder] = useState<FolderKey | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(loadExpanded);
@@ -89,7 +99,10 @@ export function NotesPage() {
   useEffect(() => {
     if (!uid || isDemoMode()) return;
     void fetchAllTasks(uid)
-      .then(setTaskRows)
+      .then(rows => {
+        setTaskRows(rows);
+        mergeLocatedRowsIntoStore(rows);
+      })
       .catch(() => setTaskRows([]));
   }, [uid]);
 
@@ -99,6 +112,14 @@ export function NotesPage() {
     // Solo al cambiar de idea: si dependemos de `notes`, el autoguardado pisa acentos.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get('note');
+    if (!fromUrl || notes.length === 0) return;
+    if (!notes.some(n => n.id === fromUrl)) return;
+    setSelectedId(fromUrl);
+    setMobileEditor(true);
+  }, [searchParams, notes]);
 
   function persistExpanded(next: Record<string, boolean>) {
     setExpanded(next);
@@ -178,6 +199,7 @@ export function NotesPage() {
       });
       setSelectedId(created.id);
       setMobileEditor(true);
+      setSearchParams({ note: created.id }, { replace: true });
     } catch {
       showToast(t('notes_save_error'), 'error');
     }
@@ -203,6 +225,7 @@ export function NotesPage() {
       if (selectedId === deleteId) {
         setSelectedId(null);
         setMobileEditor(false);
+        setSearchParams({}, { replace: true });
       }
       setDeleteId(null);
     } catch {
@@ -232,25 +255,19 @@ export function NotesPage() {
       }
     }
     for (const row of taskRows) {
-      if (row.kind === 'event' || row.kind === 'possible_event') {
-        opts.push({
-          type: 'event',
-          id: row.id,
-          projectId: row.projectId,
-          label: row.title,
-        });
-      } else if (row.kind === 'task' || row.kind === 'reminder') {
-        opts.push({
-          type: 'task',
-          id: row.id,
-          projectId: row.projectId,
-          label: row.title,
-        });
-      }
+      opts.push({
+        type: noteLinkTypeForKind(row.kind),
+        id: row.id,
+        projectId: row.projectId,
+        label: row.title,
+      });
     }
-    if (!q) return opts.slice(0, 40);
-    return opts.filter(o => o.label.toLowerCase().includes(q)).slice(0, 40);
-  }, [projects, taskRows, linkQuery]);
+    const unused = selected
+      ? opts.filter(o => !selected.links.some(l => l.type === o.type && l.id === o.id))
+      : opts;
+    if (!q) return unused.slice(0, 40);
+    return unused.filter(o => o.label.toLowerCase().includes(q)).slice(0, 40);
+  }, [projects, taskRows, linkQuery, selected]);
 
   function addLink(opt: {
     type: NoteLinkType;
@@ -265,6 +282,7 @@ export function NotesPage() {
       showToast(t('notes_save_error'), 'error')
     );
     setLinkQuery('');
+    setLinkMenuOpen(false);
   }
 
   function removeLink(link: NoteLink) {
@@ -287,6 +305,17 @@ export function NotesPage() {
   function openNote(note: Note) {
     setSelectedId(note.id);
     setMobileEditor(true);
+    setSearchParams({ note: note.id }, { replace: true });
+  }
+
+  function openLinkedTask(link: NoteLink) {
+    if (link.type !== 'task' && link.type !== 'event') return;
+    const row = taskRows.find(r => r.id === link.id);
+    if (!row) {
+      showToast(t('notes_open_task_missing'), 'error');
+      return;
+    }
+    setDetailTask({ weekId: row.weekId, dayId: row.dayId, taskId: row.id });
   }
 
   function renderNoteRow(note: Note) {
@@ -532,17 +561,38 @@ export function NotesPage() {
                   </button>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {selected.links.map(link => (
+                  {selected.links.map(link => {
+                    const clickable = link.type === 'task' || link.type === 'event';
+                    return (
                     <span
                       key={`${link.type}:${link.id}`}
                       className="inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] text-text-primary"
                     >
                       {link.type === 'project' || link.type === 'subproject' ? (
                         <FolderKanban className="h-3 w-3 text-accent-teal" />
-                      ) : (
+                      ) : link.type === 'event' ? (
                         <CalendarDays className="h-3 w-3 text-accent-teal" />
+                      ) : (
+                        <ListChecks className="h-3 w-3 text-accent-teal" />
                       )}
-                      {link.label || linkTypeLabel[link.type]}
+                      {clickable ? (
+                        <button
+                          type="button"
+                          onClick={() => openLinkedTask(link)}
+                          className="max-w-[14rem] truncate hover:underline"
+                          title={
+                            link.type === 'event'
+                              ? t('notes_open_event')
+                              : t('notes_open_task')
+                          }
+                        >
+                          {link.label || linkTypeLabel[link.type]}
+                        </button>
+                      ) : (
+                        <span className="max-w-[14rem] truncate">
+                          {link.label || linkTypeLabel[link.type]}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => removeLink(link)}
@@ -552,15 +602,23 @@ export function NotesPage() {
                         <X className="h-3 w-3" />
                       </button>
                     </span>
-                  ))}
+                    );
+                  })}
                   <div className="relative min-w-[12rem] flex-1">
                     <Input
                       value={linkQuery}
-                      onChange={e => setLinkQuery(e.target.value)}
+                      onChange={e => {
+                        setLinkQuery(e.target.value);
+                        setLinkMenuOpen(true);
+                      }}
+                      onFocus={() => setLinkMenuOpen(true)}
+                      onBlur={() => {
+                        window.setTimeout(() => setLinkMenuOpen(false), 150);
+                      }}
                       placeholder={t('notes_tag_ph')}
                       className="h-8 text-xs"
                     />
-                    {linkQuery.trim() ? (
+                    {linkMenuOpen ? (
                       <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border bg-surface shadow-lg">
                         {linkOptions.length === 0 ? (
                           <li className="px-2 py-2 text-xs text-text-muted">
@@ -571,6 +629,7 @@ export function NotesPage() {
                             <li key={`${opt.type}:${opt.id}`}>
                               <button
                                 type="button"
+                                onMouseDown={e => e.preventDefault()}
                                 onClick={() => addLink(opt)}
                                 className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-background"
                               >
@@ -600,6 +659,8 @@ export function NotesPage() {
           )}
         </section>
       </div>
+
+      <TaskDetailSheet />
 
       <ConfirmDialog
         open={deleteId !== null}

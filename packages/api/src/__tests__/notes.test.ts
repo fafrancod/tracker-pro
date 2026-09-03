@@ -5,6 +5,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { buildApp } from '../app.js';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import {
+  countNoteImages,
+  noteLinkForTask,
+  notesLinkedToTask,
+} from '@daily-tracker/core';
 
 const app = buildApp();
 
@@ -151,6 +156,30 @@ describe('POST /api/notes', () => {
     const res = await request(app).post('/api/notes').send({ title: 'X' });
     expect(res.status).toBe(401);
   });
+
+  it('acepta una imagen inline en el documento', async () => {
+    const res = await request(app)
+      .post('/api/notes')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        title: 'Con foto',
+        content: {
+          type: 'doc',
+          content: [
+            { type: 'paragraph', content: [{ type: 'text', text: 'Captura' }] },
+            {
+              type: 'image',
+              attrs: { src: 'data:image/jpeg;base64,/9j/4AAQ', alt: 'foto' },
+            },
+          ],
+        },
+        links: [{ type: 'task', id: 'task_1', label: 'Landing' }],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.title).toBe('Con foto');
+    const content = lastNoteInsert?.content as { content?: Array<{ type?: string }> };
+    expect(content.content?.some(n => n.type === 'image')).toBe(true);
+  });
 });
 
 describe('GET /api/notes', () => {
@@ -205,6 +234,51 @@ describe('PATCH /api/notes/:id', () => {
       .set('Authorization', 'Bearer valid-token')
       .send({ title: 'Nueva' });
     expect(res.status).toBe(404);
+  });
+});
+
+describe('note helpers', () => {
+  it('cuenta imágenes inline del documento', () => {
+    expect(
+      countNoteImages({
+        type: 'doc',
+        content: [
+          { type: 'paragraph' },
+          { type: 'image', attrs: { src: 'data:image/jpeg;base64,xx' } },
+          { type: 'image', attrs: { src: 'data:image/jpeg;base64,yy' } },
+        ],
+      })
+    ).toBe(2);
+  });
+
+  it('encuentra ideas ligadas a una tarea', () => {
+    const notes = [
+      {
+        id: 'n1',
+        title: 'A',
+        content: {},
+        excerpt: '',
+        links: [{ type: 'task' as const, id: 't1', label: 'X' }],
+        createdAt: '',
+        updatedAt: '',
+      },
+      {
+        id: 'n2',
+        title: 'B',
+        content: {},
+        excerpt: '',
+        links: [{ type: 'project' as const, id: 'p1', label: 'P' }],
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
+    expect(notesLinkedToTask(notes, 't1').map(n => n.id)).toEqual(['n1']);
+    expect(noteLinkForTask({ id: 't1', title: 'X', kind: 'task' }).type).toBe(
+      'task'
+    );
+    expect(
+      noteLinkForTask({ id: 'e1', title: 'Kickoff', kind: 'event' }).type
+    ).toBe('event');
   });
 });
 

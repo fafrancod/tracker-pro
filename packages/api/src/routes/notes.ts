@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import {
   excerptFromNoteContent,
+  isNoteContentTooLarge,
   mapNote,
   MAX_LINKS,
   MAX_TITLE,
@@ -41,17 +42,9 @@ const updateSchema = z
   })
   .refine(p => Object.keys(p).length > 0, { message: 'patch vacio' });
 
-const MAX_CONTENT_CHARS = 400_000;
-
 function assertContentSize(content: unknown) {
-  try {
-    const size = JSON.stringify(content ?? {}).length;
-    if (size > MAX_CONTENT_CHARS) {
-      throw ApiError.badRequest('El contenido de la idea es demasiado grande');
-    }
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw ApiError.badRequest('Contenido de idea inválido');
+  if (isNoteContentTooLarge(content)) {
+    throw ApiError.badRequest('El contenido de la idea es demasiado grande');
   }
 }
 

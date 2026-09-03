@@ -823,6 +823,23 @@ export interface TranslationDict {
   notes_collapse_explorer: string;
   notes_expand_explorer: string;
   notes_resize_explorer: string;
+  notes_image: string;
+  notes_image_upload: string;
+  notes_image_limit: string;
+  notes_image_error: string;
+  notes_image_not_image: string;
+  notes_image_compressing: string;
+  notes_image_paste_hint: string;
+  notes_open_task: string;
+  notes_open_event: string;
+  notes_open_task_missing: string;
+  task_linked_ideas: string;
+  task_linked_ideas_empty: string;
+  task_linked_ideas_search: string;
+  task_linked_ideas_none: string;
+  task_linked_ideas_open: string;
+  task_linked_ideas_new: string;
+  task_linked_ideas_untag: string;
   nav_collapse: string;
   nav_expand: string;
   action_create: string;
@@ -2255,7 +2272,7 @@ const es_dict: TranslationDict = {
   notes_title_ph: 'Título de la idea',
   notes_delete: 'Eliminar idea',
   notes_untag: 'Quitar etiqueta',
-  notes_tag_ph: 'Etiquetar proyecto, subproyecto, tarea o evento…',
+  notes_tag_ph: 'Conectar tarea, evento o proyecto…',
   notes_tag_empty: 'Nada coincide con esa búsqueda',
   notes_tag_project: 'Proyecto',
   notes_tag_subproject: 'Subproyecto',
@@ -2269,6 +2286,23 @@ const es_dict: TranslationDict = {
   notes_collapse_explorer: 'Ocultar explorador',
   notes_expand_explorer: 'Mostrar explorador',
   notes_resize_explorer: 'Ajustar ancho del explorador',
+  notes_image: 'Imagen',
+  notes_image_upload: 'Subir imagen',
+  notes_image_limit: 'Máximo {n} imágenes por idea',
+  notes_image_error: 'No pude añadir la imagen',
+  notes_image_not_image: 'Solo se admiten imágenes',
+  notes_image_compressing: 'Procesando imagen…',
+  notes_image_paste_hint: 'Ctrl+V pega una imagen',
+  notes_open_task: 'Abrir tarea',
+  notes_open_event: 'Abrir evento',
+  notes_open_task_missing: 'Esa tarea ya no existe.',
+  task_linked_ideas: 'Ideas conectadas',
+  task_linked_ideas_empty: 'Ninguna idea conectada todavía',
+  task_linked_ideas_search: 'Buscar idea para conectar…',
+  task_linked_ideas_none: 'Nada coincide',
+  task_linked_ideas_open: 'Abrir idea',
+  task_linked_ideas_new: 'Nueva idea',
+  task_linked_ideas_untag: 'Quitar conexión',
   nav_collapse: 'Ocultar menú',
   nav_expand: 'Mostrar menú',
   action_create: 'Crear',
@@ -3745,7 +3779,7 @@ const en_dict: TranslationDict = {
   notes_title_ph: 'Idea title',
   notes_delete: 'Delete idea',
   notes_untag: 'Remove tag',
-  notes_tag_ph: 'Tag a project, subproject, task or event…',
+  notes_tag_ph: 'Connect a task, event or project…',
   notes_tag_empty: 'Nothing matches that search',
   notes_tag_project: 'Project',
   notes_tag_subproject: 'Subproject',
@@ -3759,6 +3793,23 @@ const en_dict: TranslationDict = {
   notes_collapse_explorer: 'Hide explorer',
   notes_expand_explorer: 'Show explorer',
   notes_resize_explorer: 'Resize explorer',
+  notes_image: 'Image',
+  notes_image_upload: 'Upload image',
+  notes_image_limit: 'Maximum {n} images per idea',
+  notes_image_error: 'Could not add the image',
+  notes_image_not_image: 'Only images are allowed',
+  notes_image_compressing: 'Processing image…',
+  notes_image_paste_hint: 'Ctrl+V pastes an image',
+  notes_open_task: 'Open task',
+  notes_open_event: 'Open event',
+  notes_open_task_missing: 'That task no longer exists.',
+  task_linked_ideas: 'Linked ideas',
+  task_linked_ideas_empty: 'No ideas linked yet',
+  task_linked_ideas_search: 'Search an idea to connect…',
+  task_linked_ideas_none: 'Nothing matches',
+  task_linked_ideas_open: 'Open idea',
+  task_linked_ideas_new: 'New idea',
+  task_linked_ideas_untag: 'Remove link',
   nav_collapse: 'Collapse menu',
   nav_expand: 'Expand menu',
   action_create: 'Create',
