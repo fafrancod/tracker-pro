@@ -838,6 +838,7 @@ export interface TranslationDict {
   notes_image_wrap_left: string;
   notes_image_wrap_right: string;
   notes_image_wrap_block: string;
+  notes_image_wrap_below: string;
   notes_image_align_left: string;
   notes_image_align_center: string;
   notes_image_align_right: string;
@@ -2310,15 +2311,16 @@ const es_dict: TranslationDict = {
   notes_image_error: 'No pude añadir la imagen',
   notes_image_not_image: 'Solo se admiten imágenes',
   notes_image_compressing: 'Procesando imagen…',
-  notes_image_paste_hint: 'Arrastra para colocar · Alt suelta las guías',
+  notes_image_paste_hint: 'El texto rodea la imagen · Enter sigue debajo',
   notes_image_resize: 'Redimensionar',
   notes_image_layout: 'Disposición',
   notes_image_layout_free: 'Libre (lienzo)',
   notes_image_layout_flow: 'En línea',
   notes_image_wrap: 'Ajuste del texto',
-  notes_image_wrap_left: 'Ajustar a la izquierda',
-  notes_image_wrap_right: 'Ajustar a la derecha',
-  notes_image_wrap_block: 'Arriba y abajo',
+  notes_image_wrap_left: 'Rodear a la izquierda',
+  notes_image_wrap_right: 'Rodear a la derecha',
+  notes_image_wrap_block: 'Texto debajo',
+  notes_image_wrap_below: 'Texto debajo',
   notes_image_align_left: 'Alinear a la izquierda',
   notes_image_align_center: 'Centrar',
   notes_image_align_right: 'Alinear a la derecha',
@@ -3835,7 +3837,7 @@ const en_dict: TranslationDict = {
   notes_image_error: 'Could not add the image',
   notes_image_not_image: 'Only images are allowed',
   notes_image_compressing: 'Processing image…',
-  notes_image_paste_hint: 'Drag to place · Alt disables guides',
+  notes_image_paste_hint: 'Text wraps around the image · Enter continues below',
   notes_image_resize: 'Resize',
   notes_image_layout: 'Layout',
   notes_image_layout_free: 'Free (canvas)',
@@ -3843,7 +3845,8 @@ const en_dict: TranslationDict = {
   notes_image_wrap: 'Text wrapping',
   notes_image_wrap_left: 'Wrap left',
   notes_image_wrap_right: 'Wrap right',
-  notes_image_wrap_block: 'Top and bottom',
+  notes_image_wrap_block: 'Text below',
+  notes_image_wrap_below: 'Text below',
   notes_image_align_left: 'Align left',
   notes_image_align_center: 'Center',
   notes_image_align_right: 'Align right',

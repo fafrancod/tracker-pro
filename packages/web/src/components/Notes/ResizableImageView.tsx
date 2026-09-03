@@ -19,9 +19,7 @@ import {
   ClipboardPaste,
   Copy,
   CopyPlus,
-  Move,
   RotateCcw,
-  Rows3,
   Scissors,
   Trash2,
 } from 'lucide-react';
@@ -31,13 +29,15 @@ import { useToast } from '@/contexts/ToastContext';
 import { imageFilesFromDataTransfer } from '@/lib/attachmentFiles';
 import type { TKey } from '@/lib/i18n';
 import {
-  clampFreeX,
-  clampFreeY,
   clampImageWidth,
-  isFreeImage,
+  indentFromDrop,
+  normalizeWrap,
   snapFreePosition,
   snapImageWidth,
+  wrapFromDropX,
+  wrapFromStoredX,
   type NoteImageGuide,
+  type NoteImageWrap,
 } from './noteImageLayout';
 import {
   alignImageOnPage,
@@ -47,9 +47,8 @@ import {
   duplicateImageAt,
   editorOriginRect,
   insertImageFiles,
-  nextImageZ,
+  moveImageNode,
   selectImageAt,
-  updateCanvasExtent,
 } from './noteImageInsert';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
@@ -59,6 +58,41 @@ const LONG_PRESS_MS = 480;
 const MOVE_THRESHOLD = 5;
 
 type Translate = (key: TKey) => string;
+
+function WrapGlyph({ wrap }: { wrap: NoteImageWrap }) {
+  if (wrap === 'left') {
+    return (
+      <svg viewBox="0 0 20 16" className="h-3.5 w-4" aria-hidden>
+        <rect x="1" y="1" width="7" height="8" rx="1" fill="currentColor" />
+        <path
+          d="M10 2.2h9M10 5h9M10 7.8h6M1 11.5h18M1 14.2h18"
+          stroke="currentColor"
+          strokeWidth="1.35"
+          fill="none"
+        />
+      </svg>
+    );
+  }
+  if (wrap === 'right') {
+    return (
+      <svg viewBox="0 0 20 16" className="h-3.5 w-4" aria-hidden>
+        <rect x="12" y="1" width="7" height="8" rx="1" fill="currentColor" />
+        <path
+          d="M1 2.2h9M1 5h9M3 7.8h7M1 11.5h18M1 14.2h18"
+          stroke="currentColor"
+          strokeWidth="1.35"
+          fill="none"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 20 16" className="h-3.5 w-4" aria-hidden>
+      <rect x="5.5" y="1" width="9" height="6.5" rx="1" fill="currentColor" />
+      <path d="M1 10.2h18M1 13.2h18" stroke="currentColor" strokeWidth="1.35" fill="none" />
+    </svg>
+  );
+}
 
 async function writeImageClipboard(html: string, src: string): Promise<void> {
   const htmlBlob = new Blob([html], { type: 'text/html' });
@@ -96,20 +130,50 @@ export function ResizableImageView({
   const { t } = useT();
   const { showToast } = useToast();
   const editable = editor.isEditable;
-  const free = isFreeImage(node.attrs);
+  const wrap = normalizeWrap(node.attrs.wrap);
   const storedWidth = typeof node.attrs.width === 'number' ? node.attrs.width : null;
 
   const frameRef = useRef<HTMLSpanElement>(null);
   const aspectRef = useRef(1);
   const draftRef = useRef<number | null>(null);
   const longPressRef = useRef<number | null>(null);
-  const placeRef = useRef<{ x: number; y: number } | null>(null);
+  const placeRef = useRef<{
+    x: number;
+    y: number;
+    wrap: NoteImageWrap;
+    width: number;
+    height: number;
+  } | null>(null);
 
   const [draftWidth, setDraftWidth] = useState<number | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const [placing, setPlacing] = useState(false);
+  const [placing, setPlacing] = useState<{
+    x: number;
+    y: number;
+    wrap: NoteImageWrap;
+    width: number;
+    height: number;
+  } | null>(null);
   const [guides, setGuides] = useState<NoteImageGuide[]>([]);
   const [sizeTip, setSizeTip] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (node.attrs.layout !== 'free') return;
+    const x = node.attrs.x;
+    if (typeof x !== 'number') {
+      updateAttributes({ layout: 'flow', wrap: normalizeWrap(node.attrs.wrap), x: null, y: null });
+      return;
+    }
+    const origin = editorOriginRect(editor);
+    const w = typeof node.attrs.width === 'number' ? node.attrs.width : 240;
+    updateAttributes({
+      layout: 'flow',
+      wrap: wrapFromStoredX(x, w, origin.width),
+      indent: 0,
+      x: null,
+      y: null,
+    });
+  }, [editor, node.attrs.layout, node.attrs.x, node.attrs.width, node.attrs.wrap, updateAttributes]);
 
   const displayWidth = draftWidth ?? storedWidth;
 
@@ -218,34 +282,26 @@ export function ResizableImageView({
     setMenu(null);
   }, [updateAttributes]);
 
-  const setLayout = useCallback(
-    (layout: 'free' | 'flow') => {
-      if (layout === 'flow') {
-        updateAttributes({ layout: 'flow', x: null, y: null });
-        const outer = outerNodeOf(frameRef.current);
-        if (outer) {
-          outer.style.left = '';
-          outer.style.top = '';
-          outer.style.zIndex = '';
-          outer.style.position = '';
-        }
-        setMenu(null);
-        return;
-      }
-      const outer = outerNodeOf(frameRef.current);
-      const origin = editorOriginRect(editor);
-      const box = outer
-        ? boxFromDom(outer, origin)
-        : { x: 16, y: 24, width: 240, height: 160 };
+  const applyWrap = useCallback(
+    (next: NoteImageWrap) => {
       updateAttributes({
-        layout: 'free',
-        x: Math.round(box.x),
-        y: Math.round(box.y),
-        z: nextImageZ(editor),
+        wrap: next,
+        indent: 0,
+        layout: 'flow',
+        x: null,
+        y: null,
+        align: next === 'below' ? 'center' : node.attrs.align,
       });
+      const outer = outerNodeOf(frameRef.current);
+      if (outer) {
+        outer.style.left = '';
+        outer.style.top = '';
+        outer.style.position = '';
+        outer.style.zIndex = '';
+      }
       setMenu(null);
     },
-    [editor, updateAttributes]
+    [node.attrs.align, updateAttributes]
   );
 
   const onHandleDown = (event: ReactPointerEvent, handle: Handle) => {
@@ -259,7 +315,7 @@ export function ResizableImageView({
     const startW = frameRef.current?.offsetWidth ?? storedWidth ?? 240;
     const aspect = aspectRef.current || 1;
     const editorW = contentWidthOfEditor(editor);
-    const maxW = editorW;
+    const maxW = wrap === 'below' ? editorW : Math.floor(editorW * 0.72);
 
     const move = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
@@ -309,6 +365,8 @@ export function ResizableImageView({
     if (!frame || !outer) return;
     const origin = editorOriginRect(editor);
     const startBox = boxFromDom(outer, origin);
+    const grabX = event.clientX - (frame.getBoundingClientRect().left);
+    const grabY = event.clientY - (frame.getBoundingClientRect().top);
     const selfPos = posOfNode();
     const others = selfPos == null ? [] : collectOtherImageBoxes(editor, selfPos);
     let started = false;
@@ -323,11 +381,12 @@ export function ResizableImageView({
       if (!started && dist < MOVE_THRESHOLD) return;
       started = true;
       clearLongPress();
-      setPlacing(true);
       const liveOrigin = editorOriginRect(editor);
-      let x = startBox.x + (ev.clientX - startX);
-      let y = startBox.y + (ev.clientY - startY);
+      let imgLeft = ev.clientX - grabX;
+      let imgTop = ev.clientY - grabY;
       let nextGuides: NoteImageGuide[] = [];
+      let x = imgLeft - liveOrigin.left;
+      let y = imgTop - liveOrigin.top;
       if (!ev.altKey) {
         const snapped = snapFreePosition(
           x,
@@ -339,37 +398,67 @@ export function ResizableImageView({
         );
         x = snapped.x;
         y = snapped.y;
+        imgLeft = liveOrigin.left + x;
+        imgTop = liveOrigin.top + y;
         nextGuides = snapped.guides;
-      } else {
-        x = clampFreeX(x, startBox.width, liveOrigin.width);
-        y = clampFreeY(y);
       }
-      placeRef.current = { x, y };
-      outer.style.position = 'absolute';
-      outer.style.left = `${x}px`;
-      outer.style.top = `${y}px`;
-      outer.style.zIndex = '80';
-      outer.dataset.layout = 'free';
+      const nextWrap = wrapFromDropX(
+        imgLeft + startBox.width / 2,
+        liveOrigin.left,
+        liveOrigin.width
+      );
+      const ghost = {
+        x: imgLeft,
+        y: imgTop,
+        wrap: nextWrap,
+        width: startBox.width,
+        height: startBox.height,
+      };
+      placeRef.current = ghost;
+      setPlacing(ghost);
       setGuides(nextGuides);
     };
 
-    const up = () => {
+    const up = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       clearLongPress();
-      setPlacing(false);
+      setPlacing(null);
       setGuides([]);
       if (!started) return;
       const placed = placeRef.current;
       placeRef.current = null;
-      if (!placed) return;
-      updateAttributes({
-        layout: 'free',
-        x: placed.x,
-        y: placed.y,
-        z: nextImageZ(editor),
+      const from = posOfNode();
+      if (!placed || from == null) return;
+      const liveOrigin = editorOriginRect(editor);
+      const indent = indentFromDrop(
+        placed.wrap,
+        placed.x,
+        placed.width,
+        liveOrigin.left,
+        liveOrigin.width
+      );
+      const coords = editor.view.posAtCoords({ left: ev.clientX, top: ev.clientY });
+      if (!coords) {
+        updateAttributes({ wrap: placed.wrap, indent, layout: 'flow', x: null, y: null });
+        return;
+      }
+      let preferAfter = true;
+      try {
+        const $pos = editor.state.doc.resolve(coords.pos);
+        if ($pos.depth >= 1) {
+          const before = editor.view.coordsAtPos($pos.before(1));
+          const after = editor.view.coordsAtPos($pos.after(1));
+          preferAfter = ev.clientY > (before.top + after.bottom) / 2;
+        }
+      } catch {
+        preferAfter = true;
+      }
+      moveImageNode(editor, from, coords.pos, preferAfter, {
+        wrap: placed.wrap,
+        indent,
+        align: placed.wrap === 'below' ? 'center' : undefined,
       });
-      updateCanvasExtent(editor.view);
     };
 
     window.addEventListener('pointermove', move);
@@ -409,30 +498,24 @@ export function ResizableImageView({
         deleteNode();
         return;
       }
-      const step = e.shiftKey ? 10 : 1;
-      const origin = editorOriginRect(editor);
-      const outer = outerNodeOf(frameRef.current);
-      const box = outer
-        ? boxFromDom(outer, origin)
-        : { x: 0, y: 0, width: 240, height: 160 };
-      let x = box.x;
-      let y = box.y;
-      if (e.key === 'ArrowLeft') x -= step;
-      else if (e.key === 'ArrowRight') x += step;
-      else if (e.key === 'ArrowUp') y -= step;
-      else if (e.key === 'ArrowDown') y += step;
-      else return;
-      e.preventDefault();
-      updateAttributes({
-        layout: 'free',
-        x: clampFreeX(x, box.width, origin.width),
-        y: clampFreeY(y),
-        z: Number(node.attrs.z) || 1,
-      });
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        applyWrap('left');
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        applyWrap('right');
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        applyWrap('below');
+      }
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [deleteNode, editable, editor, node.attrs.z, selected, updateAttributes]);
+  }, [applyWrap, deleteNode, editable, editor, selected]);
 
   const origin = placing ? editorOriginRect(editor) : null;
 
@@ -477,47 +560,51 @@ export function ResizableImageView({
               />
             ))}
             <div className="note-image-toolbar" data-image-ui="" data-image-toolbar="">
-              <div className="note-image-toolbar-group" role="group" aria-label={t('notes_image_layout')}>
-                <button
-                  type="button"
-                  title={t('notes_image_layout_free')}
-                  className={cn('note-image-tool', free && 'is-active')}
-                  onClick={() => setLayout('free')}
-                >
-                  <Move className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  title={t('notes_image_layout_flow')}
-                  className={cn('note-image-tool', !free && 'is-active')}
-                  onClick={() => setLayout('flow')}
-                >
-                  <Rows3 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="note-image-toolbar-group">
-                {(
-                  [
-                    ['left', AlignLeft, t('notes_image_align_left')],
-                    ['center', AlignCenter, t('notes_image_align_center')],
-                    ['right', AlignRight, t('notes_image_align_right')],
-                  ] as const
-                ).map(([value, Icon, label]) => (
+              <div className="note-image-toolbar-group" role="group" aria-label={t('notes_image_wrap')}>
+                {(['left', 'below', 'right'] as const).map(mode => (
                   <button
-                    key={value}
+                    key={mode}
                     type="button"
-                    title={label}
-                    className="note-image-tool"
-                    onClick={() => {
-                      const pos = posOfNode();
-                      if (pos == null) return;
-                      alignImageOnPage(editor, pos, value);
-                    }}
+                    title={
+                      mode === 'left'
+                        ? t('notes_image_wrap_left')
+                        : mode === 'right'
+                          ? t('notes_image_wrap_right')
+                          : t('notes_image_wrap_below')
+                    }
+                    className={cn('note-image-tool', wrap === mode && 'is-active')}
+                    onClick={() => applyWrap(mode)}
                   >
-                    <Icon className="h-3.5 w-3.5" />
+                    <WrapGlyph wrap={mode} />
                   </button>
                 ))}
               </div>
+              {wrap === 'below' ? (
+                <div className="note-image-toolbar-group">
+                  {(
+                    [
+                      ['left', AlignLeft, t('notes_image_align_left')],
+                      ['center', AlignCenter, t('notes_image_align_center')],
+                      ['right', AlignRight, t('notes_image_align_right')],
+                    ] as const
+                  ).map(([value, Icon, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      title={label}
+                      className={cn(
+                        'note-image-tool',
+                        node.attrs.align === value && 'is-active'
+                      )}
+                      onClick={() =>
+                        updateAttributes({ wrap: 'below', align: value, indent: 0 })
+                      }
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="note-image-toolbar-group">
                 <button
                   type="button"
@@ -549,9 +636,9 @@ export function ResizableImageView({
           </>
         ) : null}
       </span>
-      {placing && origin && guides.length > 0
+      {placing
         ? createPortal(
-            <SnapGuides origin={origin} guides={guides} />,
+            <PlaceOverlay placing={placing} origin={origin} guides={guides} t={t} />,
             document.body
           )
         : null}
@@ -560,8 +647,8 @@ export function ResizableImageView({
             <ImageContextMenu
               x={menu.x}
               y={menu.y}
-              free={free}
-              onLayout={setLayout}
+              wrap={wrap}
+              onWrap={applyWrap}
               onAlign={value => {
                 const pos = posOfNode();
                 if (pos != null) alignImageOnPage(editor, pos, value);
@@ -588,30 +675,71 @@ export function ResizableImageView({
   );
 }
 
-function SnapGuides({
+function PlaceOverlay({
+  placing,
   origin,
   guides,
+  t,
 }: {
-  origin: DOMRect;
+  placing: {
+    x: number;
+    y: number;
+    wrap: NoteImageWrap;
+    width: number;
+    height: number;
+  };
+  origin: DOMRect | null;
   guides: NoteImageGuide[];
+  t: Translate;
 }) {
+  const label =
+    placing.wrap === 'left'
+      ? t('notes_image_wrap_left')
+      : placing.wrap === 'right'
+        ? t('notes_image_wrap_right')
+        : t('notes_image_wrap_below');
   return (
     <div className="note-image-place-layer" data-image-ui="">
-      {guides.map((guide, i) =>
-        guide.axis === 'x' ? (
-          <div
-            key={`x-${i}-${guide.at}`}
-            className="note-image-guide is-x"
-            style={{ left: origin.left + guide.at, top: origin.top, height: origin.height }}
-          />
-        ) : (
-          <div
-            key={`y-${i}-${guide.at}`}
-            className="note-image-guide is-y"
-            style={{ top: origin.top + guide.at, left: origin.left, width: origin.width }}
-          />
-        )
-      )}
+      <div
+        className="note-image-ghost"
+        style={{
+          left: placing.x,
+          top: placing.y,
+          width: placing.width,
+          height: placing.height,
+        }}
+      />
+      <div
+        className="note-image-place-chip"
+        style={{ left: placing.x, top: Math.max(8, placing.y - 28) }}
+      >
+        {label}
+      </div>
+      {origin
+        ? guides.map((guide, i) =>
+            guide.axis === 'x' ? (
+              <div
+                key={`x-${i}-${guide.at}`}
+                className="note-image-guide is-x"
+                style={{
+                  left: origin.left + guide.at,
+                  top: origin.top,
+                  height: origin.height,
+                }}
+              />
+            ) : (
+              <div
+                key={`y-${i}-${guide.at}`}
+                className="note-image-guide is-y"
+                style={{
+                  top: origin.top + guide.at,
+                  left: origin.left,
+                  width: origin.width,
+                }}
+              />
+            )
+          )
+        : null}
     </div>
   );
 }
@@ -619,8 +747,8 @@ function SnapGuides({
 function ImageContextMenu({
   x,
   y,
-  free,
-  onLayout,
+  wrap,
+  onWrap,
   onAlign,
   onCopy,
   onCut,
@@ -632,8 +760,8 @@ function ImageContextMenu({
 }: {
   x: number;
   y: number;
-  free: boolean;
-  onLayout: (layout: 'free' | 'flow') => void;
+  wrap: NoteImageWrap;
+  onWrap: (wrap: NoteImageWrap) => void;
   onAlign: (align: 'left' | 'center' | 'right') => void;
   onCopy: () => void;
   onCut: () => void;
@@ -690,15 +818,22 @@ function ImageContextMenu({
         <kbd>Ctrl+D</kbd>
       </button>
       <div className="note-image-menu-sep" />
-      <div className="note-image-menu-label">{t('notes_image_layout')}</div>
-      <button type="button" className={cn(free && 'is-active')} onClick={() => onLayout('free')}>
-        <Move className="h-3.5 w-3.5" />
-        {t('notes_image_layout_free')}
-      </button>
-      <button type="button" className={cn(!free && 'is-active')} onClick={() => onLayout('flow')}>
-        <Rows3 className="h-3.5 w-3.5" />
-        {t('notes_image_layout_flow')}
-      </button>
+      <div className="note-image-menu-label">{t('notes_image_wrap')}</div>
+      {(['left', 'below', 'right'] as const).map(mode => (
+        <button
+          key={mode}
+          type="button"
+          className={cn(wrap === mode && 'is-active')}
+          onClick={() => onWrap(mode)}
+        >
+          <WrapGlyph wrap={mode} />
+          {mode === 'left'
+            ? t('notes_image_wrap_left')
+            : mode === 'right'
+              ? t('notes_image_wrap_right')
+              : t('notes_image_wrap_below')}
+        </button>
+      ))}
       <div className="note-image-menu-sep" />
       <button type="button" onClick={() => onAlign('left')}>
         <AlignLeft className="h-3.5 w-3.5" />

@@ -578,16 +578,19 @@ html[data-material='glass'] {
   font-size: 1.85rem;
   font-weight: 700;
   margin: 0.6em 0 0.35em;
+  clear: both;
 }
 .note-editor .ProseMirror h2 {
   font-size: 1.35rem;
   font-weight: 650;
   margin: 0.7em 0 0.3em;
+  clear: both;
 }
 .note-editor .ProseMirror h3 {
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0.7em 0 0.25em;
+  clear: both;
 }
 .note-editor .ProseMirror p {
   margin: 0.35em 0;
@@ -612,25 +615,50 @@ html[data-material='glass'] {
   pointer-events: none;
   color: var(--color-text-muted);
 }
+.note-editor .ProseMirror::after {
+  content: '';
+  display: table;
+  clear: both;
+}
 .note-editor .ProseMirror .note-image-node {
   max-width: 100%;
   line-height: 0;
   width: max-content;
-  float: none;
-  clear: none;
 }
 .note-editor .ProseMirror .note-image-node.ProseMirror-selectednode {
   outline: none;
 }
-.note-editor .ProseMirror .note-image-node[data-layout='flow'] {
-  display: inline-block;
-  vertical-align: top;
-  margin: 0.35em 0.7em 0.55em 0;
+.note-editor .ProseMirror .note-image-node[data-wrap='left'] {
+  float: left;
+  margin: 0.2em 1em 0.75em 0;
+  max-width: min(72%, 100%);
+  shape-outside: margin-box;
+  shape-margin: 0.4rem;
 }
-.note-editor .ProseMirror .note-image-node[data-layout='free'] {
-  position: absolute;
-  margin: 0;
-  z-index: 2;
+.note-editor .ProseMirror .note-image-node[data-wrap='right'] {
+  float: right;
+  margin: 0.2em 0 0.75em 1em;
+  max-width: min(72%, 100%);
+  shape-outside: margin-box;
+  shape-margin: 0.4rem;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='below'] {
+  float: none;
+  clear: both;
+  display: block;
+  margin: 0.85em 0;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='below'][data-align='left'] {
+  margin-left: 0;
+  margin-right: auto;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='below'][data-align='center'] {
+  margin-left: auto;
+  margin-right: auto;
+}
+.note-editor .ProseMirror .note-image-node[data-wrap='below'][data-align='right'] {
+  margin-left: auto;
+  margin-right: 0;
 }
 
 .note-image-shell {
@@ -651,6 +679,7 @@ html[data-material='glass'] {
 }
 .note-image-frame.is-placing {
   cursor: grabbing;
+  opacity: 0.35;
 }
 .note-image-frame img,
 .note-editor .note-image-frame .note-editor-image {
@@ -763,6 +792,23 @@ html[data-material='glass'] {
   inset: 0;
   z-index: 80;
   pointer-events: none;
+}
+.note-image-ghost {
+  position: fixed;
+  border: 2px dashed var(--color-accent-teal);
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, var(--color-accent-teal) 14%, transparent);
+}
+.note-image-place-chip {
+  position: fixed;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-accent-teal);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
 }
 .note-image-guide {
   position: fixed;

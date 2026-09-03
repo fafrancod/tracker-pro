@@ -6,9 +6,11 @@ export type NoteImageLayout = (typeof NOTE_IMAGE_LAYOUTS)[number];
 export const NOTE_IMAGE_ALIGNS = ['left', 'center', 'right'] as const;
 export type NoteImageAlign = (typeof NOTE_IMAGE_ALIGNS)[number];
 
-/** @deprecated kept so notas viejas con data-wrap siguen parseando */
-export const NOTE_IMAGE_WRAPS = ['block', 'left', 'right'] as const;
+/** left/right = el texto rodea; below = el texto solo arriba y abajo */
+export const NOTE_IMAGE_WRAPS = ['below', 'left', 'right'] as const;
 export type NoteImageWrap = (typeof NOTE_IMAGE_WRAPS)[number];
+
+export const PLACE_ZONE = 0.34;
 
 export const MIN_NOTE_IMAGE_WIDTH = 64;
 export const NOTE_IMAGE_GAP = 12;
@@ -36,7 +38,58 @@ export function isNoteImageAlign(value: unknown): value is NoteImageAlign {
 }
 
 export function isNoteImageWrap(value: unknown): value is NoteImageWrap {
-  return value === 'block' || value === 'left' || value === 'right';
+  return value === 'below' || value === 'left' || value === 'right';
+}
+
+export function normalizeWrap(value: unknown): NoteImageWrap {
+  if (value === 'left' || value === 'right') return value;
+  if (value === 'below' || value === 'block') return 'below';
+  return 'left';
+}
+
+export function wrapFromDropX(x: number, left: number, width: number): NoteImageWrap {
+  if (width <= 0) return 'below';
+  const t = (x - left) / width;
+  if (t < PLACE_ZONE) return 'left';
+  if (t > 1 - PLACE_ZONE) return 'right';
+  return 'below';
+}
+
+export function wrapFromStoredX(
+  x: number,
+  imageWidth: number,
+  editorWidth: number
+): NoteImageWrap {
+  return wrapFromDropX(x + imageWidth / 2, 0, editorWidth);
+}
+
+export function clampIndent(
+  wrap: NoteImageWrap,
+  indent: number,
+  imageWidth: number,
+  editorWidth: number
+): number {
+  if (wrap === 'below') return 0;
+  const max = Math.max(0, editorWidth - imageWidth - 8);
+  return Math.round(Math.min(max, Math.max(0, indent)));
+}
+
+export function indentFromDrop(
+  wrap: NoteImageWrap,
+  imageLeft: number,
+  imageWidth: number,
+  editorLeft: number,
+  editorWidth: number
+): number {
+  if (wrap === 'left') {
+    return clampIndent(wrap, imageLeft - editorLeft, imageWidth, editorWidth);
+  }
+  if (wrap === 'right') {
+    const imageRight = imageLeft + imageWidth;
+    const editorRight = editorLeft + editorWidth;
+    return clampIndent(wrap, editorRight - imageRight, imageWidth, editorWidth);
+  }
+  return 0;
 }
 
 export function clipboardHtmlHasNoteImage(html: string): boolean {

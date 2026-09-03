@@ -5,12 +5,10 @@ import { compressImageToDataUrl } from '@/lib/imageCompress';
 import { isImageFile } from '@/lib/attachmentFiles';
 import type { TKey } from '@/lib/i18n';
 import {
-  NOTE_IMAGE_DUPLICATE_OFFSET,
-  isFreeImage,
-  pageAlignX,
-  parseCoord,
+  normalizeWrap,
   type NoteImageAlign,
   type NoteImageBox,
+  type NoteImageWrap,
 } from './noteImageLayout';
 
 type Translate = (key: TKey) => string;
@@ -28,16 +26,6 @@ export function contentWidthOfEditor(editor: Editor): number {
 
 export function remainingNoteImageSlots(editor: Editor): number {
   return Math.max(0, MAX_NOTE_IMAGES - countNoteImages(editor.getJSON()));
-}
-
-export function nextImageZ(editor: Editor): number {
-  let max = 1;
-  editor.state.doc.descendants(node => {
-    if (node.type.name !== 'image') return;
-    const z = Number(node.attrs.z) || 1;
-    if (z > max) max = z;
-  });
-  return max + 1;
 }
 
 export function editorOriginRect(editor: Editor): DOMRect {
@@ -64,27 +52,6 @@ export function collectOtherImageBoxes(editor: Editor, selfPos: number): NoteIma
     out.push(boxFromDom(dom, origin));
   });
   return out;
-}
-
-export function coordsForNewImage(
-  editor: Editor,
-  indexInBatch = 0
-): { x: number; y: number; z: number } {
-  const origin = editorOriginRect(editor);
-  let x = 16;
-  let y = 24;
-  try {
-    const coords = editor.view.coordsAtPos(editor.state.selection.from);
-    x = Math.max(0, Math.round(coords.left - origin.left));
-    y = Math.max(0, Math.round(coords.top - origin.top));
-  } catch {
-    /* cursor fuera de rango */
-  }
-  return {
-    x: x + indexInBatch * NOTE_IMAGE_DUPLICATE_OFFSET,
-    y: y + indexInBatch * NOTE_IMAGE_DUPLICATE_OFFSET,
-    z: nextImageZ(editor) + indexInBatch,
-  };
 }
 
 export async function insertImageFiles(
@@ -116,7 +83,6 @@ export async function insertImageFiles(
         quality: 0.72,
         maxDataUrlLength: 220_000,
       });
-      const place = coordsForNewImage(editor, i);
       const editorW = contentWidthOfEditor(editor);
       const defaultW = Math.round(Math.min(360, editorW * 0.42));
       const ok = editor
@@ -127,11 +93,12 @@ export async function insertImageFiles(
           attrs: {
             src: dataUrl,
             alt: file.name || t('notes_image'),
-            layout: 'free',
+            layout: 'flow',
+            wrap: i % 2 === 0 ? 'left' : 'right',
             width: defaultW,
-            x: place.x,
-            y: place.y,
-            z: place.z,
+            indent: 0,
+            x: null,
+            y: null,
           },
         })
         .run();
@@ -162,15 +129,6 @@ export function duplicateImageAt(
   }
   const node = editor.state.doc.nodeAt(pos);
   if (!node || node.type.name !== 'image') return false;
-  const origin = editorOriginRect(editor);
-  const dom = editor.view.nodeDOM(pos);
-  let x = parseCoord(node.attrs.x) ?? 24;
-  let y = parseCoord(node.attrs.y) ?? 24;
-  if (dom instanceof HTMLElement) {
-    const box = boxFromDom(dom, origin);
-    x = box.x;
-    y = box.y;
-  }
   const insertAt = pos + node.nodeSize;
   const ok = editor
     .chain()
@@ -178,10 +136,11 @@ export function duplicateImageAt(
       type: 'image',
       attrs: {
         ...node.attrs,
-        layout: 'free',
-        x: x + NOTE_IMAGE_DUPLICATE_OFFSET,
-        y: y + NOTE_IMAGE_DUPLICATE_OFFSET,
-        z: nextImageZ(editor),
+        layout: 'flow',
+        wrap: normalizeWrap(node.attrs.wrap) === 'left' ? 'right' : 'left',
+        indent: 0,
+        x: null,
+        y: null,
       },
     })
     .run();
@@ -196,24 +155,19 @@ export function alignImageOnPage(
 ): boolean {
   const node = editor.state.doc.nodeAt(pos);
   if (!node || node.type.name !== 'image') return false;
-  const origin = editorOriginRect(editor);
-  const dom = editor.view.nodeDOM(pos);
-  const width =
-    dom instanceof HTMLElement ? dom.getBoundingClientRect().width : Number(node.attrs.width) || 240;
-  let y = parseCoord(node.attrs.y) ?? 24;
-  if (dom instanceof HTMLElement) {
-    y = boxFromDom(dom, origin).y;
-  }
-  const x = pageAlignX(align, width, origin.width);
+  const wrap: NoteImageWrap =
+    align === 'left' ? 'left' : align === 'right' ? 'right' : 'below';
   return editor
     .chain()
     .command(({ tr, dispatch }) => {
       tr.setNodeMarkup(pos, undefined, {
         ...node.attrs,
-        layout: 'free',
-        x,
-        y,
-        z: isFreeImage(node.attrs) ? node.attrs.z : nextImageZ(editor),
+        layout: 'flow',
+        wrap,
+        align: wrap === 'below' ? align : 'center',
+        indent: 0,
+        x: null,
+        y: null,
       });
       tr.setSelection(NodeSelection.create(tr.doc, pos));
       dispatch?.(tr);
@@ -222,14 +176,79 @@ export function alignImageOnPage(
     .run();
 }
 
+export function moveImageNode(
+  editor: Editor,
+  from: number,
+  dropPos: number,
+  preferAfter: boolean,
+  next: {
+    wrap: NoteImageWrap;
+    indent: number;
+    align?: NoteImageAlign;
+  }
+): boolean {
+  const { state } = editor;
+  const node = state.doc.nodeAt(from);
+  if (!node || node.type.name !== 'image') return false;
+
+  const maxPos = state.doc.content.size;
+  const safeDrop = Math.max(0, Math.min(dropPos, maxPos));
+  const $drop = state.doc.resolve(safeDrop);
+  let insertPos =
+    $drop.depth === 0 ? $drop.pos : preferAfter ? $drop.after(1) : $drop.before(1);
+  insertPos = Math.max(0, Math.min(insertPos, maxPos));
+
+  const fromEnd = from + node.nodeSize;
+  const attrs = {
+    ...node.attrs,
+    layout: 'flow',
+    wrap: next.wrap,
+    indent: next.indent,
+    align: next.align ?? (next.wrap === 'below' ? 'center' : node.attrs.align),
+    x: null,
+    y: null,
+  };
+  if (insertPos >= from && insertPos <= fromEnd) {
+    return editor
+      .chain()
+      .command(({ tr, dispatch }) => {
+        tr.setNodeMarkup(from, undefined, attrs);
+        tr.setSelection(NodeSelection.create(tr.doc, from));
+        dispatch?.(tr);
+        return true;
+      })
+      .run();
+  }
+
+  const created = node.type.create(attrs, node.content, node.marks);
+  return editor
+    .chain()
+    .command(({ tr, dispatch }) => {
+      tr.delete(from, fromEnd);
+      const mapped = tr.mapping.map(insertPos);
+      const pos = Math.max(0, Math.min(mapped, tr.doc.content.size));
+      try {
+        tr.insert(pos, created);
+      } catch {
+        return false;
+      }
+      const sel = Math.min(pos, tr.doc.content.size - created.nodeSize);
+      if (sel >= 0) {
+        try {
+          tr.setSelection(NodeSelection.create(tr.doc, sel));
+        } catch {
+          /* ignore */
+        }
+      }
+      dispatch?.(tr);
+      return true;
+    })
+    .run();
+}
+
 export function updateCanvasExtent(view: { dom: Element }): void {
   const pm = view.dom as HTMLElement;
-  let max = pm.clientHeight;
-  pm.querySelectorAll('.note-image-node[data-layout="free"]').forEach(node => {
-    const el = node as HTMLElement;
-    max = Math.max(max, el.offsetTop + el.offsetHeight + 48);
-  });
-  pm.style.minHeight = `${max}px`;
+  pm.style.minHeight = '';
 }
 
 export function selectImageAt(editor: Editor, pos: number): void {
