@@ -84,7 +84,11 @@ export async function insertImageFiles(
         maxDataUrlLength: 220_000,
       });
       const editorW = contentWidthOfEditor(editor);
-      const defaultW = Math.round(Math.min(360, editorW * 0.42));
+      const inTable = editor.isActive('table');
+      const defaultW = inTable
+        ? Math.round(Math.min(220, editorW * 0.32))
+        : Math.round(Math.min(360, editorW * 0.42));
+      const wrap = inTable ? 'below' : i % 2 === 0 ? 'left' : 'right';
       const ok = editor
         .chain()
         .focus()
@@ -94,7 +98,7 @@ export async function insertImageFiles(
             src: dataUrl,
             alt: file.name || t('notes_image'),
             layout: 'flow',
-            wrap: i % 2 === 0 ? 'left' : 'right',
+            wrap,
             width: defaultW,
             indent: 0,
             x: null,

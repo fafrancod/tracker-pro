@@ -6,8 +6,8 @@ export type NoteImageLayout = (typeof NOTE_IMAGE_LAYOUTS)[number];
 export const NOTE_IMAGE_ALIGNS = ['left', 'center', 'right'] as const;
 export type NoteImageAlign = (typeof NOTE_IMAGE_ALIGNS)[number];
 
-/** left/right = el texto rodea; below = el texto solo arriba y abajo */
-export const NOTE_IMAGE_WRAPS = ['below', 'left', 'right'] as const;
+/** left/right = rodea un lado; center = texto a ambos lados; below = solo arriba y abajo */
+export const NOTE_IMAGE_WRAPS = ['below', 'left', 'center', 'right'] as const;
 export type NoteImageWrap = (typeof NOTE_IMAGE_WRAPS)[number];
 
 export const PLACE_ZONE = 0.34;
@@ -38,21 +38,21 @@ export function isNoteImageAlign(value: unknown): value is NoteImageAlign {
 }
 
 export function isNoteImageWrap(value: unknown): value is NoteImageWrap {
-  return value === 'below' || value === 'left' || value === 'right';
+  return value === 'below' || value === 'left' || value === 'center' || value === 'right';
 }
 
 export function normalizeWrap(value: unknown): NoteImageWrap {
-  if (value === 'left' || value === 'right') return value;
+  if (value === 'left' || value === 'right' || value === 'center') return value;
   if (value === 'below' || value === 'block') return 'below';
   return 'left';
 }
 
 export function wrapFromDropX(x: number, left: number, width: number): NoteImageWrap {
-  if (width <= 0) return 'below';
+  if (width <= 0) return 'center';
   const t = (x - left) / width;
   if (t < PLACE_ZONE) return 'left';
   if (t > 1 - PLACE_ZONE) return 'right';
-  return 'below';
+  return 'center';
 }
 
 export function wrapFromStoredX(
@@ -69,7 +69,7 @@ export function clampIndent(
   imageWidth: number,
   editorWidth: number
 ): number {
-  if (wrap === 'below') return 0;
+  if (wrap === 'below' || wrap === 'center') return 0;
   const max = Math.max(0, editorWidth - imageWidth - 8);
   return Math.round(Math.min(max, Math.max(0, indent)));
 }

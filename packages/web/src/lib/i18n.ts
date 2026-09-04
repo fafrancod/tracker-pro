@@ -839,6 +839,14 @@ export interface TranslationDict {
   notes_image_wrap_right: string;
   notes_image_wrap_block: string;
   notes_image_wrap_below: string;
+  notes_image_wrap_center: string;
+  notes_table_insert: string;
+  notes_table_add_row: string;
+  notes_table_add_col: string;
+  notes_table_del_row: string;
+  notes_table_del_col: string;
+  notes_table_del: string;
+  notes_code_block: string;
   notes_image_align_left: string;
   notes_image_align_center: string;
   notes_image_align_right: string;
@@ -2321,6 +2329,14 @@ const es_dict: TranslationDict = {
   notes_image_wrap_right: 'Rodear a la derecha',
   notes_image_wrap_block: 'Texto debajo',
   notes_image_wrap_below: 'Texto debajo',
+  notes_image_wrap_center: 'Texto a ambos lados',
+  notes_table_insert: 'Insertar tabla',
+  notes_table_add_row: 'Añadir fila',
+  notes_table_add_col: 'Añadir columna',
+  notes_table_del_row: 'Eliminar fila',
+  notes_table_del_col: 'Eliminar columna',
+  notes_table_del: 'Eliminar tabla',
+  notes_code_block: 'Bloque de código',
   notes_image_align_left: 'Alinear a la izquierda',
   notes_image_align_center: 'Centrar',
   notes_image_align_right: 'Alinear a la derecha',
@@ -3847,6 +3863,14 @@ const en_dict: TranslationDict = {
   notes_image_wrap_right: 'Wrap right',
   notes_image_wrap_block: 'Text below',
   notes_image_wrap_below: 'Text below',
+  notes_image_wrap_center: 'Text on both sides',
+  notes_table_insert: 'Insert table',
+  notes_table_add_row: 'Add row',
+  notes_table_add_col: 'Add column',
+  notes_table_del_row: 'Delete row',
+  notes_table_del_col: 'Delete column',
+  notes_table_del: 'Delete table',
+  notes_code_block: 'Code block',
   notes_image_align_left: 'Align left',
   notes_image_align_center: 'Center',
   notes_image_align_right: 'Align right',

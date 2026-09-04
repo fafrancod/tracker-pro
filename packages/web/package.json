@@ -1,6 +1,6 @@
 {
   "name": "@daily-tracker/web",
-  "version": "2.41.2",
+  "version": "2.42.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -42,6 +42,10 @@
     "@tiptap/extension-image": "2.11.7",
     "@tiptap/extension-link": "^2.11.7",
     "@tiptap/extension-placeholder": "^2.11.7",
+    "@tiptap/extension-table": "2.11.7",
+    "@tiptap/extension-table-cell": "2.11.7",
+    "@tiptap/extension-table-header": "2.11.7",
+    "@tiptap/extension-table-row": "2.11.7",
     "@tiptap/extension-text-align": "^2.11.7",
     "@tiptap/extension-text-style": "^2.11.7",
     "@tiptap/extension-underline": "^2.11.7",

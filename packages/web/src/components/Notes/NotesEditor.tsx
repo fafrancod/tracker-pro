@@ -8,11 +8,16 @@ import TextAlign from '@tiptap/extension-text-align';
 import Highlight from '@tiptap/extension-highlight';
 import { Color } from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
+import Table from '@tiptap/extension-table';
+import TableRow from '@tiptap/extension-table-row';
+import TableCell from '@tiptap/extension-table-cell';
+import TableHeader from '@tiptap/extension-table-header';
 import {
   AlignCenter,
   AlignLeft,
   AlignRight,
   Bold,
+  Code2,
   CopyPlus,
   Heading1,
   Heading2,
@@ -38,6 +43,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { ResizableImage } from './resizableImage';
 import { clipboardHtmlHasNoteImage } from './noteImageLayout';
 import { duplicateImageAt, insertImageFiles } from './noteImageInsert';
+import { NotesTableToolbar } from './NotesTableToolbar';
 
 interface NotesEditorProps {
   noteId: string;
@@ -113,6 +119,12 @@ export function NotesEditor({
           class: 'note-editor-image',
         },
       }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Placeholder.configure({ placeholder }),
     ],
     content: content ?? emptyNoteDoc(),
@@ -339,6 +351,15 @@ export function NotesEditor({
           onClick={() => fileRef.current?.click()}
         >
           <ImagePlus className="h-4 w-4" />
+        </ToolbarButton>
+        <NotesTableToolbar editor={editor} editable={editable} t={t} />
+        <ToolbarButton
+          label={t('notes_code_block')}
+          active={editor.isActive('codeBlock')}
+          disabled={!editable}
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        >
+          <Code2 className="h-4 w-4" />
         </ToolbarButton>
         {editor.isActive('image') ? (
           <>

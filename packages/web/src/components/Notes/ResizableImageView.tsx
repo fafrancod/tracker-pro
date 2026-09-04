@@ -59,6 +59,13 @@ const MOVE_THRESHOLD = 5;
 
 type Translate = (key: TKey) => string;
 
+function wrapTitle(mode: NoteImageWrap, t: Translate): string {
+  if (mode === 'left') return t('notes_image_wrap_left');
+  if (mode === 'right') return t('notes_image_wrap_right');
+  if (mode === 'center') return t('notes_image_wrap_center');
+  return t('notes_image_wrap_below');
+}
+
 function WrapGlyph({ wrap }: { wrap: NoteImageWrap }) {
   if (wrap === 'left') {
     return (
@@ -79,6 +86,19 @@ function WrapGlyph({ wrap }: { wrap: NoteImageWrap }) {
         <rect x="12" y="1" width="7" height="8" rx="1" fill="currentColor" />
         <path
           d="M1 2.2h9M1 5h9M3 7.8h7M1 11.5h18M1 14.2h18"
+          stroke="currentColor"
+          strokeWidth="1.35"
+          fill="none"
+        />
+      </svg>
+    );
+  }
+  if (wrap === 'center') {
+    return (
+      <svg viewBox="0 0 20 16" className="h-3.5 w-4" aria-hidden>
+        <rect x="6.5" y="1" width="7" height="8" rx="1" fill="currentColor" />
+        <path
+          d="M1 2.2h4.2M1 5h4.2M1 7.8h4.2M14.8 2.2H19M14.8 5H19M14.8 7.8H19M1 11.5h18M1 14.2h18"
           stroke="currentColor"
           strokeWidth="1.35"
           fill="none"
@@ -156,6 +176,7 @@ export function ResizableImageView({
   } | null>(null);
   const [guides, setGuides] = useState<NoteImageGuide[]>([]);
   const [sizeTip, setSizeTip] = useState<string | null>(null);
+  const [aspectTick, setAspectTick] = useState(0);
 
   useEffect(() => {
     if (node.attrs.layout !== 'free') return;
@@ -290,7 +311,7 @@ export function ResizableImageView({
         layout: 'flow',
         x: null,
         y: null,
-        align: next === 'below' ? 'center' : node.attrs.align,
+        align: next === 'below' || next === 'center' ? 'center' : node.attrs.align,
       });
       const outer = outerNodeOf(frameRef.current);
       if (outer) {
@@ -304,6 +325,22 @@ export function ResizableImageView({
     [node.attrs.align, updateAttributes]
   );
 
+  useEffect(() => {
+    const outer = outerNodeOf(frameRef.current);
+    if (!outer) return;
+    if (wrap !== 'center') {
+      outer.style.height = '';
+      outer.style.removeProperty('--img-w');
+      outer.style.removeProperty('--img-h');
+      return;
+    }
+    const w = displayWidth ?? frameRef.current?.offsetWidth ?? 240;
+    const h = Math.max(32, Math.round(w / (aspectRef.current || 1)));
+    outer.style.height = `${h}px`;
+    outer.style.setProperty('--img-w', `${w}px`);
+    outer.style.setProperty('--img-h', `${h}px`);
+  }, [wrap, displayWidth, aspectTick, node.attrs.src]);
+
   const onHandleDown = (event: ReactPointerEvent, handle: Handle) => {
     if (!editable) return;
     event.preventDefault();
@@ -315,7 +352,12 @@ export function ResizableImageView({
     const startW = frameRef.current?.offsetWidth ?? storedWidth ?? 240;
     const aspect = aspectRef.current || 1;
     const editorW = contentWidthOfEditor(editor);
-    const maxW = wrap === 'below' ? editorW : Math.floor(editorW * 0.72);
+    const maxW =
+      wrap === 'below'
+        ? editorW
+        : wrap === 'center'
+          ? Math.floor(editorW * 0.56)
+          : Math.floor(editorW * 0.72);
 
     const move = (ev: PointerEvent) => {
       const dx = ev.clientX - startX;
@@ -508,6 +550,11 @@ export function ResizableImageView({
         applyWrap('right');
         return;
       }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        applyWrap('center');
+        return;
+      }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         applyWrap('below');
@@ -543,6 +590,7 @@ export function ResizableImageView({
             const img = event.currentTarget;
             if (img.naturalWidth > 0 && img.naturalHeight > 0) {
               aspectRef.current = img.naturalWidth / img.naturalHeight;
+              setAspectTick(n => n + 1);
             }
           }}
         />
@@ -561,17 +609,11 @@ export function ResizableImageView({
             ))}
             <div className="note-image-toolbar" data-image-ui="" data-image-toolbar="">
               <div className="note-image-toolbar-group" role="group" aria-label={t('notes_image_wrap')}>
-                {(['left', 'below', 'right'] as const).map(mode => (
+                {(['left', 'center', 'right', 'below'] as const).map(mode => (
                   <button
                     key={mode}
                     type="button"
-                    title={
-                      mode === 'left'
-                        ? t('notes_image_wrap_left')
-                        : mode === 'right'
-                          ? t('notes_image_wrap_right')
-                          : t('notes_image_wrap_below')
-                    }
+                    title={wrapTitle(mode, t)}
                     className={cn('note-image-tool', wrap === mode && 'is-active')}
                     onClick={() => applyWrap(mode)}
                   >
@@ -692,12 +734,7 @@ function PlaceOverlay({
   guides: NoteImageGuide[];
   t: Translate;
 }) {
-  const label =
-    placing.wrap === 'left'
-      ? t('notes_image_wrap_left')
-      : placing.wrap === 'right'
-        ? t('notes_image_wrap_right')
-        : t('notes_image_wrap_below');
+  const label = wrapTitle(placing.wrap, t);
   return (
     <div className="note-image-place-layer" data-image-ui="">
       <div
@@ -819,7 +856,7 @@ function ImageContextMenu({
       </button>
       <div className="note-image-menu-sep" />
       <div className="note-image-menu-label">{t('notes_image_wrap')}</div>
-      {(['left', 'below', 'right'] as const).map(mode => (
+      {(['left', 'center', 'right', 'below'] as const).map(mode => (
         <button
           key={mode}
           type="button"
@@ -827,11 +864,7 @@ function ImageContextMenu({
           onClick={() => onWrap(mode)}
         >
           <WrapGlyph wrap={mode} />
-          {mode === 'left'
-            ? t('notes_image_wrap_left')
-            : mode === 'right'
-              ? t('notes_image_wrap_right')
-              : t('notes_image_wrap_below')}
+          {wrapTitle(mode, t)}
         </button>
       ))}
       <div className="note-image-menu-sep" />
