@@ -34,6 +34,7 @@ import {
   SUPPORTED_CURRENCIES,
   resolveDefaultCurrency,
 } from '@core/lib/currencies';
+import { CurrencyFavoriteList } from '@/components/Finances/CurrencySelect';
 
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
@@ -797,6 +798,13 @@ export function SettingsPage() {
                 label: c.label,
               }))}
             />
+            <label className="mb-1.5 mt-5 block text-sm font-medium text-text-primary">
+              {t('settings_favorite_currencies')}
+            </label>
+            <p className="mb-2 text-[11px] text-text-muted">
+              {t('settings_favorite_currencies_desc')}
+            </p>
+            <CurrencyFavoriteList />
             <p className="mt-4 text-[11px] text-text-muted">
               <a
                 href="/finances"

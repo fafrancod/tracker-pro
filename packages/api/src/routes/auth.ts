@@ -102,6 +102,7 @@ function buildDefaultSettings(timezone?: string) {
     notifyRx: true,
     timezone: tz,
     preferredCurrency: resolveDefaultCurrency({ timezone: tz, locale: 'es' }),
+    favoriteCurrencies: [],
     financeBanks: [],
     hideCompletedTasks: false,
     completedTaskStyle: 'strikethrough',

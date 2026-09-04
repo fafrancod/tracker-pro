@@ -40,6 +40,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { cn } from '@/lib/utils';
 import { FinanceVaultGate } from '@/components/Finances/FinanceVaultGate';
 import { AccountsPanel } from '@/components/Finances/AccountsPanel';
+import { CurrencySelect } from '@/components/Finances/CurrencySelect';
 import { GoalsPanel } from '@/components/Finances/GoalsPanel';
 import { CreditsPanel } from '@/components/Finances/CreditsPanel';
 import { InvestmentsPanel } from '@/components/Finances/InvestmentsPanel';
@@ -2055,19 +2056,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
               </label>
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_currency')}</span>
-                <select
+                <CurrencySelect
                   value={form.currency}
-                  onChange={e =>
-                    setForm(f => ({ ...f, currency: e.target.value }))
-                  }
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  {SUPPORTED_CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>
-                      {c.code}
-                    </option>
-                  ))}
-                </select>
+                  onChange={code => setForm(f => ({ ...f, currency: code }))}
+                />
               </label>
             </div>
             {form.flow !== 'income' ? (

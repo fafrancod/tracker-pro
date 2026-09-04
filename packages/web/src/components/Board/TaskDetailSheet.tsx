@@ -59,10 +59,8 @@ import {
   defaultFinanceColor,
   isFinanceKind,
 } from '@core/lib/financeKinds';
-import {
-  normalizeCurrencyCode,
-  SUPPORTED_CURRENCIES,
-} from '@core/lib/currencies';
+import { normalizeCurrencyCode } from '@core/lib/currencies';
+import { CurrencySelect } from '@/components/Finances/CurrencySelect';
 import { useSettings } from '@/contexts/SettingsContext';
 import { normalizePomodoroCount } from '@core/lib/habits';
 import { HabitPomodoroSection } from './HabitPomodoroSection';
@@ -948,19 +946,11 @@ function TaskDetailInner({
               </label>
               <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
                 <span>{t('fin_field_currency')}</span>
-                <select
+                <CurrencySelect
                   value={draft.financeCurrency}
-                  onChange={e =>
-                    patchDraft({ financeCurrency: e.target.value })
-                  }
+                  onChange={code => patchDraft({ financeCurrency: code })}
                   className="h-9 rounded-md border border-border bg-background px-2 text-xs text-text-primary"
-                >
-                  {SUPPORTED_CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
             </div>
             <label className="mt-2 flex flex-col gap-0.5 text-[10px] text-text-muted">

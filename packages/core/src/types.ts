@@ -235,6 +235,11 @@ export interface UserSettings {
    */
   preferredCurrency: string;
   /**
+   * Divisas marcadas con estrella para el selector de transacciones.
+   * Van debajo de `preferredCurrency`, sin duplicarla.
+   */
+  favoriteCurrencies?: string[];
+  /**
    * Bancos guardados para reutilizar en medios de pago (débito/crédito).
    * Se combina con los `institution` de las cuentas existentes.
    */

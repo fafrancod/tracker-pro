@@ -194,3 +194,63 @@ export function leftoverImplicitEurReplacement(
   if (!inferred || inferred === 'EUR') return null;
   return inferred;
 }
+
+export function normalizeFavoriteCurrencies(
+  favorites?: string[] | null
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of favorites ?? []) {
+    const u = String(raw ?? '')
+      .trim()
+      .toUpperCase();
+    if (!isSupportedCurrency(u) || seen.has(u)) continue;
+    seen.add(u);
+    out.push(u);
+  }
+  return out;
+}
+
+export function toggleFavoriteCurrency(
+  favorites: string[] | null | undefined,
+  code: string
+): string[] {
+  const u = String(code ?? '')
+    .trim()
+    .toUpperCase();
+  const current = normalizeFavoriteCurrencies(favorites);
+  if (!isSupportedCurrency(u)) return current;
+  if (current.includes(u)) return current.filter(c => c !== u);
+  return [...current, u];
+}
+
+export type CurrencyPickerGroups = {
+  primary: CurrencyOption;
+  favorites: CurrencyOption[];
+  others: CurrencyOption[];
+};
+
+function optionByCode(code: string): CurrencyOption | undefined {
+  return SUPPORTED_CURRENCIES.find(c => c.code === code);
+}
+
+/**
+ * Orden del selector de transacción: moneda principal, favoritas (sin
+ * duplicar la principal, en el orden en que se marcaron), resto.
+ */
+export function groupCurrenciesForPicker(opts: {
+  preferred?: string | null;
+  favorites?: string[] | null;
+}): CurrencyPickerGroups {
+  const preferred = isSupportedCurrency(opts.preferred)
+    ? normalizeCurrencyCode(opts.preferred)
+    : SUPPORTED_CURRENCIES[0].code;
+  const primary = optionByCode(preferred) ?? SUPPORTED_CURRENCIES[0];
+  const favorites = normalizeFavoriteCurrencies(opts.favorites)
+    .filter(code => code !== primary.code)
+    .map(code => optionByCode(code))
+    .filter((c): c is CurrencyOption => Boolean(c));
+  const used = new Set([primary.code, ...favorites.map(c => c.code)]);
+  const others = SUPPORTED_CURRENCIES.filter(c => !used.has(c.code));
+  return { primary, favorites, others };
+}

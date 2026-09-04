@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultCurrencyFromTimezone,
+  groupCurrenciesForPicker,
   leftoverImplicitEurReplacement,
   resolveDefaultCurrency,
+  toggleFavoriteCurrency,
 } from '@daily-tracker/core';
 
 describe('defaultCurrencyFromTimezone', () => {
@@ -69,5 +71,29 @@ describe('leftoverImplicitEurReplacement', () => {
     expect(leftoverImplicitEurReplacement('USD', 'America/Santiago')).toBeNull();
     expect(leftoverImplicitEurReplacement('CLP', 'America/Santiago')).toBeNull();
     expect(leftoverImplicitEurReplacement('EUR', 'Europe/Madrid')).toBeNull();
+  });
+});
+
+describe('favorite currencies', () => {
+  it('alterna y normaliza favoritas', () => {
+    expect(toggleFavoriteCurrency([], 'usd')).toEqual(['USD']);
+    expect(toggleFavoriteCurrency(['USD'], 'USD')).toEqual([]);
+    expect(toggleFavoriteCurrency(['USD'], 'EUR')).toEqual(['USD', 'EUR']);
+    expect(toggleFavoriteCurrency(['USD', 'NOPE'], 'CLP')).toEqual([
+      'USD',
+      'CLP',
+    ]);
+  });
+
+  it('pone la principal primero y las favoritas debajo, sin duplicar', () => {
+    const groups = groupCurrenciesForPicker({
+      preferred: 'CLP',
+      favorites: ['USD', 'CLP', 'EUR'],
+    });
+    expect(groups.primary.code).toBe('CLP');
+    expect(groups.favorites.map(c => c.code)).toEqual(['USD', 'EUR']);
+    expect(groups.others.map(c => c.code)).not.toContain('CLP');
+    expect(groups.others.map(c => c.code)).not.toContain('USD');
+    expect(groups.others[0]?.code).toBeDefined();
   });
 });

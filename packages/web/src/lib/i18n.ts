@@ -325,6 +325,11 @@ export interface TranslationDict {
   fin_field_kind: string;
   fin_field_amount: string;
   fin_field_currency: string;
+  fin_currency_primary: string;
+  fin_currency_favorites: string;
+  fin_currency_other: string;
+  fin_currency_star: string;
+  fin_currency_unstar: string;
   fin_field_frequency: string;
   fin_field_monthday: string;
   fin_field_weekday: string;
@@ -1015,6 +1020,8 @@ export interface TranslationDict {
   settings_finances_intro: string;
   settings_preferred_currency: string;
   settings_preferred_currency_desc: string;
+  settings_favorite_currencies: string;
+  settings_favorite_currencies_desc: string;
   settings_language: string;
   settings_language_es: string;
   settings_language_en: string;
@@ -1769,6 +1776,11 @@ const es_dict: TranslationDict = {
   fin_field_kind: 'Tipo',
   fin_field_amount: 'Importe',
   fin_field_currency: 'Moneda',
+  fin_currency_primary: 'Principal',
+  fin_currency_favorites: 'Favoritas',
+  fin_currency_other: 'Otras monedas',
+  fin_currency_star: 'Marcar como favorita',
+  fin_currency_unstar: 'Quitar de favoritas',
   fin_field_frequency: 'Frecuencia',
   fin_field_monthday: 'Día del mes',
   fin_field_weekday: 'Día de la semana',
@@ -2519,6 +2531,9 @@ const es_dict: TranslationDict = {
   settings_preferred_currency: 'Moneda preferida',
   settings_preferred_currency_desc:
     'Se usa al crear movimientos y para convertir otras divisas en el resumen de Finanzas. Puedes cambiarla cuando quieras.',
+  settings_favorite_currencies: 'Monedas favoritas',
+  settings_favorite_currencies_desc:
+    'La estrella las coloca debajo de la principal al elegir la divisa de un movimiento.',
   settings_language: 'Idioma',
   settings_language_es: 'Español',
   settings_language_en: 'English',
@@ -3303,6 +3318,11 @@ const en_dict: TranslationDict = {
   fin_field_kind: 'Kind',
   fin_field_amount: 'Amount',
   fin_field_currency: 'Currency',
+  fin_currency_primary: 'Primary',
+  fin_currency_favorites: 'Favorites',
+  fin_currency_other: 'Other currencies',
+  fin_currency_star: 'Mark as favorite',
+  fin_currency_unstar: 'Remove from favorites',
   fin_field_frequency: 'Frequency',
   fin_field_monthday: 'Day of month',
   fin_field_weekday: 'Weekday',
@@ -4053,6 +4073,9 @@ const en_dict: TranslationDict = {
   settings_preferred_currency: 'Preferred currency',
   settings_preferred_currency_desc:
     'Used when creating movements and to convert other currencies in the Finances summary. You can change it whenever you want.',
+  settings_favorite_currencies: 'Favorite currencies',
+  settings_favorite_currencies_desc:
+    'The star places them under the primary currency when you pick a movement currency.',
   settings_language: 'Language',
   settings_language_es: 'Spanish',
   settings_language_en: 'English',

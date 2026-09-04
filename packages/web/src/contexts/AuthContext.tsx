@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             locale:
               typeof navigator !== 'undefined' ? navigator.language : 'es',
           }),
+          favoriteCurrencies: [],
           financeBanks: [],
           hideCompletedTasks: false,
           completedTaskStyle: 'strikethrough',

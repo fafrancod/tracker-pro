@@ -56,10 +56,8 @@ import {
   defaultFinanceColor,
   isFinanceKind,
 } from '@core/lib/financeKinds';
-import {
-  resolveDefaultCurrency,
-  SUPPORTED_CURRENCIES,
-} from '@core/lib/currencies';
+import { resolveDefaultCurrency } from '@core/lib/currencies';
+import { CurrencySelect } from '@/components/Finances/CurrencySelect';
 import { kindSupportsSteps } from '@core/lib/steps';
 import {
   appendProjectCategory,
@@ -880,14 +878,10 @@ export function AddTaskForm({
             </label>
             <label className="flex flex-col gap-0.5 text-[10px] text-text-muted">
               <span>{t('fin_field_currency')}</span>
-              <SimpleSelect
+              <CurrencySelect
                 value={financeCurrency}
                 onChange={setFinanceCurrency}
                 className="h-9 rounded-lg border border-border bg-field px-2 text-xs text-text-primary"
-                options={SUPPORTED_CURRENCIES.map(currency => ({
-                  value: currency.code,
-                  label: currency.label,
-                }))}
               />
             </label>
           </div>

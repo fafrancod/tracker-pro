@@ -25,7 +25,7 @@ import {
   type TickerSearchHit,
 } from '@core/lib/finance';
 import type { FinanceAccount, FinanceMovement } from '@core/lib/finance';
-import { SUPPORTED_CURRENCIES } from '@core/lib/currencies';
+import { CurrencySelect } from '@/components/Finances/CurrencySelect';
 
 function money(n: number, currency: string): string {
   try {
@@ -382,17 +382,10 @@ export function InvestmentsPanel({
               </label>
               <label className="block space-y-1 text-xs text-text-muted">
                 <span>{t('fin_field_currency')}</span>
-                <select
+                <CurrencySelect
                   value={form.currency}
-                  onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}
-                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
-                >
-                  {SUPPORTED_CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>
-                      {c.code}
-                    </option>
-                  ))}
-                </select>
+                  onChange={code => setForm(f => ({ ...f, currency: code }))}
+                />
               </label>
             </div>
             {accounts.length > 0 && (
