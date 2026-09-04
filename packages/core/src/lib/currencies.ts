@@ -62,6 +62,88 @@ export function normalizeCurrencyCode(
   return isSupportedCurrency(u) ? u : fallback;
 }
 
+/**
+ * IANA timezone → ISO 4217. Exact match first, then prefix rules.
+ * Chile (America/Santiago) must win over the old EUR bootstrap default.
+ */
+const TIMEZONE_CURRENCY: Record<string, string> = {
+  'America/Santiago': 'CLP',
+  'America/Punta_Arenas': 'CLP',
+  'Pacific/Easter': 'CLP',
+  'America/Buenos_Aires': 'ARS',
+  'America/Argentina/Buenos_Aires': 'ARS',
+  'America/Argentina/Cordoba': 'ARS',
+  'America/Argentina/Mendoza': 'ARS',
+  'America/Argentina/Salta': 'ARS',
+  'America/Mexico_City': 'MXN',
+  'America/Cancun': 'MXN',
+  'America/Merida': 'MXN',
+  'America/Monterrey': 'MXN',
+  'America/Tijuana': 'MXN',
+  'America/Bogota': 'COP',
+  'America/Lima': 'PEN',
+  'America/Sao_Paulo': 'BRL',
+  'America/Fortaleza': 'BRL',
+  'America/Recife': 'BRL',
+  'America/Bahia': 'BRL',
+  'America/Manaus': 'BRL',
+  'America/Belem': 'BRL',
+  'America/Montevideo': 'UYU',
+  'America/La_Paz': 'BOB',
+  'America/Asuncion': 'PYG',
+  'America/Costa_Rica': 'CRC',
+  'America/Guatemala': 'GTQ',
+  'America/Tegucigalpa': 'HNL',
+  'America/Managua': 'NIO',
+  'America/Panama': 'PAB',
+  'America/Santo_Domingo': 'DOP',
+  'America/Havana': 'CUP',
+  'America/Caracas': 'VES',
+  'America/New_York': 'USD',
+  'America/Chicago': 'USD',
+  'America/Denver': 'USD',
+  'America/Los_Angeles': 'USD',
+  'America/Phoenix': 'USD',
+  'America/Anchorage': 'USD',
+  'Pacific/Honolulu': 'USD',
+  'America/Toronto': 'CAD',
+  'America/Vancouver': 'CAD',
+  'America/Edmonton': 'CAD',
+  'America/Winnipeg': 'CAD',
+  'America/Halifax': 'CAD',
+  'Europe/London': 'GBP',
+  'Europe/Zurich': 'CHF',
+  'Europe/Stockholm': 'SEK',
+  'Europe/Oslo': 'NOK',
+  'Europe/Copenhagen': 'DKK',
+  'Europe/Warsaw': 'PLN',
+  'Europe/Prague': 'CZK',
+  'Europe/Budapest': 'HUF',
+  'Europe/Bucharest': 'RON',
+  'Europe/Sofia': 'BGN',
+  'Atlantic/Reykjavik': 'ISK',
+};
+
+export function defaultCurrencyFromTimezone(
+  timezone?: string | null
+): string | null {
+  const tz = (timezone ?? '').trim();
+  if (!tz || tz === 'UTC' || tz === 'Etc/UTC' || tz === 'Etc/GMT') return null;
+  const exact = TIMEZONE_CURRENCY[tz];
+  if (exact) return exact;
+  if (tz.startsWith('America/Argentina/')) return 'ARS';
+  if (tz.startsWith('America/Mexico')) return 'MXN';
+  if (tz.startsWith('America/Sao_Paulo') || tz.startsWith('America/Fortaleza')) {
+    return 'BRL';
+  }
+  if (tz.startsWith('America/') && /New_York|Chicago|Denver|Los_Angeles|Phoenix|Indiana|Kentucky|Detroit|Boise|Juneau/.test(tz)) {
+    return 'USD';
+  }
+  if (tz.startsWith('Europe/London') || tz === 'GB') return 'GBP';
+  if (tz.startsWith('Europe/')) return 'EUR';
+  return null;
+}
+
 /** Default by browser locale when possible. */
 export function defaultCurrencyFromLocale(
   locale?: string | null
@@ -77,4 +159,38 @@ export function defaultCurrencyFromLocale(
   if (l.includes('us') || l.includes('en-us')) return 'USD';
   if (l.includes('gb') || l.includes('en-gb')) return 'GBP';
   return 'EUR';
+}
+
+/**
+ * Stored preference wins when it is a supported code.
+ * Otherwise timezone, then locale. Last resort EUR.
+ */
+export function resolveDefaultCurrency(opts: {
+  stored?: string | null;
+  timezone?: string | null;
+  locale?: string | null;
+}): string {
+  if (isSupportedCurrency(opts.stored)) {
+    return normalizeCurrencyCode(opts.stored);
+  }
+  return (
+    defaultCurrencyFromTimezone(opts.timezone) ??
+    defaultCurrencyFromLocale(opts.locale)
+  );
+}
+
+/**
+ * Profiles created before timezone-aware defaults were saved as EUR.
+ * If the zone implies another currency, return that replacement; else null.
+ * Do not call this after the user has explicitly picked EUR.
+ */
+export function leftoverImplicitEurReplacement(
+  stored: string | null | undefined,
+  timezone?: string | null
+): string | null {
+  const code = (stored ?? '').trim().toUpperCase();
+  if (code && code !== 'EUR') return null;
+  const inferred = defaultCurrencyFromTimezone(timezone);
+  if (!inferred || inferred === 'EUR') return null;
+  return inferred;
 }

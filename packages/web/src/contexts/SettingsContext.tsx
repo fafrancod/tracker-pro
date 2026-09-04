@@ -3,10 +3,15 @@ import { useStore } from '@core/store';
 import { updateUserSettings } from '@core/services/userService';
 import type { UserSettings } from '@core/types';
 import { applySkin, DEFAULT_SKIN_ID } from '@/lib/skins';
-import { defaultCurrencyFromLocale } from '@core/lib/currencies';
+import {
+  leftoverImplicitEurReplacement,
+  resolveDefaultCurrency,
+} from '@core/lib/currencies';
 import { useToast } from './ToastContext';
 
 const LOCAL_KEY = 'daily-tracker:settings:v1';
+/** One-time: leftover bootstrap EUR → currency implied by timezone. */
+const CURRENCY_TZ_MIGRATION_KEY = 'daily-tracker:preferred-currency-tz-v1';
 
 interface SettingsContextValue {
   settings: UserSettings;
@@ -55,9 +60,10 @@ const DEFAULTS: UserSettings = {
   expectedLifespanYears: 80,
   lifeGoals: [],
   dailyJournal: [],
-  preferredCurrency: defaultCurrencyFromLocale(
-    typeof navigator !== 'undefined' ? navigator.language : 'es'
-  ),
+  preferredCurrency: resolveDefaultCurrency({
+    timezone: detectTimezone(),
+    locale: typeof navigator !== 'undefined' ? navigator.language : 'es',
+  }),
   financeBanks: [],
   hideCompletedTasks: false,
   completedTaskStyle: 'strikethrough',
@@ -87,6 +93,29 @@ function saveLocal(settings: UserSettings): void {
   }
 }
 
+function hasCurrencyTzMigration(): boolean {
+  try {
+    return localStorage.getItem(CURRENCY_TZ_MIGRATION_KEY) === '1';
+  } catch {
+    return true;
+  }
+}
+
+function markCurrencyTzMigration(): void {
+  try {
+    localStorage.setItem(CURRENCY_TZ_MIGRATION_KEY, '1');
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function timezoneForCurrency(storedTz: string | undefined): string {
+  if (storedTz && storedTz !== 'UTC' && storedTz !== 'Etc/UTC' && storedTz !== 'Etc/GMT') {
+    return storedTz;
+  }
+  return detectTimezone();
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const profile = useStore(s => s.profile);
   const uid = useStore(s => s.uid);
@@ -95,10 +124,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [localOverrides, setLocalOverrides] = useState<Partial<UserSettings>>(() => loadLocal() ?? {});
   const [saving, setSaving] = useState(false);
 
-  const settings = useMemo<UserSettings>(
-    () => ({ ...DEFAULTS, ...(profile?.settings ?? {}), ...localOverrides }),
-    [profile?.settings, localOverrides]
-  );
+  const settings = useMemo<UserSettings>(() => {
+    const merged: UserSettings = {
+      ...DEFAULTS,
+      ...(profile?.settings ?? {}),
+      ...localOverrides,
+    };
+    if (!hasCurrencyTzMigration() && profile?.settings) {
+      const leftover = leftoverImplicitEurReplacement(
+        merged.preferredCurrency,
+        timezoneForCurrency(merged.timezone)
+      );
+      if (leftover) merged.preferredCurrency = leftover;
+    }
+    return merged;
+  }, [profile?.settings, localOverrides]);
 
   useEffect(() => {
     saveLocal(settings);
@@ -130,6 +170,29 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     },
     [uid, showToast]
   );
+
+  useEffect(() => {
+    if (!profile?.settings) return;
+    if (hasCurrencyTzMigration()) return;
+    const override = localOverrides.preferredCurrency;
+    if (override && override !== 'EUR') {
+      markCurrencyTzMigration();
+      return;
+    }
+    const stored = profile.settings.preferredCurrency;
+    const leftover = leftoverImplicitEurReplacement(
+      stored,
+      timezoneForCurrency(profile.settings.timezone ?? settings.timezone)
+    );
+    markCurrencyTzMigration();
+    if (!leftover || leftover === stored) return;
+    void updateSettings({ preferredCurrency: leftover });
+  }, [
+    profile,
+    localOverrides.preferredCurrency,
+    settings.timezone,
+    updateSettings,
+  ]);
 
   return (
     <SettingsContext.Provider value={{ settings, updateSettings, saving }}>

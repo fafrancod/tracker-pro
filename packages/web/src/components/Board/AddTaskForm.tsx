@@ -57,8 +57,7 @@ import {
   isFinanceKind,
 } from '@core/lib/financeKinds';
 import {
-  defaultCurrencyFromLocale,
-  normalizeCurrencyCode,
+  resolveDefaultCurrency,
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
 import { kindSupportsSteps } from '@core/lib/steps';
@@ -227,12 +226,11 @@ export function AddTaskForm({
   const [images, setImages] = useState<string[]>([]);
   const [financeAmount, setFinanceAmount] = useState(0);
   const [financeCurrency, setFinanceCurrency] = useState(() =>
-    normalizeCurrencyCode(
-      settings.preferredCurrency,
-      defaultCurrencyFromLocale(
-        typeof navigator !== 'undefined' ? navigator.language : 'es'
-      )
-    )
+    resolveDefaultCurrency({
+      stored: settings.preferredCurrency,
+      timezone: settings.timezone,
+      locale: typeof navigator !== 'undefined' ? navigator.language : 'es',
+    })
   );
   const [financeCertainty, setFinanceCertainty] =
     useState<FinanceCertainty>('fixed');
@@ -425,12 +423,11 @@ export function AddTaskForm({
     setEntailsMoney(false);
     setFinanceFlow('expense');
     setFinanceCurrency(
-      normalizeCurrencyCode(
-        settings.preferredCurrency,
-        defaultCurrencyFromLocale(
-          typeof navigator !== 'undefined' ? navigator.language : 'es'
-        )
-      )
+      resolveDefaultCurrency({
+        stored: settings.preferredCurrency,
+        timezone: settings.timezone,
+        locale: typeof navigator !== 'undefined' ? navigator.language : 'es',
+      })
     );
     setRecurrenceFrequency('none');
     setRecurrenceInterval(1);

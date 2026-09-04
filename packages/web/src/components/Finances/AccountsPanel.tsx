@@ -93,7 +93,7 @@ export function AccountsPanel({
     name: '',
     institution: '',
     type: 'debit' as FinanceAccountType,
-    currency: 'EUR',
+    currency: defaultCurrency ?? 'CLP',
     creditLimit: 0,
   });
 

@@ -2511,14 +2511,14 @@ const es_dict: TranslationDict = {
   settings_tab_preferences: 'Preferencias',
   settings_tab_appearance: 'Apariencia',
   settings_tab_notifications: 'Avisos',
-  settings_tab_finances: 'Finances',
+  settings_tab_finances: 'Finanzas',
   settings_tab_system: 'Sistema',
-  settings_finances_title: 'Finances',
+  settings_finances_title: 'Finanzas',
   settings_finances_intro:
-    'Define cómo se comportan los movimientos de dinero en la app.',
-  settings_preferred_currency: 'Moneda de reporte',
+    'Define tu moneda preferida y cómo se comportan los movimientos de dinero.',
+  settings_preferred_currency: 'Moneda preferida',
   settings_preferred_currency_desc:
-    'Los importes de otras divisas se convierten a esta moneda en el resumen de Finanzas.',
+    'Se usa al crear movimientos y para convertir otras divisas en el resumen de Finanzas. Puedes cambiarla cuando quieras.',
   settings_language: 'Idioma',
   settings_language_es: 'Español',
   settings_language_en: 'English',
@@ -4049,10 +4049,10 @@ const en_dict: TranslationDict = {
   settings_tab_system: 'System',
   settings_finances_title: 'Finances',
   settings_finances_intro:
-    'How money movements behave in the app.',
-  settings_preferred_currency: 'Reporting currency',
+    'Set your preferred currency and how money movements behave.',
+  settings_preferred_currency: 'Preferred currency',
   settings_preferred_currency_desc:
-    'Amounts in other currencies are converted to this one in the Finances summary.',
+    'Used when creating movements and to convert other currencies in the Finances summary. You can change it whenever you want.',
   settings_language: 'Language',
   settings_language_es: 'Spanish',
   settings_language_en: 'English',

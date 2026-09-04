@@ -161,7 +161,11 @@ interface DraftState {
   pomodoroDone: number;
 }
 
-function taskToDraft(task: Task, fallbackDayId: string): DraftState {
+function taskToDraft(
+  task: Task,
+  fallbackDayId: string,
+  preferredCurrency?: string
+): DraftState {
   return {
     title: task.title,
     notes: task.notes,
@@ -187,7 +191,7 @@ function taskToDraft(task: Task, fallbackDayId: string): DraftState {
     steps: [...(task.steps ?? [])].map(s => ({ ...s })),
     images: [...(task.images ?? [])],
     financeAmount: task.finance?.amount ?? 0,
-    financeCurrency: task.finance?.currency ?? 'EUR',
+    financeCurrency: task.finance?.currency ?? preferredCurrency ?? 'EUR',
     financeCertainty: task.finance?.certainty ?? 'fixed',
     pomodoroTarget: normalizePomodoroCount(task.pomodoroTarget),
     pomodoroDone: normalizePomodoroCount(task.pomodoroDone),
@@ -199,7 +203,7 @@ function taskToDraftWithPreferred(
   fallbackDayId: string,
   preferredCurrency?: string
 ): DraftState {
-  const base = taskToDraft(task, fallbackDayId);
+  const base = taskToDraft(task, fallbackDayId, preferredCurrency);
   if (!task.finance && isFinanceKind(task.kind)) {
     base.financeCurrency = normalizeCurrencyCode(
       preferredCurrency,

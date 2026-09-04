@@ -9,6 +9,7 @@ import { getDemoSeed } from '@/lib/demoSeed';
 import { disableDemo } from '@/lib/supabase';
 import { loadDemoState, saveDemoState, clearDemoState } from '@/lib/demoPersistence';
 import type { UserProfile } from '@core/types';
+import { resolveDefaultCurrency } from '@core/lib/currencies';
 import { useToast } from './ToastContext';
 
 interface AuthContextValue {
@@ -85,7 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           expectedLifespanYears: 80,
           lifeGoals: [],
           dailyJournal: [],
-          preferredCurrency: 'EUR',
+          preferredCurrency: resolveDefaultCurrency({
+            timezone:
+              typeof Intl !== 'undefined'
+                ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+                : 'UTC',
+            locale:
+              typeof navigator !== 'undefined' ? navigator.language : 'es',
+          }),
           financeBanks: [],
           hideCompletedTasks: false,
           completedTaskStyle: 'strikethrough',

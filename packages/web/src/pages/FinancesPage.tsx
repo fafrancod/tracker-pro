@@ -129,8 +129,7 @@ import type { FinanceUserCategory } from '@core/lib/finance/types';
 import { fetchFinanceCategories } from '@core/services/financeCategoryService';
 import { fetchFinanceMerchants } from '@core/services/financeMerchantService';
 import {
-  defaultCurrencyFromLocale,
-  normalizeCurrencyCode,
+  resolveDefaultCurrency,
   SUPPORTED_CURRENCIES,
 } from '@core/lib/currencies';
 
@@ -299,7 +298,7 @@ export function FinancesPage() {
 function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const { t, locale, language } = useT();
   const { showToast } = useToast();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const uid = useStore(s => s.uid);
   const [searchParams, setSearchParams] = useSearchParams();
   const hub = parseFinanceHub(searchParams.get('tab'));
@@ -308,10 +307,11 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     if (id === 'calendar') setSearchParams({}, { replace: true });
     else setSearchParams({ tab: id }, { replace: true });
   }
-  const preferred = normalizeCurrencyCode(
-    settings.preferredCurrency,
-    defaultCurrencyFromLocale(language === 'en' ? 'en-US' : 'es-CL')
-  );
+  const preferred = resolveDefaultCurrency({
+    stored: settings.preferredCurrency,
+    timezone: settings.timezone,
+    locale: language === 'en' ? 'en-US' : 'es-CL',
+  });
   const today = useMemo(
     () => todayCivilDate(settings.timezone),
     [settings.timezone]
@@ -1352,7 +1352,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           hub === 'list' ? 'overflow-hidden' : 'overflow-y-auto'
         )}
       >
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
           {FINANCE_HUBS.map(id => (
             <button
               key={id}
@@ -1386,6 +1386,21 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                             : t('fin_tab_categories')}
             </button>
           ))}
+          <label className="ml-auto flex items-center gap-2 text-[11px] text-text-muted">
+            <span className="hidden sm:inline">{t('settings_preferred_currency')}</span>
+            <SimpleSelect
+              aria-label={t('settings_preferred_currency')}
+              value={preferred}
+              onChange={v => {
+                void updateSettings({ preferredCurrency: v });
+              }}
+              className="h-8 w-[7.5rem] text-xs"
+              options={SUPPORTED_CURRENCIES.map(c => ({
+                value: c.code,
+                label: c.code,
+              }))}
+            />
+          </label>
         </div>
 
         {hub === 'list' ? (

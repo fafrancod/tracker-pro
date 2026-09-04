@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { resolveDefaultCurrency } from '@daily-tracker/core';
 import { getSupabaseAdmin } from '../supabaseAdmin.js';
 import { requireAuth } from '../middleware/auth.js';
 import { rateLimit } from '../middleware/rateLimit.js';
@@ -77,39 +78,42 @@ const bootstrapSchema = z.object({
   timezone: z.string().min(1).max(80).optional(),
 });
 
-const DEFAULT_SETTINGS = {
-  autoRollIncomplete: false,
-  defaultProjectId: null,
-  weekStartsOnMonday: true,
-  language: 'es' as const,
-  defaultBoardView: 'continuous' as const,
-  skinId: 'dark-github',
-  dayStartHour: 7,
-  dayEndHour: 22,
-  defaultScheduleLayout: 'list' as const,
-  notifyLocal: true,
-  notifyEmail: false,
-  notifyBeforeEnabled: true,
-  notifyMinutesBefore: 10,
-  notifyDayBefore: true,
-  notifyDayBeforeTime: '20:00',
-  notifyPastIncomplete: true,
-  notifyPastAfterMinutes: 30,
-  notifyTasks: true,
-  notifyRx: true,
-  timezone: 'UTC',
-  preferredCurrency: 'EUR',
-  financeBanks: [],
-  hideCompletedTasks: false,
-  completedTaskStyle: 'strikethrough',
-  onboardingTourCompleted: false,
-  boardFilters: {
-    kinds: 'all',
-    projectIds: 'all',
-    urgency: 'all',
-    importance: 'all',
-  },
-};
+function buildDefaultSettings(timezone?: string) {
+  const tz = timezone?.trim() || 'UTC';
+  return {
+    autoRollIncomplete: false,
+    defaultProjectId: null,
+    weekStartsOnMonday: true,
+    language: 'es' as const,
+    defaultBoardView: 'continuous' as const,
+    skinId: 'dark-github',
+    dayStartHour: 7,
+    dayEndHour: 22,
+    defaultScheduleLayout: 'list' as const,
+    notifyLocal: true,
+    notifyEmail: false,
+    notifyBeforeEnabled: true,
+    notifyMinutesBefore: 10,
+    notifyDayBefore: true,
+    notifyDayBeforeTime: '20:00',
+    notifyPastIncomplete: true,
+    notifyPastAfterMinutes: 30,
+    notifyTasks: true,
+    notifyRx: true,
+    timezone: tz,
+    preferredCurrency: resolveDefaultCurrency({ timezone: tz, locale: 'es' }),
+    financeBanks: [],
+    hideCompletedTasks: false,
+    completedTaskStyle: 'strikethrough',
+    onboardingTourCompleted: false,
+    boardFilters: {
+      kinds: 'all',
+      projectIds: 'all',
+      urgency: 'all',
+      importance: 'all',
+    },
+  };
+}
 
 authRouter.post('/bootstrap', async (req, res, next) => {
   try {
@@ -139,10 +143,7 @@ authRouter.post('/bootstrap', async (req, res, next) => {
       name: name ?? email.split('@')[0],
       email,
       plan: 'free' as const,
-      settings: {
-        ...DEFAULT_SETTINGS,
-        timezone: timezone?.trim() || DEFAULT_SETTINGS.timezone,
-      },
+      settings: buildDefaultSettings(timezone),
     };
 
     const { data: inserted, error: profileError } = await getSupabaseAdmin()

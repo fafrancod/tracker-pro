@@ -30,7 +30,10 @@ import {
   NOTIFY_PAST_AFTER_OPTIONS,
 } from '@core/lib/notifications';
 import { useStore } from '@core/store';
-import { SUPPORTED_CURRENCIES, normalizeCurrencyCode } from '@core/lib/currencies';
+import {
+  SUPPORTED_CURRENCIES,
+  resolveDefaultCurrency,
+} from '@core/lib/currencies';
 
 import { clearDemoState } from '@/lib/demoPersistence';
 import { useT } from '@/hooks/useT';
@@ -771,10 +774,11 @@ export function SettingsPage() {
             </p>
             <SimpleSelect
               aria-label={t('settings_preferred_currency')}
-              value={normalizeCurrencyCode(
-                settings.preferredCurrency,
-                'EUR'
-              )}
+              value={resolveDefaultCurrency({
+                stored: settings.preferredCurrency,
+                timezone: settings.timezone,
+                locale: settings.language === 'en' ? 'en-US' : 'es-CL',
+              })}
               onChange={v => {
                 void (async () => {
                   try {
