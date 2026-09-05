@@ -92,6 +92,7 @@ const createSchema = z
   .object({
     id: z.string().min(8).max(80).optional(),
     replaceMovementId: z.string().min(8).max(80).optional(),
+    detachFromRule: z.boolean().optional(),
     dayId: dayIdSchema,
     flow: flowSchema,
     status: statusSchema.optional(),
@@ -1127,7 +1128,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
       if (retirementError) throw retirementError;
 
       const oldRuleId = previous.rule_id as string | null;
-      if (oldRuleId && oldRuleId !== ruleId) {
+      if (oldRuleId && oldRuleId !== ruleId && !body.detachFromRule) {
         const { error: ruleError } = await getSupabaseAdmin()
           .from('finance_rules')
           .update({ active: false, updated_at: now })

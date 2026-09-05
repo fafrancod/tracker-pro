@@ -263,6 +263,8 @@ export interface CreateFinanceMovementPayload {
   id?: string;
   /** Replaces this movement (and its installment/recurrence group) after creation succeeds. */
   replaceMovementId?: string;
+  /** Conserva la regla original al declarar una sola ocurrencia con datos reales. */
+  detachFromRule?: boolean;
   payloadEnc?: string;
   ruleId?: string;
   rulePayloadEnc?: string;

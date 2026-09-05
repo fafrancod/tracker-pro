@@ -714,6 +714,48 @@ describe('POST /api/finances/movements', () => {
     expect(lastRuleInsert).toBeNull();
   });
 
+  it('declara una ocurrencia real sin detener su regla ni perder evidencias', async () => {
+    movementRows = [
+      {
+        id: 'movement-enel-001',
+        user_id: 'test-uid',
+        day_id: '2026-09-05',
+        flow: 'expense',
+        status: 'planned',
+        currency: 'CLP',
+        payload: { title: 'Paga Enel', amount: 40000, notes: '' },
+        rule_id: 'rule-enel-001',
+        installment_group_id: null,
+        created_at: '2026-09-01T00:00:00.000Z',
+        updated_at: '2026-09-01T00:00:00.000Z',
+      },
+    ];
+    const evidence = 'data:image/jpeg;base64,ZmFrZS1ldmlkZW5jZS0xMjM0NTY3ODkw';
+
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        replaceMovementId: 'movement-enel-001',
+        detachFromRule: true,
+        dayId: '2026-09-05',
+        flow: 'expense',
+        status: 'confirmed',
+        title: 'Paga Enel',
+        amount: 58329,
+        currency: 'CLP',
+        images: [evidence],
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastMovementInsert?.rule_id).toBeNull();
+    expect(lastMovementInsert?.payload_enc).toEqual(expect.any(String));
+    expect(res.body.amount).toBe(58329);
+    expect(res.body.images).toEqual([evidence]);
+    expect(lastRuleInsert).toBeNull();
+    expect(lastRuleUpdate).toBeNull();
+  });
+
   it('actualiza el payload de la regla al editar una ocurrencia virtual', async () => {
     ruleRows = [
       {

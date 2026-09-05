@@ -385,6 +385,7 @@ export async function createFinanceMovement(
     body = {
       id,
       replaceMovementId: payload.replaceMovementId,
+      detachFromRule: payload.detachFromRule,
       dayId: payload.dayId,
       purchaseDayId: payload.purchaseDayId,
       flow: payload.flow,

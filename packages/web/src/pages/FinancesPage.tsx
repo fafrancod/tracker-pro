@@ -975,7 +975,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       const virtualRule = mov.ruleId
         ? ledgerRules.find(rule => rule.id === mov.ruleId)
         : matchFinanceRuleForMovement(ledgerRules, mov);
-      setEditing(null);
+      // Se conserva el contexto de la regla para que "No repetir" la
+      // desacople al declarar, y una frecuencia explícita pueda actualizarla.
+      setEditing(mov);
       setForm({
         ...emptyForm(mov.dayId, mov.currency),
         flow: mov.flow,
@@ -983,7 +985,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         title: mov.title,
         amount: mov.amount,
         notes: mov.notes,
-        repeat: virtualRule?.frequency ?? 'none',
+        // Abrir una ocurrencia proyectada es declarar este pago: se convierte
+        // en un movimiento real, con monto y evidencias propios, sin tocar la
+        // regla que seguirá recordando las ocurrencias futuras.
+        repeat: 'none',
         recurrenceDay:
           virtualRule?.recurrenceDay ??
           (Number(mov.dayId.slice(8, 10)) || 1),
@@ -1057,7 +1062,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           ? [...categorySplitMap.values()]
           : [],
       notes: firstPurchaseRow.notes,
-      repeat: recurringRule?.frequency ?? 'none',
+      // Un movimiento de una serie se declara de forma independiente por
+      // defecto. Elegir una frecuencia explícitamente sigue permitiendo editar
+      // la programación de toda la serie.
+      repeat: 'none',
       recurrenceDay:
         recurringRule?.recurrenceDay ??
         (Number((firstPurchaseRow.purchaseDayId ?? firstPurchaseRow.dayId).slice(8, 10)) ||
@@ -1122,6 +1130,9 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     const recurringRuleForSave = editing
       ? matchFinanceRuleForMovement(ledgerRules, editing)
       : null;
+    const detachFromRule = Boolean(
+      editing && recurringRuleForSave && form.repeat === 'none'
+    );
     const fx = await resolveFinanceFx({
       amount: form.amount,
       currency: form.currency,
@@ -1181,11 +1192,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           ? form.installmentTotal
           : undefined,
       // Las ocurrencias futuras de una regla solo existen en el cliente
-      // (`fvr:*`). No se pueden reemplazar en la tabla: al guardarlas hay que
-      // materializar un movimiento real vinculado a su misma regla.
+      // (`fvr:*`). Una declaración virtual se materializa como movimiento
+      // independiente; una fila física sí se reemplaza de forma atómica.
       replaceMovementId: editing && !editing.virtual ? editing.id : undefined,
+      detachFromRule,
       ruleId:
         editing &&
+        form.repeat !== 'none' &&
         recurringRuleForSave &&
         !recurringRuleForSave.id.startsWith(INFERRED_RULE_PREFIX)
           ? recurringRuleForSave.id
