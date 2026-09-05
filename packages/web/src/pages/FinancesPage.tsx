@@ -324,6 +324,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   const [movements, setMovements] = useState<FinanceMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [showAttach, setShowAttach] = useState(false);
   const [editing, setEditing] = useState<FinanceMovement | null>(null);
   const [form, setForm] = useState<MovementForm>(() =>
@@ -333,6 +334,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
   // This is intentionally in-memory: finance data must not be copied to browser storage.
   const [newMovementDraft, setNewMovementDraft] =
     useState<MovementForm | null>(null);
+  const initialFormSnapshotRef = useRef<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FinanceMovement | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [filterFlow, setFilterFlow] = useState<
@@ -950,14 +952,37 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       };
     setShowAttach(nextForm.images.length > 0);
     setForm(nextForm);
+    initialFormSnapshotRef.current = JSON.stringify(nextForm);
+    setDiscardDialogOpen(false);
     setDialogOpen(true);
+  }
+
+  function finishCloseDialog(discard = false) {
+    initialFormSnapshotRef.current = null;
+    setDiscardDialogOpen(false);
+    if (discard && !editing) setNewMovementDraft(null);
+    setDialogOpen(false);
+  }
+
+  function requestCloseDialog() {
+    if (
+      initialFormSnapshotRef.current !== null &&
+      initialFormSnapshotRef.current !== JSON.stringify(form)
+    ) {
+      setDiscardDialogOpen(true);
+      return;
+    }
+    finishCloseDialog();
   }
 
   function openEdit(mov: FinanceMovement) {
     loadMovementFormOptions();
     if (mov.virtual && mov.ruleId) {
       const sibling = paymentLedger.find(
-        item => item.ruleId === mov.ruleId && !item.virtual
+        item =>
+          item.ruleId === mov.ruleId &&
+          !item.virtual &&
+          item.dayId === mov.dayId
       );
       if (sibling) {
         openEdit(sibling);
@@ -978,7 +1003,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       // Se conserva el contexto de la regla para que "No repetir" la
       // desacople al declarar, y una frecuencia explícita pueda actualizarla.
       setEditing(mov);
-      setForm({
+      const declarationForm: MovementForm = {
         ...emptyForm(mov.dayId, mov.currency),
         flow: mov.flow,
         status: 'confirmed',
@@ -995,7 +1020,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         creditPayment:
           Boolean(mov.creditId) || mov.tag === 'credit_payment',
         creditId: mov.creditId ?? '',
-      });
+      };
+      setForm(declarationForm);
+      initialFormSnapshotRef.current = JSON.stringify(declarationForm);
+      setDiscardDialogOpen(false);
       setShowAttach(false);
       setDialogOpen(true);
       return;
@@ -1029,7 +1057,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     setShowAttach(
       purchaseRows.some(row => (row.images?.length ?? 0) > 0)
     );
-    setForm({
+    const editForm: MovementForm = {
       dayId: firstPurchaseRow.purchaseDayId ?? firstPurchaseRow.dayId,
       flow: firstPurchaseRow.flow,
       status: firstPurchaseRow.status,
@@ -1070,7 +1098,10 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         recurringRule?.recurrenceDay ??
         (Number((firstPurchaseRow.purchaseDayId ?? firstPurchaseRow.dayId).slice(8, 10)) ||
           1),
-    });
+    };
+    setForm(editForm);
+    initialFormSnapshotRef.current = JSON.stringify(editForm);
+    setDiscardDialogOpen(false);
     setDialogOpen(true);
   }
 
@@ -1226,7 +1257,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
           fx.fxPending ? 'info' : 'success'
         );
       }
-      setDialogOpen(false);
+      finishCloseDialog();
       if (created?.id) {
         const removeIds = payload.replaceMovementId
           ? [payload.replaceMovementId]
@@ -1994,7 +2025,13 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         ) : null}
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={open => {
+          if (open) setDialogOpen(true);
+          else requestCloseDialog();
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? t('fin_edit') : t('fin_add')}</DialogTitle>
@@ -2523,6 +2560,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                   className="text-accent-red"
                   onClick={() => {
                     setDeleteTarget(editing);
+                    initialFormSnapshotRef.current = null;
                     setDialogOpen(false);
                   }}
                 >
@@ -2536,7 +2574,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => setDialogOpen(false)}
+                  onClick={requestCloseDialog}
                 >
                   {t('action_cancel')}
                 </Button>
@@ -2560,6 +2598,15 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         confirmLabel={t('action_delete')}
         loading={deleting}
         onConfirm={() => void confirmDelete()}
+      />
+      <ConfirmDialog
+        open={discardDialogOpen}
+        onOpenChange={open => setDiscardDialogOpen(open)}
+        title={t('confirm_discard_title')}
+        description={t('reflections_unsaved')}
+        confirmLabel={t('action_discard')}
+        variant="warning"
+        onConfirm={() => finishCloseDialog(true)}
       />
     </Layout>
   );
