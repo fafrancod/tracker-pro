@@ -1,6 +1,6 @@
 {
   "name": "daily-tracker",
-  "version": "2.42.6",
+  "version": "2.42.7",
   "private": true,
   "engines": {
     "node": ">=22"
