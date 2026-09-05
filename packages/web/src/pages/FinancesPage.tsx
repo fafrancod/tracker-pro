@@ -1180,10 +1180,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
         form.installmentTotal > 1
           ? form.installmentTotal
           : undefined,
-      replaceMovementId: editing?.id,
+      // Las ocurrencias futuras de una regla solo existen en el cliente
+      // (`fvr:*`). No se pueden reemplazar en la tabla: al guardarlas hay que
+      // materializar un movimiento real vinculado a su misma regla.
+      replaceMovementId: editing && !editing.virtual ? editing.id : undefined,
       ruleId:
         editing &&
-        !editing.virtual &&
         recurringRuleForSave &&
         !recurringRuleForSave.id.startsWith(INFERRED_RULE_PREFIX)
           ? recurringRuleForSave.id

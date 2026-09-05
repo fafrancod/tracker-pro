@@ -948,6 +948,27 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           active: true,
           updated_at: now,
         };
+        // Al editar una ocurrencia de una serie, sus próximos placeholders
+        // deben reflejar también título, monto, notas y adjuntos nuevos. Antes
+        // solo se actualizaba el calendario de la regla, dejando su payload
+        // anterior para las ocurrencias virtuales.
+        if (clientSealed && body.rulePayloadEnc) {
+          rulePatch.payload = {};
+          rulePatch.payload_enc = body.rulePayloadEnc;
+          rulePatch.enc_v = '1';
+        } else if (inner) {
+          rulePatch.payload = accountDek ? {} : inner;
+          rulePatch.payload_enc = accountDek
+            ? encryptAccountPayload(
+                uid,
+                accountDek,
+                'finance_rules',
+                reuseRuleId,
+                inner
+              )
+            : null;
+          rulePatch.enc_v = accountDek ? '2' : null;
+        }
         if (occ < oldStart) rulePatch.start_day_id = occ;
         const { error: ruleErr } = await getSupabaseAdmin()
           .from('finance_rules')

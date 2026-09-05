@@ -714,6 +714,45 @@ describe('POST /api/finances/movements', () => {
     expect(lastRuleInsert).toBeNull();
   });
 
+  it('actualiza el payload de la regla al editar una ocurrencia virtual', async () => {
+    ruleRows = [
+      {
+        id: 'rule-enel-001',
+        user_id: 'test-uid',
+        flow: 'expense',
+        currency: 'CLP',
+        frequency: 'monthly',
+        recurrence_day: 5,
+        start_day_id: '2026-01-05',
+        payload: { title: 'Paga Enel', amount: 40000, notes: '' },
+        active: true,
+      },
+    ];
+
+    const res = await request(app)
+      .post('/api/finances/movements')
+      .set('Authorization', 'Bearer valid-token')
+      .send({
+        dayId: '2026-09-05',
+        flow: 'expense',
+        status: 'confirmed',
+        title: 'Paga Enel',
+        amount: 58329,
+        notes: 'Cuenta septiembre',
+        currency: 'CLP',
+        images: ['data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRhLTEyMzQ1Njc4OTA='],
+        ruleId: 'rule-enel-001',
+        recurrence: { frequency: 'monthly', recurrenceDay: 5 },
+      });
+
+    expect(res.status).toBe(201);
+    expect(lastMovementInsert?.rule_id).toBe('rule-enel-001');
+    expect(lastRuleInsert).toBeNull();
+    expect(lastRuleUpdate?.payload).toEqual({});
+    expect(lastRuleUpdate?.payload_enc).toEqual(expect.any(String));
+    expect(lastRuleUpdate?.enc_v).toBe('2');
+  });
+
   it('rechaza una fecha inexistente aunque tenga formato YYYY-MM-DD', async () => {
     const res = await request(app)
       .post('/api/finances/movements')
