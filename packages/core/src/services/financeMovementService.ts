@@ -158,6 +158,7 @@ function mapMovement(raw: Record<string, unknown>): FinanceMovement {
     images: payload.images ?? [],
     categorySplits: payload.categorySplits ?? [],
     ruleId: (raw.ruleId as string | null) ?? (raw.rule_id as string | null) ?? null,
+    declaredFromRuleId: payload.declaredFromRuleId ?? null,
     sourceTaskId:
       (raw.sourceTaskId as string | null) ??
       (raw.source_task_id as string | null) ??
@@ -333,6 +334,7 @@ export async function createFinanceMovement(
       images: payload.images ?? [],
       categorySplits: payload.categorySplits ?? [],
       ruleId,
+      declaredFromRuleId: payload.declaredFromRuleId ?? null,
       sourceTaskId: payload.sourceTaskId ?? null,
       createdAt: now,
       updatedAt: now,
@@ -352,6 +354,7 @@ export async function createFinanceMovement(
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
       purchaseDayId: payload.purchaseDayId ?? payload.dayId,
+      declaredFromRuleId: payload.declaredFromRuleId ?? null,
       tag: payload.tag ?? null,
       originalAmount: payload.originalAmount ?? payload.amount ?? 0,
       originalCurrency: payload.originalCurrency ?? payload.currency ?? null,
@@ -430,6 +433,7 @@ export async function createFinanceMovement(
       amount: payload.amount ?? 0,
       notes: payload.notes ?? '',
       certainty: payload.certainty ?? 'fixed',
+      declaredFromRuleId: payload.declaredFromRuleId ?? null,
       sealed: false,
     };
   }
@@ -469,7 +473,12 @@ export async function updateFinanceMovement(
     return next;
   }
   let body: UpdateFinanceMovementPayload = payload;
-  if (vault && (payload.title !== undefined || payload.amount !== undefined)) {
+  if (
+    vault &&
+    (payload.title !== undefined ||
+      payload.amount !== undefined ||
+      payload.declaredFromRuleId !== undefined)
+  ) {
     const payloadEnc = await encryptFinancePayload(
       vault.dek,
       buildFinancePayload({
@@ -478,6 +487,7 @@ export async function updateFinanceMovement(
         notes: payload.notes ?? '',
         certainty: payload.certainty ?? 'fixed',
         purchaseDayId: payload.purchaseDayId,
+        declaredFromRuleId: payload.declaredFromRuleId,
         tag: payload.tag ?? null,
         originalAmount: payload.originalAmount,
         originalCurrency: payload.originalCurrency,

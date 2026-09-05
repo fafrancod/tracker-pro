@@ -89,6 +89,8 @@ export interface FinanceMovementPayload {
   certainty: FinanceCertainty;
   /** Fecha de compra original cuando la fila corresponde a una cuota posterior. */
   purchaseDayId?: string | null;
+  /** Rule from which this independent occurrence was declared. */
+  declaredFromRuleId?: string | null;
   tag?: FinanceMovementTag | null;
   originalAmount?: number | null;
   originalCurrency?: string | null;
@@ -214,6 +216,8 @@ export interface FinanceMovement {
   images?: string[];
   categorySplits?: FinanceCategorySplit[];
   ruleId: string | null;
+  /** Rule from which this independent occurrence was declared. */
+  declaredFromRuleId?: string | null;
   sourceTaskId: string | null;
   virtual?: boolean;
   /** Presente si el mayor está en bóveda: el cliente debe descifrar. */
@@ -265,6 +269,8 @@ export interface CreateFinanceMovementPayload {
   replaceMovementId?: string;
   /** Conserva la regla original al declarar una sola ocurrencia con datos reales. */
   detachFromRule?: boolean;
+  /** Links the independent declaration with its rule occurrence. */
+  declaredFromRuleId?: string | null;
   payloadEnc?: string;
   ruleId?: string;
   rulePayloadEnc?: string;
@@ -306,6 +312,8 @@ export interface CreateFinanceMovementPayload {
 export interface UpdateFinanceMovementPayload {
   dayId?: string;
   purchaseDayId?: string | null;
+  /** Links the independent declaration with its rule occurrence. */
+  declaredFromRuleId?: string | null;
   flow?: FinanceMovementFlow;
   status?: FinanceMovementStatus;
   currency?: string;

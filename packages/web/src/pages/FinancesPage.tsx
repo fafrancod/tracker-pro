@@ -1164,6 +1164,12 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
     const detachFromRule = Boolean(
       editing && recurringRuleForSave && form.repeat === 'none'
     );
+    const declaredFromRuleId =
+      detachFromRule &&
+      recurringRuleForSave &&
+      !recurringRuleForSave.id.startsWith(INFERRED_RULE_PREFIX)
+        ? recurringRuleForSave.id
+        : undefined;
     const fx = await resolveFinanceFx({
       amount: form.amount,
       currency: form.currency,
@@ -1227,6 +1233,7 @@ function FinancesCalendar({ vault }: { vault: FinanceVaultCtx | null }) {
       // independiente; una fila física sí se reemplaza de forma atómica.
       replaceMovementId: editing && !editing.virtual ? editing.id : undefined,
       detachFromRule,
+      declaredFromRuleId,
       ruleId:
         editing &&
         form.repeat !== 'none' &&

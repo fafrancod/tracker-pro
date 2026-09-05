@@ -112,11 +112,14 @@ export function movementCoversFinanceRule(
 ): boolean {
   if (mov.status === 'skipped') return false;
   if (mov.flow !== rule.flow) return false;
+  const declaredForRule = mov.declaredFromRuleId === rule.id;
   const sameIdentity =
+    declaredForRule ||
     (mov.ruleId && mov.ruleId === rule.id) ||
     financeTitlesMatch(mov.title, rule.title);
   if (!sameIdentity) return false;
-  if (!amountsCompatible(mov.amount, rule.amount)) return false;
+  // An explicit declaration still covers the occurrence when its real amount differs.
+  if (!declaredForRule && !amountsCompatible(mov.amount, rule.amount)) return false;
   if (!occurrenceDayId) return true;
   if (rule.frequency === 'monthly') {
     return monthIdFromDayId(mov.dayId) === monthIdFromDayId(occurrenceDayId);
@@ -263,10 +266,26 @@ export function dedupeFinanceCalendarMovements(
   const out: FinanceMovement[] = [];
   const byDay = new Map<string, number>();
   const byMonthSeries = new Map<string, number>();
+  const byRuleOccurrence = new Map<string, number>();
   for (const mov of movements) {
     if (mov.status === 'skipped') {
       out.push(mov);
       continue;
+    }
+    const occurrenceRuleId = mov.declaredFromRuleId ?? mov.ruleId;
+    const occurrenceRule = occurrenceRuleId
+      ? rules.find(rule => rule.id === occurrenceRuleId)
+      : undefined;
+    if (occurrenceRule) {
+      const occurrenceKey = ruleOccurrenceKey(occurrenceRule, mov.dayId);
+      const occurrenceIdx = byRuleOccurrence.get(occurrenceKey);
+      if (occurrenceIdx !== undefined) {
+        const kept = preferFinanceMovement(out[occurrenceIdx]!, mov);
+        out[occurrenceIdx] = kept;
+        byDay.set(dayFingerprint(kept), occurrenceIdx);
+        continue;
+      }
+      byRuleOccurrence.set(occurrenceKey, out.length);
     }
     const dayKey = dayFingerprint(mov);
     const dayIdx = byDay.get(dayKey);

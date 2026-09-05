@@ -267,6 +267,46 @@ describe('finance rule expansion', () => {
     expect(extra.length).toBe(0);
   });
 
+  it('suprime el recordatorio del mes para una declaración con monto real distinto', () => {
+    const extra = expandFinanceRules(
+      [{ ...rule, id: 'rule-enel-001', title: 'Paga Enel', amount: 40000 }],
+      [
+        {
+          id: 'm-enel-real',
+          dayId: '2026-09-05',
+          flow: 'expense',
+          status: 'confirmed',
+          currency: 'CLP',
+          title: 'Paga Enel',
+          amount: 58329,
+          notes: 'Pago real con evidencias',
+          certainty: 'fixed',
+          accountId: null,
+          cardAccountId: null,
+          goalId: null,
+          creditId: null,
+          installmentGroupId: null,
+          installmentIndex: null,
+          installmentTotal: null,
+          tag: null,
+          originalAmount: 58329,
+          originalCurrency: 'CLP',
+          exchangeRate: 1,
+          fxPending: false,
+          reportingCurrency: 'CLP',
+          ruleId: null,
+          declaredFromRuleId: 'rule-enel-001',
+          sourceTaskId: null,
+          createdAt: rule.createdAt,
+          updatedAt: rule.updatedAt,
+        },
+      ],
+      '2026-09-01',
+      '2026-09-30'
+    );
+    expect(extra).toHaveLength(0);
+  });
+
   it('no duplica Arriendo si la fila física no trae ruleId', () => {
     const extra = expandFinanceRules(
       [{ ...rule, title: 'Arriendo depto' }],
@@ -369,7 +409,7 @@ describe('finance rule expansion', () => {
       status: 'confirmed',
       currency: 'CLP',
       title: 'Arriendo dpto',
-      amount: 500000,
+      amount: 58329,
       notes: '',
       certainty: 'fixed',
       accountId: null,
@@ -380,12 +420,13 @@ describe('finance rule expansion', () => {
       installmentIndex: null,
       installmentTotal: null,
       tag: null,
-      originalAmount: 500000,
+      originalAmount: 58329,
       originalCurrency: 'CLP',
       exchangeRate: 1,
       fxPending: false,
       reportingCurrency: 'CLP',
       ruleId: null,
+      declaredFromRuleId: 'rule-1',
       sourceTaskId: null,
       virtual: false,
       createdAt: rule.createdAt,
@@ -738,6 +779,7 @@ describe('POST /api/finances/movements', () => {
       .send({
         replaceMovementId: 'movement-enel-001',
         detachFromRule: true,
+        declaredFromRuleId: 'rule-enel-001',
         dayId: '2026-09-05',
         flow: 'expense',
         status: 'confirmed',
@@ -751,6 +793,7 @@ describe('POST /api/finances/movements', () => {
     expect(lastMovementInsert?.rule_id).toBeNull();
     expect(lastMovementInsert?.payload_enc).toEqual(expect.any(String));
     expect(res.body.amount).toBe(58329);
+    expect(res.body.declaredFromRuleId).toBe('rule-enel-001');
     expect(res.body.images).toEqual([evidence]);
     expect(lastRuleInsert).toBeNull();
     expect(lastRuleUpdate).toBeNull();

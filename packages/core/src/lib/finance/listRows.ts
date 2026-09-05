@@ -190,10 +190,11 @@ function rowSortTitle(row: FinanceListRow): string {
 
 export function matchFinanceRuleForMovement(
   rules: FinanceRule[],
-  mov: Pick<FinanceMovement, 'flow' | 'title' | 'amount' | 'ruleId'>
+  mov: Pick<FinanceMovement, 'flow' | 'title' | 'amount' | 'ruleId' | 'declaredFromRuleId'>
 ): FinanceRule | undefined {
-  if (mov.ruleId) {
-    const byId = rules.find(rule => rule.id === mov.ruleId);
+  const ruleReference = mov.declaredFromRuleId ?? mov.ruleId;
+  if (ruleReference) {
+    const byId = rules.find(rule => rule.id === ruleReference);
     if (byId) return byId;
   }
   const title = normTitle(mov.title);

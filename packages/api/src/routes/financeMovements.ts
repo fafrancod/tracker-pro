@@ -93,6 +93,7 @@ const createSchema = z
     id: z.string().min(8).max(80).optional(),
     replaceMovementId: z.string().min(8).max(80).optional(),
     detachFromRule: z.boolean().optional(),
+    declaredFromRuleId: z.string().min(8).max(80).nullable().optional(),
     dayId: dayIdSchema,
     flow: flowSchema,
     status: statusSchema.optional(),
@@ -195,6 +196,7 @@ const updateSchema = z
     certainty: certaintySchema.optional(),
     updatedAt: z.string().min(1).max(40).optional(),
     payloadEnc: z.string().min(16).max(4_500_000).optional(),
+    declaredFromRuleId: z.string().min(8).max(80).nullable().optional(),
     sourceTaskId: z.string().min(1).max(80).nullable().optional(),
     accountId: z.string().min(1).max(80).nullable().optional(),
     cardAccountId: z.string().min(1).max(80).nullable().optional(),
@@ -419,6 +421,7 @@ function mapMovement(
     images: payload.images ?? [],
     categorySplits: payload.categorySplits ?? [],
     ruleId: (row.rule_id as string | null) ?? null,
+    declaredFromRuleId: payload.declaredFromRuleId ?? null,
     sourceTaskId: (row.source_task_id as string | null) ?? null,
     payloadEnc: clientSealed ? (row.payload_enc as string) : null,
     sealed: clientSealed,
@@ -880,6 +883,7 @@ financeMovementsRouter.post('/movements', async (req, res, next) => {
           notes: body.notes,
           certainty: body.certainty,
           purchaseDayId: body.dayId,
+          declaredFromRuleId: body.declaredFromRuleId,
           tag: body.tag,
           originalAmount: body.originalAmount,
           originalCurrency: body.originalCurrency,
@@ -1189,6 +1193,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
         patch.notes !== undefined ||
         patch.certainty !== undefined ||
         patch.purchaseDayId !== undefined ||
+        patch.declaredFromRuleId !== undefined ||
         patch.investmentStatus !== undefined ||
         patch.ticker !== undefined ||
         patch.investmentSide !== undefined ||
@@ -1207,6 +1212,7 @@ financeMovementsRouter.patch('/movements/:movementId', async (req, res, next) =>
             notes: patch.notes,
             certainty: patch.certainty,
             purchaseDayId: patch.purchaseDayId,
+            declaredFromRuleId: patch.declaredFromRuleId,
             tag: patch.tag,
             originalAmount: patch.originalAmount,
             originalCurrency: patch.originalCurrency,
